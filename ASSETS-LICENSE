@@ -22,8 +22,9 @@ O que NÃO está coberto
 - Código (GDScript, scripts, HTML/CSS/JS): licença MIT, ver `LICENSE`.
 - Fontes: cada fonte mantém a própria licença (OFL), registrada em
   `game/assets/CREDITS.md`.
-- Assets de terceiros: mantêm a licença do autor original (somente CC0 ou
-  CC BY são aceitos no projeto), registrada por arquivo em
-  `game/assets/CREDITS.md`.
+- Assets de terceiros: não estão sob esta licença; mantêm a licença do autor
+  original (somente CC0 ou CC BY são aceitos no projeto), registrada por
+  arquivo em `game/assets/CREDITS.md`. Ficam em `game/assets/third_party/`,
+  cada pacote com o próprio texto de licença (ex.: `LICENSE.txt` do pacote).
 
 Registro por arquivo: `game/assets/CREDITS.md`.

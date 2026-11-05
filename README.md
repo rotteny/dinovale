@@ -20,6 +20,12 @@ O jogo se apoia em três pilares:
 
 Toda criatura tem uma barra de **torpor**, separada da vida. Quando o torpor chega ao máximo, ela desmaia. A partir daí começa uma corrida contra o tempo: você oferece a comida ideal e, a cada refeição, o progresso de domesticação aumenta. Se ela acordar antes do fim, o progresso se perde. Se a barra encher, a criatura passa a ser sua companheira.
 
+### Inspirações
+
+Dino Vale é inspirado em jogos que admiramos: *ARK: Survival Evolved*, pela domesticação de criaturas e pela sobrevivência; *Stardew Valley*, pelo ritmo de cuidar de um lugar seu; e *Terraria*, pela exploração e pela construção em 2D.
+
+Dino Vale é um projeto independente, sem vínculo com esses jogos ou com seus criadores. Todos os nomes pertencem aos seus respectivos donos.
+
 ## Para que este jogo existe
 
 Dino Vale nasce de três objetivos:

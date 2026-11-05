@@ -13,7 +13,7 @@ Sandbox survival 2D top-down em pixel art, com exploração, construção e dome
 | Interagir (abrir a criatura inconsciente) | E |
 | Golpe com a arma equipada (dano + torpor) na criatura ao alcance | F ou Espaço |
 | Inventário próprio | I ou Tab |
-| Usar o atalho da barra (comer; baga em dino dormindo ao alcance vai para ele) | 1 a 9 |
+| Usar o atalho da barra (comer; sempre o jogador consome) | 1 a 9 |
 | Na tela de inventário: atribuir o item sob o cursor ao atalho | 1 a 9, ou botão direito (primeira posição livre; de novo, tira) |
 | Na tela de inventário | clique, ou setas + Enter/Espaço, transfere o slot inteiro; Esc, I ou E fecham |
 
@@ -116,7 +116,7 @@ game/
 
 **`StaminaComponent`** é o fôlego. Gasta enquanto o corpo diz que está correndo e regenera parado. Ao zerar, entra em exaustão e só volta a correr ao recuperar `resume_threshold`. Sinais: `stamina_changed`, `exhausted` e `recovered`. Abaixo de 25% do máximo (`winded_ratio`, dados) está ofegante (`is_winded`, `winded_intensity`): o `PlayerView` toca sopros cada vez mais rápidos e agudos e, ao zerar, um fôlego longo e uma nuvem de suor (GDD 5.7). Parar de correr por ~1,3 s vem do limiar de retomada (20 a 15/s). Golpes e coleta ainda NÃO gastam stamina (aguarda a SHIRO).
 
-**`HotbarComponent`** guarda 9 IDs de tipo de item (não slots do inventário). O atalho mostra a soma das pilhas e, sem estoque, fica apagado mas atribuído. O mesmo item ocupa uma posição só (atribuir de novo move). `Player.request_use_item(slot)` é a intenção de usar a tecla (a leitura da tecla é do corpo, ações `hotbar_1` a `hotbar_9`): comida recupera a fome (`data/balance/player_rules.tres`, classe `PlayerRules`: baga 25 do GDD; carne 40 e samambaia 15 são placeholders), não gasta com a fome cheia, e tem recarga de 0,5 s. Com uma criatura selvagem dormindo ao alcance que aceita aquele item e tem espaço, a unidade vai para o inventário dela (o mesmo caminho da tela de inventário); se ela não aceita ou está cheia, o jogador come. Os números do jogador (queda de fome 0,1/s, recarga de comida, limiar de ofego 25%, saciedade) ficam nesse `.tres`. Não há item de arma: o `weapon` do `Player` é fixo, então equipar/desequipar não existe ainda.
+**`HotbarComponent`** guarda 9 IDs de tipo de item (não slots do inventário). O atalho mostra a soma das pilhas e, sem estoque, fica apagado mas atribuído. O mesmo item ocupa uma posição só (atribuir de novo move). `Player.request_use_item(slot)` é a intenção de usar a tecla (a leitura da tecla é do corpo, ações `hotbar_1` a `hotbar_9`): comida recupera a fome (`data/balance/player_rules.tres`, classe `PlayerRules`: baga 25 do GDD; carne 40 e samambaia 15 são placeholders), não gasta com a fome cheia, e tem recarga de 0,5 s. O jogador SEMPRE consome o item (decisão do dono), mesmo com uma criatura dormindo ao alcance; a criatura recebe comida só pela tela do inventário dela. Os números do jogador (queda de fome 0,1/s, recarga de comida, limiar de ofego 25%, saciedade) ficam nesse `.tres`. Não há item de arma: o `weapon` do `Player` é fixo, então equipar/desequipar não existe ainda.
 
 **`HungerComponent`** guarda a saciedade (cheia = 100), que cai com o tempo. Em zero emite `starved(damage)` a cada `starvation_interval`; o `Player` liga esse sinal ao `HealthComponent.take_damage`. `eat(amount)` interrompe o dano.
 

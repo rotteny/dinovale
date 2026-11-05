@@ -12,7 +12,7 @@ func run() -> void:
 	_test_player_save_carries_hotbar()
 	_test_player_rules_data()
 	_test_use_item_eating()
-	_test_use_item_feeds_sleeping_dino()
+	_test_use_item_with_sleeping_dino_in_reach()
 	_test_hotbar_keys_and_input_map()
 	_test_hud_layout_and_xp_hook()
 	_test_inventory_assigns_hotbar()
@@ -99,6 +99,15 @@ func _test_player_rules_data() -> void:
 	_check(player.rules == rules and is_equal_approx(rules.hunger_decay_per_second, 0.1) and rules.food_cooldown == 0.5
 			and rules.winded_ratio == 0.25, "dados: queda de fome 0,1/s, recarga 0,5 s, ofego 25%")
 	_check(player.hunger.decay_per_second == 0.1, "o jogador aplica a queda de fome dos dados")
+	var custom: Player = PlayerScene.instantiate()
+	custom.rules = rules.duplicate()
+	custom.rules.winded_ratio = 0.5
+	custom.rules.hunger_decay_per_second = 0.2
+	_root.add_child(custom)
+	_track.call(custom)
+	custom.set_physics_process(false)
+	_check(custom.stamina.rules == custom.rules and custom.hunger.decay_per_second == 0.2,
+			"regras trocadas na cena chegam à stamina e à fome")
 	_check(Items.hunger_restore_of(Items.BERRY) == 25.0 and Items.hunger_restore_of("inexistente") == 0.0, "saciedade vem dos dados")
 	var stamina: StaminaComponent = _track.call(StaminaComponent.new())
 	stamina.rules = rules.duplicate()
@@ -141,54 +150,30 @@ func _test_use_item_eating() -> void:
 	_check(not player.request_use_item(0), "jogador morto: não usa")
 
 
-func _test_use_item_feeds_sleeping_dino() -> void:
+## Decisão do dono: a tecla sempre faz o jogador consumir, mesmo com dino dormindo no alvo.
+func _test_use_item_with_sleeping_dino_in_reach() -> void:
 	var player := _player()
 	player.hunger.current_hunger = 10.0
 	var dino := _sleeping_dino_at(10)
 	_aim(player, dino)
-	_check(dino.interactable.can_interact(), "dino dormindo está disponível")
-	_check(player.request_use_item(0), "baga com dino dormindo ao alcance")
-	_check(dino.inventory.count(Items.BERRY) == 1 and player.inventory.count(Items.BERRY) == 9
-			and is_equal_approx(player.hunger.current_hunger, 10.0), "a baga vai para o dino (caminho do inventário), o jogador não come")
-	_check(not player.request_use_item(0), "recarga também depois de alimentar o dino")
+	_check(player.target == dino.interactable and dino.interactable.can_interact(), "preparo: dino dormindo é o alvo")
+	_check(player.request_use_item(0), "a tecla com dino dormindo no alvo come")
+	_check(is_equal_approx(player.hunger.current_hunger, 35.0) and player.inventory.count(Items.BERRY) == 9
+			and dino.inventory.count(Items.BERRY) == 0, "o jogador come a baga; nada vai para o dino")
 	player.tick(0.5)
 	_check(player.target == dino.interactable, "o alvo continua depois do tick")
-	_check(player.request_use_item(2) and is_equal_approx(player.hunger.current_hunger, 25.0) and dino.inventory.count(Items.FERN) == 0,
-			"comida que o dino não aceita: o jogador come")
-	_test_feeding_edge_cases()
-	dino.inventory.add(Items.FERN, 0)
+	player.hunger.current_hunger = player.hunger.max_hunger
+	_check(not player.request_use_item(0) and player.inventory.count(Items.BERRY) == 9 and dino.inventory.count(Items.BERRY) == 0,
+			"fome cheia com dino no alvo: não gasta e não entrega")
+	player.hunger.current_hunger = 20.0
+	player.tick(0.5)
 	var awake := _spawn_dino()
 	awake.set_physics_process(false)
-	player.tick(0.5)
 	_aim(player, awake)
-	_check(player.request_use_item(0) and awake.inventory.count(Items.BERRY) == 0 and is_equal_approx(player.hunger.current_hunger, 50.0),
-			"dino acordado: não é alvo, o jogador come")
-
-
-func _test_feeding_edge_cases() -> void:
-	# Fome cheia não impede de alimentar o dino.
-	var player := _player()
-	var dino := _sleeping_dino_at(10)
-	_aim(player, dino)
-	_check(is_equal_approx(player.hunger.current_hunger, player.hunger.max_hunger), "preparo: fome cheia")
-	_check(player.request_use_item(0) and dino.inventory.count(Items.BERRY) == 1, "fome cheia: ainda alimenta o dino")
-	# Dino sem espaço: o jogador come em vez de a tecla não fazer nada.
-	var full := _sleeping_dino_at(10)
-	var guard := 0
-	while full.inventory.room_for(Items.BERRY) > 0 and guard < 200:
-		full.inventory.add(Items.MEAT, 1)
-		guard += 1
-	var berries_in_dino := full.inventory.count(Items.BERRY)
-	var hungry := _player()
-	hungry.hunger.current_hunger = 30.0
-	_aim(hungry, full)
-	_check(hungry.request_use_item(0) and full.inventory.count(Items.BERRY) == berries_in_dino
-			and is_equal_approx(hungry.hunger.current_hunger, 55.0) and hungry.inventory.count(Items.BERRY) == 9,
-			"dino sem espaço: o jogador come a baga")
-	hungry.tick(0.5)
-	hungry.hunger.current_hunger = hungry.hunger.max_hunger
-	_check(not hungry.request_use_item(0) and hungry.inventory.count(Items.BERRY) == 9,
-			"dino sem espaço e fome cheia: nada é gasto")
+	_check(player.request_use_item(0) and awake.inventory.count(Items.BERRY) == 0, "dino acordado no alvo: também come")
+	# Item que não é comida (sem saciedade) não faz nada.
+	player.tick(0.5)
+	_check(Items.hunger_restore_of("inexistente") == 0.0 and not player.request_use_item(8), "posição vazia: nada")
 
 
 func _test_hotbar_keys_and_input_map() -> void:

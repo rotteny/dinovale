@@ -12,7 +12,8 @@ signal starved(damage: float)
 	set(value):
 		max_hunger = maxf(value, 1.0)
 		current_hunger = minf(current_hunger, max_hunger)
-## Queda de saciedade por segundo (padrão: ~3,3 minutos de cheio até zero).
+## Queda de saciedade por segundo. Padrão do componente isolado; o `Player` aplica o valor
+## de `player_rules.tres` no `_ready`.
 @export var decay_per_second: float = 0.5
 ## Dano e intervalo, em segundos, enquanto a saciedade está zerada.
 @export var starvation_damage: float = 5.0

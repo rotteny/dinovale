@@ -51,6 +51,7 @@ var _use_timer: float = 0.0
 
 func _ready() -> void:
 	hunger.decay_per_second = rules.hunger_decay_per_second
+	stamina.rules = rules
 	hunger.starved.connect(health.take_damage)
 	detector.area_entered.connect(_on_area_entered)
 	detector.area_exited.connect(_on_area_exited)
@@ -143,26 +144,17 @@ func attack() -> bool:
 
 
 ## Intenção "usar o atalho `slot`" (0 a 8): quem lê a tecla só pede, e as regras decidem
-## aqui. Com uma criatura selvagem dormindo ao alcance que aceita aquele item e tem espaço,
-## ele vai para o inventário dela (o mesmo caminho da tela de inventário). Senão, se é comida,
-## o jogador come 1 e recupera fome, sem gastar se a fome está cheia. Sem estoque, sem efeito.
+## aqui. Comida: o jogador SEMPRE a consome (come 1 e recupera fome), mesmo com uma criatura
+## dormindo ao alcance (decisão do dono); não gasta se a fome está cheia. A criatura recebe
+## comida só pela tela do inventário dela. Sem estoque, sem efeito.
 ## Arma/ferramenta: não há equipamento trocável no modelo atual (`weapon` é fixo).
-## Retorna true se algo foi consumido ou entregue. Vira `request_use_item(actor_id, slot)`
-## no NET-01 (ADR-001).
+## Retorna true se algo foi consumido. Vira `request_use_item(actor_id, slot)` no NET-01 (ADR-001).
 func request_use_item(slot: int) -> bool:
 	if input_locked or health.is_dead() or _use_timer > 0.0:
 		return false
 	var item_id := hotbar.item_at(slot)
-	if item_id == "" or inventory.count(item_id) <= 0:
-		return false
-	var dino := target.entity as Dino if target != null and is_instance_valid(target) else null
-	if dino != null and target.can_interact() and dino.taming.ideal_food == item_id \
-			and inventory.transfer(dino.inventory, item_id, 1) >= 1:
-		_use_timer = rules.food_cooldown
-		return true
-	# Sem criatura que aceite o item (ou ela não tem espaço): o jogador come.
 	var restore := Items.hunger_restore_of(item_id)
-	if restore <= 0.0 or hunger.current_hunger >= hunger.max_hunger or inventory.remove(item_id, 1) < 1:
+	if item_id == "" or restore <= 0.0 or hunger.current_hunger >= hunger.max_hunger or inventory.remove(item_id, 1) < 1:
 		return false
 	hunger.eat(restore)
 	ate.emit(item_id)

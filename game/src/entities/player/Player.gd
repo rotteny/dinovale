@@ -241,7 +241,10 @@ func to_dict() -> Dictionary:
 ## sem aplicar (versões do inventário e da barra, e se o inventário cabe em `inventory`, via
 ## `can_load`); só depois toca em qualquer campo. Recusa também a migração de formato antigo
 ## (versão 1 ou ausente) cujo inventário está cheio demais para receber o equipamento inicial:
-## abrir espaço descartaria itens do jogador, então o save fica de fora até haver espaço.
+## abrir espaço descartaria itens do jogador. A recusa é PERMANENTE para aquele arquivo (o save
+## antigo não muda sozinho): só uma migração fora do jogo (ferramenta ou SAV-01) que libere
+## espaço, ou o dono do arquivo, resolve. `slots` presente e que não é Array (corrompido) também
+## recusa, tanto no inventário quanto na barra.
 ## Save parcial é consistente: sem `inventory` mantém inventário e barra; com `inventory` e sem
 ## `hotbar`, a barra é esvaziada (os `iid` antigos não valem); sem `equipped` as mãos não mudam.
 ## Save de formato antigo ganha o equipamento inicial que não tinha, e seu atalho.
@@ -251,7 +254,9 @@ func from_dict(data: Dictionary) -> bool:
 	if SafeRead.format_version(saved_inventory, InventoryComponent.FORMAT_VERSION) == 0 \
 			or SafeRead.format_version(saved_hotbar, HotbarComponent.FORMAT_VERSION) == 0:
 		return false
-	var replaces_inventory := typeof(saved_inventory.get("slots")) == TYPE_ARRAY
+	var replaces_inventory := saved_inventory.has("slots")
+	if saved_hotbar.has("slots") and typeof(saved_hotbar["slots"]) != TYPE_ARRAY:
+		return false
 	var legacy := replaces_inventory and SafeRead.format_version(saved_inventory, InventoryComponent.FORMAT_VERSION) == 1
 	if replaces_inventory and not _inventory_accepts(saved_inventory, legacy):
 		return false

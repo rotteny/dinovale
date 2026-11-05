@@ -89,7 +89,7 @@ func is_equipped(index: int) -> bool:
 
 ## Cor de fundo do destaque da célula, ou transparente se não está em mãos (para testes).
 func highlight_color(index: int) -> Color:
-	if not is_equipped(index):
+	if index < 0 or index >= _slots.size() or not _slots[index].has_theme_stylebox_override("normal"):
 		return Color(0, 0, 0, 0)
 	return (_slots[index].get_theme_stylebox("normal") as StyleBoxFlat).bg_color
 

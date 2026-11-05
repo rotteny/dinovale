@@ -22,6 +22,7 @@ func run() -> void:
 	_test_save_versions_and_partial()
 	_test_two_phase_load()
 	_test_survivors()
+	_test_final_findings()
 	_test_legacy_starting_equipment()
 	_test_hands_and_cooldowns()
 	_test_add_entry_and_slot_transfer()
@@ -615,3 +616,90 @@ func _test_survivors() -> void:
 	_check(not rollback.from_dict({"version": 2, "next_iid": 777, "slots": [
 		{"id": STAFF}, {"id": STAFF}]}) and rollback.to_dict() == before and before["next_iid"] != 777,
 			"carga recusada não muda next_iid nem os slots")
+
+
+func _orphans() -> int:
+	return int(Performance.get_monitor(Performance.OBJECT_ORPHAN_NODE_COUNT))
+
+
+## Custo do save hostil, `slots` corrompido, destaque no stylebox real, preview e vazamento.
+func _test_final_findings() -> void:
+	# 1. Custo: contagem absurda não vira milhares de entradas; ainda é recusada.
+	var tiny := _inventory(4)
+	tiny.max_stack = 1
+	var berries := tiny._sanitize({"id": "berry", "count": 9999})
+	var staffs := tiny._sanitize({"id": STAFF, "count": 9999})
+	_check(berries.size() <= tiny.slot_count() + 1 and staffs.size() <= tiny.slot_count() + 1,
+			"custo limitado: 9999 baga (teto 1) e 9999 Bastões viram no máximo slots+1 entradas")
+	_check(not tiny.from_dict({"slots": [{"id": "berry", "count": 9999}]})
+			and not tiny.from_dict({"slots": [{"id": STAFF, "count": 9999}]}) and tiny.is_empty(), "e a carga segue recusada (não cabe)")
+	var started := Time.get_ticks_usec()
+	var hostile: Array = []
+	for i in InventoryComponent.MAX_SAVED_SLOTS:
+		hostile.append({"id": "berry", "count": 9999999})
+	tiny.from_dict({"slots": hostile})
+	_check(Time.get_ticks_usec() - started < 2000000, "save hostil no teto de posições, todas com contagem enorme: rápido")
+	# 2. `slots` corrompido recusa (inventário, barra e criatura); nada muda.
+	var player := _player()
+	var base := player.to_dict()
+	for bad: Variant in ["lixo", null, 5, {}, true]:
+		_check(not player.from_dict({"inventory": {"slots": bad}, "position": {"x": 50.0, "y": 50.0}}) and player.to_dict() == base,
+				"Player: inventory.slots corrompido (%s) recusa" % str(bad))
+		_check(not player.from_dict({"hotbar": {"slots": bad}, "position": {"x": 50.0, "y": 50.0}}) and player.to_dict() == base,
+				"Player: hotbar.slots corrompido (%s) recusa" % str(bad))
+	var dino := _spawn_dino()
+	dino.set_physics_process(false)
+	var dino_base := dino.to_dict()
+	_check(not dino.from_dict({"inventory": {"slots": "lixo"}, "level": 3}) and dino.to_dict() == dino_base, "Dino: slots corrompido recusa")
+	# 4a. Destaque: o stylebox de verdade, nos quatro estados.
+	var hud := PlayerHud.new()
+	hud.player = player
+	_root.add_child(hud)
+	_track.call(hud)
+	var bar := hud.hotbar_bar()
+	player.request_use_item(3)
+	for state in ["normal", "hover", "pressed", "hover_pressed"]:
+		var box := bar.slot_button(3).get_theme_stylebox(state) as StyleBoxFlat
+		_check(box != null and box.bg_color == HotbarBar.EQUIPPED_FILL and box.border_color == HotbarBar.EQUIPPED_BORDER
+				and box.border_width_left == HotbarBar.EQUIPPED_BORDER_WIDTH and box.border_width_bottom == HotbarBar.EQUIPPED_BORDER_WIDTH,
+				"estilo '%s' do equipado: fundo e borda amarelos" % state)
+	_check(not bar.slot_button(0).has_theme_stylebox_override("normal"),
+			"célula sem item em mãos não tem o estilo de destaque")
+	# 4b. Atalho em mãos trocado por comida: solta as mãos e o destaque some.
+	player.hotbar.assign(3, Items.BERRY)
+	_check(player.equipped_iid == "" and not bar.slot_button(3).has_theme_stylebox_override("normal") and not bar.is_equipped(3)
+			and bar.highlight_color(3).a == 0.0 and bar.count_text(3) != "", "atalho do equipado trocado por comida: sem destaque, mãos livres")
+	# 4c. preview: capacidade, teto, prefixo, regra; vazio; não toca no original.
+	var original := _inventory(5, "z")
+	original.max_stack = 7
+	original.accepts_individual = false
+	original.add(Items.BERRY, 3)
+	var copy := original.preview()
+	_check(copy.slot_count() == 5 and copy.max_stack == 7 and copy.iid_prefix == "z" and not copy.accepts_individual and copy.is_empty()
+			and original.count(Items.BERRY) == 3, "preview: mesma capacidade, teto, prefixo e regra; vazio; original intacto")
+	copy.free()
+	# 4d. v1 cheio que JÁ tem o Bastão: carrega (nada a conceder) e o põe na barra.
+	var full := _player()
+	var items: Array = []
+	for i in full.inventory.slot_count() - 1:
+		items.append({"id": "berry", "count": 1})
+	items.append({"id": STAFF, "count": 1})
+	_check(full.from_dict({"inventory": {"slots": items}}) and full.inventory.count(STAFF) == 1
+			and full.hotbar.iid_at(0) != "", "v1 cheio que já tem Bastão: carrega, sem conceder outro")
+	# 4e. Vazamento: scratch é sempre liberado (aceito, recusado, v1 cheio).
+	var before := _orphans()
+	for i in 10:
+		full.inventory.can_load({"slots": items})
+		full.inventory.can_load({"version": 9, "slots": []})
+		full.from_dict({"inventory": {"slots": items}})
+	var crowded: Array = []
+	for i in full.inventory.slot_count():
+		crowded.append({"id": "berry", "count": 1})
+	for i in 10:
+		_player_refuse_legacy(crowded)
+	_check(_orphans() == before, "scratch não vaza nós (aceito, recusado ou v1 cheio)")
+
+
+func _player_refuse_legacy(crowded: Array) -> void:
+	var player := _player()
+	player.from_dict({"inventory": {"slots": crowded}})

@@ -22,8 +22,9 @@ const MAX_STACK := 9999
 const FORMAT_VERSION := 2
 const MAX_IID_LENGTH := 32
 const MAX_EXPIRY := 1.0e12
-## Teto de posições aceito num save (acima disso é dado hostil e a carga é recusada).
-const MAX_SAVED_SLOTS := 4096
+## Teto de posições aceito num save: 4x a capacidade máxima. Acima disso é dado hostil e a carga
+## é recusada. O custo de cada posição também é limitado (ver `_sanitize`).
+const MAX_SAVED_SLOTS := MAX_CAPACITY * 4
 
 ## Quantidade de slots. Reduzir nunca descarta itens: só corta slots vazios do fim.
 @export_range(1, 64) var capacity: int = 8:
@@ -275,14 +276,16 @@ func _sanitize(entry: Variant) -> Array[Dictionary]:
 	if Items.is_individual(item_id):
 		var wanted := 1
 		if not entry.has("iid") and entry.has("count"):
-			wanted = SafeRead.integer(entry.get("count"), 0, 0, MAX_STACK)
+			# Mais que os slots mais um nunca cabe: o excedente só faria trabalho inútil (a carga é recusada).
+			wanted = mini(SafeRead.integer(entry.get("count"), 0, 0, MAX_STACK), _slots.size() + 1)
 		for n in wanted:
 			result.append(_clean_individual(item_id, entry))
 		return result
 	var amount := SafeRead.number(entry.get("count"), 0.0, 0.0, float(MAX_STACK))
 	var expiry := SafeRead.number(entry.get("expira_em"), 0.0, 0.0, MAX_EXPIRY)
-	var left := int(amount)
 	var limit := stack_limit(item_id)
+	# Custo limitado: acima de (slots + 1) pilhas cheias nunca cabe, então não se divide além disso.
+	var left := mini(int(amount), limit * (_slots.size() + 1))
 	while left > 0 and limit > 0:
 		var part := mini(left, limit)
 		result.append({"id": item_id, "count": part, "expira_em": expiry})

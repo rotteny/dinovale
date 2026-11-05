@@ -145,7 +145,7 @@ func from_dict(data: Dictionary) -> bool:
 	var saved_inventory := SafeRead.dict(data.get("inventory"))
 	if SafeRead.format_version(saved_inventory, InventoryComponent.FORMAT_VERSION) == 0:
 		return false
-	if typeof(saved_inventory.get("slots")) == TYPE_ARRAY and not inventory.can_load(saved_inventory):
+	if saved_inventory.has("slots") and not inventory.can_load(saved_inventory):
 		return false
 	# Restaurar não é evento de jogo: `level_changed` fica quieto (a UI lê o estado).
 	_restoring = true

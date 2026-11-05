@@ -1,6 +1,6 @@
 # Dino Vale: planejamento de desenvolvimento
 
-Versão 2.3 do plano, 06/11/2026 (escopo fechado do GDD 5.8 a 5.15, `receitas.md` e `catalogo.md`). Autor: `SHIKAMARU`. Documento vivo: atualize ao fechar cada marco. A versão 1.0 (05/11) foi feita antes do GDD; esta incorpora `docs/design/GDD.md`, `docs/design/racao.md` e `docs/design/arte/ESTILO.md`.
+Versão 2.4 do plano, 06/11/2026 (escopo fechado e decisões finais do dono: GDD 5.8 a 5.21 e 6.11 a 6.13, `receitas.md`, `catalogo.md`). Autor: `SHIKAMARU`. Documento vivo: atualize ao fechar cada marco. A versão 1.0 (05/11) foi feita antes do GDD; esta incorpora `docs/design/GDD.md`, `docs/design/racao.md` e `docs/design/arte/ESTILO.md`.
 
 **Como ler.** Fato = veio do brief, do `game/README.md`, do repositório ou de decisão registrada do dono. Tudo marcado **[premissa]** é suposição minha e deve ser confirmada ou corrigida pelo dono.
 
@@ -8,11 +8,11 @@ Versão 2.3 do plano, 06/11/2026 (escopo fechado do GDD 5.8 a 5.15, `receitas.md
 **Decidido em 05/11 (seção 9):** D1 (assets em CC-BY 4.0), D3 (arte de IA só como placeholder identificado, trocada antes do lançamento público), D8 (servidor autoritativo, single-player como host local). D2 foi **revisto pela decisão de arte**: base Ninja Adventure (CC0), tile 16 px, **4 direções**, adulto 32x32, filhote 16x16 (`ESTILO.md`).
 **Decidido em 06/11:** todas as recomendações V1 a V18 do GDD; propostas de domesticação 1, 3 e 10 na 0.2, 6, 7 e 9 no M4, 8 adiada, 2 e 5 rejeitadas, 4 como opção de servidor desligada; Ração na **bancada comum**; Lança na 0.2 (cortável); morte permanente de dino só como opção de servidor; elenco do MVP (ver abaixo); artrópodes só em cavernas, depois do MVP; **D15** (pontos de nível e XP na versão enxuta na 0.2) e **D16** (corte de camada 1, tarefas movidas para depois da 0.2, nada apagado); Peso, Parassaurolofo, batismo do dino e barra de atalhos mantidos. **Também decidido em 06/11 (GDD 5.1 a 5.7):** dardo com torpor contínuo, fruta-do-sono que força o dino (e preparado com carne podre vinda de Carniça ou de carcaça velha), carcaça e sacolinha, armas de fogo e pólvora fora até da 1.0, sem sede, HUD com vida, XP e fome e sem barra de stamina, número de dano também no jogador. A pausa de torpor da faixa 3 já está implementada (feita, sem custo novo).
 **Elenco do MVP (fechado em 06/11):** **5 espécies na 0.2**: Paquicéfalo e Utahraptor (M1; o Utahraptor é só ameaça), **Dodo** (presa Curiosa, sem domar, **início do M2**, decisão do dono), Triceratops (spawn **L18 a L24, decidido**) e Parassaurolofo (M2). **M4:** Oviraptor e **Listro**. Gallimimus fora do catálogo do MVP.
-**Escopo fechado e decisões finais do dono (06/11; GDD 5.8 a 5.19, `receitas.md`, `catalogo.md`; custos e conferência na 4.10):** entram na 0.2 Lança de madeira, Dodo, **19 receitas (20 Saber de 24 no L20)**, durabilidade e inventário individual, validade por pilha, fome a 0,2/s, torpor do jogador por fome, Cocho para domados, dano em construções (recorte mínimo), Stamina em golpes e coleta, fatores de domar por espécie, **tetos de nível** e **Pilão e Preparado de sono**. O Bastão nasce no inventário no M1, sem receita. **Arco, flechas e Boleadeira no M4, Besta no M5; Forja com carvão no M4 a M5; Traje de fibra e Slot de Oferta depois do playtest.** **Fora, sem marco:** Rifle, Dardo, fósforo, pólvora e sílex, Carniça, presa abatida, temperatura, Cama, Bastão reforçado, construções de metal e Isca. **D18 aplicada (corte leve);** o corte maior fica para depois do QA-01a.
+**Escopo fechado e decisões finais do dono (06/11; GDD 5.8 a 5.19, `receitas.md`, `catalogo.md`; custos e conferência na 4.10):** entram na 0.2 Lança de madeira, Dodo, **19 receitas (20 Saber de 24 no L20)**, durabilidade e inventário individual, validade por pilha, fome a 0,2/s, torpor do jogador por fome, Cocho para domados, dano em construções (recorte mínimo), Stamina em golpes e coleta, fatores de domar por espécie, **tetos de nível** e **Pilão e Preparado de sono**. O Bastão nasce no inventário no M1, sem receita. **Arco, flechas e Boleadeira no M4, Besta no M5; Forja com carvão no M4 a M5; Slot de Oferta depois do playtest (M4b); o Traje de fibra foi removido (substituído pelas peças de equipamento).** **Fora, sem marco:** Rifle, Dardo, fósforo, pólvora e sílex, Carniça, presa abatida, temperatura, Cama, Bastão reforçado, construções de metal e Isca. **D18 aplicada (corte leve);** o corte maior fica para depois do QA-01a. **Aceito depois (06/11):** vagas de equipamento (M1 só a Arma visível; peças no M4, **substituem o Traje de fibra de 8 h**), Mochila e limite de slots (M4), menu do domado com Seguir/Ficar todos e permissão (M2), Ir até aqui e Postura (depois do playtest), Montaria e Sela (depois do playtest, **M4b**); a 1.0 passa a **57 receitas e 82 Saber (L69)** e a v0.2 mantém 19 e 20; **teste de arte de dino com IA como placeholder** no M1 e **artista só depois do playtest**.
 **Usadas como premissa, ainda sem decisão do dono (V37 a V41):** Saber como moeda separada, 19 receitas na 0.2, armadura (couro) no M4, mobílias com função e pergaminho que ensina sem Saber.
 **Ainda em aberto (não são decisão deste plano):** artista para os dinos (D12), horas por semana (D7), e-mail do histórico do git (D13), consulta de marca no INPI e USPTO (D6) e publicação (D14). Por isso as estimativas são em **horas de trabalho, sem datas**.
 
-Estado de partida (fato): testes headless passando (Health, Torpor, Stamina, Hunger, Taming, Inventory, máquina de estados, Player; 635 linhas de teste de nível e Eficiência já existem); cerca de 3,5 mil linhas de GDScript incluindo testes; ciclo de domar jogável com HUD e inventário compartilhado; landing em `html/`; pacote Ninja Adventure já importado em `game/assets/third_party/`. **Entregue na branch `feat/nivel-eficiencia-sprites` (commits 6901b80, 683c391 e 40bc81b; sem merge na `main`, sem revisão do `LEVI`):** nível, Eficiência, dano no dino, faixas de torpor, Bastão-de-sono, barras do dino, HUD nova, barra de atalhos (por tipo), consumo de comida, número de dano e estado ofegante (CRI-01, CRI-09, CRI-11, CRI-16, UIX-01, UIX-02, UIX-07, UIX-11, UIX-13, UIX-14); mapa do vale e pacote de arte importados. Sem CI e `tools/check.sh` ainda em criação.
+Estado de partida (fato): testes headless passando (Health, Torpor, Stamina, Hunger, Taming, Inventory, máquina de estados, Player; 635 linhas de teste de nível e Eficiência já existem); cerca de 3,5 mil linhas de GDScript incluindo testes; ciclo de domar jogável com HUD e inventário compartilhado; landing em `html/`; pacote Ninja Adventure já importado em `game/assets/third_party/`. **Em working tree sem commit (06/11):** PRO-15 em grande parte (pilha e item individual, Bastão em mãos, barra por `iid`, save v2 com migração; 768 linhas inseridas). **Entregue na branch `feat/nivel-eficiencia-sprites` (commits 6901b80, 683c391 e 40bc81b; sem merge na `main`, sem revisão do `LEVI`):** nível, Eficiência, dano no dino, faixas de torpor, Bastão-de-sono, barras do dino, HUD nova, barra de atalhos (por tipo), consumo de comida, número de dano e estado ofegante (CRI-01, CRI-09, CRI-11, CRI-16, UIX-01, UIX-02, UIX-07, UIX-11, UIX-13, UIX-14); mapa do vale e pacote de arte importados. Sem CI e `tools/check.sh` ainda em criação.
 
 ---
 
@@ -70,11 +70,11 @@ Um jogador, mundo fixo e pequeno, loop completo de ponta a ponta com a **domesti
 
 | MoSCoW | Escopo da 0.2 |
 |---|---|
-| **Must** | Mundo fixo de 128x128 tiles com 3 biomas (Campina, Mata-baixa, Pedreira), colisão, limites e **navegação dos dinos**. Coleta, inventário, HUD. Crafting na **bancada comum** com **19 receitas** (4 conhecidas; 20 Saber de 24 no L20) (a Ração é um template por perfil e nível). **Ração C, B, A** (perfis Verde e Rubra), comida crua, cozida e podre; exigência de Ração mínima por espécie e regressão sem comida. **Domesticação completa:** Bastão-de-sono, torpor com faixas legíveis, nível e vida do dino, Eficiência e nível final, painel de 3 barras com nível previsto, ação Observar com prévia (tabelas em JSON de leitura). **Barra de atalhos 1 a 9 e batismo do dino (M1).** **5 espécies:** Paquicéfalo (Passivo), Utahraptor (Agressivo), Triceratops (Semi-agressivo, spawn L18 a L24), Parassaurolofo (Medroso) e **Dodo** (presa Curiosa, sem domar). Carnívoro ataca o dino dormindo; curral; grupo chama grupo. Dino domado: Afeto e obediência, seguir, ficar, guardar base, atacar alvo; ofícios **Carregar** e **Defender**; ferido (some 5 min). Construção: fundação, parede, porta, baú, estaca. **Peso** (capacidade de carga de jogador e dinos, atributos simples; definido pela `SHIRO` no GDD, ver PRO-09) e **XP, nível do jogador e pontos de nível na versão enxuta** (D15; ver 4.6). Fome do jogador a 0,2/s com **torpor por fome** (5.10). Morte do jogador com corpo recuperável. Save/load com versão, `map_id` reservado. Menu, pausa, tutorial contextual. Arte coesa (Ninja Adventure + dinos de artista, gate C), SFX. **Armas e torpor:** Soco e Bastão (M1, já no inventário, sem receita) e **Lança de madeira**; fruta-do-sono (torpor contínuo, teto de 3 efeitos) que força o dino dormindo, com sinais de torpor no jogador. **Carcaça e sacolinha** (recorte mínimo: só carne, couro como dado). **Durabilidade e inventário individual**, **validade por pilha**, Fogueira que assa, **Cocho** do rebanho, **dano em construções só madeira (recorte mínimo)**, Stamina em golpes e coleta, **tetos de nível** e **Pilão e Preparado** (GDD 5.8 a 5.18). **Saber e 19 receitas** (premissa V37 a V41) com a tela do Personagem (tecla P). **HUD:** vida, fome, XP e atalhos, sem barra de stamina (o fôlego aparece por comportamento) e sem sede; número de dano também no jogador. Builds Linux e Windows. |
+| **Must** | Mundo fixo de 128x128 tiles com 3 biomas (Campina, Mata-baixa, Pedreira), colisão, limites e **navegação dos dinos**. Coleta, inventário, HUD. Crafting na **bancada comum** com **19 receitas** (4 conhecidas; 20 Saber de 24 no L20) (a Ração é um template por perfil e nível). **Ração C, B, A** (perfis Verde e Rubra), comida crua, cozida e podre; exigência de Ração mínima por espécie e regressão sem comida. **Domesticação completa:** Bastão-de-sono, torpor com faixas legíveis, nível e vida do dino, Eficiência e nível final, painel de 3 barras com nível previsto, ação Observar com prévia (tabelas em JSON de leitura). **Barra de atalhos 1 a 9 e batismo do dino (M1).** **5 espécies:** Paquicéfalo (Passivo), Utahraptor (Agressivo), Triceratops (Semi-agressivo, spawn L18 a L24), Parassaurolofo (Medroso) e **Dodo** (presa Curiosa, sem domar). Carnívoro ataca o dino dormindo; curral; grupo chama grupo. Dino domado: Afeto e obediência, seguir, ficar, guardar base, atacar alvo; ofícios **Carregar** e **Defender**; ferido (some 5 min). Construção: fundação, parede, porta, baú, estaca. **Peso** (capacidade de carga de jogador e dinos, atributos simples; definido pela `SHIRO` no GDD, ver PRO-09) e **XP, nível do jogador e pontos de nível na versão enxuta** (D15; ver 4.6). Fome do jogador a 0,2/s com **torpor por fome** (5.10). Morte do jogador com corpo recuperável. Save/load com versão, `map_id` reservado. Menu, pausa, tutorial contextual. Arte coesa (Ninja Adventure + dinos de artista, gate C), SFX. **Armas e torpor:** Soco e Bastão (M1, já no inventário, sem receita) e **Lança de madeira**; fruta-do-sono (torpor contínuo, teto de 3 efeitos) que força o dino dormindo, com sinais de torpor no jogador. **Carcaça e sacolinha** (recorte mínimo: só carne, couro como dado). **Durabilidade e inventário individual**, **validade por pilha**, Fogueira que assa, **Cocho** do rebanho, **dano em construções só madeira (recorte mínimo)**, Stamina em golpes e coleta, **tetos de nível** e **Pilão e Preparado** (GDD 5.8 a 5.21, 6.11), **vagas de equipamento (só a Arma visível)** e **menu do domado com Seguir/Ficar para todos e permissão**. **Saber e 19 receitas** (premissa V37 a V41) com a tela do Personagem (tecla P). **HUD:** vida, fome, XP e atalhos, sem barra de stamina (o fôlego aparece por comportamento) e sem sede; número de dano também no jogador. Builds Linux e Windows. |
 | **Movido para depois da 0.2 (D16, camada 1; nada apagado, ver 4.3a)** | Ração S com Mel-de-cipó, Temperamento do carnívoro domado, ciclo dia/noite, configurações, música em loop, teste de rede NET-03 (M3), vocalizações por limiar. |
 | **Cortável (novos desta rodada)** | Pilão e Preparado de sono (3 h). Carniça, Cama e Bastão reforçado saíram; o Cocho é Must (decisão do dono). |
 | **Could** | Montaria. Sede. Build macOS não assinado. Página no itch.io. |
-| **Won't (0.2)** | Itens movidos pela D16 (linha acima). Multiplayer. Mundo procedural e chunking. Mods. Web e mobile. Localização. Boss. Criação de filhote, domar sem nocaute, Ração S+ e Orvalho (M4). Conduta Curioso (M4). Artrópodes e cavernas (pós-MVP). Isca. Rifle, dardo, fósforo, pólvora e sílex (sem marco), Arco, flechas e Boleadeira (M4), Besta (M5), temperatura (fora), armadura (couro M4, metal M5, fibra depois do playtest), Slot de Oferta e domar passivo (depois do playtest), Listro (M4), Espada e sono do jogador (M4), construções de metal (fora), sede. |
+| **Won't (0.2)** | Itens movidos pela D16 (linha acima). Multiplayer. Mundo procedural e chunking. Mods. Web e mobile. Localização. Boss. Criação de filhote, domar sem nocaute, Ração S+ e Orvalho (M4). Conduta Curioso (M4). Artrópodes e cavernas (pós-MVP). Isca. Rifle, dardo, fósforo, pólvora e sílex (sem marco), Arco, flechas e Boleadeira (M4), Besta (M5), temperatura (fora), armadura (couro M4, metal M5, fibra depois do playtest), Slot de Oferta e domar passivo, Mochila, Postura, Ir até aqui, Montaria e Sela (depois do playtest, M4 e M4b), Listro (M4), Espada e sono do jogador (M4), construções de metal (fora), sede. |
 
 **Critério de "realmente divertido" (testável, 0.2):** playtest observado com 5 pessoas fora do círculo do dono [premissa de tamanho e metas abaixo]:
 
@@ -140,8 +140,13 @@ flowchart LR
 
 ### M4: Mundo e conteúdo, v0.4
 - **Objetivo:** mundo grande, variado, com progressão e a identidade do vínculo (Criação).
-- **Entregáveis:** itens vindos da 0.2 (Ração S, Temperamento, dia/noite); Forja com carvão e metal, Arco, flechas e Boleadeira, palha e pedra, Traje de couro, e (depois do playtest da 0.2) Slot de Oferta e Traje de fibra; ADR do mapa interior (`map_id`), chunking e streaming, geração por seed, persistência por chunk, interesse por chunk, **6 espécies no total** (Oviraptor e Listro entram; a lista de "8 espécies" do plano 1.0 cai), Conduta Curioso, **Criação** (ninho, filhote), **domar sem nocaute** (Curioso e Medroso), **Ração S+ com Orvalho-de-casco** produzido por dino, ameaças e dificuldade, 3 a 5 tiers, clima.
+- **Entregáveis:** itens vindos da 0.2 (Ração S, Temperamento, dia/noite); Forja com carvão e metal, Arco, flechas e Boleadeira, palha e pedra, **peças de equipamento (fibra e couro) e Mochila**, ícones de equipamento; Slot de Oferta, Montaria, Sela, Ir até aqui e Postura ficam no **M4b**; ADR do mapa interior (`map_id`), chunking e streaming, geração por seed, persistência por chunk, interesse por chunk, **6 espécies no total** (Oviraptor e Listro entram; a lista de "8 espécies" do plano 1.0 cai), Conduta Curioso, **Criação** (ninho, filhote), **domar sem nocaute** (Curioso e Medroso), **Ração S+ com Orvalho-de-casco** produzido por dino, ameaças e dificuldade, 3 a 5 tiers, clima.
 - **Saída verificável:** mesmo seed gera o mesmo mapa (hash igual); mundo de pelo menos 512x512 tiles [premissa]; sem queda abaixo de 60 fps ao cruzar chunks; servidor com 8 jogadores dentro do orçamento de CPU; saves 0.3 migram; filhote criado chega a adulto com Afeto `round(E/5)` e ofício escolhido.
+
+### M4b: Rebanho e montaria (depois do playtest da 0.2)
+- **Objetivo:** dar ao rebanho comando, montaria e carga, **só se o playtest pedir**. Foi separado do M4 (R34, R36) para o M4 não passar de 211 h realistas.
+- **Entregáveis:** Montaria (32 h; recorte 26 h), Sela (17 h; recorte 10 h), Ir até aqui e Postura (13 h), Slot de Oferta e domar passivo (13 h). Total **48/75/120**.
+- **Entrada:** decisão do dono depois do playtest 3, com o resultado do QA-01. **Saída verificável:** montar e desmontar em co-op sem divergência; a Stamina do dino passa a valer; sela de couro aumenta a carga do alforje como na conta de 6.13.
 
 ### M5: Beta, v0.9
 - **Objetivo:** cara e som finais, polimento, beta público.
@@ -221,7 +226,8 @@ Feitos em 05/11: ARQ-01 (ADR-001 a 003) e INF-04 (`AGENTS.md`).
 | MUN-01 | Mapa fixo v0 (Campina): TileMapLayer com tileset do pacote, colisão, limites; hitbox por dado | ART-04 | 3/4/6 | Must | `SORA` | jogador e dino não atravessam colisão nem saem do mapa |
 | MUN-02 | Nós de recurso (árvore, pedra, baga, fibra) com respawn [no M1 só a baga tem consumidor; madeira, pedra e fibra existem como dado, sem receita até o M2; sem desconto de horas] | PRO-01, PRO-02, MUN-01 | 2/3/5 | Must | `SORA` | coleta e respawn por dado |
 | PRO-03 | Registro de itens por dados (`ItemDef`): baga, madeira, pedra, fibra, carne e Bastão (sem `dardo_sono`: o dardo saiu do jogo) | ARQ-01 | 2/3/4 | Must | `SORA` | nenhum item hardcoded; IDs estáveis |
-| PRO-15 | **Inventário individual e hotbar por slot** (GDD 5.9): item vira `{id, count, expira_em?}` (empilhável) ou `{id, iid, durab, durab_max}` (equipamento, não empilha); a barra de atalhos guarda o slot ou o `iid`, não o tipo (**refaz o `HotbarComponent` já entregue, sem crédito**); slot de "item na mão"; save com versão nova; uso validado no servidor. **Só o modelo**: durabilidade, validade e reparo entram no M2 (PRO-16 a PRO-18). Entra antes do SAV-01 e do S0 para a fixture v1 e o contrato de `request_use_item` já nascerem no formato novo (ADR curto do `KURAMA`) | PRO-01, PRO-03, UIX-11 | 8/12/19 | Must | `SORA` + `KURAMA` | empilháveis e equipamentos coexistem; atalho por slot sobrevive a mover item; roundtrip; testes do hotbar atualizados |
+| PRO-15 | *Em grande parte feito no working tree, sem commit* (modelo de pilha e item individual, Bastão em mãos, barra por `iid`, save v2 com migração e `inventory_model_tests.gd`); resta revisão, `LEVI`, commit e o que falta (validação de servidor). **Inventário individual e hotbar por slot** (GDD 5.9): item vira `{id, count, expira_em?}` (empilhável) ou `{id, iid, durab, durab_max}` (equipamento, não empilha); a barra de atalhos guarda o slot ou o `iid`, não o tipo (**refaz o `HotbarComponent` já entregue, sem crédito**); slot de "item na mão"; save com versão nova; uso validado no servidor. **Só o modelo**: durabilidade, validade e reparo entram no M2 (PRO-16 a PRO-18). Entra antes do SAV-01 e do S0 para a fixture v1 e o contrato de `request_use_item` já nascerem no formato novo (ADR curto do `KURAMA`) | PRO-01, PRO-03, UIX-11 | 2/4/6 | Must | `SORA` + `KURAMA` | empilháveis e equipamentos coexistem; atalho por slot sobrevive a mover item; roundtrip; testes do hotbar atualizados |
+| PRO-22 | **Vagas de equipamento** (GDD 5.20): modelo de 6 vagas (Arma, Capacete, Camisa, Luva, Calça, Bota; `slot` no item, `{vaga: iid}` no save), `equipar` e `desequipar` validados no servidor, tela com a coluna de vagas ao lado da grade com **só a Arma visível e ativa** (arrastar, duplo clique, silhueta, troca, "Inventário cheio"), barra de atalhos ligada à vaga Arma; as 5 de roupa aparecem com `slot_visivel` no M4. 7 h da `SHIRO` **menos 2 h**: o item em mãos (`equipped`) e a barra por `iid` já existem no PRO-15 | PRO-15, UIX-11 | 3/5/8 | Must (decisão do dono) | `SORA` | só a Arma aparece; vaga errada recusa; troca devolve o item à grade; roundtrip de `{vaga: iid}` |
 | CRI-03 | Espécies por dados (`SpeciesDef`): Paquicéfalo e Utahraptor com vida, dano, dificuldade, torpor máximo, queda, `aceita_crua`, tamanho e âncora (placeholder 16x16 hoje, adulto 32x32 depois); refatora `Dino`. **Valores do Utahraptor vêm da `SHIRO`** | ARQ-01, ARQ-04 | 5/7/11 | Must | `SORA` | trocar sprite e tamanho só muda o dado; spawn por id |
 | CRI-04 | **Conduta orientada a dados**: `ConductDef`, máquina de estados genérica por eventos, tabela de transições; Passivo (Paquicéfalo revida) e Agressivo (Utahraptor persegue e ataca o jogador; no M1 só o jogador é alvo) | CRI-03, ARQ-04 | 7/11/17 | Must | `SORA` | cada linha da tabela 6.7 do GDD para os 2 tipos é um teste; sem `if especie ==` |
 | SOB-01 | Morte e respawn mínimos do jogador | CRI-04 | 2/3/5 | Must | `SORA` | vida 0 leva ao respawn |
@@ -244,8 +250,9 @@ Feitos em 05/11: ARQ-01 (ADR-001 a 003) e INF-04 (`AGENTS.md`).
 | ART-01 | Fechar o guia de arte: `ESTILO.md` é o guia; falta aprovar o tom do mundo e o Caveman e registrar a mudança de D2 | | 1/1/2 | Must | dono + `YATORA` (consultiva) | decisões abertas 1, 2 e 4 respondidas |
 | ART-04 | Integrar o Ninja Adventure: tileset, Caveman, tema 9-slice, emotes; **ouvir os sons** (ninguém ouviu) e mapear | ART-01 | 3/4/7 | Must | `YATORA` | arquivos no `CREDITS.md`; lista de sons ouvidos |
 | ART-05 | Dinos placeholder com os bichos do pacote (16x16), herbívoro e carnívoro distinguíveis; marcados no `CREDITS.md` | ART-04 | 2/3/5 | Must | `YATORA` | legível a olho nu no mapa |
+| ART-08 | **Teste de arte de dino com IA como placeholder** (D3 permite, só identificado): `YATORA` gera Paquicéfalo e Utahraptor 32x32 e 16x16 no `ESTILO.md`; roda o teste de aceitação do item 7 (dino ao lado do jogador e da árvore, real e ampliado) e entra no COM-02; marcado como placeholder de IA no `CREDITS.md`. **Sem custo do dono além de olhar o teste (1 h)**; sem orçamento de artista até depois do playtest | ART-04, ART-05 | 1/1/2 | Must | `YATORA` + dono | registro no `CREDITS.md` com ferramenta e data; veredito do dono sobre o estilo |
 | COM-02 | Playtest 0.1: roteiro, formulário, 3 a 5 pessoas; anota o entendimento do nível previsto | INF-06 | 1/2/3 | Must | dono | critérios 4 e 5 do M1 |
-| | **Total M1** | | **77/112/178** | | | antes 88/131/206 na v2.2 (+8/12/19 do PRO-15, -19/-31/-47 de crédito da branch) |
+| | **Total M1** | | **75/110/175** | | | antes 88/131/206 na v2.2 (+8/12/19 do PRO-15, +3/5/8 das vagas, +1/1/2 do teste de IA, -19/-31/-47 de crédito da branch, -6/-8/-13 de crédito do PRO-15) |
 
 ### 4.3 M2 (nível de tarefa)
 
@@ -278,6 +285,7 @@ Ordem interna: (1) navegação, ameaça e **SOB-08 (Stamina em golpes)**, (2) **
 | SOB-06 | **Carcaça e sacolinha, recorte mínimo** (4.5b): só carne (couro como dado, sem uso), coleta de uma vez em 1,5 s por carne, carcaça fresca por 10 min, sacolinha para excesso de Peso e para o alforje do dino morto (só do dono por 120 s), limites de 8 carcaças e 20 sacolinhas, `coletar_carcaca` e `pegar_sacolinha` validados | SOB-02, PRO-09, CRI-08 | 5/8/12 | Must | `SORA` | Triceratops L28 dá 22 de carne; o que não cabe no Peso fica na sacolinha; o servidor remove a unidade |
 | PRO-13 | **Saber e tela de receitas** (4.5b; premissa V37 e V38): ganho de Saber, `aprender_receita` validado, `craftar` com bancada a 2 tiles, bloqueio na bancada, tela do Personagem (tecla P) com aba Receitas, efeito de coleta de Machado e Picareta; save **[D18 aplicada: Saber em lista plana, sem pré-requisito nem linhas; 7 h da `SHIRO` contra 11 h; inclui a receita de reposição do Bastão (Saber 1, Mãos)]** | PRO-04, PRO-11 | 3/5/8 | Must (premissa) | `SORA` | 24 Saber em L20 e 20 gastos pelas 19 receitas (teste); pré-requisitos sem ciclo; peça colocada qualquer um usa |
 | PRO-14b | **Cocho** (5.12; Saber 2, 8 madeira, Bancada): nó com filtro de dieta e alcance de 6 tiles, 40 itens; dino domado "vai comer" com fome <= 50 (do alforje só <= 25 e nunca Ração); Ração não vence, vencido fica e não é comido; vários dinos dividem; fome 0 por mais de 2 min: Afeto -1/min e ofício pausado, sem morrer; tela reusa a do baú. 18 h da `SHIRO`, sem desconto | PRO-06, PRO-17, CRI-07 | 12/18/29 | Must (decisão do dono) | `SORA` | dino a 6 tiles come do cocho; herbívoro recusa carne; podre não é comida |
+| CRI-43 | **Menu de interação do domado e comandos da v0.2** (GDD 6.11): menu (Seguir/Ficar e Alforje, com ganchos), **Seguir/Ficar para todos** (comando de rebanho), `dino_permissao` (quem manda no dino no co-op). 6 + 3 + 2 = 11 h da `SHIRO`; sem sobreposição relevante: o CRI-05 só tem a lógica da ordem e hoje o domado não abre nada | CRI-05, PRO-14b, CRI-07 | 7/11/18 | Must (decisão do dono) | `SORA` | menu abre no domado; ordem a todos; o alforje abre pelo menu; permissão validada |
 | PRO-20 | **Tetos de nível** (GDD 5.16): teto efetivo `min(multiplicador x nível de doma, dino_nivel_max)` (50 no MVP) que vale para nascimento, evolução e bônus de Eficiência; `jogador_nivel_max` 20; XP que trava, barra cheia e selo "teto"; sorteio com poucos altos e faixas por espécie em dado; chaves de servidor; save acima do teto só trava; texto na tela do dino. 7 h da `SHIRO`, sem desconto | PRO-11, CRI-09, ARQ-05 | 5/7/11 | Must (decisão do dono) | `SORA` | dino e jogador param no teto; save acima do teto carrega parado; chaves lidas do `ServerRules` |
 | PRO-21 | **Pilão e Preparado de sono** (5.18): Pilão portátil (Saber 1, 2 pedra + 1 madeira, 3,5 kg, 100 moagens, aba "Moer" do menu P); Preparado (3 fruta-do-sono + 1 carne podre rendem 3, 4 s, Stamina 3/s; 60 de torpor, só dino). 3 h da `SHIRO`; a receita do Preparado que estava nos dados do PRO-13 passa para cá sem desconto extra | PRO-13, PRO-17, CRI-29 | 2/3/5 | Cortável (os dois juntos) | `SORA` | moer gasta durabilidade e Stamina; preparado só funciona em dino dormindo |
 | PRO-16 | **Durabilidade, quebra e reparo** (5.9): Lança 80, Bastão 120, Machado 150 (1 por segundo de coleta), Picareta 120; em zero fica "quebrada" sem sumir; reparo na Bancada por `ceil(50% do material x fração que falta)`, 1 s por 10%, sem reduzir o máximo; tooltip com barra e "x/y", aviso a 20% (texto e som) e som ao zerar; validado no servidor. 6 h + 3 h da `SHIRO` | PRO-15, PRO-13 | 6/9/14 | Must | `SORA` | primeira hora gasta ~2 reparos; item quebrado não age; reparo cobra o material certo |
@@ -312,7 +320,7 @@ Ordem interna: (1) navegação, ameaça e **SOB-08 (Stamina em golpes)**, (2) **
 | COM-04 | Landing honesta: trocar "parceiro" por "vale acolhedor, bicho perigoso" | | 1/2/3 | Must | `BULMA` | texto revisado pelo dono |
 | COM-05 | Glossário próprio e varredura de nomes (R12) | | 1/2/3 | Must | dono + `SHIRO` | nenhum termo alheio nos arquivos |
 | QA-01 | Balanceamento dos números [premissa] do GDD 19 e 2 rodadas de playtest [+3/4/6: durabilidade, validade, fome-torpor, Stamina e tempos de domar são números [premissa]] | tudo acima | 10/14/22 | Must | dono + `LEVI` | critérios da seção 2 |
-| | **Total M2** (Must 222/333/526; cortáveis 2/3/5) | | **224/336/531** | | | antes 178/265/416 na v2.2 (+46/71/115) |
+| | **Total M2** (Must 229/344/544; cortáveis 2/3/5) | | **231/347/549** | | | antes 178/265/416 na v2.2 (+53/82/133) |
 
 ### 4.3a Movido para depois da 0.2 (D16, camada 1)
 
@@ -321,13 +329,12 @@ Tarefas preservadas com a estimativa original e entram no marco indicado, somada
 | ID | Tarefa | Marco novo | O/R/P | Observação |
 |---|---|---|---|---|
 | PRO-08 | Ração S: Mel-de-cipó e marimbondos | M4 | 5/8/12 | junto da Ração S+ (CRI-22) |
-| CRI-17 | Temperamento do carnívoro domado | M4 | 3/5/8 | junto da Criação (identidade do vínculo) |
 | SOB-03 | Ciclo dia/noite | M4 | 3/4/6 | junto do clima (SOB-11) |
 | UIX-06 | Configurações: volume, remap, tela cheia | M3 | 2/3/4 | antes do co-op |
 | ART-07 | Música em loop | M5 | 1/2/3 | junto de ART-11 |
 | NET-03 | Repetir o S0 com construção e crafting | M3 | 2/3/5 | natural no início do M3 |
 | ART-03b | Vocalizações por limiar (75, 50 e 25% de vida), que saíram do ART-03 | M5 | 1/1/2 | junto de ART-11 |
-| | **Total movido** | M3 4/6/9, M4 11/17/26, M5 2/3/5 | **17/26/40** | A Lança saiu desta lista (voltou à 0.2 como Lança de madeira, CRI-13) e o Gallimimus também (fora do catálogo do MVP, GDD 6.10) |
+| | **Total movido** | M3 4/6/9, M4 8/12/18, M5 2/3/5 | **14/21/32** | A Lança saiu desta lista (voltou à 0.2 como Lança de madeira, CRI-13) e o Gallimimus também (fora do catálogo do MVP, GDD 6.10) |
 
 ### 4.4 Quinta espécie: custo separado (CRI-26, já incluído no M2)
 
@@ -428,17 +435,18 @@ Economia da D15: **-6/-11/-17 h** no M2 e -1/-2/-3 no M3. **Sobreposição com o
 | Plano 1.0 (M0+M1+M2) | 124/188/301 | |
 | Plano 2.1 (após D15 e D16) | 240/360/565 | +116/+172/+264 (+94%, +91%, +88%) |
 | Plano 2.2 (GDD 5.1 a 5.7, `receitas.md`, V37 a V41) | 273/406/639 | +149/+218/+338 (+120%, +116%, +112%) |
-| **Plano 2.3 final (decisões finais do dono, D18 leve aplicada, crédito da branch)** | **308/458/726** | **+184/+270/+425 (+148%, +144%, +141%)** |
-| dos quais Must | 306/455/721 | |
-| novos desta rodada, líquido sobre a v2.2 | +35/+52/+87 | escopo +54/+83/+134, crédito da branch -19/-31/-47 |
+| Plano 2.3 (escopo fechado, D18 leve) | 308/458/726 | +184/+270/+425 (+148%, +144%, +141%) |
+| **Plano 2.4 (vagas, comandos, crédito do PRO-15, teste de IA)** | **313/467/741** | **+189/+279/+440 (+152%, +148%, +146%)** |
+| dos quais Must | 311/464/736 | |
+| novos desta rodada sobre a v2.3 | +5/+9/+15 | M1 -2/-2/-3, M2 +7/11/18 |
 
-**Leitura crítica.** O escopo fechado soma **+83 h realistas** na 0.2 (M1 +12 do modelo de inventário, M2 +71) e o crédito da branch devolve -31. As decisões finais quase se anulam: tetos de nível (+7) e Pilão (+3) entram; o corte leve D18 (-10) sai (dano em construções no recorte mínimo, sem Bastão reforçado e Cama, Saber em lista plana); o dardo e o Rifle saíram do jogo. De onde vêm as 83: **sustento e manutenção 61 h** (modelo de inventário 12, durabilidade e reparo 9, validade 5, Fogueira 2, fome-torpor 11, Stamina 2, Cocho 18, dano em construções recorte 5, menos 3 do Saber plano), **caça 10 h** (Lança 3, Dodo 7), **tetos, Pilão, arte, som, domar e balanceamento 23 h**, menos **11 h de ajustes** (dardo -3, Carniça -1, sinais de torpor movidos -2, Cama e Cocho antigos -4, Bastão reforçado -1). O padrão se repete: cada sistema é pequeno e razoável sozinho, mas vários de sustento entram juntos. A boa notícia: o crédito de 31 h e a saída do dardo seguram o crescimento líquido da 0.2 em +35 h sobre a v2.2. A má: o crédito é sobre código que ninguém revisou (R30) e **o M4 incha** (+29/47/75 h: Forja com carvão e Arco entram), então a 1.0 sobe +73/+112/+184 h sobre a v2.2.
+**Leitura crítica.** A 0.2 mal se mexeu (+5/+9/+15): as vagas (+3/5/8) e o menu do domado (+11 h) entram, mas o crédito de 8 h do PRO-15, que já está no working tree, quase os paga. **A pressão foi para depois da 0.2:** a 1.0 sobe +48/+75/+119 sobre a v2.3 (Montaria 32 h, Sela 17 h, Mochila 9 h, Ir até aqui e Postura 13 h, peças de equipamento 9 h, menos o Traje de fibra de 8 h e o Temperamento de 5 h). **O M4 já estava inchado (R34): propus a divisão M4 e M4b** (4.11): o M4 fica em 139/211/336 e o M4b, condicionado ao playtest, em 48/75/120. O padrão se repete: cada sistema é razoável sozinho e vários entram juntos; o que protege a 0.2 é que os novos estão **depois** do playtest.
 
-**Camadas de corte** (4.10-E): **A, só sequência:** 60 h do escopo novo ficam depois do QA-01a. **B, aplicada** (D18 leve, -10 h R, já fora dos números). **C, corte maior, só depois do QA-01a** e só com decisão do dono: fruta-do-sono e motor de torpor contínuo, Cocho, fome-torpor para depois do playtest (**-39 h R**); com ela a 0.2 cai de 458 para 419 h R. **Cortáveis que sobram:** Pilão e Preparado (3 h), Boleadeira (2 h), Besta (3 h), número de dano e atalho de Ração em dino (1 a 2 h cada). **Não cortar:** carcaça, Lança e Dodo (fonte de Carne), Afeto, Carregar e Defender, Observar, regressão sem comida, `racao_minima`, curral, QA-01a e a Stamina em golpes (SOB-08).
+**Camadas de corte** (4.10-E): **A, só sequência:** 60 h do escopo novo ficam depois do QA-01a. **B, aplicada** (D18 leve, -10 h R). **C, só depois do QA-01a e só com o dono:** fruta-do-sono e motor contínuo, Cocho, fome-torpor (**-39 h R**; 0.2 de 467 para 428 h R). **M4b inteiro é cortável** (75 h R). **Cortáveis que sobram na 0.2:** Pilão e Preparado (3 h), número de dano e atalho de Ração em dino (1 a 2 h cada); no M4, Boleadeira (2 h) e Besta (3 h, M5). **Não cortar:** carcaça, Lança e Dodo, Afeto, Carregar e Defender, Observar, regressão sem comida, `racao_minima`, curral, QA-01a, SOB-08 e o menu do domado (o alforje precisa dele).
 
 ### 4.8 Caminho crítico e o que bloqueia o M1
 
-**Caminho crítico até a 0.2 (v2.3):** ARQ-04 -> CRI-03 -> CRI-04 -> CRI-09 -> CRI-11 -> NET-01 -> **PRO-15 (modelo de inventário)** -> SAV-01 -> INF-05 -> NET-02 (S0) -> **COM-02 (playtest 1)** -> MUN-03 -> MUN-04 -> CRI-12 -> **SOB-08** -> **QA-01a (playtest 2)** -> PRO-11 (com PRO-20, tetos) -> PRO-13 (Saber, Bancada e Pilão) -> **PRO-16 (durabilidade) -> CRI-13 (Lança) -> CRI-06c (Dodo) -> SOB-06 (carcaça e Carne) -> PRO-17 (validade) -> PRO-18 (assar)** -> PRO-05/07 (Ração) -> CRI-07 -> **PRO-14b (Cocho) -> SOB-07 (fome-torpor)** -> CRI-08 -> CON-01/02 -> **CON-05** -> UIX-05 -> QA-01 -> INF-08. Paralelo bloqueante do lançamento: ART-06 (artista, D12) até o gate C.
+**Caminho crítico até a 0.2 (v2.3):** ARQ-04 -> CRI-03 -> CRI-04 -> CRI-09 -> CRI-11 -> NET-01 -> **PRO-15 (modelo de inventário) -> PRO-22 (vagas)** -> SAV-01 -> INF-05 -> NET-02 (S0) -> **COM-02 (playtest 1)** -> MUN-03 -> MUN-04 -> CRI-12 -> **SOB-08** -> **QA-01a (playtest 2)** -> PRO-11 (com PRO-20, tetos) -> PRO-13 (Saber, Bancada e Pilão) -> **PRO-16 (durabilidade) -> CRI-13 (Lança) -> CRI-06c (Dodo) -> SOB-06 (carcaça e Carne) -> PRO-17 (validade) -> PRO-18 (assar)** -> PRO-05/07 (Ração) -> CRI-07 -> **PRO-14b (Cocho) -> SOB-07 (fome-torpor)** -> CRI-08 -> CON-01/02 -> **CON-05** -> UIX-05 -> QA-01 -> INF-08. Paralelo bloqueante do lançamento: ART-06 (artista, D12) até o gate C.
 1. **O modelo de item (PRO-15) é predecessor do SAV-01 e do S0.** Trocar `{id, count}` por item individual depois do S0 obriga a revalidar o contrato de `request_use_item` e a fixture v1; antes custa só o HotbarComponent, que precisa ser refeito de qualquer jeito (a entrega atual guarda o tipo).
 2. **A cadeia da Carne é serial e fecha o R25:** Lança (3 h) -> Dodo (7 h) -> carcaça (8 h) -> carne crua -> Ração Rubra ou carne crua para o Utahraptor (L15 pede ~25 carne, 13 Dodos, ~6,5 min de caça). São 18 h R de quatro tarefas em série antes do primeiro Utahraptor domado; sem o Dodo o Utahraptor continua indomável.
 3. **A validade (PRO-17) puxa o Cocho e o fome-torpor:** o Cocho guarda comida que vence; a carne podre (preparado de sono) e a cozida (fome-torpor) nascem dela. Sem PRO-17 os três ficam sem dado.
@@ -471,19 +479,22 @@ Economia da D15: **-6/-11/-17 h** no M2 e -1/-2/-3 no M3. **Sobreposição com o
 | CRI-21 | **Domar sem nocaute** (Curioso e Medroso): 3 estágios, confiança, teto de E 70 | CRI-10, CRI-26 | 10/15/24 | Must | M4 |
 | CRI-22 | **Ofício Produzir e Orvalho-de-casco** (1 a cada 10 min, acúmulo de até 5, timer no save); Ração S+ pede 1 por receita | CRI-08, PRO-07 | 7/10/16 | Must | M4 |
 | CRI-23 | Ofícios Colher e Aviso | CRI-08 | 4/6/10 | Cortável | M4 |
-| CRI-31 | **Armadura, Traje de couro** (1 vaga; fibra depois do playtest e metal no M5): redução 25%, 6 kg, durabilidade 150 (1 por golpe sofrido), dano mínimo 1 e teto de 50% (5.11); usa o modelo do PRO-15 | PRO-13, PRO-09, PRO-16 | 3/5/8 | Must (premissa) | M4 |
+| CRI-31 | **Peças de equipamento** (5.11 e 5.20, substitui o Traje de couro e o Traje de fibra): redução somada das peças (teto 50%), Peso e desgaste por golpe em cada peça 3 h; reparo por peça e "Reparar tudo equipado" 3 h; 15 itens em dados (fibra, couro, metal) e as 5 vagas visíveis (`slot_visivel`) 2 h; save e co-op 1 h = **9 h da `SHIRO`**; fibra e couro aqui, metal no M5 (Forja); um nó de Saber por material (fibra 1, couro 2, metal 6) | PRO-22, PRO-16, PRO-09, CRI-35 | 6/9/14 | Must (decisão do dono) | M4 |
 | CRI-32 | Sono do jogador (acordar com dano ou aliado, bloqueio de entrada) (reusa o estado inconsciente, o dano e o alimentar do SOB-07: era 3/4/6) | CRI-29 | 1/2/3 | Cortável | M4 |
 | CRI-35 | **Forja com carvão e metal** (M4 a M5, GDD 5.17): nó de minério, Forja (Saber 4, 8 madeira + 20 pedra, 30 kg, feita na Bancada) como contêiner de 4 vagas que queima 3 madeira em 1 carvão (30 s) e converte 2 minério + 1 carvão em 1 barra (10 s), com catch-up; Espada de ferro (Saber 6, durabilidade 250). 4/6/10 meus + **9,5 h da `SHIRO`** (Forja de 4 vagas e catch-up 5 h, save 1,5, tela 2, itens carvão e minério 1) | PRO-16, PRO-13 | 10/16/25 | Should | M4 |
 | CRI-36 | **Palha e pedra como material de peça** (8.1): palha 10 de vida por unidade, pedra imune, nó de palha, 3 a 4 pedra por peça, construção de 6 s na pedra [estimativa minha] | CON-05, PRO-10 | 3/4/6 | Should | M4 |
-| CRI-37 | **Slot de Oferta e domar passivo** (5.13), **depois do playtest da 0.2**: slot e tecla O, IA "aproximar e comer", progresso e regressão, interrupções, Afeto +20, `owner_id` no co-op. 13 h da `SHIRO` (7 h no recorte só Paquicéfalo e baga); a IA reusa a do Cocho (-2 h possível, não descontado) | PRO-14b, CRI-07 | 8/13/21 | Should | M4 |
-| CRI-38 | **Traje de fibra** (5.11), **depois do playtest da 0.2**: 10%, 2 kg, durabilidade 100, 15 fibra + 2 madeira. 8 h da `SHIRO` | CRI-31 | 5/8/13 | Should | M4 |
+| CRI-37 | **Slot de Oferta e domar passivo** (5.13), **depois do playtest da 0.2**: slot e tecla O, IA "aproximar e comer", progresso e regressão, interrupções, Afeto +20, `owner_id` no co-op. 13 h da `SHIRO` (7 h no recorte só Paquicéfalo e baga); a IA reusa a do Cocho (-2 h possível, não descontado) [passa ao M4b] | PRO-14b, CRI-07 | 8/13/21 | Should | M4b |
+| CRI-42 | **Mochila e limite de slots** (5.21; 7ª vaga "Mochila"): `inventario_slots_base` 24 e `mochila_slots` +16 (total 40, a grade que já existe), excesso na sacolinha, tirar a Mochila cheia recusa, save acima do limite só trava; receita couro + fibra (Mãos, Saber 2). 9 h da `SHIRO` (limite 4, vaga 2, tela 2, dados 1) | PRO-22, PRO-17, SOB-06 | 6/9/14 | Must (decisão do dono) | M4 |
+| CRI-44 | **Ir até aqui e Postura** (6.11; Calma, Guarda, Ataque; **substitui o Temperamento do domado**, CRI-17 removido): comando de ponto 6 h e Postura de 3 modos 7 h, **depois do playtest**. 13 h da `SHIRO` | CRI-43, CRI-19 | 8/13/21 | Should | M4b |
+| CRI-45 | **Montaria** (6.12, depois do playtest): controle e câmera 8, velocidade x1,3 e colisão 3, montar e desmontar 4, dano ao montado 3, ataque montado 5, HUD 2, rede 6, offsets 1 = **32 h da `SHIRO`** (recorte 26 h: sem ataque montado e só Utahraptor e Parassaurolofo); a Stamina do dino passa a valer aqui | CRI-08, CRI-43, NET-10 | 21/32/51 | Should | M4b |
+| CRI-46 | **Sela** (6.13, junto da montaria): item e 3 receitas (fibra 1, couro 2, metal 4) 2 h, vaga de sela e tela 5 h, defesa e durabilidade 2 h, extra de Peso e trava 3 h, sacolinha com item individual 2 h, save e rede 3 h = **17 h da `SHIRO`** (recorte 10 h sem metal) | CRI-45, PRO-17 | 11/17/27 | Should | M4b |
+| ART-12 | **Ícones de equipamento e montaria** (YATORA): 15 peças, 6 silhuetas de vaga, Mochila, 3 selas, marcador de destino; **sem sprite de corpo** (V70, V73) [estimativa minha] | CRI-31, CRI-42 | 3/5/8 | Should | M4 |
 | CRI-39 | **Arco e flechas** (5.4, M4): Arco (Saber 2), flecha comum e flecha de sono (esta usa o Preparado), alcance e dano por dado, Stamina 4, não está na barra de atalhos da 0.2; Corda (Saber 1). 8 h da `SHIRO` | PRO-16, PRO-21, CRI-28 | 5/8/13 | Should | M4 |
 | CRI-40 | **Boleadeira** (5.4, M4): 2 corda + 2 pedra à mão, 1 uso por arremesso, 6 tiles, prende (velocidade x0,4 por 5 s), dano 0; resposta ao Medroso sem Arco. 2 h da `SHIRO`, **cortável** | CRI-39 | 1/2/3 | Cortável | M4 |
 | SOB-10 | Ameaças, predadores e dificuldade | CRI-10 | 6/9/14 | Must | M4 |
 | PRO-10 | Progressão em 3 a 5 tiers [-1/-2/-3: Arco, flechas e Espada deixam de ser "sem horas novas" e viram CRI-39 e CRI-35] | PRO-05 | 7/10/17 | Must | M4 |
 | SOB-11 | Clima e ambiente | MUN-11 | 5/8/12 | Should | M4 |
 | PRO-08 | Ração S: Mel-de-cipó e marimbondos (vinda da 0.2, D16) | PRO-07 | 5/8/12 | Cortável | M4 |
-| CRI-17 | Temperamento do carnívoro domado (vindo da 0.2, D16) | CRI-07 | 3/5/8 | Cortável | M4 |
 | SOB-03 | Ciclo dia/noite (vindo da 0.2, D16) | MUN-03 | 3/4/6 | Should | M4 |
 | NET-20 | Interesse por chunk (inclui replicar Conduta por interesse; era 6/9/15) | MUN-10, NET-10 | 7/10/17 | Must | M4 |
 | INF-20 | Perfil e orçamento de desempenho | MUN-10 | 4/6/10 | Must | M4 |
@@ -492,7 +503,7 @@ Economia da D15: **-6/-11/-17 h** no M2 e -1/-2/-3 no M3. **Sobreposição com o
 | ART-07 | Música em loop (vinda da 0.2, D16) | ART-04 | 1/2/3 | Should | M5 |
 | ART-03b | Vocalizações por limiar (vindas da 0.2, D16) | ART-03 | 1/1/2 | Cortável | M5 |
 | CRI-34 | **Besta** (5.4, M5, Bancada, metal): 5 madeira + 2 barra + 2 corda, dano 22, 14 tiles, 2,0 s, mesma flecha; **cortável sem efeito no resto**. 3 h da `SHIRO` | CRI-39, CRI-35 | 2/3/5 | Should | M5 |
-| PRO-19 | **Metal, segundo tier** (receitas.md 6): Machado e Picareta de ferro (300 de durabilidade) e Traje de metal (40%, 12 kg, Forja) [estimativa minha] | CRI-35, CRI-31 | 2/3/5 | Should | M5 |
+| PRO-19 | **Metal, segundo tier** (receitas.md 6): Machado e Picareta de ferro (300 de durabilidade); as peças de metal já estão no CRI-31 (sem dobra) [estimativa minha] | CRI-35, CRI-31 | 1/2/3 | Should | M5 |
 | UIX-20 | Polimento de UI e acessibilidade | | 8/12/18 | Must | M5 |
 | UIX-21 | Tutorial completo | | 5/8/12 | Must | M5 |
 | UIX-22 | Localização en e pt-BR | | 4/6/10 | Should | M5 |
@@ -508,7 +519,7 @@ Cortes automáticos se o prazo apertar: SOB-11, UIX-22, NET-15, CRI-23, CRI-20 (
 
 ### 4.10 Decisões finais (06/11): conferência, crédito da branch, playtests e pendências
 
-**Decidido pelo dono.** D20 Triceratops L18 a L24 (L25 e acima só com couro, Arco ou metal: GDD conflito 45). D21 Dodo no **início do M2**. D22 Bastão nasce no inventário no M1, sem receita (a de reposição, Saber 1, é do M2). D23 PRO-15 no M1. D18 corte leve aplicado; corte maior só depois do QA-01a. Fora, sem marco: **Rifle, Dardo, fósforo, pólvora e sílex**. A v0.2 fecha em **19 receitas e 20 Saber** (24 no L20, sobram 4); a 1.0 em **41 receitas e 73 Saber** (completa no L61).
+**Decidido pelo dono.** D20 Triceratops L18 a L24 (L25 e acima só com couro, Arco ou metal: GDD conflito 45). D21 Dodo no **início do M2**. D22 Bastão nasce no inventário no M1, sem receita (a de reposição, Saber 1, é do M2). D23 PRO-15 no M1. D18 corte leve aplicado; corte maior só depois do QA-01a. Fora, sem marco: **Rifle, Dardo, fósforo, pólvora e sílex**. A v0.2 fecha em **19 receitas e 20 Saber** (24 no L20, sobram 4); a 1.0 em 41 receitas e 73 Saber **antes das peças de roupa, da Mochila e das selas; hoje 57 receitas e 82 Saber, completa no L69 (4.11)**.
 
 #### A. Conferência dos custos da `SHIRO`, sem contar em dobro
 
@@ -549,21 +560,22 @@ Horas da `SHIRO` usadas como realistas; O e P por 0,65 e 1,6. Desconto onde há 
 
 Branch `feat/nivel-eficiencia-sprites` (6901b80, 683c391, 40bc81b), sem merge e sem revisão do `LEVI`; li arquivos e títulos de commit, **não o código**. Desconto 70% do realista de 10 tarefas (CRI-01, CRI-09, CRI-11, CRI-16, UIX-01, UIX-02, UIX-07, UIX-11, UIX-13, UIX-14) e deixo 30% para revisão e merge: **-19/-31/-47 h no M1**. MUN-01 e ART-04 não creditados (~4 a 6 h R a mais, se confirmados). O hotbar entregue guarda o tipo; o PRO-15 o refaz sem crédito.
 
-#### C. Efeito por marco (v2.2 para v2.3 final)
+#### C. Efeito por marco (v2.2 para v2.4)
 
-| Marco | v2.2 | **v2.3 final** | Variação |
+| Marco | v2.2 | **v2.4** | Variação sobre a v2.2 |
 |---|---|---|---|
 | M0 | 7/10/17 | 7/10/17 | |
-| M1 | 88/131/206 | **77/112/178** | +8/12/19 do PRO-15, -19/-31/-47 de crédito |
-| M2 | 178/265/416 | **224/336/531** | +46/71/115 |
+| M1 | 88/131/206 | **75/110/175** | +8/12/19 PRO-15, +3/5/8 vagas, +1/1/2 teste de IA, -19/-31/-47 e -6/-8/-13 de crédito |
+| M2 | 178/265/416 | **231/347/549** | +46/71/115 até a v2.3, +7/11/18 do menu e comandos |
 | M3 | 72/107/170 | 77/114/182 | +5/7/12 |
-| M4 | 114/172/275 | 143/219/350 | +29/47/75: Forja com carvão 10/16/25, Arco 5/8/13, Oferta 8/13/21, fibra 5/8/13, palha e pedra 3/4/6, Boleadeira 1/2/3, menos PRO-10 e sono |
-| M5 | 61/98/160 | 65/104/170 | +4/6/10: Besta 2/3/5, ferro e metal 2/3/5 |
+| M4 | 114/172/275 | 139/211/336 | peças de equipamento e Mochila entram, Traje de fibra e Temperamento saem, Oferta vai ao M4b |
+| **M4b (novo)** | | 48/75/120 | Montaria 21/32/51, Sela 11/17/27, Ir até aqui e Postura 8/13/21, Oferta 8/13/21 |
+| M5 | 61/98/160 | 64/103/168 | Besta, ferro; peças de metal estão no M4 |
 | M6 | 20/31/54 | 20/31/54 | |
-| **Acumulado 0.2** | 273/406/639 | **308/458/726** | +35/+52/+87 |
-| **Acumulado 1.0** | 540/814/1298 | **613/926/1482** | +73/+112/+184 |
+| **Acumulado 0.2** | 273/406/639 | **313/467/741** | +40/+61/+102 |
+| **Acumulado 1.0** | 540/814/1298 | **661/1001/1601** | +121/+187/+303 |
 
-Frente à v2.3 anterior (309/458/727 e 607/914/1464): a 0.2 varia -1/0/-1 e a 1.0 +6/+12/+18 (a Forja com carvão e as armas do M4 superam a saída do Rifle). As linhas das tabelas 4.2, 4.3 e 4.9 somam exatamente estes totais (conferido por script).
+As linhas das tabelas 4.2, 4.3 e 4.9 somam exatamente estes totais (conferido por script).
 
 #### D. M1 sem presa e sem carne (GDD conflito 43): o que muda
 
@@ -571,19 +583,19 @@ Frente à v2.3 anterior (309/458/727 e 607/914/1464): a 0.2 varia -1/0/-1 e a 1.
 - **Utahraptor no M1:** só ameaça, ataca o jogador (Agressivo); **não é domável** (precisa Carne, Lança e Dodo, M2). O smoke test e o roteiro do INF-05 não domam carnívoro.
 - **Conteúdo do M1:** só a baga tem consumidor (madeira, pedra e fibra ficam como dado, sem receita); PRO-03 perde `dardo_sono`; sem Fogueira, sem Carne, sem fome de carne (a fome do jogador só se resolve com baga, +10 de fome por baga: ~1 baga a cada 50 s). Sem `RecipeDef` no M1 (D22), o PRO-04 fica no M2.
 - **XP do jogador:** o GDD diz que o XP do M1 vem de coletar, craftar e domar, mas o **PRO-11 (XP e nível do jogador) é M2** neste plano e craftar não existe no M1. **Pendência:** se o dono quer XP e nível do jogador no M1, o PRO-11 (4/6/10) sobe e o COM-02 sai ~6 h depois; senão, só o dino tem nível no M1.
-- **Horas:** nenhuma muda (M1 77/112/178); o MUN-02 poderia encolher ~1 h e não descontei.
+- **Horas:** a decisão em si não muda nada; o M1 desta versão (75/110/175) vem das vagas, do teste de IA e do crédito do PRO-15 (4.11). O MUN-02 poderia encolher ~1 h e não descontei.
 
 #### E. Playtests, horas e cortes
 
 | Playtest | Onde | Acumulado até ali (R; faixa O a P) | Exige durabilidade e validade? |
 |---|---|---|---|
-| **1: COM-02** | fim do M1 | **122 h** (84 a 195); 110 h sem o PRO-15 | **Não** (Bastão: 120 golpes, 30 nocautes) |
-| **2: QA-01a (H1)** | início do M2, depois de MUN-03, MUN-04, CRI-12 e SOB-08 | **149 h** (101 a 237) | **Não** |
+| **1: COM-02** | fim do M1 | **120 h** (82 a 192); 114 h sem o PRO-22 e o ART-08 | **Não** (Bastão: 120 golpes, 30 nocautes) |
+| **2: QA-01a (H1)** | início do M2, depois de MUN-03, MUN-04, CRI-12 e SOB-08 | **147 h** (99 a 234) | **Não** |
 | 3: sustento | depois de Lança, Dodo, carcaça, Saber, Ração, durabilidade, validade, Fogueira, fome-torpor e Cocho | ~230 h | Sim (carne vence em 30 min; colapso de fome em 9 min) |
 
-**Dodo "no início do M2":** coloquei no começo do bloco de sustento, logo depois do QA-01a, porque o QA-01a (Bastão, baga, Utahraptor, dormindo) não usa presa. Se o dono quiser Dodo e Lança **antes** do QA-01a, o playtest 2 sai em **159 h** (+10).
+**Dodo "no início do M2":** coloquei no começo do bloco de sustento, logo depois do QA-01a, porque o QA-01a (Bastão, baga, Utahraptor, dormindo) não usa presa. Se o dono quiser Dodo e Lança **antes** do QA-01a, o playtest 2 sai em **157 h** (+10).
 
-**Cortes.** **A (sequência):** 60 h do escopo novo (PRO-16, PRO-17, PRO-18, SOB-07, PRO-14b, CON-05, CRI-13, CRI-06c) ficam depois do QA-01a. **B (D18 leve): aplicada**, -10 h R já fora dos números. **C (corte maior, depois do QA-01a, só o dono): fruta-do-sono e motor contínuo -10 h** (o Triceratops doma com Ração A: extra 55, 2 golpes de Bastão), **Cocho -18 h** (o domado come do alforje, limiar 25), **fome-torpor -11 h** (fica o dano de fome atual a 0,2/s): **-39 h R**, 0.2 em 419 h R. **Recomendo decidir a C com o resultado do QA-01a na mão.**
+**Cortes.** **A (sequência):** 60 h do escopo novo (PRO-16, PRO-17, PRO-18, SOB-07, PRO-14b, CON-05, CRI-13, CRI-06c) ficam depois do QA-01a. **B (D18 leve): aplicada**, -10 h R já fora dos números. **C (corte maior, depois do QA-01a, só o dono): fruta-do-sono e motor contínuo -10 h** (o Triceratops doma com Ração A: extra 55, 2 golpes de Bastão), **Cocho -18 h** (o domado come do alforje, limiar 25), **fome-torpor -11 h** (fica o dano de fome atual a 0,2/s): **-39 h R**, 0.2 em 428 h R. **Recomendo decidir a C com o resultado do QA-01a na mão.**
 
 #### F. Divergências entre documentos e pendências reais
 
@@ -597,6 +609,50 @@ Frente à v2.3 anterior (309/458/727 e 607/914/1464): a 0.2 varia -1/0/-1 e a 1.
 5. **Crédito da branch (-31 h):** depende da revisão do `LEVI` e do merge (R30).
 6. **Forja "M4 a M5":** pus a Forja inteira no M4 (a Espada precisa dela); a `SHIRO` pode separar.
 7. **Externas, não deste plano:** D6, D7, D12, D13 e D14.
+### 4.11 Vagas, Mochila, comandos, montaria, sela e arte de IA (decisões do dono, 06/11): conferência, divisão do M4 e playtests
+
+**Aceito pelo dono** (GDD 5.11, 5.20, 5.21, 6.11 a 6.13 e `receitas.md`). Vagas de equipamento (Arma, Capacete, Camisa, Luva, Calça, Bota; 5.20), Mochila como 7ª vaga (5.21), menu e comandos do domado (6.11), Montaria (6.12) e Sela (6.13). **As peças de roupa substituem o Traje de fibra** (CRI-38, 8 h, removido) e o Traje de couro. **Receitas:** v0.2 mantém **19 receitas e 20 Saber**; a 1.0 passa a **57 receitas e 82 Saber, completa no L69** (peças 53 e 73; Mochila +1 e +2; selas +3 e +7; os dois itens ainda "provisórios" no GDD). **Arte:** teste de arte de dino com IA como placeholder (D3) no M1, **sem custo do dono além do teste**, e **artista só depois do playtest**.
+
+#### A. Conferência dos custos da `SHIRO`, sem contar em dobro
+
+| Item | ID | `SHIRO` | Plano O/R/P | Marco | Correção |
+|---|---|---|---|---|---|
+| Vagas de equipamento, M1 (só a Arma visível) | PRO-22 | 7 h (5 h no recorte) | 3/5/8 | M1 | **-2 h**: o item em mãos (`equipped`) e a barra por `iid` já estão no PRO-15 (3 + 3 + 1 viram 3 + 2) |
+| Vagas, M4 (redução somada, reparo por peça, 15 itens, 5 vagas visíveis, save e co-op) | CRI-31 | 9 h | 6/9/14 | M4 | **substitui** o CRI-31 antigo (Traje de couro, 3/5/8): líquido +3/4/6; **remove o Traje de fibra** (CRI-38, -5/-8/-13); PRO-19 perde as peças de metal (-1/-1/-2) |
+| Mochila e limite de slots | CRI-42 | 9 h | 6/9/14 | M4 | confirmado; fora da v0.2 (limitar slots sem alívio só cria atrito) |
+| Menu, Seguir/Ficar todos e permissão | CRI-43 | 11 h (6 + 3 + 2) | 7/11/18 | M2 | confirmado, sem sobreposição relevante (CRI-05 só tem a lógica da ordem); entra **depois** do QA-01a |
+| Ir até aqui e Postura | CRI-44 | 13 h (6 + 7) | 8/13/21 | **M4b** | **remove o Temperamento do domado** (CRI-17, -3/-5/-8), que a Postura substitui; líquido +5/+8/+13 |
+| Montaria | CRI-45 | 32 h (26 h recorte) | 21/32/51 | **M4b** | confirmado; a rede (6 h) é a parte mais incerta (R41) |
+| Sela | CRI-46 | 17 h (10 h recorte) | 11/17/27 | **M4b** | confirmado; item individual na sacolinha reusa o PRO-15 |
+| Ícones de equipamento e montaria | ART-12 | lista | 3/5/8 | M4 | estimativa minha (15 peças, 6 silhuetas, Mochila, 3 selas, marcador) |
+| Teste de arte de dino com IA | ART-08 | | 1/1/2 | M1 | estimativa minha; só a hora do dono para olhar o teste |
+| Slot de Oferta | CRI-37 | 13 h | 8/13/21 | M4 para **M4b** | só mudou de marco |
+
+**PRO-15 já feito no working tree** (itens de pilha e individuais, Bastão em mãos, barra por `iid`, save v2 com migração, `inventory_model_tests.gd`): crédito de 70% do realista, **8/12/19 passa a 2/4/6 (-6/-8/-13)**, mais o desconto de 2 h no PRO-22. Li o README e a estatística do diff (20 arquivos, 768 linhas inseridas), **não o código**; o que falta é validação de servidor, revisão do `LEVI` e commit (R38).
+
+#### B. Divisão do M4 (proposta, R34 e R36)
+
+| Marco | O/R/P | Conteúdo | Condição |
+|---|---|---|---|
+| **M4** (v0.4) | 139/211/336 | Mundo (chunking, seed, persistência, interesse), Oviraptor e Listro, Criação, Orvalho e ofícios, Forja com carvão e metal, Arco, flechas e Boleadeira, palha e pedra, **peças de equipamento e Mochila**, ícones | Must/Should já previstos |
+| **M4b** (novo) | 48/75/120 | Montaria, Sela, Ir até aqui e Postura, Slot de Oferta | **só depois do playtest 3 e com decisão do dono**; cortável por inteiro |
+
+Sem o M4b a 1.0 custa 926 h R em vez de 1001. Ordem de corte dentro do M4b: Oferta (13 h), Postura (7 h), Sela (17 h), Montaria (32 h; recorte 26 h).
+
+#### C. Horas até os playtests e riscos novos
+
+- **COM-02: 120 h R** (82 a 192; M0 10 mais M1 110). O M1 inclui PRO-15 (2/4/6 depois do crédito), vagas (3/5/8) e o teste de IA (1/1/2); não inclui a Mochila, as peças nem o menu do domado.
+- **QA-01a: 147 h R** (99 a 234). Nenhum item novo desta rodada fica antes dele (menu e comandos são do bloco de vínculo).
+- **Riscos novos:** R36 (M4 inchado, divisão), R37 (Mochila e slots limitando), R38 (PRO-15 sem commit), R39 (arte de IA como placeholder), R40 (vagas só com Arma testada), R41 (montaria e rede).
+
+#### D. Pendências reais desta rodada
+
+1. **Commit do PRO-15** e revisão do `LEVI`: o crédito de 8 h e o trabalho todo estão só no working tree.
+2. **Dono aceita a divisão M4 e M4b** (D27).
+3. **Mochila e selas são "provisórias" no GDD** (sem números definitivos): a 1.0 de 57 receitas e 82 Saber muda se mudarem.
+4. **Artista:** depois do playtest, com o resultado do ART-08; o gate C (arte final antes do lançamento público) continua valendo e o prazo do artista fica espremido (R18, R39).
+5. **Herdadas:** XP do jogador no M1 (GDD diz sim, plano diz M2), Dodo antes ou depois do QA-01a (+10 h), Cocho como Must; estimativas minhas a confirmar pela `SHIRO`; D6, D7, D13 e D14.
+
 ---
 
 ## 5. Estimativas
@@ -617,18 +673,19 @@ Frente à v2.3 anterior (309/458/727 e 607/914/1464): a 0.2 varia -1/0/-1 e a 1.
 | Marco | Antes O/R/P | **Depois O/R/P** | Semanas (R) a 5 h | a 10 h | a 20 h |
 |---|---|---|---|---|---|
 | M0 Higiene (restante 4/6/10) | 7 / 10 / 17 | 7 / 10 / 17 | 2.0 | 1.0 | 0.5 |
-| M1 Fatia vertical | 48 / 74 / 119 | **77 / 112 / 178** | 22.4 | 11.2 | 5.6 |
-| M2 Primeiro Vale | 69 / 104 / 165 | **224 / 336 / 531** | 67.2 | 33.6 | 16.8 |
+| M1 Fatia vertical | 48 / 74 / 119 | **75 / 110 / 175** | 22.0 | 11.0 | 5.5 |
+| M2 Primeiro Vale | 69 / 104 / 165 | **231 / 347 / 549** | 69.4 | 34.7 | 17.4 |
 | M3 Co-op e servidor | 53 / 79 / 125 | 77 / 114 / 182 | 22.8 | 11.4 | 5.7 |
-| M4 Mundo e conteúdo | 67 / 101 / 163 | 143 / 219 / 350 | 43.8 | 21.9 | 10.9 |
-| M5 Beta | 57 / 92 / 150 | 65 / 104 / 170 | 20.8 | 10.4 | 5.2 |
+| M4 Mundo e conteúdo | 67 / 101 / 163 | 139 / 211 / 336 | 42.2 | 21.1 | 10.6 |
+| M4b Rebanho e montaria (depois do playtest) | | 48 / 75 / 120 | 15.0 | 7.5 | 3.8 |
+| M5 Beta | 57 / 92 / 150 | 64 / 103 / 168 | 20.6 | 10.3 | 5.2 |
 | M6 1.0 | 20 / 31 / 54 | 20 / 31 / 54 | 6.2 | 3.1 | 1.6 |
-| **Acumulado até a 0.2** | **124 / 188 / 301** | **308 / 458 / 726** | 91.6 | 45.8 | 22.9 |
-| **Acumulado até a 1.0** | **321 / 491 / 793** | **613 / 926 / 1482** | 185.2 | 92.6 | 46.3 |
+| **Acumulado até a 0.2** | **124 / 188 / 301** | **313 / 467 / 741** | 93.4 | 46.7 | 23.4 |
+| **Acumulado até a 1.0** | **321 / 491 / 793** | **661 / 1001 / 1601** | 200.2 | 100.1 | 50.0 |
 
-**Crescimento.** A 0.2 cresce **+184 / +270 / +425 h (+148%, +144%, +141%)** sobre o plano original; a 1.0 cresce **+292 / +435 / +689 h (+91%, +89%, +87%)**. Sobre a v2.2 (273/406/639 e 540/814/1298) a 0.2 sobe +35/+52/+87 e a 1.0 +73/+112/+184: o escopo fechado soma +83 h na 0.2, o crédito da branch devolve -31 e o corte leve D18 devolve -10 (4.10).
+**Crescimento.** A 0.2 cresce **+189 / +279 / +440 h (+152%, +148%, +146%)** sobre o plano original; a 1.0 cresce **+340 / +510 / +808 h (+106%, +104%, +102%)**, dos quais 75 h R são o M4b, condicionado ao playtest. Sobre a v2.2 a 0.2 sobe +40/+61/+102 e a 1.0 +121/+187/+303.
 
-**Leitura honesta.** Com 10 h/semana a 0.2 sai em cerca de 46 semanas no realista (faixa de 31 a 73), contra 19 no plano original; com 5 h/semana são 92. O que muda o calendário percebido é a ordem: o COM-02 chega em ~122 h R e o QA-01a em ~149 h R, antes de 60 h do escopo novo (4.10-E). As horas do artista (D12) e da `SHIRO` somam a isso.
+**Leitura honesta.** Com 10 h/semana a 0.2 sai em cerca de 47 semanas no realista (faixa de 31 a 74), contra 19 no plano original; com 5 h/semana são 93. O COM-02 chega em ~120 h R e o QA-01a em ~147 h R, antes de 60 h do escopo novo. A 1.0 em 1001 h R só é crível com o M4b cortado ou adiado: sem ele são 926 h. As horas do artista (D12) e da `SHIRO` somam a isso.
 
 ---
 
@@ -719,8 +776,14 @@ Frente à v2.3 anterior (309/458/727 e 607/914/1464): a 0.2 varia -1/0/-1 e a 1.
 | R31 | **Estimativas novas são, em sua maioria, da `SHIRO`** ("estimativa minha" no GDD) e eu as usei como realistas; o PRO-15 e o Cocho mexem em arquitetura e 1,6x pode ser baixo | Média | Médio | tarefa de inventário passa de 19 h | revisar com o `SORA` antes de aceitar; o pessimista já embute 1,6x |
 | R32 | **Documentos de design divergentes**: as divergências de receitas (19 e 20 Saber), Dodo, Bastão, fibra e `racao.md` **foram corrigidas** (4.10-F); restam o Cocho "cortável" no GDD 5.12 e em `receitas.md`, e o XP do M1 no GDD contra o M2 do plano | Baixa | Médio | PR com número que não bate com a spec | dono confirma o Cocho como Must e decide o XP no M1 (4.10-F, pendências 1 e 3) |
 | R33 | **O M1 não testa caça, Carne nem H1**: sem presa, sem Lança e sem receita, o COM-02 só valida o domar do Paquicéfalo; o risco de o loop de sustento ser chato só aparece no playtest 3 (~230 h) | Média | Médio | COM-02 aprova e o QA-01 reprova | QA-01a no início do M2 cobre H1; playtest 3 curto assim que Lança, Dodo e carcaça existirem; Dodo antes do QA-01a custa +10 h |
-| R34 | **O M4 virou o marco mais inchado** (143/219/350): Forja com carvão, Arco, Boleadeira, Oferta, Traje de fibra, palha e pedra, Oviraptor e Listro, chunking e seed | Alta | Alto | M4 passa do pessimista | cortes automáticos (Boleadeira, Besta, Oferta, fibra são cortáveis ou Should); revisar o M4 depois do QA-01 |
+| R34 | **O M4 virou o marco mais inchado** (143/219/350): Forja com carvão, Arco, Boleadeira, Oferta, palha e pedra (v2.4: Oferta foi ao M4b, o Traje de fibra saiu e há peças, Mochila e Montaria: R36), Oviraptor e Listro, chunking e seed | Alta | Alto | M4 passa do pessimista | cortes automáticos (Boleadeira, Besta, Oferta, fibra são cortáveis ou Should); revisar o M4 depois do QA-01 |
 | R35 | **Tetos de nível e "poucos altos" sem playtest**: 2,5 a 3 h de companhia até o teto 50 pode parecer espera; dinos fortes podem ficar raros demais | Média | Baixo | testador não nota progressão | valores em chave de servidor (`dino_nivel_max` e outras); PRO-20 em dado; revisar no QA-01 |
+| R36 | **M4 inchado de novo** (R34): peças, Mochila, Forja com carvão, Arco, Montaria, Sela, comandos, Oferta | Alta | Alto | M4 passa do pessimista | **divisão M4 e M4b** (4.11): o M4b (48/75/120) só entra depois do playtest 3 e é cortável por inteiro; ordem de corte dentro do M4b: Oferta, Postura, Sela, Montaria |
+| R37 | **Mochila faz os slots limitarem** (24 base, +16): contradiz o "slots só exibição" de 5.1; sem playtest pode parecer atrito sem alívio | Média | Médio | testador reclama de "inventário cheio" | só no M4; valores em `ServerRules`; excesso vai à sacolinha; a v0.2 **não** tem limite de slots |
+| R38 | **PRO-15 está só no working tree** (768 linhas inseridas, 20 arquivos, sem commit nem revisão): perda ou sobrescrita (R14), e o crédito de 8 h R depende de revisão do `LEVI` | Média | Alto | `git checkout` ou agente em paralelo mexe nos mesmos arquivos | commit em branch própria antes de qualquer outra tarefa; `LEVI` revisa antes do merge; sem tarefa nova em `InventoryComponent`, `HotbarComponent` ou `Player` até lá |
+| R39 | **Arte de IA como placeholder** (ART-08): o teste pode agradar e virar atalho ("fica assim"); crítica da comunidade (R17) e a D3 exigem troca antes do lançamento | Média | Médio | placeholder de IA sem marca no `CREDITS.md` ou usado em release | marca obrigatória no `CREDITS.md`; veredito do dono só sobre estilo; **artista só depois do playtest**, então o gate C aperta o fim do M2 (R18) |
+| R40 | **Vagas só com a Arma visível no M1**: o modelo genérico de 6 vagas é pago agora e só 1 vaga é testada; as 5 de roupa (`slot_visivel`) só aparecem no M4 | Média | Baixo | bug de vaga de roupa descoberto no M4 | testes de modelo cobrem as 6 vagas por dado desde o M1 (inclusive `equipar` recusando vaga errada) |
+| R41 | **Montaria é o maior risco de rede** (6 h estimadas dentro das 32 h) e muda a autoridade do movimento; a sela adiciona item individual na sacolinha e extra de Peso | Alta | Alto | S0 repetido (NET-03) não cobre movimento montado | M4b depois do playtest e do M3; ADR do `KURAMA` antes de CRI-45; recorte de 26 h (sem ataque montado, só dois dinos) como saída |
 
 ---
 
@@ -805,7 +868,7 @@ Já decidido e portanto fora desta lista: licença do código (MIT), repositóri
 | **D9** | Plataformas | Linux e Windows Must; macOS Could; web e mobile Won't | INF-06, INF-08 |
 | **D10** | Discord | Só após a 0.2 e com demanda | comunidade |
 | **D11** | Servidor oficial | Nenhum até a 1.0 | custo e segurança |
-| **D12** | Artista para os dinos (orçamento, prazo, humano ou arte própria revisada) | **PENDENTE, não é decisão deste plano.** Recomendo pedir orçamento já no M1 com o `ESTILO.md` como briefing (R3, R18) | ART-06, gate C |
+| **D12** | Artista para os dinos (orçamento, prazo, humano ou arte própria revisada) | **PENDENTE, não é decisão deste plano.** **ATUALIZADO (06/11, dono): artista só depois do playtest**, com base no teste de IA como placeholder (ART-08); sem orçamento no M1. O gate C segue exigindo arte humana ou CC0 antes do lançamento público (R3, R18) | ART-06, gate C |
 | **D13** | E-mail nos commits do histórico antes do push público | **PENDENTE:** conferir autor e e-mail dos 2 commits; reescrever histórico é barato agora, caro depois | INF-01, gate A |
 | **D14** | Publicação: push, visibilidade e momento do gate A | **PENDENTE:** depende de D6, D13 e da varredura de segredos | INF-01 |
 | **D15** | Pontos de nível e XP na 0.2 | **DECIDIDO (06/11):** versão enxuta (4.6); pilar da seção 1 atualizado | PRO-11, PRO-12, UIX-09 |
@@ -818,6 +881,9 @@ Já decidido e portanto fora desta lista: licença do código (MIT), repositóri
 | **D22** | Bastão no M1 | **DECIDIDO (06/11):** nasce no inventário, sem receita; a de reposição (Saber 1) é do M2 | COM-02, PRO-04 |
 | **D23** | Modelo de inventário individual (PRO-15) | **DECIDIDO (06/11):** no M1, antes do SAV-01 e do S0 | PRO-15, SAV-01, NET-02 |
 | **D24** | Decisões finais de armas e química (06/11): Rifle, Dardo, fósforo, pólvora e sílex sem marco; Arco, flechas e Boleadeira no M4, Besta no M5; Forja com carvão (M4 a M5); tetos de nível e Pilão na 0.2 | **DECIDIDO (06/11)** | CRI-34, CRI-35, CRI-39, CRI-40, PRO-20, PRO-21 |
+| **D25** | Artista só depois do playtest; teste de arte de dino com IA como placeholder (ART-08), sem custo do dono além do teste | **DECIDIDO (06/11)** | ART-06, D12 |
+| **D26** | Vagas de equipamento (M1 só a Arma; peças no M4), Mochila (M4), menu do domado e Seguir/Ficar todos (M2), Ir até aqui e Postura, Montaria e Sela (depois do playtest) | **DECIDIDO (06/11)**; 1.0 em 57 receitas e 82 Saber (L69), v0.2 em 19 e 20 | PRO-22, CRI-31, CRI-42 a CRI-46 |
+| **D27** | Dividir o M4 em M4 e M4b (Montaria, Sela, Postura, Oferta depois do playtest) | **Recomendo sim**; decide o dono | M4, M4b |
 
 ---
 
@@ -827,7 +893,7 @@ Já decidido e portanto fora desta lista: licença do código (MIT), repositóri
 2. **`SHIRO`:** confirmar a divisão do Dodo (~7 h) e as estimativas minhas da 4.10-A (Forja base, palha e pedra, ferro e metal, arte e som); separar a Forja entre M4 e M5 se quiser; atualizar a seção 9 do GDD.
 3. **`SORA`:** abrir PR da branch `feat/nivel-eficiencia-sprites` para o `LEVI`; depois **PRO-15** (com o ADR curto do `KURAMA`), SAV-01, NET-01, PRO-03 e CRI-03. **Não iniciar** PRO-16, PRO-17, PRO-18, SOB-07, PRO-14b, CON-05, CRI-13, CRI-06c, PRO-20, PRO-21, PRO-09, CRI-29, SOB-06 nem PRO-13 antes do QA-01a, exceto PRO-11 e **SOB-08**.
 4. **`KURAMA`:** ARQ-04 (ADR-004) antes do CRI-04, com o torpor contínuo por alvo e o teto de 3 efeitos; **ADR curto do formato de item** (`{id, count, expira_em?}` e `{id, iid, durab, durab_max}`, hotbar por slot) antes do PRO-15.
-5. **`SAITAMA` e `LEVI`:** INF-02, INF-07 e INF-03; **`YATORA`:** ART-04 (ouvir os sons do pacote), ART-05 e os ícones e sons novos de ART-02 e ART-03.
+5. **`SAITAMA` e `LEVI`:** INF-02, INF-07 e INF-03; **`LEVI` revisa o PRO-15 do working tree antes de tudo**; **`YATORA`:** ART-04 (ouvir os sons do pacote), ART-05, **ART-08 (teste de IA como placeholder, antes do COM-02)** e os ícones e sons novos de ART-02 e ART-03; ART-12 (equipamento) só no M4.
 6. **`BULMA`:** COM-04 (landing honesta) antes do gate C; não editei `html/`.
 7. **INF-01:** varredura de segredos e D13 antes do push.
 8. Recrutar de 3 a 5 testadores para o playtest 0.1 (COM-02) e 3 para o QA-01a.

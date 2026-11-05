@@ -21,6 +21,24 @@ def ciclo():
     n = math.ceil(VIDA / (FAINT_S * FAINT_DPS))
     print(f"morte: {n} desmaios = {TORPOR_MAX/TORPOR_UP + (n-1)*ciclo + FAINT_S*VIDA/(FAINT_S*FAINT_DPS)%FAINT_S:.0f} s a partir do fome 0 (~{(TORPOR_MAX/TORPOR_UP + (n-1)*ciclo)/60:.1f} min); janelas para comer: {n-1} de {sobe:.0f} s")
     print(f"do fome 100 ao primeiro colapso: {100/DECAY + TORPOR_MAX/TORPOR_UP:.0f} s ({(100/DECAY + TORPOR_MAX/TORPOR_UP)/60:.1f} min); codigo atual: morte em {VIDA/(5/2):.0f} s")
+PECAS = ("camisa", "calca", "capacete", "bota", "luva")
+RED = {"fibra": (3, 3, 2, 1, 1), "couro": (8, 6, 5, 3, 3), "metal": (12, 10, 8, 6, 4)}      # % por peca (soma = 10/25/40)
+KG = {"fibra": (.6, .5, .4, .3, .2), "couro": (1.8, 1.5, 1.2, .9, .6), "metal": (3.6, 3.0, 2.4, 1.8, 1.2)}
+DURAB = {"fibra": 100, "couro": 150, "metal": 300}
+MAT = {"fibra": ((5, 0), (4, 0), (3, 0), (2, 0), (1, 0)),            # (material principal, fibra extra); fibra: fibra
+       "couro": ((3, 1), (2, 1), (1, 1), (1, 1), (1, 0)),             # couro, fibra
+       "metal": ((2, 1), (1, 1), (1, 0), (1, 0), (1, 0))}             # barra, couro
+def pecas():
+    print("Conjunto por peca (reducao %, peso kg, durabilidade, material). Soma deve fechar 10/25/40 e 2/6/12 kg")
+    for m in RED:
+        assert sum(RED[m]) == {"fibra": 10, "couro": 25, "metal": 40}[m] and abs(sum(KG[m]) - {"fibra": 2, "couro": 6, "metal": 12}[m]) < 1e-9, m
+        print(f" {m}: " + "; ".join(f"{p} {RED[m][i]}% {KG[m][i]} kg {MAT[m][i]}" for i, p in enumerate(PECAS)) + f" | total {sum(RED[m])}%, {sum(KG[m]):.1f} kg, durab {DURAB[m]} por peca")
+    mix = RED["metal"][0] + RED["couro"][1] + RED["couro"][2] + RED["fibra"][3] + RED["fibra"][4]
+    print(f"Misto (camisa metal, calca e capacete couro, bota e luva fibra): {mix}% ; Utahraptor 11,25 -> {max(1, 11.25*(1-min(.5, mix/100))):.2f}; peca quebrada (camisa): {mix-12}%")
+    print("Soma linear, sem bonus de conjunto, teto 50% nunca e atingido (maximo 40%).")
+    print("Desgaste: todas as pecas equipadas perdem 1 por golpe sofrido; 5 pecas x durab = 5x pontos, mas o material por peca e 1/5: o custo de material por golpe NAO muda (conta abaixo)")
+    for m, (d, base) in {"fibra": (100, 15), "couro": (150, 12), "metal": (300, 8)}.items():
+        print(f"  {m}: conjunto completo reparado do zero = {sum(max(1, math.ceil(.5*MAT[m][i][0])) for i in range(5))} unid. do material principal (50% de {sum(x[0] for x in MAT[m])}, com minimo 1 por peca)")
 def armadura():
     print("dano final = max(1, dano x (1 - min(0,5, reducao))), so para ataque com dano base >= 1; dano base 0 (dardo) continua 0")
     ataques = (("Soco-nivel / marimbondo (1)", 1), ("pancada 2", 2), ("Paq cabecada", 6.5), ("Utahraptor mordida", 11.25), ("Triceratops investida", 55))
@@ -29,4 +47,4 @@ def armadura():
     for n, d in ataques: print(f"{n:30}" + "".join(f"{max(1, d*(1-min(.5, r)) if r < .9 else max(1, d*(1-r))):20.2f}" for _, r in arm))
     print("min 1 so muda o resultado para dano <= 1,7 com 40% (1,25 com 20%); sem teto, 90% daria 1 por golpe do Triceratops (5,5) e tornaria o jogador quase imune: o teto continua")
     for n, d in (("Traje de fibra", 100), ("Traje de couro", 150), ("Traje de metal", 300)): print(f"  {n}: {d} golpes sofridos; Utahraptor L20 (1 mordida/1,5 s) = {d*1.5/60:.1f} min de luta")
-{"fome": fome, "ciclo": ciclo, "armadura": armadura}[sys.argv[1]]()
+{"fome": fome, "ciclo": ciclo, "armadura": armadura, "pecas": pecas}[sys.argv[1]]()

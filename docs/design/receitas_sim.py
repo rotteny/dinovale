@@ -27,8 +27,8 @@ R = {  # id: (nome, cat, tier, Saber, prereq (lista plana: vazio), conhecida, ma
  "flecha":   ("Flecha comum", "A", 2, 2, [], False, "M4", 1, "Maos"),
  "flecha_s": ("Flecha de sono", "A", 2, 2, [], False, "M4", 1, "Maos"),
  "boleadeira": ("Boleadeira", "A", 2, 2, [], False, "M4", 1, "Maos"),
- "traje_couro": ("Traje de couro", "R", 2, 2, [], False, "M4", 1, "Maos"),
- "traje_fibra": ("Traje de fibra", "R", 1, 1, [], False, "depois do playtest", 1, "Maos"),
+ "traje_couro": ("Conjunto de couro (5 pecas)", "R", 2, 2, [], False, "M4", 5, "Maos"),
+ "traje_fibra": ("Conjunto de fibra (5 pecas)", "R", 1, 1, [], False, "depois do playtest", 5, "Maos"),
  "canteiro": ("Canteiro", "M", 2, 2, [], False, "M4", 1, "Maos"),
  "palha_c":  ("Palha (parede, cerca, porta)", "C", 1, 1, [], False, "M4", 3, "Maos"),
  "tijolo":   ("Tijolo", "D", 2, 2, [], False, "M4+", 1, "Maos"),
@@ -39,7 +39,11 @@ R = {  # id: (nome, cat, tier, Saber, prereq (lista plana: vazio), conhecida, ma
  "espada":   ("Espada de ferro", "A", 4, 6, [], False, "M4 a M5", 1, "Bancada"),
  "machado_f": ("Machado de ferro", "A", 4, 6, [], False, "M5", 1, "Bancada"),
  "picareta_f": ("Picareta de ferro", "A", 4, 6, [], False, "M5", 1, "Bancada"),
- "traje_metal": ("Traje de metal", "R", 4, 6, [], False, "M5", 1, "Bancada"),
+ "traje_metal": ("Conjunto de metal (5 pecas)", "R", 4, 6, [], False, "M5", 5, "Bancada"),
+ "mochila":  ("Mochila (item futuro, provisorio)", "M", 2, 2, [], False, "M4", 1, "Maos"),
+ "sela_fibra": ("Sela de fibra", "A", 1, 1, [], False, "depois do playtest (montaria)", 1, "Maos"),
+ "sela_couro": ("Sela de couro", "A", 2, 2, [], False, "depois do playtest (montaria)", 1, "Maos"),
+ "sela_metal": ("Sela de metal", "A", 3, 4, [], False, "depois do playtest (montaria), M5", 1, "Bancada"),
  "besta":    ("Besta (usa as mesmas flechas)", "A", 3, 4, [], False, "M5", 1, "Bancada"),
 }
 V02 = {k for k, v in R.items() if v[6].startswith(("M1", "M2"))}
@@ -57,6 +61,12 @@ def arvore():
     for k, v in R.items(): assert all(p in R for p in v[4]), k
     print("cadeia mais longa:", max(d(k) for k in R), "(1.0),", max(d(k) for k in V02), "(0.2)")
     print("metal (1.0): " + ", ".join(R[k][0] for k in ("forja", "machado_f", "picareta_f", "espada", "traje_metal", "besta")), "=", sum(R[k][3] for k in ("forja", "machado_f", "picareta_f", "espada", "traje_metal", "besta")), "Saber")
+def por_peca():
+    # alternativa rejeitada: 1 no de Saber por peca (custo por peca: fibra 1, couro 2, metal 4)
+    extra = 5 * 1 + 5 * 2 + 5 * 4 - (1 + 2 + 6)
+    tot = sum(v[3] for v in R.values()) + extra
+    L = next(l for l in range(1, 200) if saber_ate(l) >= tot)
+    print(f"Saber por peca: 1.0 = {tot} Saber (+{extra}); completa no L{L} (teto do jogador 75 = {saber_ate(75)})")
 def estacoes():
     for nome, ks in (("v0.2", V02), ("1.0", set(R))):
         c = {}
@@ -75,4 +85,4 @@ def ordem():
         print(f"  {R[k][0]:46} +{R[k][3]} = {acc:2} Saber -> L{L:2}, {xp_ate(L)/13:4.0f} min")
 def cortes():
     print("Cortados da arvore ativa:", ", ".join(CORTADOS))
-{"arvore": arvore, "ritmo": ritmo, "ordem": ordem, "cortes": cortes, "estacoes": estacoes}[sys.argv[1]]()
+{"arvore": arvore, "ritmo": ritmo, "ordem": ordem, "cortes": cortes, "estacoes": estacoes, "por_peca": por_peca}[sys.argv[1]]()

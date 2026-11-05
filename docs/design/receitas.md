@@ -1,6 +1,6 @@
 # Dino Vale: receitas e Saber (árvore do personagem)
 
-> Enxugada em 06/11 (decisão do dono) e **fechada com as decisões finais do dono (06/11)**: fica só o que tem função em um sistema definido. **41 receitas na 1.0** (antes 44), **19 na v0.2** (antes 21); **Saber 73 na 1.0** (completa no L61; antes 82, L69), **20 na v0.2** (24 disponíveis no L20: **sobra 4**). Saíram: **Rifle, Dardo, Bastão reforçado, Cama** e a **Barra de ferro** (processo da Forja, sem receita no menu; estava contada por engano). Entraram: **Besta** (M5) e **Boleadeira** (M4). **Saber em lista plana: sem pré-requisito entre receitas.** **Regra de produção:** fibra, madeira e pedra à mão; metal e engenharia na Bancada (a Forja é feita na Bancada). Números: `receitas_sim.py arvore|estacoes`. Durabilidade e validade: `GDD.md` 5.9; armadura: 5.11; armas à distância: 5.4; regra e aceitas: 5.19.
+> Enxugada em 06/11 (decisão do dono) e **fechada com as decisões finais do dono (06/11)**: fica só o que tem função em um sistema definido. **53 receitas na 1.0** (antes 44; as 15 peças de roupa por vagas de equipamento, ver abaixo; **57 com Mochila e selas, itens futuros provisórios: 82 Saber, L69, notas 17 a 19**), **19 na v0.2** (antes 21); **Saber 73 na 1.0** (completa no L61; antes 82, L69), **20 na v0.2** (24 disponíveis no L20: **sobra 4**). **Vagas de equipamento (decisão do dono, 06/11): arma, camisa, calça, bota, luva e capacete; substitui "1 vaga".** Roupa por peça: 3 materiais x 5 peças = **15 receitas, mas só 3 nós de Saber** (um por material libera as 5 peças). Saíram: **Rifle, Dardo, Bastão reforçado, Cama** e a **Barra de ferro** (processo da Forja, sem receita no menu; estava contada por engano). Entraram: **Besta** (M5) e **Boleadeira** (M4). **Saber em lista plana: sem pré-requisito entre receitas.** **Regra de produção:** fibra, madeira e pedra à mão; metal e engenharia na Bancada (a Forja é feita na Bancada). Números: `receitas_sim.py arvore|estacoes`. Durabilidade e validade: `GDD.md` 5.9; armadura: 5.11; armas à distância: 5.4; regra e aceitas: 5.19.
 
 ## 1. Moeda: Saber (pontos de receita)
 
@@ -14,8 +14,9 @@
 | Categoria | Receitas |
 |---|---|
 | **Armas e ferramentas** (13 na 1.0) | **Lança de madeira (0)**, **Machado de pedra (0)**, **Picareta de pedra (0)**, **Bastão-de-sono (1, Mãos; o 1o nasce no inventário)**, **Pilão (1, cortável com o Preparado)**; M4: Arco (2), Flecha comum (2), **Flecha de sono (2)**, Boleadeira (2); **M4 a M5 (metal, Bancada/Forja):** Espada de ferro (6), Machado de ferro (6), Picareta de ferro (6), **Besta (4, M5)** |
-| **Armaduras** (3 conjuntos) | Traje de fibra (1, **depois do playtest**), Traje de couro (2, M4), Traje de metal (6, M5) |
+| **Armaduras** (3 conjuntos de **5 peças**, 15 receitas, 3 nós) | **Conjunto de fibra (1, depois do playtest)**, **de couro (2, M4)**, **de metal (6, M5, Bancada)**: camisa, calça, capacete, bota, luva |
 | **Mobílias** (6) | **Fogueira (0)**, **Bancada comum (1)**, **Baú (1)**, **Cocho (2, cortável)**; M4: Canteiro (2); depois: Forja (4, **feita na Bancada**) |
+| **Mochila (item futuro, M4)** | Mochila (Saber 2, provisório; couro + fibra, Mãos): equipável, 7ª vaga de equipamento, expande os slots (`GDD.md` 5.21) |
 | **Construções** (10) | **Abrigo de madeira (1: fundação, parede e porta, 3 receitas)**, **Cerca e curral (2)**, **Portão de dino (1)**; M4: Palha (1, 3 receitas); depois: Pedra (4, 2 receitas) |
 | **Recursos diversos** (9) | **Ração C (1)**, **Ração B (2)**, **Ração A (3)**, **Bandagem (1)**, **Preparado de sono (3, cortável, feito no Pilão)**; M4: Corda (1), Tijolo (2), Ração S e S+ (só pergaminho) |
 
@@ -43,15 +44,15 @@
 ## 4. Armaduras, mobílias e recursos (resumo; decisões V37 a V41 aceitas)
 
 
-- **Armadura (decisão do dono, 06/11): três conjuntos, só fibra, couro e metal; pele, osso, quitina e Escudo saem.** **1 vaga (Traje)**; reduz dano e **só isso (sem temperatura)**. Tabela e conta em `GDD.md` 5.11.
+- **Armadura (decisão do dono, 06/11): três materiais, só fibra, couro e metal, em cinco peças (camisa, calça, capacete, bota, luva); pele, osso, quitina e Escudo saem.** Reduz dano e **só isso (sem temperatura)**. **Um nó de Saber por material libera as 5 peças** (o Saber por peça somaria +26 e a 1.0 iria a 99, acima dos 90 do L75: `receitas_sim.py por_peca`). **Mistura de materiais vale; redução é a soma; todas as peças sofrem o golpe; peça quebrada reduz 0.** Tabela por peça e contas em `GDD.md` 5.11, tela e vagas em 5.20.
 
-| Conjunto | Redução | Peso | Durabilidade | Receita [premissa] | Saber | Marco |
+| Conjunto (5 peças) | Redução | Peso | Durabilidade (por peça) | Material do conjunto [premissa] | Saber | Marco |
 |---|---|---|---|---|---|---|
-| **Fibra** | 10% | 2 kg | 100 | 15 fibra + 2 madeira (**Mãos**) | 1 | depois do playtest |
+| **Fibra** | 10% | 2 kg | 100 | 15 fibra (**Mãos**; sem as 2 madeira, que não se dividem) | 1 | depois do playtest |
 | **Couro** | 25% | 6 kg | 150 | 8 couro + 4 fibra (**Mãos**) | 2 | M4 |
-| **Metal** | 40% | 12 kg | 300 | 6 barra de ferro + 2 couro (Forja) | 6 | M5 |
+| **Metal** | 40% | 12 kg | 300 | 6 barra de ferro + 2 couro (**Bancada**, barra pronta) | 6 | M5 |
 
-**Reparo:** na Bancada (o de metal na Forja), `ceil(50% do material x fração que falta)`; **não reduz o máximo**. **Dano mínimo 1:** `dano = max(1, dano x (1 - redução))` para todo ataque que acerta com dano base >= 1; ataque de dano 0 (dardo) continua 0 (`GDD.md` 5.11).
+**Por peça** (camisa 30%, calça 25%, capacete 20%, bota 15%, luva 10% do conjunto): redução fibra 3/3/2/1/1, couro 8/6/5/3/3, metal 12/10/8/6/4 (camisa, calça, capacete, bota, luva); peso e material em `GDD.md` 5.11 (`fome_sim.py pecas`). **Reparo por peça:** na Bancada (o de metal na Forja), `ceil(50% do material da peça x fração que falta)`, com botão **"Reparar tudo equipado"** (soma antes de arredondar: metal 3 barras em vez de 5); **não reduz o máximo**. **Dano mínimo 1:** `dano = max(1, dano x (1 - redução))` para todo ataque que acerta com dano base >= 1; ataque de dano 0 (dardo) continua 0 (`GDD.md` 5.11).
 - **Mobílias:** só as que têm função (Baú guarda, Canteiro produz baga, Forja funde; **a Cama saiu, 06/11**). **Cocho (decisão do dono, 06/11): o dino domado come da comida do cocho num raio de 6 tiles (e do alforje se faltar); Saber 2, sem pré-requisito, 8 madeira, à mão, M2 cortável; 40 itens; a validade corre dentro; custo ~18 h do `SORA`** (`GDD.md` 5.12). **Sem decoração e sem efeito térmico.**
 - **Recursos:** Ração, Bandagem, Preparado, Corda, Couro curtido, Tijolo, Barra de ferro. Nada sem consumidor.
 
@@ -59,12 +60,12 @@
 
 Regra completa em `GDD.md` 8.1: madeira 60/120, palha 20/40, pedra imune, **sem metal**.
 
-## 6. Metal: Forja, ferramentas e o Traje de metal (recomendação)
+## 6. Metal: Forja, ferramentas e o conjunto de metal (recomendação)
 
-- **Nada na v0.2 depende de metal.** A 1.0 depende só para **Espada**, **segundo tier de coleta** (ferro 1,75x mais rápido, 2x a 2,5x mais durável, `durab_sim.py ferr`) e o **Traje de metal** (40%).
-- **Recomendo manter, depois da v0.2:** com durabilidade, a ferramenta de pedra vira um tier real que o jogador quer superar (394 madeira por ferramenta de ferro contra 112 de pedra). **Se cortar, corta junto a Espada de ferro** (usar Lança) e saem 6 itens (Forja, Machado, Picareta, Espada, Traje de metal e Besta), **32 Saber** (a Barra é processo, sem receita); sobram fibra e couro (10% e 25%).
+- **Nada na v0.2 depende de metal.** A 1.0 depende só para **Espada**, **segundo tier de coleta** (ferro 1,75x mais rápido, 2x a 2,5x mais durável, `durab_sim.py ferr`) e o **conjunto de metal** (40%).
+- **Recomendo manter, depois da v0.2:** com durabilidade, a ferramenta de pedra vira um tier real que o jogador quer superar (394 madeira por ferramenta de ferro contra 112 de pedra). **Se cortar, corta junto a Espada de ferro** (usar Lança) e saem 6 itens (Forja, Machado, Picareta, Espada, conjunto de metal e Besta), **32 Saber** (a Barra é processo, sem receita); sobram fibra e couro (10% e 25%).
 - **Receita:** **Forja (Saber 4, 8 madeira + 20 pedra, 30 kg, fabricada na Bancada, decisão do dono 06/11; depois de pronta é a estação dos itens de metal)**, Barra de ferro (**processo da Forja, sem receita no menu**: 3 madeira queimam em 1 carvão em 30 s e 2 minério + 1 carvão viram 1 barra em 10 s, `GDD.md` 5.17), Machado de ferro (3 barras + 2 madeira + 1 fibra), Picareta de ferro (3 barras + 2 madeira), Espada de ferro (4 barras + 1 couro), **Besta (5 madeira + 2 barras + 2 corda, Saber 4, M5)**. **Minério** é nó novo de pedra (precisa de Picareta de pedra).
-- **Marco: M4 a M5** (Espada com a Forja no M4; Machado, Picareta e Traje de metal no M5). Custo: 1 recurso, 6 receitas, 4 sprites de item, 1 nó de minério, **+9,5 h da Forja com carvão (5.17)**.
+- **Marco: M4 a M5** (Espada com a Forja no M4; Machado, Picareta e conjunto de metal no M5). Custo: 1 recurso, 6 receitas, 4 sprites de item, 1 nó de minério, **+9,5 h da Forja com carvão (5.17)**.
 
 
 ## 6b. Pilão e químicos (decisão do dono, 06/11; `GDD.md` 5.18)
@@ -86,9 +87,9 @@ Regra completa em `GDD.md` 8.1: madeira 60/120, palha 20/40, pedra imune, **sem 
 
 ## 9. Marco, custo e listas
 
-- **M1:** Lança de madeira, Machado, Picareta e Fogueira como itens e receitas por dados (`RecipeDef`), menu P aba Receitas. **M2:** Bancada, Saber e as 15 aprendíveis da v0.2 (19 receitas menos as 4 conhecidas). **M4:** Traje de couro, arco, flechas (comum e de sono), Boleadeira, Corda, Tijolo, Palha, Canteiro, pergaminhos. **M4 a M5:** metal e Besta.
+- **M1:** Lança de madeira, Machado, Picareta e Fogueira como itens e receitas por dados (`RecipeDef`), menu P aba Receitas. **M2:** Bancada, Saber e as 15 aprendíveis da v0.2 (19 receitas menos as 4 conhecidas). **M4:** conjunto de couro (5 peças), arco, flechas (comum e de sono), Boleadeira, Corda, Tijolo, Palha, Canteiro, pergaminhos. **M4 a M5:** metal e Besta.
 - **`SORA`:** `RecipeDef` com estação (Mãos, Bancada, Fogueira, Forja), `saber_custo`, `prereq`; tela P com aba Receitas; validação de servidor do gasto; Fogueira com ação "assar".
-- **`YATORA`:** ícones das 19 receitas da v0.2 (sem Cama nem Bastão reforçado) e sprite da Fogueira (acesa e apagada); **3 trajes** (fibra, couro, metal) em corpo e ícone, **sem variação de frio ou calor**.
+- **`YATORA`:** ícones das 19 receitas da v0.2 (sem Cama nem Bastão reforçado) e sprite da Fogueira (acesa e apagada); **15 ícones de peça** (fibra, couro, metal x camisa, calça, capacete, bota, luva) e 6 silhuetas de vaga; **sem sprite de corpo por peça** (recomendo, V70) e sem variação de frio ou calor.
 
 ## 10. Conflitos e o que falta provar
 
@@ -97,16 +98,20 @@ Regra completa em `GDD.md` 8.1: madeira 60/120, palha 20/40, pedra imune, **sem 
 3. **v0.2 completa no L20:** escolha só de ordem. Aceito.
 4. **Precisa jogar:** ritmo do Saber (3 no L3), se 4 receitas conhecidas bastam para o início, se a ordem Bancada, Bastão, Ração C é óbvia ao jogador.
 
-5. **Fibra: decidido, depois do playtest e fora da v0.2** (custaria +8 h). **Couro segue sem uso na v0.2** (o Bastão reforçado foi cortado); só serve ao Arco e ao Traje de couro no M4.
+5. **Fibra: decidido, depois do playtest e fora da v0.2** (as vagas e peças custam 16 h no total, 5.20; a fibra sozinha, 9 h do M4). **Couro segue sem uso na v0.2** (o Bastão reforçado foi cortado); só serve ao Arco e ao Traje de couro no M4.
 6. **Temperatura fora, sem marco (decisão do dono):** roupas e mobílias **não** têm efeito de calor ou frio; roupa só reduz dano.
 7. **Cocho:** mantido na v0.2 como cortável; se cortar, o dino domado só come do alforje (limiar 25) e do jogador.
 8. **Cocho e Oferta:** o Cocho segue como inventário do rebanho (`GDD.md` 5.12 e 5.13). O slot de Oferta **não é receita nem mobília**: é interface, sem Saber.
 9. **Rifle e Dardo: adiados sem marco (decisão final do dono, 06/11)**, substituindo a exceção de 5.4. Ficam arco, besta e boleadeira (GDD 5.4): Corda (1), Arco (2), Flecha comum (2), Flecha de sono (2), Boleadeira (2) no M4; Besta (4) no M5. **Flecha de sono entra (recomendo):** 4 flechas comuns + 1 Preparado rendem 4; dá ao Preparado um segundo uso. Cortáveis sem dano ao resto: Boleadeira e Besta.
 10. **Preparado de sono (v0.2):** feito no Pilão, sem pré-requisito (lista plana); o jogador não o consome, só o dino pela tela dele, e a flecha de sono (M4) o usa como ingrediente.
-11. **Forja na Bancada (decisão do dono, 06/11):** a receita da Forja pede a Bancada como estação; a Forja continua sendo a estação de Barra de ferro, Machado, Picareta, Espada e Traje de metal (a Besta é feita na Bancada). Cadeia: Bancada, Forja, Barra, itens de metal (4 elos; a cadeia mais longa da 1.0 não muda).
+11. **Forja na Bancada (decisão do dono, 06/11):** a receita da Forja pede a Bancada como estação; a Forja continua sendo a estação de Barra de ferro, Machado, Picareta, Espada e conjunto de metal (a Besta é feita na Bancada). Cadeia: Bancada, Forja, Barra, itens de metal (4 elos; a cadeia mais longa da 1.0 não muda).
 12. **Forja queima madeira (decisão do dono, 06/11):** o carvão é item necessário da barra (2 minério + 1 carvão), feito de 3 madeira; Forja de 4 vagas que trabalha sozinha; custo de uma barra 2 minério + 3 madeira. A Barra de ferro deixa de ser receita de menu. Carvão só da Forja é a recomendação; usar na Fogueira é decisão do dono (V61).
 
 13. **Pólvora e Rifle: resolvido (06/11).** Sem Rifle e sem arma de fogo, a pólvora, o fósforo e o sílex ficam sem marco; não há mais conflito com 5.4.
 14. **Carvão só da Forja (aceito pelo dono, 06/11).** Opcional na Fogueira (V61), não pedido.
 15. **Regra de produção (06/11):** a Bancada fica com 3 receitas da v0.2 (Ração) mais o reparo; **precisa jogar** se isso a justifica ou se a Ração deveria ir à Mão (então a Bancada só serviria à Forja e à Besta, no M4+).
 16. **Saber em lista plana (06/11):** sem pré-requisito; a UI ordena por custo. Se o playtest pedir "descoberta" em árvore, volta como dado (campo `prereq` já existe no `RecipeDef`).
+17. **Mochila (decisão do dono, 06/11; ITEM FUTURO, sem números definitivos):** couro + fibra, Mãos, Saber 2, **M4**; **fora da v0.2** (v0.2 segue com 19 receitas e 20 Saber). Provisório na 1.0: **54 receitas e 75 Saber (completa no L63)**. **Conflito:** só tem efeito se os slots passarem a limitar (5.1 dizia só exibição); recomendação em `GDD.md` 5.21 (base 24 + 16 = 40, tirar cheia recusa). Dá ao couro um uso.
+18. **Selas (decisão do dono, 06/11; só para as espécies "montável com sela": Parassaurolofo e Triceratops; Utahraptor monta sem sela e sem vaga):** Sela de fibra (Saber 1; 20 fibra + 4 madeira; Mãos), de couro (Saber 2; 10 couro + 6 fibra; Mãos), de metal (Saber 4; 4 barra + 6 couro; Bancada). Cada uma é 1 receita e 1 nó. Dão Peso extra de alforje (+20/+40/+60%) e defesa (8/15/25%); vaga própria no dino (`GDD.md` 6.13). **Marco: junto da montaria, depois do playtest** (fibra e couro M4+, metal M5). **Fora da v0.2** (19 receitas e 20 Saber).
+19. **Totais provisórios da 1.0 com Mochila e selas: 57 receitas e 82 Saber (completa no L69)**; antes 53 e 73 (L61). `receitas_sim.py arvore`.
+20. **Decidido pelo dono (06/11), sem mudar números:** Saber por conjunto de roupa (3 nós, 15 receitas), sprite sem mudança por peça, Mochila e selas no M4 (selas junto da montaria; metal M5), Postura e Ir até aqui depois do playtest. Totais: v0.2 19 receitas e 20 Saber; 1.0 provisória 57 e 82 (L69). Conflitos 47 a 51 do `GDD.md` resolvidos.

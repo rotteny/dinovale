@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """Armas, torpor continuo, fruta e preparado de sono (Dino Vale). Biblioteca padrao.
-Uso: python3 armas_sim.py ko|dardo|fuga|dormindo|jogador|custo   [premissa] = valor a testar jogando."""
+Uso: python3 armas_sim.py ko|arco|fuga|dormindo|jogador|custo   [premissa] = valor a testar jogando."""
 import sys, math
 DEC_AWAKE, DEC_SLEEP = 5.0, 1.0           # reais, TorporComponent.gd
-CAP = 3                                    # doses simultaneas (compartilhado entre dardo, flecha, fruta, preparado)
+CAP = 3                                    # doses simultaneas (compartilhado entre flecha de sono, fruta, preparado)
 ARMAS = {  # nome: (dano, torpor imediato, taxa/s, duracao s, cooldown s)
  "Soco": (1, 10, 0, 0, 0.6), "Bastao-de-sono": (2, 30, 0, 0, 0.7),
- "Dardo de sono": (0, 10, 8, 5, 1.0), "Flecha de sono (M4)": (1, 15, 12, 5, 1.2)}
+ "Flecha de sono (M4)": (1, 15, 12, 5, 1.2)}   # Rifle e Dardo: adiados sem marco (06/11)
 ITENS = {  # preparado so e dado ao dino; na tabela do jogador ele aparece so como contraprova
  "Fruta-do-sono": (6, 5), "Preparado de sono": (12, 5)}   # taxa/s, duracao s (so pela boca)
 ESP = {"Paquicefalo L12": 104, "Utahraptor L20": 144, "Parassaurolofo L20": 168, "Triceratops L28": 218}
@@ -37,26 +37,26 @@ def ko():
                 g = ti * (1 + 0.06 * pts); n = 1
                 while g * n - DEC_AWAKE * cd * (n - 1) < T: n += 1
                 print(f"   {nome:15} Dano {pts:2} pts: golpe {g:5.1f} -> {n:2} golpes, {(n-1)*cd:5.1f} s, dano causado {n*d*(1+0.06*pts):5.1f}")
-def dardo():
-    print("Dardo (imm 10 + 8/s x 5 s = 50 por dose), 1 a cada 1,0 s, cap 3, dino ACORDADO (queda 5/s)")
-    for sp, T in ESP.items():
-        t, tor = simula(T, (8, 5), DEC_AWAKE, imm=10)
-        print(f"   {sp:20} nocaute em {t if t is None else round(t,1)} s")
-    print("Flecha de sono (imm 15 + 12/s x 5 s = 75), cd 1,2 s, cap 3")
+def arco():
+    import math
+    print("Flecha de sono (imm 15 + 12/s x 5 s = 75 por dose), cd 1,2 s, cap 3, dino ACORDADO (queda 5/s), 10 tiles")
     for sp, T in ESP.items():
         t, tor = simula(T, (12, 5), DEC_AWAKE, imm=15, fire_every=1.2)
-        print(f"   {sp:20} nocaute em {t if t is None else round(t,1)} s")
-    print("Uma dose sozinha em dino acordado: liquido = 10 + (8-5)*5 = %d de 50 (decai a maior parte)" % (10 + 3 * 5))
+        n = int(t / 1.2) + 1
+        print(f"   {sp:20} nocaute em {round(t,1)} s, {n} flechas = {n/4:.2f} preparados (4 flechas por preparado)")
+    print("Contra o Bastao (ko): 2,1 a 5,6 s, exposto; a flecha e ~1,2 a 1,6x mais lenta e a 10 tiles.")
+    print("Flecha comum (dano 14, torpor 0, 1,2 s): vida 24 (Dodo) 2 flechas; Utahraptor L20 (126): 9 flechas, 10,8 s (a Lanca faz 11 golpes em 9,9 s)")
+    print("Besta (dano 22, torpor 0, 2,0 s de recarga, 14 tiles): Utahraptor L20 6 tiros, 12 s; vale pelo alcance e pelo dano por tiro, nao pela cadencia")
 def fuga():
-    print("Medroso fugindo (Parassaurolofo L20, torpor 168, vel 75 px/s; faixas 50%%: x0,85 e 75%%: x0,65). Jogador anda 70, corre 120 por 4 s; alcance do dardo 96 px; partida a 80 px")
+    print("Medroso fugindo (Parassaurolofo L20, torpor 168, vel 75 px/s; faixas 50%%: x0,85 e 75%%: x0,65). Jogador anda 70, corre 120 por 4 s; alcance da flecha 160 px; partida a 80 px")
     T, dt = 168, 0.05
-    for cd in (1.0,):
+    for cd in (1.2,):
         tor, t, act, nxt, dist, sp_run, flee_end = 0.0, 0.0, [], 0.0, 80.0, 4.0, 15.0
         first = {}
         while t < flee_end:
-            if dist <= 96 and t >= nxt:
+            if dist <= 160 and t >= nxt:
                 if len(act) >= CAP: act.remove(min(act, key=lambda a: a[1]))
-                act.append([8, 5]); tor += 10; nxt = t + cd
+                act.append([12, 5]); tor += 15; nxt = t + cd
             tor = max(0, tor + (sum(a[0] for a in act) - DEC_AWAKE) * dt)
             for a in act: a[1] -= dt
             act = [a for a in act if a[1] > 0]
@@ -70,9 +70,9 @@ def fuga():
         else: print(f"   fuga acabou (15 s) com torpor {tor:.0f}/{T}, distancia {dist:.0f} px")
         if 'b2' in first: print(f"   faixa 2 (50%) em {first['b2'][0]:.1f} s, distancia {first['b2'][1]:.0f} px (jogador a 70 ja alcanca o x0,85 = 64 px/s)")
 def dormindo():
-    print("Dino DORMINDO (queda 1,0 a 1,5/s): fruta 6/s x 5 s = 30; preparado 12/s x 5 s = 60; dardo 50 (-2 E)")
+    print("Dino DORMINDO (queda 1,0 a 1,5/s): fruta 6/s x 5 s = 30; preparado 12/s x 5 s = 60; flecha de sono 75 (-2 E)")
     for q in (1.0, 1.5):
-        print(f" manter o torpor parado por minuto: {60*q:.0f} a {q*60:.0f} torpor = {60*q/30:.1f} frutas ou {60*q/60:.1f} preparados ou {60*q/50:.1f} dardos")
+        print(f" manter o torpor parado por minuto: {60*q:.0f} a {q*60:.0f} torpor = {60*q/30:.1f} frutas ou {60*q/60:.1f} preparados ou {60*q/75:.1f} flechas de sono")
     print("Tempo do jogador por item forcado: 1,5 s (acao); 2 frutas/min = 3 s/min de acao + 8 s de coleta")
 def jogador():
     print("Jogador (torpor max 100, queda 5/s acordado). Come n itens com 0,5 s entre eles (cap 3 efeitos)")
@@ -90,10 +90,12 @@ def jogador():
             print(f"   {nome:18} x{n}: pico {peak:5.1f} -> {band}")
     print("Sono do jogador [premissa]: acorda em 30, queda dormindo 3/s: 70/3 = 23 s; dano recebido acorda; aliado acorda segurando a interacao 2 s")
 def custo():
-    fib, ped, nome_craft = 2.0, 2.5, 4.0   # s de coleta por unidade [premissa]
-    dardo = (2 * fib + ped + nome_craft) / 3; fruta = 4.0
-    print(f"Dardo: {dardo:.1f} s por dose de 50 = {dardo/50:.3f} s/torpor, mais 2 E. Valor de 1 E = 2 a 8 s (nivel_sim preco: 14 a 60 s/nivel, 0,14 nivel por E): dardo dormindo = {dardo+4:.1f} a {dardo+16:.1f} s -> {(dardo+4)/50:.2f} a {(dardo+16)/50:.2f} s/torpor")
-    print(f"Fruta: 4 s por 30 = {fruta/30:.3f} s/torpor, 0 E. Preparado (3 frutas + 1 carne podre [4 s na carnica] + 4 s de bancada -> 3 de 60 = 180): {(3*fruta+4+4)/180:.3f} s/torpor")
-    print("Conclusao: fruta e preparado custam menos que dardo em dormindo; dardo fica para dino acordado (alcance 6 tiles).")
-    print("E por taxa de tempo continua: 0,3/s; 100 s de domar = -30 E; Baga Parassaurolofo L20: +4 E se trocar 2 dardos por frutas (nivel final +0,5)")
-{"ko": ko, "dardo": dardo, "fuga": fuga, "dormindo": dormindo, "jogador": jogador, "custo": custo}[sys.argv[1]]()
+    fib, ped, gra, nome_craft = 2.0, 2.5, 2.0, 1.0   # s de coleta por unidade [premissa]
+    flecha = (2 * gra + ped + fib) / 4; fruta = 4.0
+    prep = (3 * fruta + 4 + 4) / 3     # 3 frutas + 1 carne podre [4 s] + 4 s de Pilao, rendem 3
+    fs = flecha + prep / 4
+    print(f"Flecha comum: {flecha:.1f} s por unidade (2 graveto + 1 pedra + 1 fibra rendem 4). Preparado: {prep:.1f} s por unidade. Flecha de sono = flecha + 1/4 de preparado = {fs:.1f} s por dose de 75 = {fs/75:.3f} s/torpor, mais 2 E em dormindo.")
+    print(f"Fruta: 4 s por 30 = {fruta/30:.3f} s/torpor, 0 E. Preparado: {prep/60:.3f} s/torpor, 0 E (so pela boca, dormindo).")
+    print("Conclusao: em dormindo fruta e preparado nao gastam Eficiencia (a flecha custa 2 por dose); a flecha de sono e para dino acordado, a distancia.")
+    print("E por taxa de tempo continua: 0,3/s; 100 s de domar = -30 E")
+{"ko": ko, "arco": arco, "dardo": arco, "fuga": fuga, "dormindo": dormindo, "jogador": jogador, "custo": custo}[sys.argv[1]]()

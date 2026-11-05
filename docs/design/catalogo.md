@@ -10,7 +10,9 @@ Rascunho para decisão do dono. Nada aqui entra no jogo sem escolha explícita. 
 
 ## Elenco do MVP
 
-Utahraptor e Paquicéfalo (M1); Triceratops, Parassaurolofo e Gallimimus (M2). Oviraptor fica para o M4.
+**v0.2 (5 espécies):** Utahraptor e Paquicéfalo (M1); **Dodo no início do M2** (decisão do dono, 06/11); Triceratops (L18 a L24, também na 1.0) e Parassaurolofo (M2). **M4:** **Listro** e Oviraptor. Dodo e Listro são **presas pequenas, sem domar** (GDD 6.1). Gallimimus fora.
+
+**Faixa de nível ao nascer (v0.2, GDD 5.16; poucos altos, teto ao nascer 30):** Dodo 3 a 10; Paquicéfalo 5 a 20 (tutorial 5 a 8); Utahraptor 10 a 25; Parassaurolofo 10 a 30; Triceratops 18 a 24 (1.0: 18 a 40). Teto de evolução depois de domado: 2x o nível de doma, e o teto do servidor vence.
 
 ## Fauna
 
@@ -28,7 +30,7 @@ Utahraptor e Paquicéfalo (M1); Triceratops, Parassaurolofo e Gallimimus (M2). O
 
 ### Outros répteis e anfíbios terrestres
 
-Dimetrodon, Moschops, Lystrosaurus, Megalania, Titanoboa, Kaprosuchus, Sarcosuchus, Deinosuchus, Beelzebufo, Diplocaulus, Carbonemys
+Dimetrodon, Moschops, Lystrosaurus (**Listro, M4**), **Dodo (ave que não voa, início do M2)**, Megalania, Titanoboa, Kaprosuchus, Sarcosuchus, Deinosuchus, Beelzebufo, Diplocaulus, Carbonemys
 
 ### Mamíferos pré-históricos
 
@@ -36,7 +38,7 @@ Mamute, rinoceronte-lanudo, tigre-dentes-de-sabre, lobo-terrível, urso-de-cara-
 
 ### Aves e répteis voadores (bloqueados até haver mecânica de voo definida)
 
-Dodo, ave-do-terror, Argentavis, Pelagornis, Archaeopteryx, Pteranodon, Quetzalcoatlus, Tapejara, Dimorphodon, Tropeognathus
+ave-do-terror, Argentavis, Pelagornis, Archaeopteryx, Pteranodon, Quetzalcoatlus, Tapejara, Dimorphodon, Tropeognathus
 
 ### Vida aquática (bloqueada até haver mecânica de água definida)
 
@@ -52,8 +54,9 @@ Irritator, Oxalaia, Staurikosaurus, Tupandactylus. Tapejara, já listado entre o
 
 ## Recursos
 
-- **Básicos:** madeira, pedra, sílex, fibra, palha, areia, argila
+- **Básicos:** madeira, pedra, fibra, palha, areia, argila
 - **Plantas:** seiva, cogumelos, algas, flores, frutas, sementes
 - **Minerais:** carvão, ferro, cobre, cristal, obsidiana, sal, enxofre, ouro, gemas, petróleo
 - **Animais:** couro, pele, lã, penas, ossos, escamas, quitina, queratina, conchas, seda, mel, ovos, carne
-- **Refinados:** barra de metal, aço, cal, argamassa, pólvora, corda, tecido, vidro, tijolo
+- **Refinados:** barra de metal, aço, cal, argamassa, corda, tecido, vidro, tijolo
+- **Sem marco (decisão do dono, 06/11):** sílex, fósforo, pólvora, Rifle, Dardo e qualquer arma de fogo. O enxofre fica só como catálogo, sem uso previsto.

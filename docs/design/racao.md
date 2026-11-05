@@ -1,15 +1,25 @@
 # Ração: comida de domesticação (anexo do GDD)
 
-> **Decisões do dono aceitas (06/11):** pontos do dino em Vida, Dano e Peso; níveis de bônus da Eficiência vêm aplicados; Listro como Covarde e Clareira-brasa fora do M4; Utahraptor solitário e primeiro golpe provoca; doses somam até 3 e o dardo em dormindo custa 2 de Eficiência; carne não estraga no inventário (carne podre de carcaça velha ou Carniça); sem armas de fogo e sem pólvora; sacolinha com a comida do dino morto; Bastão reforçado cortável mantido. HUD sem barra de stamina e sem durabilidade (GDD 5.7). **Receitas por Saber** em `receitas.md`.
+> **Decisões finais do dono (06/11, GDD 5.4, 5.16 e 5.19): leia antes do resto.** **Rifle, Dardo, arma de fogo, pólvora, fósforo e sílex: adiados sem marco.** Onde este anexo diz **Dardo de sono**, vale: na v0.2 o torpor forçado vem da **fruta-do-sono** (30) e do **preparado** (60); no **M4** entra a **flecha de sono** (75: 15 + 12/s por 5 s, Arco, 10 tiles, -2 E por dose em dormindo). As colunas "Dardos" das tabelas 1.3 e 4.4 e o `DART=50` de `racao_sim.py` ficam como **histórico de conta**. **Aceitas:** teto de evolução do dino = 2x o nível final, máximo `dino_nivel_max` 50 no MVP (75 na 1.0), servidor só trava; Triceratops L18 a L24; Dodo no início do M2; Pilão e Preparado na v0.2; sem Bastão reforçado. A regra de produção (fibra, madeira e pedra à mão; metal e engenharia na Bancada) **não muda a Ração**: ela segue na Bancada.
 
-> **Armas, torpor contínuo e sono (06/11, GDD 5.4 e 5.5):** o **dardo** vale **50 de torpor** (10 imediato + 8/s por 5 s), teto de 3 efeitos ativos, 6 tiles; em dormindo custa **-2 E por dose**, o torpor contínuo **não é ataque**. **Fruta-do-sono** (30) e **preparado de sono** (60, 3 frutas + 1 carne podre rendem 3) forçados pelo dono em dino dormindo **não custam Eficiência**; a **queda de 0,3/s e o dreno por refeição continuam**, e é isso que mantém o preço da Ração. A regra "dardo é a manutenção barata" (V6) fica revista: fruta e preparado a substituem. Carne podre vem da Carniça (nó), **sem apodrecer**, o que respeita o corte de validade da seção 2.4. Dardos mínimos das tabelas 1.3 **não mudam** com a dose de 50 (`racao_sim.py tabela`, sem diferença).
+> **Decisões do dono aceitas (06/11):** pontos do dino em Vida, Dano e Peso; níveis de bônus da Eficiência vêm aplicados; Listro como Covarde e Clareira-brasa fora do M4; Utahraptor solitário e primeiro golpe provoca; doses somam até 3 e a dose forçada (flecha de sono, M4) em dormindo custa 2 de Eficiência; carne não estraga no inventário (carne podre de carcaça velha ou Carniça); sem armas de fogo e sem pólvora; sacolinha com a comida do dino morto; Bastão reforçado **cortado (06/11)**. HUD sem barra de stamina e sem durabilidade (GDD 5.7). **Receitas por Saber** em `receitas.md`.
+>
+> **Tempo de domar recalibrado (06/11, GDD 5.14):** as tabelas de tempo e refeições abaixo (60 s, 105 s, 0,015 por nível) estão **desatualizadas**; valem `tempo_sim.py` e a seção 5.14: Paquicéfalo 1,3 a 2,0 min, Utahraptor 1,5 a 2,3, Parassaurolofo 1,1 a 1,9, Triceratops 4,8 a 7,0 (Ração C), taxa `domar_velocidade` 1,0.
+>
+> **Tetos de nível (06/11, GDD 5.16):** dino nasce com nível sorteado com poucos altos (faixas por espécie, teto ao nascer 30); teto de evolução = 2x o nível de doma (recomendo sobre o final, com bônus de Eficiência), o teto do servidor vence e **só trava, sem reduzir** (`dino_nivel_max` 50 no MVP); **aceito pelo dono**; `jogador_nivel_max` 20; XP trava no teto; save acima do teto só trava.
+>
+> **Comida e fome do jogador (06/11, GDD 5.10):** carne crua +25 de fome, **cozida +35 e cura 10**, podre +5 com -6 de vida; saciedade (> 70) regenera 0,5/s; queda 0,2/s; fome 0 sobe torpor +2/s, desmaio 8 s com 1,5/s. **A Ração Rubra e o domar usam carne crua**, a cozida é só do jogador. **Durabilidade e validade** (5.9): a Ração **não vence**; carne vence em 30 min (crua) e 90 (cozida); `racao.md` 2.4 ("sem validade") perde para a carne. **Armadura** (5.11): 3 conjuntos, dano mínimo 1. **Pendentes de decisão (dono): fome, morte por fome, validade, durabilidade, roupas e Listro; Ração nunca é consumida pelo jogador (decidido); preparado, aberto; dardo, à parte (munição de rifle).**
+>
+> **Rifle e v0.2 (06/11, GDD 5.4 e 5.15), SUPERADO pela decisão final:** o Rifle de dardos e o Dardo saíram **sem marco**; a coluna `dardos_min` e o `DART=50` de `racao_sim.py` valem só como histórico. Domar na v0.2 mantém dormindo com **Bastão** ou **fruta-do-sono**; Ração A zera o extra nos pequenos. Aceitas: fome, validade, durabilidade, roupas, fatores por espécie, dreno 0,15, Listro no M4. Preparado: o jogador não consome, só craftar flecha de sono (M4).
 
-> **Camada 1 de corte (06/11, GDD 5.3):** fora da 0.2: Lança, Gallimimus, Ração S e Mel, Temperamento. A escada da 0.2 é **Baga, C, B, A**; S e S+ ficam como futuro (S+ no M4). As tabelas S continuam abaixo por referência. A Eficiência real na 0.2 chega a 78 a 92% (A, caso bom), não a 100%. A conta em `nivel_sim.py eficiencia` e `pontos_sim.py` (pontos enxutos: jogador 20 níveis, dino captura+10, Vida, Dano e Peso) está em GDD 5.1 e 5.3.
+> **Armas, torpor contínuo e sono (06/11, GDD 5.4 e 5.5):** a **flecha de sono (M4)** vale **75 de torpor** (15 imediato + 12/s por 5 s), teto de 3 efeitos ativos, 10 tiles; em dormindo custa **-2 E por dose**, o torpor contínuo **não é ataque**. **Fruta-do-sono** (30) e **preparado de sono** (60, 3 frutas + 1 carne podre rendem 3) forçados pelo dono em dino dormindo **não custam Eficiência**; a **queda de 0,3/s e o dreno por refeição continuam**, e é isso que mantém o preço da Ração. A regra "dardo é a manutenção barata" (V6) fica revista: fruta e preparado a substituem. **Carne podre:** o nó de Carniça saiu; ela vem da carcaça velha e da pilha de carne que vence (GDD 5.5 e 5.9) e **não vence**. Dardos mínimos das tabelas 1.3 **não mudam** com a dose de 50 (`racao_sim.py tabela`, sem diferença).
+
+> **Camada 1 de corte (06/11, GDD 5.3):** fora da 0.2: Lança, Gallimimus, Ração S e Mel, Temperamento. A escada da 0.2 é **Baga, C, B, A**; S e S+ ficam como futuro (S+ no M4). As tabelas S continuam abaixo por referência. A Eficiência real na 0.2 chega a 78 a 92% (A, caso bom), não a 100%. A conta em `nivel_sim.py eficiencia` e `pontos_sim.py` (pontos enxutos: jogador 20 níveis, dino até 2x o nível final com máximo 50, Vida, Dano e Peso) está em GDD 5.1 e 5.3.
 
 
 Status: rascunho de design, 05/11/2026. Autora: `SHIRO`. Anexo de `docs/design/GDD.md` (a fonte da verdade é o GDD; em conflito, vale o GDD). Todos os nomes são provisórios e originais.
 
-> **Revisão de 05/11 (decisões do dono): ler a seção 10 primeiro.** Nível e Eficiência passam a existir. O **Dardo de sono fica** (R6 abaixo está substituída): atacar o dormindo causa dano e derruba Eficiência, então o jeito barato de manter o torpor sem bater é o dardo (+40 torpor, sem dano, -2 E). Regras definitivas do dono sobre ataques ao dormindo estão na seção 11. O **Afeto inicial** deixa de vir de tabela por qualidade e passa a valer `round(Eficiência/5)`. O S+ ganha papel qualitativo (preserva Eficiência). As seções 1 a 9 seguem como base de conta; onde a seção 10 diverge, vale a 10.
+> **Revisão de 05/11 (decisões do dono): ler a seção 10 primeiro.** Nível e Eficiência passam a existir. O **Dardo de sono fica** (R6 abaixo está substituída; **SUPERADO em 06/11: Dardo adiado sem marco, ver o aviso do topo**): atacar o dormindo causa dano e derruba Eficiência, então o jeito barato de manter o torpor sem bater é o dardo (+40 torpor, sem dano, -2 E). Regras definitivas do dono sobre ataques ao dormindo estão na seção 11. O **Afeto inicial** deixa de vir de tabela por qualidade e passa a valer `round(Eficiência/5)`. O S+ ganha papel qualitativo (preserva Eficiência). As seções 1 a 9 seguem como base de conta; onde a seção 10 diverge, vale a 10.
 
 Convenção: **[calculado]** = saiu de conta ou simulação; **[jogar]** = só playtest responde; **[premissa]** = número assumido que a simulação usa.
 
@@ -136,7 +146,7 @@ Base por perfil: **Verde** = Baga + Samambaia; **Rubra** = Carne; **Mista** (M4,
 | A | 2 base + 1 Tubérculo + 1 Sal-de-veio | 2 |
 | S | 2 base + 1 Sal-de-veio + 1 Mel-de-cipó | 2 |
 | S+ | 2 base + 1 Mel-de-cipó + 2 Seiva-de-brasa | 2 |
-| Dardo de sono | 2 Fibra + 1 Pedra | 3 |
+| ~~Dardo de sono~~ (adiado sem marco, 06/11) | 2 Fibra + 1 Pedra | 3 |
 
 Craft: 4 s na bancada comum (a mesma de todas as receitas, PRO-04), sem fornada de espera. Não existe cozimento com timer: espera sem decisão é defeito. O custo da qualidade é **ir buscar o ingrediente**, e a decisão é onde se arriscar.
 
@@ -151,7 +161,7 @@ Ritmo de respawn dos raros [premissa] limita o topo: Seiva 1 árvore x 2 unidade
 | Marco | Disponível | Observação |
 |---|---|---|
 | **M1** | Só Baga crua para o Paquicéfalo. Golpe grátis mantido, agitação desligada. | PRO-04 (receitas) é M2. M1 só prova o loop. |
-| **M2 (v0.2) Must** | Bancada comum; Ração C, B, A; Tubérculo; Sal-de-veio; Dardo de sono; 3 perfis | 3 espécies. |
+| **M2 (v0.2) Must** | Bancada comum; Ração C, B, A; Tubérculo; Sal-de-veio; 3 perfis | 3 espécies. |
 | **M2 Should** | S com Mel-de-cipó | Depende de uma zona de dano (marimbondos). |
 | **M4** | S+ e Seiva-de-brasa; 4ª espécie e seguintes | Ver conflitos e corte em 4.5. |
 
@@ -242,7 +252,7 @@ Limites da simulação: o modelo de ameaça é uma Poisson simples e o custo de 
 - Se 12 a 80 s de vigília são tensão ou tédio (H1 do plano).
 - Os tempos de coleta reais (Mel, Sal, Seiva) e o ritmo de respawn.
 - Se o Afeto inicial de 5 a 35 é sentido.
-- Se o dardo grátis a 3 por craft e o custo de 4 s são certos; se o jogador entende "acorda por digestão" (agitação) sem tutorial.
+- Se o jogador entende "acorda por digestão" (agitação) sem tutorial; se a falta de arma de torpor à distância na v0.2 (sem Dardo) incomoda ou se Bastão, fruta e preparado bastam. *(O dardo grátis a 3 por craft saiu junto com o Dardo, 06/11.)*
 - Taxa real de invasores por bioma.
 
 ## 7. Mudanças de código para o `SORA` (não feitas aqui)
@@ -280,7 +290,7 @@ Script: `nivel_sim.py` (importa `racao_sim.py` da mesma pasta; `python3 nivel_si
 - **Nível** (inteiro) em todo dino. O mundo sorteia o nível do selvagem; os atributos da espécie são os do nível 10 (`L0`).
 - **Eficiência E** (0 a 100%), barra ao lado da domesticação (só com ele dormindo). Começa em 100% no nocaute e só desce.
 - Ao fechar a domesticação o nível sobe: **100% de E sobe 50%**.
-- Atacar o dormindo causa dano e derruba E (regra do dono, seção 11). Manter o torpor sem bater: **Dardo de sono** (+40 torpor, 0 dano, -2 E).
+- Atacar o dormindo causa dano e derruba E (regra do dono, seção 11). Manter o torpor sem bater: fruta e preparado (0 E); na 1.0, flecha de sono (75 de torpor, 0 de dano relevante, -2 E). *(Texto de 05/11: Dardo de sono, +40; adiado sem marco.)*
 - Dino acordado: aumento de torpor **não tem barra**; só o comportamento (10.5). Dormindo: barra de torpor, de domesticação e de Eficiência.
 
 ### 10.2 Fórmulas de nível (`L` = nível do dino, `L0` = 10)
@@ -289,11 +299,11 @@ Script: `nivel_sim.py` (importa `racao_sim.py` da mesma pasta; `python3 nivel_si
 |---|---|---|
 | Vida máxima, dano | `base x (1 + 0,04 x (L - 10))` | piso 0,5 |
 | Torpor máximo | `base x (1 + 0,02 x (L - 10))` | piso 0,7 |
-| Refeições para domar (tempo e custo em Ração) | `ceil(refeições_base x dificuldade x (1 + 0,015 x (L - 10)))` | piso 0,85 do fator |
+| Refeições para domar (tempo e custo em Ração) | `ceil(refeições_base x fator x (1 + 0,033 x (L - 10)))` (**atualizado 06/11, GDD 5.14**) | piso 0,5 do fator |
 | Peso (capacidade de carga) | `base x (1 + 0,03 x (L - 10))` | piso 0,7 |
 | Stamina (reservada, sem uso na 0.2) | `base x (1 + 0,02 x (L - 10))` | piso 0,7 |
 | Velocidade, Fome | **sem fórmula**: fixas por espécie (conjunto de atributos do MVP, GDD 5.1) | |
-| **Pontos (versão enxuta, 06/11)** | stats de captura congelam no nível final; cada nível por XP = 1 ponto = **+6% da base**, Vida, Dano e Peso no dino; teto `captura + 10`, máx. 75 | GDD 5.1, `pontos_sim.py` |
+| **Pontos (versão enxuta, 06/11)** | stats de captura congelam no nível final; cada nível por XP = 1 ponto = **+6% da base**, Vida, Dano e Peso no dino; teto **2x o nível final, máx. `dino_nivel_max` 50 no MVP (06/11, GDD 5.16)** | GDD 5.1, `pontos_sim.py` |
 
 [calculado] com `nivel_sim.py niveis`:
 
@@ -314,19 +324,18 @@ Efeito no tempo e na comida [calculado, Triceratops, dificuldade 2,0]: refeiçõ
 
 ### 10.3 Faixa de nível no mundo
 
-Nível sorteado por `min + floor((max - min + 1) x u^1,5)`, com `u` uniforme em [0,1): média ~40% da faixa [premissa, favorece níveis baixos].
+Nível sorteado por `min + floor((max - min + 1) x u^2)`, com `u` uniforme em [0,1): poucos altos (**decisão 06/11, GDD 5.16; antes u^1,5**). Faixas atuais (valem sobre a tabela antiga de 05/11, que ia a 35):
 
-| Bioma | Espécie | Faixa selvagem | Média |
-|---|---|---|---|
-| Campina | Paquicéfalo | 1 a 12 | ~6 |
-| Mata-baixa | Paquicéfalo | 5 a 20 | ~11 |
-| Mata-baixa | Utahraptor | 8 a 25 | ~15 |
-| Mata-baixa | Parassaurolofo (manada de 3 a 5) | 10 a 28 | ~16 |
-| Pedreira | Utahraptor | 15 a 30 | ~21 |
-| Pedreira | Triceratops | 15 a 35 | ~23 |
-| Clareira-brasa (M4) | espécies novas | 30 a 50 | ~38 |
+| Espécie | Faixa selvagem (v0.2) | Observação |
+|---|---|---|
+| Dodo (presa, início do M2) | 3 a 10 | não domável |
+| Paquicéfalo | 5 a 20 | tutorial 5 a 8 |
+| Utahraptor | 10 a 25 | solitário |
+| Parassaurolofo | 10 a 30 | manada de 3 a 5 |
+| Triceratops | **18 a 24** | v0.2 **e 1.0** (sem Rifle, L28+ mata sem preparo; GDD 5.15) |
+| Clareira-brasa (M4) | espécies novas | a definir com o M4 |
 
-Teto de nível domado: `round(1,5 x L)`, no máximo 75 no mundo da 0.2 (50 x 1,5). Servidor pode mexer nas faixas (10.9).
+`dino_nivel_spawn_max` 30. Teto de nível **na doma** (Eficiência): `round(1,5 x L)`, no máximo `dino_nivel_max` (**atualizado 06/11, GDD 5.16**: o 75 fixo caiu; MVP 50). O **teto de evolução depois de domado** é 2x o nível de doma, também limitado pelo servidor. Servidor pode mexer nas faixas (10.9).
 
 ### 10.4 Como a Eficiência cai
 
@@ -334,9 +343,9 @@ Teto de nível domado: `round(1,5 x L)`, no máximo 75 no mundo da 0.2 (50 x 1,5
 
 | Fonte | Valor | Motivo |
 |---|---|---|
-| Tempo dormindo | -0,3 por segundo | Quanto mais demora, mais ele se desgasta |
+| Tempo dormindo | -0,3 por segundo (**recomendo 0,15; GDD 5.14**) | Quanto mais demora, mais ele se desgasta |
 | Refeição: Baga / C / B / A / S / S+ | -2 / -1,5 / -1 / -0,5 / 0 / **+2** | Comida inferior pesa; o S+ restaura |
-| Dardo de sono (+40 torpor, 0 dano) | -2 por dardo | Sedação forçada; o jeito barato |
+| Flecha de sono (75 de torpor; era Dardo +40, adiado) | -2 por dose | Sedação forçada de dino acordado ou dormindo; **fruta e preparado não custam** |
 | Ataque recebido dormindo | fixo + 0,5 por 1% da vida máx. (seção 11) | Golpe do jogador (fixo 4) e mordida de carnívoro (fixo 8) |
 
 Bônus e arredondamento: `nível_final = min( floor(L x (1 + 0,5 x E/100) + 0,5), floor(1,5 x L + 0,5) )`. Linear de 0 a +50%, arredonda para o mais próximo com meio para cima; E a 100% dá exatamente +50% (nível 20 vira 30). Mostrar ao jogador o **nível previsto** em tempo real ao lado da barra ("20 -> 28"). Valores [calculado]: `(L, E) -> final`: (20,100)=30, (20,99)=30, (20,75)=28, (20,50)=25, (20,0)=20, (7,100)=11, (7,60)=9, (1,100)=2, (60,100)=90.
@@ -356,7 +365,7 @@ Resultado [calculado, `nivel_sim.py eficiencia`]. Casos (reexecutados após a se
 | Parassaurolofo (20) | C | 14 | 70 s | 58 / 37 / 5 | 26 / 24 / 21 |
 | | A | 9 | 36 s | 85 / 63 / 32 | 28 / 26 / 23 |
 | | S+ | 6 | 24 s | 100 / 83 / 52 | 30 / 28 / 25 |
-| Triceratops (28) | C | 21 | 105 s | 37 / 17 / 0 | 33 / 30 / 28 |
+| Triceratops (28) | C | 21 | 105 s | 37 / 17 / 0 | 33 / 30 / 28 | **(desatualizado: com o tempo recalibrado, Triceratops L28 com C são 22 refeições e 5,5 min; GDD 5.14)**
 | | B | 16 | 80 s | 60 / 40 / 11 | 36 / 34 / 30 |
 | | A | 13 | 52 s | 78 / 58 / 29 | 39 / 36 / 32 |
 | | S | 11 | 44 s | 87 / 67 / 38 | 40 / 37 / 33 |
@@ -437,28 +446,35 @@ Sinais de conflito com o plano: ver seção 17 do GDD.
 
 ### 10.9 Lista exata para o `SORA` (nada feito aqui)
 
-1. `NivelDino` (recurso de dados): `L0=10`, coeficientes (0,04 vida/dano; 0,02 torpor e Stamina; 0,015 refeições; 0,03 Peso) com pisos da tabela 10.2; **sem** coeficiente de velocidade nem de fome; funções puras testáveis.
+1. `NivelDino` (recurso de dados): `L0=10`, coeficientes (0,04 vida/dano; 0,02 torpor e Stamina; 0,033 refeições (piso 0,5; GDD 5.14); 0,03 Peso) com pisos da tabela 10.2; **sem** coeficiente de velocidade nem de fome; funções puras testáveis.
 2. `SpeciesDef`: adicionar `vida_base`, `dano_base`, `faixa_nivel_por_bioma`, `aceita_crua`, perfis; remover `ideal_food` único.
 3. `Dino`: campo `level` (selvagem, sorteado por bioma com `u^1,5` e seed do mundo); `HealthComponent` na cena do dino; vida/dano/torpor máximo derivados do nível; `to_dict` com `level`, `efficiency`; bump de versão do save (ADR-002) com migração (nível 10, E 100).
 4. `TorporComponent`: calcular faixa 0..3 com histerese; emitir `band_changed`; manter `wake_ratio`. Servidor aplica velocidade x1/x1/x0,85/x0,65, cooldown x1,5 e pausa de 0,8 s a cada 4 s (determinística) na faixa 3.
 5. `TamingComponent`: `efficiency` 0..100 (começa em 100 no nocaute); por tick `-0,3 x delta`; por refeição `-drenagem[qualidade]` (S+ negativa, limitada a 100); `refeições = ceil(base x dificuldade x fator_tempo(L))`; no fim `mark_tamed` aplica `nível_final` com a fórmula 10.4; Afeto inicial `round(E/5)`; sinal `efficiency_changed` e `level_preview_changed`.
 6. `Dino.apply_torpor(amount, source)` e `Dino.take_damage(amount, attacker)`: com ele dormindo, cada ataque recebido debita `fixo[atacante] + 0,5 x %vida` de E (fixo 4 jogador, 8 carnívoro) e dano de vida; dardo debita 2 E sem dano. Dano em dino acordado só tira vida. Ver 11.
-7. Itens: `bastao_sono` (M1), `lanca_pedra` (M2), `dardo_sono` (M2, receita 2 Fibra + 1 Pedra rende 3).
+7. Itens: `bastao_sono` (M1), `lanca_pedra` (M2), `flecha_sono` (M4; 4 flechas comuns + 1 preparado rendem 4). **`dardo_sono` não entra.**
 8. `Player`: ler dano/torpor/cooldown da arma equipada; o ataque atual (40, 0,35 s) passa a 30 de torpor e 0,7 s com o bastão (ajuste de dado, cabe a `QA-01`).
 9. UI: painel de domar com três barras (torpor, domesticação, Eficiência) e "nível previsto"; barra de vida sobre o dino só após dano (máx. 3), fade de 5 s; lista de grupo no HUD (M2). Sem barra de torpor acordado.
 10. Foge abaixo de 25% de vida (comportamento Flee com gatilho).
 11. Configuração de servidor em dados: `eficiencia_por_dardo` (2), `eficiencia_fixa_ataque_jogador` (4), `eficiencia_fixa_ataque_carnivoro` (8), `multiplicador_nivel_selvagem`, `faixas_de_nivel`, `eficiencia_drena_tempo` (0,3). 
-12e. **Fonte de carne (GDD 5.6, V48, pendente do dono):** se a opção A for aceita, `CarcassSpawner {site_id, species, level, period_s=480}` gera a carcaça de presa (entidade 12b) com teto de 3 pontos; a carniça (carcaça acima de 10 min) dá carne podre; remove o nó de Carniça.
+12e. ~~CarcassSpawner~~ **removido (06/11, dono):** a fonte de carne é a Lança e as presas Dodo e Listro (GDD 5.6, 6.1); sem spawner de carcaça e sem nó de Carniça.
+12j. ~~Rifle de dardos~~ **adiado sem marco (decisão final do dono, 06/11):** nada a implementar. Arco, Flecha, Boleadeira (M4) e Besta (M5): `WeaponDef` com `projectile`, `range_tiles` 10, 6 e 14, durabilidade 120; números em GDD 5.4.
+12k. **Tetos de nível (GDD 5.16):** chaves `jogador_nivel_max` 20, `dino_nivel_max` 50, `dino_nivel_spawn_max` 30, `dino_teto_multiplicador` 2,0, `dino_teto_base` final; `teto_efetivo(dino) = min(mult x nível_de_doma, dino_nivel_max)`; sorteio `mín + floor((máx-mín+1) x u^2)`; XP que trava (sem acumular) e selo "teto"; save acima do teto mantém nível e pontos.
 12d. **Estruturas e Stamina (GDD 8.1 e 5.8):** `StructureDef`/`Structure` com vida e regeneração, `ConductaDef.ataca_estrutura` e `fator_dano_estrutural`, ataque do Agressivo à peça de bloqueio após 2 s sem caminho; `stamina_cost` em `WeaponDef`, custo por segundo de coleta, estado `exhausted` (cooldown x1,5, efeito x0,75, coleta x1,5, no servidor), regen com atraso de 0,5 s, ofego em ação. Sem estrutura de metal.
 12c. **Receitas e HUD (GDD 5.7, `receitas.md` 9):** `RecipeDef`, `saber_livre`, `receitas_conhecidas`, tela do Personagem (tecla P, abas), pedidos `aprender_receita` e `craftar` validados no servidor; HUD com vida, fome, XP com nível, selo de ponto livre, linha de aviso de nível e estado ofegante (som e partícula) sem barra de stamina; sem campo de durabilidade.
 12b. **Carcaça e sacolinha (GDD 5.6):** entidades de mundo `Carcass {id, species, level, pos, age, carne_left, couro_left, owner_id}` e `LootBag {id, pos, items[], age, owner_id, exclusive_until}`, **salvas** (teto 8 e 20; a mais antiga some) e **sem depender de apresentação**; `age` vira estado fresca (10 min), carniça (até 20 min, só carne podre `ceil(carne/4)`) e remoção; rendimento `base x (1+0,03(L-10))` (piso 0,7) por espécie em `SpeciesDef` (`carne_base`, `couro_base`); itens `couro` (0,4 kg) e carne de 25 de fome (confirmar); pedidos `coletar_carcaca(id, item)` e `pegar_sacolinha(id)` validados no servidor (existência, 2 tiles, 1,5 s por carne e 3 s por couro com barra parcial, dono por 120 s, Peso; o excesso fica na sacolinha); morte permanente de domado gera carcaça e sacolinha com o alforje; sem XP. Teste headless: tabela do GDD 5.6, salvar e carregar com carcaça a meio, expirar e Peso cheio.
+12f. **Comida e fome (GDD 5.10):** `decay_per_second` 0,2; fonte de torpor "fome" no jogador (+2/s líquido, fora do teto de 3 efeitos); estado inconsciente (8 s, acordar a 50, 1,5 dano/s); carne crua, cozida e podre como itens com fome, vida e dano; Fogueira com ação "assar" (2 s por carne, 1 madeira por 4); interação "alimentar jogador" (1 s, valida no servidor).
+12g. **Validade e durabilidade (GDD 5.9):** pilha `{id, count, expira_em}`, equipamento `{id, iid, durab, durab_max}`, barra de atalhos por slot; carne vencida vira carne podre `ceil(n/4)`; reparo na Bancada; armadura de 3 conjuntos com `max(1, dano x (1 - redução))`.
+12h. **Cocho (decidido: só para dino domado) e fome do domado (GDD 5.12):** `Trough {items[], accepts, range=6}`; dino com fome <= 50 vai ao cocho (2 s por unidade), do alforje só <= 25 e sem Ração; domesticação não usa cocho; fome 0 > 2 min tira 1 de Afeto por min e pausa o ofício.
+12i. **(Adiado para depois do playtest, dono 06/11) Slot de Oferta / domar passivo:** não implementar agora; proposta em GDD 5.13. **Vale agora:** tecla 1-9 só consome pelo jogador; **o jogador nunca consome Ração, só o dino**; preparado de sono ainda não decidido; domar ativo pela tela de inventário do dino (E, já implementada); **Cocho só para dino domado** (12h).
 12a. **Armas e torpor (GDD 5.4, 5.5):** `WeaponDef` com `damage`, `torpor_instant`, `torpor_rate`, `torpor_duration`, `cooldown`, `range_tiles`, `ammo_item`, `reload_time`, `melee_scaled` (só Soco e Bastão escalam com o Dano do jogador). `TorporComponent`: lista de até 3 efeitos `{rate, remaining}`; o 4º renova o de menor `remaining`; tick soma `taxa - queda`; clamp 0 e máx.; **entra em `to_dict`/`from_dict`** (até 3 pares de float) e **não depende de apresentação** (servidor aplica; cliente só mostra a faixa). Itens `fruta_sono` (6/s, 5 s, 0,1 kg), `preparado_sono` (12/s, 5 s), `carne_podre`; nó `arbusto_fruta_sono` (3 frutas, 4 s, respawn 6 a 8 min) e nó `carnica` (2, 4 s, 10 min); receita 3 frutas + 1 carne podre = 3 preparados, 4 s; pedido `forcar_item(dino_id, item_id)` validado no servidor (dino dormindo, alcance 3 tiles, 1,5 s de ação, 3 s de espera por dino, teto de efeitos, sem custo de E); `usar_atalho` com confirmação da fruta sem alvo; arremesso do dardo (6 tiles, 1 s). Jogador usa o mesmo `TorporComponent` (máx. 100) com sinais M2; sono M4. Soco: golpe sem item na mão (10 de torpor, 0,6 s).
 12. **Atributos e pontos (GDD 5.1):** `Attributes` (recurso/componente) com Vida, Dano, Stamina, Peso por jogador e dino: `base x (1 + auto(L_captura) + 0,06 x pontos)`; `nivel`, `xp`, `pontos_livres`, `pontos{}`; curvas `30+15(L-1)` (jogador) e `20+10g` (dino); teto de captura+10 e 75; Dino com ponto em Vida, Dano e Peso na 0.2 (Stamina sem ponto até a montaria); sem respec nem teto por atributo; funções puras testáveis. Pedido de rede `distribuir_pontos` validado no servidor (dono, pontos, alvo vivo, 6 tiles, 10 s sem dano); sem respec nem teto por atributo na 0.2. Dano do jogador multiplica dano e torpor do golpe; jogador nível 20, dino captura+10. Save: jogador e dino com os campos do GDD 5.1 e `nome`, bump de versão.
 13. **Peso:** `ItemDef.weight`; `InventoryComponent` com `max_weight` (jogador 50 + 3/ponto; alforje do dino = Peso do dino), recusa pegar acima de 100% com mensagem; slots viram exibição; `starting_items` conferido (3,3 kg).
-14. **Barra de atalhos (GDD 5.2):** 9 ações de entrada, atribuição por id de item, soma de pilhas, apagado sem estoque; `usar_atalho(item_id, alvo_id?)` validado no servidor; cooldowns 0,5/0,3/1,0 s; conferir conflito com teclas 1 a 9.
+14. **Barra de atalhos (GDD 5.2):** 9 ações de entrada, atribuição por id de item, soma de pilhas, apagado sem estoque; `usar_atalho(item_id)` (sem alvo; a tecla nunca age em dino); dar ao dino é `alimentar_dino(dino_id, item_id)` da tela do dino validado no servidor; cooldowns 0,5/0,3/1,0 s; conferir conflito com teclas 1 a 9.
 15. **Nome do dino (GDD 6.9):** campo no fim da domesticação e no painel; 20 caracteres, texto limpo sem marcação, validado no servidor; exibição no painel e na lista do grupo; `filtro_nomes` opcional fora do MVP.
 16b. `YATORA`: carcaça por espécie (4 sprites, com estado fresca e carniça), sacolinha no chão (e brilho curto ao expirar), ícones de couro (e quitina, futuro), barra de coleta e lista de itens da carcaça, som de coletar.
-16a. `YATORA`: ícones de Soco, dardo de sono, flecha de sono (M4), fruta-do-sono (roxo, distinta da baga), preparado de sono, carne podre; arbusto da fruta e nó Carniça; sprite do arremesso e do impacto do dardo; efeito de torpor contínuo no dino (halo ou zumbido discreto, só visual); animação de dino comendo forçado; sons de arremesso e de mastigar.
+16c. `YATORA`: carne cozida e carne podre (ícones), Fogueira acesa e apagada, 3 trajes (fibra, couro, metal), jogador deitado e estrelinhas, vinheta e ronco de fome, Dodo e Listro (sprite, carcaça fresca e carniça), aviso e som de durabilidade baixa e de quebra. (Slot de Oferta e aviso de interrupção: adiados.)
+16a. `YATORA`: ícones de Soco, flecha de sono e flecha comum (M4), boleadeira (M4), fruta-do-sono (roxo, distinta da baga), preparado de sono, carne podre; arbusto da fruta; sprite do tiro e do impacto da flecha (M4); efeito de torpor contínuo no dino (halo ou zumbido discreto, só visual); animação de dino comendo forçado; sons de arremesso e de mastigar.
 16. **Telas:** atributos do jogador e do dino (pontos livres, valor por ponto, prévia do resultado), alforje do dino, barra de atalhos. `YATORA`: ícones dos 4 atributos, moldura e estados dos 9 atalhos (normal, apagado, ativo, recarga), ícone de alforje.
 17. Testes headless: tabela 10.2 e 10.4 como casos fixos (incluindo (20,100)=30 e (7,60)=9); ataques em sequência com ele dormindo; save/load com E e nível; faixa de torpor nas fronteiras com histerese.
 
@@ -475,8 +491,8 @@ Arte: barra de vida do dino (pequena, legível sobre qualquer fundo), barra de E
 **Só o playtest responde:** se 2 E por dardo, 4 e 8 E fixos por ataque, 0,3 E/s e 0,5 E por 1% de vida são sentidos ou ignorados; se um nível vale 40 s para o jogador; se 4 a 10 golpes de bastão com 0,7 s é cadência boa; se as faixas de torpor são legíveis a olho nu; se a tela com 3 barras de vida cabe sem poluir; se a Lança precisa existir na 0.2; velocidade do carnívoro em relação ao jogador.
 
 **Depende do dono:**
-1. ~~Cortar o dardo~~ **Resolvido pelas regras do dono: o dardo fica** (seção 11.4).
-2. Sem teto de reforços: o dardo é limitado pelo estoque (seção 11.4).
+1. ~~Cortar o dardo~~ **Superado (06/11): o Dardo saiu sem marco; a flecha de sono (M4) ocupa o lugar** (seção 11.4 como histórico).
+2. Sem teto de reforços: a dose forçada é limitada pelo estoque de flechas ou de preparado (seção 11.4).
 3. Afeto inicial vindo da Eficiência (`round(E/5)`) em vez da tabela por qualidade (recomendo sim).
 4. Faixas de nível por bioma, fator 1,5 de teto e `L0 = 10`.
 5. Bastão com 30 de torpor e 0,7 s (muda os 3 golpes de 40 do jogo atual) e Lança entrar na 0.2.

@@ -3,7 +3,7 @@
 Premissas marcadas [premissa]; o que e calculo sai daqui."""
 import sys, math
 PT = 0.06                      # valor de 1 ponto: 6% do valor base do atributo (jogador e dino)
-CAP_JOG, CAP_EXTRA, ABS = 20, 10, 75   # versao enxuta v0.2
+CAP_JOG, MULT, DINO_MAX = 20, 2.0, 50   # tetos 06/11 (GDD 5.16): dino = min(2 x nivel final, 50); CAP_EXTRA (captura + 10) removido
 def xp_jog(L): return 30 + 15 * (L - 1)        # XP de L para L+1
 def xp_dino(g): return 20 + 10 * g              # g = niveis extras ja ganhos
 def acum(f, n): return sum(f(i) for i in range(1, n + 1)) if f is xp_jog else sum(f(i) for i in range(0, n))
@@ -47,11 +47,12 @@ def protecao():
     print("  Nocautear dura 144/1,4 = ~103 s de sono (queda 1,2/s no L20); domar o Paquicefalo em C leva 40 s: o ameacador nao acorda antes.")
 
 def dino():
-    print("Dino no teto de niveis extras (15): auto do nivel final de captura + pontos; vida/dano/peso x base")
+    print("Dino no teto de evolucao: min(2 x nivel final, 50); auto do nivel final + pontos (1 por nivel); vida/dano/peso x base")
     for nome, base_L, L_final, peso in (("Paquicefalo (L12, E100 -> 18)", 12, 18, 40), ("Utahraptor (L20, E100 -> 30)", 20, 30, 0), ("Triceratops (L28, E100 -> 42)", 28, 42, 120)):
         a, ap = auto(L_final, .04), auto(L_final, .03)
-        for n, (v, d, p) in {"sem pontos": (0,0,0), "tudo Dano": (0,10,0), "tudo Vida": (10,0,0), "tudo Peso": (0,0,10), "4/3/3": (4,3,3)}.items():
+        npt = int(min(MULT * L_final, DINO_MAX) - L_final); print(f"  {nome}: teto {int(min(MULT * L_final, DINO_MAX))}, {npt} pontos")
+        for n, (v, d, p) in {"sem pontos": (0,0,0), "tudo Dano": (0,npt,0), "tudo Vida": (npt,0,0), "tudo Peso": (0,0,npt), "4/3/3": (round(.4*npt), round(.3*npt), npt-round(.4*npt)-round(.3*npt))}.items():
             print(f"  {nome:30} {n:10} vida x{1+a+PT*v:4.2f} dano x{1+a+PT*d:4.2f} peso x{1+ap+PT*p:4.2f}" + (f" = {peso*(1+ap+PT*p):5.1f} kg" if peso else ""))
-    print("Teto de nivel do dino = min(75, nivel final de captura + 15). Eficiencia (1,5x) so vale na domesticacao.")
+    print("Teto de nivel do dino = min(2 x nivel final, dino_nivel_max 50 no MVP). Eficiencia (1,5x) so vale na domesticacao.")
     print("Viagem de Peso: 40 tiles = 640 px / 75 px/s = 8,5 s ida; volta 8,5 s; ~20 s com carga. 3 abrigos = 114 kg: Paq L18 49,6 kg + jogador 50 = 99,6 -> 2 viagens; com 10 pontos em Peso (73,6 kg) = 123,6 -> 1 viagem. Ganho ~20 s por obra.")
 {"xp": xp, "build": build, "dino": dino, "protecao": protecao}[sys.argv[1] if len(sys.argv) > 1 else "xp"]()

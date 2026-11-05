@@ -1,4 +1,4 @@
-[gd_scene load_steps=10 format=3]
+[gd_scene load_steps=12 format=3]
 
 [ext_resource type="PackedScene" path="res://src/entities/dino/Dino.tscn" id="1_dino"]
 
@@ -6,6 +6,13 @@
 [ext_resource type="Script" path="res://src/world/Main.gd" id="3_main"]
 [ext_resource type="Script" path="res://src/ui/PlayerHud.gd" id="4_hud"]
 [ext_resource type="Script" path="res://src/ui/InventoryScreen.gd" id="5_screen"]
+[ext_resource type="Script" path="res://src/ui/DinoStatusBars.gd" id="6_bars"]
+[ext_resource type="Script" path="res://src/ui/DinoView.gd" id="7_view"]
+[ext_resource type="PackedScene" path="res://src/world/Terrain.tscn" id="8_terrain"]
+[ext_resource type="Script" path="res://src/ui/PlayerView.gd" id="9_pview"]
+[ext_resource type="AudioStream" path="res://assets/third_party/ninja-adventure/sounds/hit/hit1.wav" id="10_hit"]
+[ext_resource type="AudioStream" path="res://assets/third_party/ninja-adventure/sounds/pickup/powerup1.wav" id="11_tamed"]
+[ext_resource type="AudioStream" path="res://assets/third_party/ninja-adventure/sounds/swing/whoosh.wav" id="12_attack"]
 
 [sub_resource type="WorldBoundaryShape2D" id="WorldBoundaryShape2D_top"]
 normal = Vector2(0, 1)
@@ -21,10 +28,14 @@ normal = Vector2(1, 0)
 normal = Vector2(-1, 0)
 distance = -640.0
 
-[node name="Main" type="Node2D" node_paths=PackedStringArray("player", "screen")]
+[node name="Main" type="Node2D" node_paths=PackedStringArray("player", "screen", "dino")]
+y_sort_enabled = true
 script = ExtResource("3_main")
 player = NodePath("Player")
 screen = NodePath("UI/InventoryScreen")
+dino = NodePath("Dino")
+
+[node name="Terrain" parent="." instance=ExtResource("8_terrain")]
 
 [node name="Bounds" type="StaticBody2D" parent="."]
 
@@ -42,6 +53,25 @@ shape = SubResource("WorldBoundaryShape2D_right")
 
 [node name="Dino" parent="." instance=ExtResource("1_dino")]
 position = Vector2(320, 180)
+
+[node name="DinoStatusBars" type="Node2D" parent="." node_paths=PackedStringArray("dino")]
+script = ExtResource("6_bars")
+dino = NodePath("../Dino")
+
+[node name="DinoView" type="Node2D" parent="." node_paths=PackedStringArray("dino")]
+script = ExtResource("7_view")
+dino = NodePath("../Dino")
+cue_streams = Dictionary[StringName, AudioStream]({
+&"hit": ExtResource("10_hit"),
+&"tamed": ExtResource("11_tamed")
+})
+
+[node name="PlayerView" type="Node2D" parent="." node_paths=PackedStringArray("player")]
+script = ExtResource("9_pview")
+player = NodePath("../Player")
+cue_streams = Dictionary[StringName, AudioStream]({
+&"attack": ExtResource("12_attack")
+})
 
 [node name="Player" parent="." instance=ExtResource("2_player")]
 position = Vector2(200, 180)

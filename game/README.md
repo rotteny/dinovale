@@ -2,7 +2,7 @@
 
 Sandbox survival 2D top-down em pixel art, com exploração, construção e domesticação de dinossauros. É um jogo comunitário, gratuito e auto-hospedado, feito em Godot 4 com GDScript.
 
-> **Estado:** fundação técnica, com o ciclo de domesticação jogável. A cena principal mostra um jogador placeholder (azul) e um dinossauro placeholder (laranja) passeando em uma área fechada. A HUD mostra vida, stamina e fome do jogador. Perto do dino aparece o painel dele (estado, torpor e progresso de domesticação). Dá para derrubar o dino com golpes de torpor (F ou Espaço), abrir o inventário compartilhado com E enquanto ele está inconsciente, passar comida para ele por clique e ver a domesticação chegar a 100%. Ainda não há construção, save em arquivo, arte nem som definitivos.
+> **Estado:** fundação técnica, com o ciclo de domesticação jogável. A cena principal tem mapa com grama, caminho de terra, árvores, folhagem nas bordas, casa e baú decorativos, um jogador animado (Caveman) e um bicho placeholder (Reptile) passeando em uma área fechada. Arte e sons são do pacote Ninja Adventure (CC0), só como placeholder. A HUD mostra vida, stamina e fome do jogador. Com o dino inconsciente, barras de torpor e de domesticação aparecem sobre ele, a qualquer distância, e somem quando ele acorda (domesticado que desmaia mostra só o torpor). O dino da cena tem nível fixo (20, exportado na `Main`). Dá para derrubar o dino com o bastão-de-sono (F ou Espaço: 2 de dano e 30 de torpor, recarga de 0,7 s), abrir o inventário compartilhado com E enquanto ele está inconsciente, passar comida para ele por clique e ver a domesticação chegar a 100%. Dormindo, a Eficiência cai com o tempo, a comida e os golpes, e o nível final sobe pela fórmula (a barra mostra "Nv 20 -> 28"). A barra de vida só aparece depois de dano. Ainda não há construção, save em arquivo, arte nem som definitivos.
 
 ## Controles
 
@@ -11,7 +11,7 @@ Sandbox survival 2D top-down em pixel art, com exploração, construção e dome
 | Andar | WASD ou setas |
 | Correr | Shift |
 | Interagir (abrir a criatura inconsciente) | E |
-| Golpe de torpor na criatura ao alcance | F ou Espaço |
+| Golpe com a arma equipada (dano + torpor) na criatura ao alcance | F ou Espaço |
 | Inventário próprio | I ou Tab |
 | Na tela de inventário | clique, ou setas + Enter/Espaço, transfere o slot inteiro; Esc, I ou E fecham |
 
@@ -50,10 +50,16 @@ Três regras guiam o código:
 game/
 ├── project.godot
 ├── assets/                  # sprites, sons e fontes
+├── data/                    # balanceamento em .tres (balance/, dino/, weapons/)
 ├── src/
 │   ├── core/                # enums, catálogo de itens
 │   │   ├── Enums.gd
 │   │   ├── ItemDef.gd       # definição de um item (id, nome, pilha, cor)
+│   │   ├── DinoLevelRules.gd  # fórmulas de nível (Resource)
+│   │   ├── DinoBaseStats.gd   # atributos base do dino (precursor do SpeciesDef)
+│   │   ├── TamingRules.gd     # regras da Eficiência
+│   │   ├── TorporBandRules.gd # faixas de torpor
+│   │   ├── WeaponDef.gd       # arma do jogador
 │   │   └── Items.gd         # catálogo: berry, meat, fern
 │   ├── components/          # componentes reutilizáveis
 │   │   ├── HealthComponent.gd
@@ -74,23 +80,30 @@ game/
 │   │       ├── Player.gd            # corpo: lê o input e aplica a física
 │   │       └── Player.tscn
 │   ├── ui/                  # só apresentação, reage a sinais
-│   │   ├── PlayerHud.gd     # barras, painel da criatura e prompt
-│   │   ├── DinoPanel.gd
+│   │   ├── PlayerHud.gd     # barras do jogador e prompt
+│   │   ├── DinoStatusBars.gd # barras de vida, torpor, domesticação e Eficiência
+│   │   ├── DinoView.gd       # sprite do dino: direção, andar, sono, cambaleio, pausa, flash, números, som
+│   │   ├── PlayerView.gd     # sprite do jogador: parado, andar, ataque, morto, som do golpe
+│   │   ├── SpriteFacing.gd   # colunas de direção e ciclo de andar das folhas do pacote
 │   │   ├── StatBar.gd
 │   │   ├── InventoryScreen.gd
 │   │   └── UiTheme.gd
-│   └── world/               # grid, chunks e estruturas
+│   └── world/               # mapa, grid, chunks e estruturas
 │       ├── Main.gd          # liga o mundo à UI
-│       └── Main.tscn
+│       ├── Main.tscn
+│       ├── Terrain.tscn     # mapa em TileMapLayer (gerado por tools/gerar_mundo.gd)
+│       └── world_tiles.tres # TileSet (chão, natureza, colisão no tronco)
 └── tests/
-    └── run_tests.gd
+    ├── run_tests.gd
+    ├── dino_level_tests.gd  # nível, Eficiência, combate, faixas, apresentação
+    └── saveable_table.gd
 ```
 
 ### Componentes
 
 **`HealthComponent`** guarda a vida da entidade. Sinais: `health_changed`, `damaged`, `healed` e `died`.
 
-**`TorporComponent`** é uma barra independente da vida. Quando `current_torpor >= max_torpor`, emite `knocked_out`. A criatura só acorda quando o torpor cai até `wake_ratio * max_torpor`, e então emite `woke_up`. A queda por segundo é configurável separadamente para consciente e inconsciente, e essa segunda taxa define quanto tempo o jogador tem para domesticar.
+**`TorporComponent`** é uma barra independente da vida. Acordada, a criatura não mostra barra: só a faixa 0 a 3 (`band`, 25/50/75% com histerese de 3 pontos, `band_changed`). Faixa 2: velocidade x0,85; faixa 3: x0,65, pausa de 0,8 s a cada 4 s (determinística, `pause_phase`) e cooldown x1,5 (`movement_multiplier`, `is_paused`, `attack_cooldown_multiplier`). Valores em `data/balance/torpor_bands.tres`. Quando `current_torpor >= max_torpor`, emite `knocked_out`. A criatura só acorda quando o torpor cai até `wake_ratio * max_torpor`, e então emite `woke_up`. A queda por segundo é configurável separadamente para consciente e inconsciente, e essa segunda taxa define quanto tempo o jogador tem para domesticar.
 
 **`StaminaComponent`** é o fôlego. Gasta enquanto o corpo diz que está correndo e regenera parado. Ao zerar, entra em exaustão e só volta a correr ao recuperar `resume_threshold`. Sinais: `stamina_changed`, `exhausted` e `recovered`.
 
@@ -102,15 +115,34 @@ game/
 
 **`TamingComponent`** consome a comida ideal do `inventory` compartilhado do Dino a cada `seconds_per_meal` enquanto a criatura selvagem está inconsciente e preenche `taming_progress`. Em 100% chama `DinoStateMachine.mark_tamed()`. Sem comida ideal o progresso para e não regride. Se a criatura acordar antes de terminar, o progresso zera, mas a comida que sobrou continua no inventário. Não mantém estoque próprio.
 
+A **Eficiência** (0 a 100) começa em 100 ao dormir e só cai: 0,3 por segundo, 2 por baga e, por ataque recebido dormindo, `fixo[atacante] + 0,5 x % da vida máxima perdida` (jogador 4, carnívoro 8; `apply_attack`). Acordada ou domesticada, não cai. As refeições dependem do nível (`ceil(5 x fator)`). Ao fechar, `nível final = min(floor(L x (1 + 0,5 x E/100) + 0,5), floor(1,5 L + 0,5))` (20 com 100% vira 30; 7 com 60% vira 9; com 0% domestica sem bônus). Sinais: `efficiency_changed`, `level_preview_changed`, `level_finalized`, `taming_failed` (o dino morreu durante a domesticação: o progresso zera e a comida gasta se perde). Valores em `data/balance/taming_rules.tres`.
+
+### Nível e dano no dino
+
+`Dino.level` (exportado, salvo em `to_dict`) deriva vida máxima, dano, torpor máximo e refeições por `DinoLevelRules` (`data/balance/dino_level_rules.tres`) sobre os atributos de `DinoBaseStats` (`data/dino/`): vida e dano x(1 + 0,04 (L-10)), torpor x(1 + 0,02 (L-10)), refeições x(1 + 0,015 (L-10)), com pisos. O máximo vem sempre do nível, nunca do save. A `Main` fixa o nível com `dino_level`.
+
+`Dino.receive_hit(dano, torpor, attacker_kind)` aplica o dano primeiro e o torpor depois (o golpe que derruba não conta como ataque ao dormindo); `Dino.take_damage(dano, attacker_kind)` é a API para qualquer atacante (`"player"` ou `"carnivore"`; desconhecido é rejeitado). Não há IA de carnívoro nem detecção. Dormindo e selvagem, o dano também derruba a Eficiência; acordado, só tira vida. Domesticado não é alvo do jogador.
+
+### Arte, mapa e som (Ninja Adventure, placeholder)
+
+Tudo vem de `assets/third_party/ninja-adventure/` (caminhos, quadros e direções em `MAPA.md` da pasta; registro em `assets/CREDITS.md`). O filtro de textura é nearest (`project.godot`, sem mudança) e só há escala inteira.
+
+- **Mapa:** `Terrain.tscn` tem as camadas `Ground` (grama e caminho), `Decor` (tufos, flores, pedras), `Trees` (árvores com colisão só no tronco, ordenadas por `y` com o jogador e o dino) e `Foliage` (folhagem das bordas, à frente do jogador, sem colisão), mais a casa (colisão só na base da parede) e o baú (só decorativo). A área continua fechada pelas 4 bordas da `Main`. O arquivo é gerado por `tools/gerar_mundo.gd` (determinístico): `godot --headless --path game --script ../tools/gerar_mundo.gd`, depois `--import`.
+- **Sprites:** o jogador usa `characters/caveman.png` (linhas 0 a 3 andar, 4 ataque, 6 morto); o dino usa `animals/reptile.png` (4 direções x 4 quadros de andar), com o sprite girado 90 graus e o balão "zz" quando dorme. A escolha do quadro é só apresentação (`PlayerView`, `DinoView`); o corpo só expõe `visual`, `velocity` e o sinal `attacked`. O cambaleio é um deslocamento de 1 a 2 px (pixel art não gira em ângulo fracionário).
+- **UI:** painéis 9-slice (`panel_a`, margem 6), células de inventário (`inventory_cell`), ícones de item (`Items.icon_of`) e da HUD (coração, pena, carne). As barras seguem coloridas por código.
+- **Sons:** `hit/hit1.wav` (dano no dino), `pickup/powerup1.wav` (domesticou) e `swing/whoosh.wav` (golpe do jogador), ligados em `cue_streams` das views na `Main.tscn` com `volume_db` +6 (o pacote tem pico de -10 dBFS). Sem som ainda: bocejo, dor, ronco.
+
 ### Jogador
 
-`Player` é um `CharacterBody2D` top-down (`motion_mode` floating). Só o corpo lê `Input` (`read_direction`); a regra de movimento (`apply_input(direction, wants_sprint, delta)`) recebe a direção pronta, então é testável sem input real. Ações: `move_up/down/left/right` (WASD e setas), `sprint` (Shift), `interact` (E), `attack` (F, Espaço) e `inventory` (I, Tab). A diagonal tem o mesmo comprimento que o eixo. Só corre quem está se movendo e tem stamina.
+`Player` é um `CharacterBody2D` top-down (`motion_mode` floating). Só o corpo lê `Input` (`read_direction`); a regra de movimento (`apply_input(direction, wants_sprint, delta)`) recebe a direção pronta, então é testável sem input real. O sinal `attacked` sai quando o golpe acerta (a `PlayerView` anima e toca o som). Ações: `move_up/down/left/right` (WASD e setas), `sprint` (Shift), `interact` (E), `attack` (F, Espaço) e `inventory` (I, Tab). A diagonal tem o mesmo comprimento que o eixo. Só corre quem está se movendo e tem stamina.
 
-Um detector (`Area2D`) enxerga as `InteractableArea` no alcance, e o `target` é a mais próxima (sinal `target_changed`). `try_interact()` emite `interacted(target)` se a entidade permitir; `attack()` aplica `attack_torpor` (exportado) à criatura selvagem alvo, com recarga. Ambos são chamáveis sem teclado. `input_locked` congela o jogador enquanto a tela de inventário está aberta.
+Um detector (`Area2D`) enxerga as `InteractableArea` no alcance, e o `target` é a mais próxima (sinal `target_changed`). `try_interact()` emite `interacted(target)` se a entidade permitir; `attack()` aplica a arma equipada (`weapon`, um `WeaponDef` de `data/weapons/`: bastão-de-sono, 2 de dano, 30 de torpor, 0,7 s) à criatura selvagem alvo, com recarga. Ambos são chamáveis sem teclado. `input_locked` congela o jogador enquanto a tela de inventário está aberta.
 
 ### UI
 
-Tudo em `src/ui/` é só apresentação, reage a sinais e pode ser removido sem efeito nas regras. `PlayerHud` mostra as barras, o `DinoPanel` (estado, torpor, progresso) e o prompt "E para interagir". `InventoryScreen` mostra o inventário do jogador e o da criatura; ela fecha sozinha se o dino acordar, for domesticado ou sair da cena. A `Main` liga `Player.interacted` à tela e a tela ao `input_locked` do jogador. A fonte é a padrão da engine em tamanho 10, pensada para 640x360.
+Tudo em `src/ui/` é só apresentação, reage a sinais e pode ser removido sem efeito nas regras. `PlayerHud` mostra as barras do jogador e o prompt "E para interagir". `DinoStatusBars` é instanciada na `Main` (fora do `Dino.tscn`), segue o dino e mostra torpor, domesticação e Eficiência com o nível previsto só enquanto ele dorme (domesticação e Eficiência somem se ele já é domesticado), e a barra de vida só depois de dano, até 5 s após o último. `DinoView` faz a apresentação sobre o placeholder: cambaleio por faixa, achatamento e "..." na pausa, bocejo, flash branco de 0,1 s e número flutuante ao levar dano.
+
+**Som (ponto de ligação, sem áudio criado):** `DinoView` emite `sound_cue(cue)` (`hit`, `yawn`, `tamed`) e toca no seu `AudioStreamPlayer2D` se houver stream em `cue_streams`. Coloque os arquivos em `res://assets/sounds/dino/`, registre-os em `assets/CREDITS.md` e arraste-os para `cue_streams` do nó `DinoView` na `Main.tscn`. `InventoryScreen` mostra o inventário do jogador e o da criatura; ela fecha sozinha se o dino acordar, for domesticado ou sair da cena. A `Main` liga `Player.interacted` à tela e a tela ao `input_locked` do jogador. A fonte é a padrão da engine em tamanho 10, pensada para 640x360.
 
 ### Máquina de estados da criatura
 
@@ -139,15 +171,16 @@ Exemplo do que `Dino.to_dict()` produz:
 ```json
 {
   "position": { "x": 48.0, "y": 96.0 },
+  "level": 20,
   "health": { "current": 75.0, "max": 100.0 },
-  "torpor": { "current": 100.0, "max": 100.0, "is_unconscious": true },
+  "torpor": { "current": 100.0, "max": 100.0, "is_unconscious": true, "band": 3, "pause_clock": 0.0, "pause_phase": 1.3 },
   "inventory": { "slots": [ { "id": "berry", "count": 4 }, {}, {}, {}, {}, {}, {}, {} ] },
-  "taming": { "progress": 20.0, "meal_timer": 2.0 },
+  "taming": { "progress": 20.0, "meal_timer": 2.0, "efficiency": 96.2 },
   "state_machine": { "state": "UNCONSCIOUS", "is_tamed": false }
 }
 ```
 
-`Player.to_dict()` salva `position`, `health`, `stamina`, `hunger` e `inventory` no mesmo formato. Slot vazio é `{}`. No `from_dict` do inventário, ids desconhecidos, contagens inválidas e slots além da capacidade são descartados, e a contagem é limitada à pilha. Saves antigos com `taming.food_stock` são ignorados (o jogo não foi publicado).
+`Player.to_dict()` salva `position`, `health`, `stamina`, `hunger` e `inventory` no mesmo formato. Slot vazio é `{}`. No `from_dict` do inventário, ids desconhecidos, contagens inválidas e slots além da capacidade são descartados, e a contagem é limitada à pilha. Save sem `level` (ou com nível inválido) usa o `base_level` do dado e sem `efficiency` usa 100. A faixa de torpor, o relógio e a fase da pausa são salvos; a faixa é revalidada com `next_band(faixa_salva, fração)`, preservando a histerese. O `max` de vida e de torpor do save é ignorado. Campos de tipo errado, NaN ou fora da faixa caem no padrão (`SafeRead`), vida 0 no save vira dino morto na carga (sem `died`) e `progress = 100` dormindo volta à penúltima refeição. `from_dict` não emite `band_changed` nem `level_changed`. A fase da pausa vem do ponto de nascimento até existir id de entidade. Saves antigos com `taming.food_stock` são ignorados (o jogo não foi publicado).
 
 - Enums são salvos pelo nome, então reordená-los não corrompe mundos antigos.
 - `from_dict()` não dispara eventos de jogo como `died` ou `knocked_out`.

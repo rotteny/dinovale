@@ -132,6 +132,13 @@ rule_no_unsafe_deserialization() {
       "só JSON; load() só com literal res:// (nunca user://)"
 }
 
+# Asset de apresentação (imagem) não entra na lógica: quem mostra o ícone é a UI.
+rule_no_presentation_assets_in_logic() {
+  index_grep 'src/(core|components)/' '\b(preload|load)\(\s*"[^"]*\.(png|jpe?g|webp|svg|bmp)"' \
+    | judge "sem asset de imagem em core/components" \
+      "o mapa item -> ícone fica em src/ui (ItemIcons)"
+}
+
 # R-B: referência entre máquinas ou em save usa ID estável.
 rule_no_instance_ids_in_data() {
   {
@@ -234,6 +241,7 @@ main() {
   rule_simulation_has_no_wall_clock
   rule_logic_does_not_know_ui
   rule_no_unsafe_deserialization
+  rule_no_presentation_assets_in_logic
   rule_no_instance_ids_in_data
   rule_input_only_in_controller_and_ui
   rule_ui_does_not_call_mutators

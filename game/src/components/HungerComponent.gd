@@ -61,9 +61,9 @@ func to_dict() -> Dictionary:
 
 ## Restaura sem emitir `starved`: carregar um save não causa dano.
 func from_dict(data: Dictionary) -> void:
-	max_hunger = float(data.get("max", max_hunger))
-	current_hunger = clampf(float(data.get("current", current_hunger)), 0.0, max_hunger)
-	_starvation_timer = clampf(float(data.get("starvation_timer", 0.0)), 0.0, starvation_interval)
+	max_hunger = SafeRead.number(data.get("max"), max_hunger, 1.0, SafeRead.MAX_SAVED)
+	current_hunger = SafeRead.number(data.get("current"), current_hunger, 0.0, max_hunger)
+	_starvation_timer = SafeRead.number(data.get("starvation_timer"), 0.0, 0.0, starvation_interval)
 	hunger_changed.emit(current_hunger, max_hunger)
 
 

@@ -10,7 +10,8 @@ signal opened
 signal closed
 
 const COLUMNS := 4
-const SLOT_SIZE := Vector2(70, 30)
+const SLOT_SIZE := Vector2(72, 32)
+const SLOT_FONT_SIZE := 8
 
 @export var player_inventory: InventoryComponent
 
@@ -77,6 +78,8 @@ func _ready() -> void:
 	hint.text = "Clique ou Enter: transferir   Esc/I/E: fechar"
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(hint)
+	for label: Label in [_title, player_title, _other_title, hint]:
+		label.add_theme_color_override("font_color", UiTheme.INK)
 
 
 ## Abre o inventário próprio sozinho (ação `inventory`).
@@ -163,6 +166,8 @@ func _build_buttons(grid: GridContainer, buttons: Array[Button], inventory: Inve
 		var button := Button.new()
 		button.custom_minimum_size = SLOT_SIZE
 		button.clip_text = true
+		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		button.add_theme_font_size_override("font_size", SLOT_FONT_SIZE)
 		button.pressed.connect(_on_slot_pressed.bind(from_player, i))
 		var swatch := ColorRect.new()
 		swatch.size = Vector2(6, 6)
@@ -185,11 +190,14 @@ func _refresh_buttons(buttons: Array[Button], inventory: InventoryComponent) -> 
 		var swatch: ColorRect = buttons[i].get_node("Swatch")
 		if slot.is_empty():
 			buttons[i].text = ""
+			buttons[i].icon = null
 			swatch.visible = false
 		else:
 			buttons[i].text = "%s\nx%d" % [Items.display_name(slot["id"]), slot["count"]]
+			var icon := ItemIcons.icon_of(slot["id"])
+			buttons[i].icon = icon
 			swatch.color = Items.color_of(slot["id"])
-			swatch.visible = true
+			swatch.visible = icon == null
 
 
 func _on_slot_pressed(from_player: bool, index: int) -> void:

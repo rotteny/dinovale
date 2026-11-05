@@ -87,8 +87,8 @@ func to_dict() -> Dictionary:
 ## e um save inconsistente é corrigido a partir dele.
 func from_dict(data: Dictionary) -> void:
 	start()
-	is_tamed = bool(data.get("is_tamed", is_tamed))
-	var saved_id: int = Enums.DinoStateId.get(str(data.get("state", "")), -1)
+	is_tamed = SafeRead.flag(data.get("is_tamed"), is_tamed)
+	var saved_id: int = Enums.DinoStateId.get(SafeRead.text(data.get("state"), ""), -1)
 	transition_to(_restored_state(saved_id))
 
 

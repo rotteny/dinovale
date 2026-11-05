@@ -77,6 +77,9 @@ func _run() -> void:
 	_test_screen_closes_when_tamed()
 	_test_screen_closes_when_dino_removed()
 	_test_hud_reacts_to_signals()
+	_test_dino_status_bars()
+	DinoLevelTests.new(root, _track, _check).run()
+	DinoReviewTests.new(root, _track, _check).run()
 	await _test_full_taming_integration()
 	_test_saveable_roundtrip_table()
 	for node in _nodes:
@@ -688,9 +691,9 @@ func _test_attack_rules() -> void:
 	player.target = dino.interactable
 	player._in_range.append(dino.interactable)
 	_check(player.attack(), "golpe acerta o alvo")
-	_check(is_equal_approx(dino.torpor.current_torpor, player.attack_torpor), "aplica o torpor exportado")
+	_check(is_equal_approx(dino.torpor.current_torpor, player.weapon.torpor), "aplica o torpor da arma")
 	_check(not player.attack(), "recarga impede golpe seguido")
-	player.tick(player.attack_cooldown)
+	player.tick(player.weapon.cooldown)
 	_check(player.attack(), "depois da recarga ataca de novo")
 	player.tick(1.0)
 	player.input_locked = true
@@ -812,26 +815,78 @@ func _test_hud_reacts_to_signals() -> void:
 	_check(hud.stamina_bar().value() < 100.0, "barra de stamina acompanha")
 	player.hunger.tick(10.0)
 	_check(hud.hunger_bar().value() == player.hunger.current_hunger, "barra de fome acompanha")
-	_check(not hud.dino_panel().visible and not hud.prompt_label().visible, "sem alvo: sem painel nem prompt")
+	_check(not hud.prompt_label().visible, "sem alvo: sem prompt")
 	var dino := _spawn_dino()
 	dino.set_physics_process(false)
 	player.target = dino.interactable
 	player.target_changed.emit(dino.interactable)
-	_check(hud.dino_panel().visible and hud.dino_panel().current_dino() == dino, "alvo dino mostra o painel")
 	_check(not hud.prompt_label().visible, "criatura acordada: sem prompt")
 	dino.torpor.add_torpor(100.0)
 	_check(hud.prompt_label().visible and hud.prompt_label().text == "E para interagir", "inconsciente: prompt aparece")
-	_check(hud.dino_panel().torpor_bar().value() == 100.0 and hud.dino_panel().title_text() == "Dino: Inconsciente",
-			"painel mostra torpor e estado")
 	player.input_locked = true
 	_check(not hud.prompt_label().visible, "tela aberta esconde o prompt")
 	player.input_locked = false
-	dino.inventory.add("berry", 5)
-	dino.taming.tick(5.0)
-	_check(is_equal_approx(hud.dino_panel().taming_bar().value(), 20.0), "painel mostra o TamingProgress")
 	player.target = null
 	player.target_changed.emit(null)
-	_check(not hud.dino_panel().visible and not hud.prompt_label().visible, "perder o alvo esconde tudo")
+	_check(not hud.prompt_label().visible, "perder o alvo esconde o prompt")
+
+
+func _spawn_bars(dino: Dino) -> DinoStatusBars:
+	var bars := DinoStatusBars.new()
+	bars.dino = dino
+	root.add_child(bars)
+	_nodes.append(bars)
+	return bars
+
+
+func _test_dino_status_bars() -> void:
+	var dino := _spawn_dino()
+	dino.set_physics_process(false)
+	var bars := _spawn_bars(dino)
+	_check(not bars.visible, "dino acordado: nenhuma barra")
+	dino.torpor.add_torpor(100.0)
+	_check(bars.visible and bars.torpor_bar().visible and bars.taming_bar().visible, "dormindo: torpor e domesticação")
+	_check(bars.torpor_bar().value() == 100.0, "barra de torpor reflete o valor")
+	dino.inventory.add("berry", 5)
+	dino.taming.tick(5.0)
+	_check(is_equal_approx(bars.taming_bar().value(), 20.0), "barra de domesticação reflete o progresso")
+	dino.global_position = Vector2(500, 40)
+	bars.follow()
+	_check(bars.global_position == Vector2(500, 40), "acompanha a posição do dino")
+	var far := _spawn_player()
+	far.global_position = Vector2(-5000, -5000)
+	_check(bars.visible, "visível a qualquer distância do jogador")
+	dino.torpor.reduce_torpor(100.0)
+	_check(not dino.torpor.is_unconscious and not bars.visible, "acordou: nenhuma barra")
+	_check(bars.torpor_bar().value() == 0.0, "barra de torpor zera ao acordar")
+	var tamed := _make_sleeping_dino(10)
+	var tamed_bars := _spawn_bars(tamed)
+	_check(tamed_bars.visible and tamed_bars.taming_bar().visible, "barras criadas depois: refletem o estado")
+	for i in 60:
+		tamed.taming.tick(1.0)
+		if tamed.state_machine.is_tamed:
+			break
+	_check(tamed.state_machine.is_tamed, "dino domesticado no teste")
+	_check(not tamed_bars.visible, "domesticado acordado: nenhuma barra")
+	tamed.torpor.add_torpor(tamed.torpor.max_torpor)
+	_check(tamed.torpor.is_unconscious and tamed_bars.visible, "domesticado desmaiado: barras aparecem")
+	_check(tamed_bars.torpor_bar().visible and not tamed_bars.taming_bar().visible,
+			"domesticado desmaiado: só torpor")
+	# Restaurar save: a barra reflete o estado restaurado, sem evento de jogo.
+	var saved: Dictionary = JSON.parse_string(JSON.stringify(_make_sleeping_dino(0).to_dict()))
+	var restored := _spawn_dino()
+	restored.set_physics_process(false)
+	var restored_bars := _spawn_bars(restored)
+	restored.from_dict(saved)
+	_check(restored_bars.visible and restored_bars.taming_bar().visible
+			and restored_bars.torpor_bar().value() == 100.0, "from_dict de dormindo: barras visíveis")
+	var awake: Dictionary = JSON.parse_string(JSON.stringify(_spawn_dino().to_dict()))
+	restored.from_dict(awake)
+	_check(not restored_bars.visible, "from_dict de acordado: barras escondidas")
+	var tamed_save: Dictionary = JSON.parse_string(JSON.stringify(tamed.to_dict()))
+	restored.from_dict(tamed_save)
+	_check(restored_bars.visible and restored_bars.torpor_bar().visible and not restored_bars.taming_bar().visible,
+			"from_dict de domesticado desmaiado: só torpor")
 
 
 ## Ponta a ponta sem teclado, na Main real: derruba, transfere, avança o tempo e domestica.
@@ -854,11 +909,15 @@ func _test_full_taming_integration() -> void:
 	player.tick(0.0)
 	_check(player.target == dino.interactable, "jogador detecta o dino no alcance")
 	_check(not player.try_interact() and not screen.is_open, "dino acordado: E não abre nada")
-	for i in 3:
+	_check(dino.level == 20 and main.dino_level == 20, "a Main fixa o nível do dino")
+	for i in 12:
 		player.attack()
-		player.tick(0.5)
-		dino.torpor.tick(0.5)
-	_check(dino.torpor.is_unconscious, "três golpes derrubam o dino")
+		player.tick(0.7)
+		dino.torpor.tick(0.7)
+		if dino.torpor.is_unconscious:
+			break
+	_check(dino.torpor.is_unconscious, "golpes do bastão derrubam o dino")
+	_check(dino.health.current_health < dino.health.max_health, "os golpes tiraram um pouco de vida")
 	_check(hud.prompt_label().visible, "prompt aparece com o dino inconsciente")
 	_check(player.try_interact() and screen.is_open and player.input_locked, "E abre a tela e trava o jogador")
 	var before := player.global_position
@@ -875,13 +934,17 @@ func _test_full_taming_integration() -> void:
 			break
 	_check(dino.state_machine.current_id == Enums.DinoStateId.TAMED, "dino chegou a TAMED")
 	_check(is_equal_approx(dino.taming.taming_progress, 100.0), "progresso em 100%")
+	_check(dino.level == 28, "nível final 28 (20 com Eficiência 79%%: %d)" % dino.level)
 	_check(not screen.is_open and not player.input_locked, "domesticar fechou a tela e liberou o jogador")
-	_check(hud.dino_panel().taming_bar().value() == 100.0, "HUD mostra 100%")
+	var bars: DinoStatusBars = main.get_node("DinoStatusBars")
+	_check(bars.health_bar_visible(), "dano recente: a barra de vida ainda aparece")
+	bars.tick(DinoStatusBars.HEALTH_VISIBLE_SECONDS + 0.1)
+	_check(not bars.visible, "domesticado, acordado e sem dano recente: sem barras sobre ele")
 	_check(not hud.prompt_label().visible, "sem prompt para domesticado")
 	var total := 0
 	for inv: InventoryComponent in [player.inventory, dino.inventory]:
 		total += inv.count("meat") + inv.count("fern") + inv.count("berry")
-	_check(total + 5 == starting_total, "conservação: o que sumiu foi só o consumido (5 bagas)")
+	_check(total + 6 == starting_total, "conservação: o que sumiu foi só o consumido (6 bagas no nível 20)")
 	_check(player.global_position == before, "jogador não se moveu")
 
 

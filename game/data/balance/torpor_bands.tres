@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="TorporBandRules" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/core/TorporBandRules.gd" id="1_rules"]
+
+[resource]
+script = ExtResource("1_rules")
+thresholds = Array[float]([0.25, 0.5, 0.75])
+hysteresis = 0.03
+speed_multipliers = Array[float]([1.0, 1.0, 0.85, 0.65])
+attack_cooldown_multipliers = Array[float]([1.0, 1.0, 1.0, 1.5])
+pause_band = 3
+pause_period = 4.0
+pause_duration = 0.8

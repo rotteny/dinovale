@@ -50,9 +50,9 @@ func to_dict() -> Dictionary:
 
 ## Restaura sem emitir `exhausted` nem `recovered`: carregar um save não é um evento.
 func from_dict(data: Dictionary) -> void:
-	max_stamina = float(data.get("max", max_stamina))
-	current_stamina = clampf(float(data.get("current", current_stamina)), 0.0, max_stamina)
-	is_exhausted = bool(data.get("is_exhausted", is_exhausted)) or current_stamina <= 0.0
+	max_stamina = SafeRead.number(data.get("max"), max_stamina, 1.0, SafeRead.MAX_SAVED)
+	current_stamina = SafeRead.number(data.get("current"), current_stamina, 0.0, max_stamina)
+	is_exhausted = SafeRead.flag(data.get("is_exhausted"), is_exhausted) or current_stamina <= 0.0
 	if current_stamina >= resume_threshold:
 		is_exhausted = false
 	stamina_changed.emit(current_stamina, max_stamina)

@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="WeaponDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/core/WeaponDef.gd" id="1_weapon"]
+
+[resource]
+script = ExtResource("1_weapon")
+id = "sleep_staff"
+display_name = "Bastão-de-sono"
+damage = 2.0
+torpor = 30.0
+cooldown = 0.7

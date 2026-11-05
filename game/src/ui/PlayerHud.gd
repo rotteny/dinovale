@@ -1,16 +1,18 @@
 # SPDX-License-Identifier: MIT
 class_name PlayerHud
 extends Control
-## HUD do jogador: barras de vida, stamina e fome, painel da criatura-alvo e o
-## prompt de interação. Só apresentação: lê sinais do `player`; nenhuma regra aqui.
+## HUD do jogador: barras de vida, stamina e fome e o prompt
+## de interação. Só apresentação: lê sinais do `player`; nenhuma regra aqui.
 ## Pode ser removida sem efeito no jogo (roda igual sem ela, inclusive headless).
 
 @export var player: Player
 
-var _health_bar := StatBar.new("Vida", Color(0.8, 0.2, 0.2))
-var _stamina_bar := StatBar.new("Stamina", Color(0.25, 0.7, 0.3))
-var _hunger_bar := StatBar.new("Fome", Color(0.85, 0.55, 0.2))
-var _dino_panel := DinoPanel.new()
+var _health_bar := StatBar.new("Vida", Color(0.8, 0.2, 0.2), StatBar.BAR_SIZE,
+		preload("res://assets/third_party/ninja-adventure/ui/icon_heart.png"))
+var _stamina_bar := StatBar.new("Stamina", Color(0.25, 0.7, 0.3), StatBar.BAR_SIZE,
+		preload("res://assets/third_party/ninja-adventure/items/res_feather.png"))
+var _hunger_bar := StatBar.new("Fome", Color(0.98, 0.85, 0.35), StatBar.BAR_SIZE,
+		preload("res://assets/third_party/ninja-adventure/items/food_meat.png"))
 var _prompt := Label.new()
 var _watched: InteractableArea = null
 
@@ -21,13 +23,13 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 	var bars := VBoxContainer.new()
-	bars.position = Vector2(6, 6)
 	for bar in [_health_bar, _stamina_bar, _hunger_bar]:
 		bars.add_child(bar)
-	add_child(bars)
-
-	add_child(_dino_panel)
-	_dino_panel.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT, Control.PRESET_MODE_MINSIZE, 6)
+	var panel := PanelContainer.new()
+	panel.position = Vector2(4, 4)
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.add_child(bars)
+	add_child(panel)
 
 	_prompt.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM, Control.PRESET_MODE_MINSIZE, 24)
 	_prompt.grow_horizontal = Control.GROW_DIRECTION_BOTH
@@ -61,10 +63,6 @@ func hunger_bar() -> StatBar:
 	return _hunger_bar
 
 
-func dino_panel() -> DinoPanel:
-	return _dino_panel
-
-
 func prompt_label() -> Label:
 	return _prompt
 
@@ -75,7 +73,6 @@ func _on_target_changed(target: InteractableArea) -> void:
 	_watched = target
 	if _watched != null:
 		_watched.availability_changed.connect(_on_availability_changed)
-	_dino_panel.show_dino(target.entity as Dino if target != null else null)
 	_refresh_prompt()
 
 

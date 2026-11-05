@@ -6,9 +6,13 @@ extends Node2D
 
 @export var player: Player
 @export var screen: InventoryScreen
+@export var dino: Dino
+## Nível fixo da criatura da cena (sem biomas nem sorteio por enquanto).
+@export var dino_level: int = 20
 
 
 func _ready() -> void:
+	dino.level = dino_level
 	screen.player_inventory = player.inventory
 	screen.opened.connect(func() -> void: player.input_locked = true)
 	screen.closed.connect(func() -> void: player.input_locked = false)
@@ -16,6 +20,6 @@ func _ready() -> void:
 
 
 func _on_player_interacted(target: InteractableArea) -> void:
-	var dino := target.entity as Dino
-	if dino != null:
-		screen.open_with(player.inventory, dino.inventory, target, "Criatura")
+	var target_dino := target.entity as Dino
+	if target_dino != null:
+		screen.open_with(player.inventory, target_dino.inventory, target, "Criatura")

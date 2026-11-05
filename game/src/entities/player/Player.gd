@@ -14,12 +14,13 @@ signal target_changed(target: InteractableArea)
 ## O jogador interagiu com um alvo disponível; quem abre a tela é o mundo.
 signal interacted(target: InteractableArea)
 signal input_lock_changed(locked: bool)
+## O golpe acertou uma criatura (a apresentação anima e toca o som).
+signal attacked
 
 @export var walk_speed: float = 70.0
 @export var sprint_speed: float = 120.0
-## Torpor aplicado por golpe na criatura ao alcance.
-@export var attack_torpor: float = 40.0
-@export var attack_cooldown: float = 0.35
+## Arma equipada: dano, torpor e recarga vêm dos dados (`res://data/weapons/`).
+@export var weapon: WeaponDef = preload("res://data/weapons/sleep_staff.tres")
 ## Comida inicial para poder testar o ciclo de domesticação (id -> quantidade).
 @export var starting_items: Dictionary = {Items.BERRY: 10, Items.MEAT: 4, Items.FERN: 3}
 
@@ -33,6 +34,8 @@ var input_locked: bool = false:
 var _in_range: Array[InteractableArea] = []
 var _attack_timer: float = 0.0
 
+## Sprite: só a apresentação (`PlayerView`) escolhe o quadro.
+@onready var visual: Sprite2D = $Visual
 @onready var health: HealthComponent = $HealthComponent
 @onready var stamina: StaminaComponent = $StaminaComponent
 @onready var hunger: HungerComponent = $HungerComponent
@@ -113,14 +116,15 @@ func try_interact() -> bool:
 	return true
 
 
-## Golpe de torpor na criatura ao alcance. Retorna true se acertou.
+## Golpe da arma equipada na criatura selvagem ao alcance (dano e torpor). Retorna true se acertou.
 func attack() -> bool:
 	if input_locked or health.is_dead() or _attack_timer > 0.0 or target == null:
 		return false
 	var dino := target.entity as Dino
-	if dino == null or not dino.apply_torpor(attack_torpor):
+	if dino == null or not dino.receive_hit(weapon.damage, weapon.torpor, TamingRules.ATTACKER_PLAYER):
 		return false
-	_attack_timer = attack_cooldown
+	_attack_timer = weapon.cooldown
+	attacked.emit()
 	return true
 
 
@@ -136,15 +140,15 @@ func to_dict() -> Dictionary:
 
 ## Chame depois de adicionar à árvore. Silencioso: não emite `died` nem `starved`.
 func from_dict(data: Dictionary) -> void:
-	var saved_position: Dictionary = data.get("position", {})
+	var saved_position := SafeRead.dict(data.get("position"))
 	position = Vector2(
-		float(saved_position.get("x", position.x)),
-		float(saved_position.get("y", position.y))
+		SafeRead.number(saved_position.get("x"), position.x, -SafeRead.COORD_LIMIT, SafeRead.COORD_LIMIT),
+		SafeRead.number(saved_position.get("y"), position.y, -SafeRead.COORD_LIMIT, SafeRead.COORD_LIMIT)
 	)
-	health.from_dict(data.get("health", {}))
-	stamina.from_dict(data.get("stamina", {}))
-	hunger.from_dict(data.get("hunger", {}))
-	inventory.from_dict(data.get("inventory", {}))
+	health.from_dict(SafeRead.dict(data.get("health")))
+	stamina.from_dict(SafeRead.dict(data.get("stamina")))
+	hunger.from_dict(SafeRead.dict(data.get("hunger")))
+	inventory.from_dict(SafeRead.dict(data.get("inventory")))
 
 
 func _on_area_entered(area: Area2D) -> void:

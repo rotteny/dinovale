@@ -103,6 +103,7 @@ func _state_machine_case() -> Array:
 func _dino_case() -> Array:
 	var original := _spawn(DinoScene) as Dino
 	original.position = Vector2(48.0, 96.0)
+	original.level = 15
 	original.health.take_damage(25.0)
 	original.torpor.add_torpor(100.0)
 	return [original, _spawn(DinoScene)]

@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="DinoLevelRules" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/core/DinoLevelRules.gd" id="1_rules"]
+
+[resource]
+script = ExtResource("1_rules")
+base_level = 10
+min_level = 1
+max_level = 75
+health_slope = 0.04
+health_floor = 0.5
+torpor_slope = 0.02
+torpor_floor = 0.7
+meals_slope = 0.015
+meals_floor = 0.85
+taming_bonus = 0.5
+taming_cap = 1.5

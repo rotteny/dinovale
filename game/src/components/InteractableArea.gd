@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 class_name InteractableArea
 extends Area2D
 ## Marca uma entidade como interagível. A área só diz "estou aqui, no alcance";

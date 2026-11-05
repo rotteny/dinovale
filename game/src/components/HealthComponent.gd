@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 class_name HealthComponent
 extends Node
 ## Vida de uma entidade. Não conhece apresentação: a UI e as animações

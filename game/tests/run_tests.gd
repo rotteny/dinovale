@@ -1,9 +1,11 @@
+# SPDX-License-Identifier: MIT
 extends SceneTree
 ## Testes da lógica, sem janela nem GPU:
 ##   godot --headless --path . --script res://tests/run_tests.gd
 
 const DinoScene := preload("res://src/entities/dino/Dino.tscn")
 const PlayerScene := preload("res://src/entities/player/Player.tscn")
+const SaveableTable := preload("res://tests/saveable_table.gd")
 
 
 ## Erro de runtime em GDScript só aborta a função atual: sem isto, um teste
@@ -76,6 +78,7 @@ func _run() -> void:
 	_test_screen_closes_when_dino_removed()
 	_test_hud_reacts_to_signals()
 	await _test_full_taming_integration()
+	_test_saveable_roundtrip_table()
 	for node in _nodes:
 		if is_instance_valid(node):
 			node.free()
@@ -880,3 +883,21 @@ func _test_full_taming_integration() -> void:
 		total += inv.count("meat") + inv.count("fern") + inv.count("berry")
 	_check(total + 5 == starting_total, "conservação: o que sumiu foi só o consumido (5 bagas)")
 	_check(player.global_position == before, "jogador não se moveu")
+
+
+## Todo saveable da tabela volta idêntico depois do JSON. A cobertura da tabela
+## (nenhum `to_dict` esquecido) é do tools/checks.d/10-arquitetura.sh.
+func _test_saveable_roundtrip_table() -> void:
+	var table := SaveableTable.new(root, _track)
+	for script_path in SaveableTable.SCRIPTS:
+		var pair := table.build(script_path)
+		_check(pair.size() == 2, "saveable tem caso na tabela: %s" % script_path)
+		if pair.size() != 2:
+			continue
+		var original: Object = pair[0]
+		var restored: Object = pair[1]
+		var expected: Dictionary = original.to_dict()
+		_check(restored.to_dict() != expected, "caso exercita estado fora do padrão: %s" % script_path)
+		var parsed: Dictionary = JSON.parse_string(JSON.stringify(expected))
+		restored.from_dict(parsed)
+		_check(restored.to_dict() == expected, "roundtrip por JSON idêntico: %s" % script_path)

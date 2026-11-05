@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 class_name DinoState
 extends RefCounted
 ## Base dos estados. Estados são lógica pura: leem e escrevem na máquina, sem

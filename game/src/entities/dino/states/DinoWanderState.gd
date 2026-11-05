@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 class_name DinoWanderState
 extends DinoState
 ## Anda em uma direção aleatória por um tempo, depois para.

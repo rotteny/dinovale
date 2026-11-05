@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 class_name DinoIdleState
 extends DinoState
 ## Parado por um tempo aleatório, depois passeia.

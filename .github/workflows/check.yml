@@ -1,0 +1,58 @@
+name: check
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GODOT_VERSION: 4.7.2
+  # SHA-512 do zip linux.x86_64, publicado em SHA512-SUMS.txt da release 4.7.2-stable
+  GODOT_SHA512: 9aa00f7a605200940bce3027a567b782f49bd8e940dd06ae9e987bd65aee1b1467edd56ed84fcdcbdd44354bf613bdbb4e5d2913e925850368e150c59ed54c65
+  GDTOOLKIT_VERSION: 4.5.0
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Cache do Godot
+        id: godot-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/godot-bin
+          key: godot-${{ env.GODOT_VERSION }}-linux-x86_64-${{ env.GODOT_SHA512 }}
+
+      - name: Baixar Godot ${{ env.GODOT_VERSION }} (release oficial, checksum verificado)
+        if: steps.godot-cache.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          zip_name="Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          curl -fsSL -o "$RUNNER_TEMP/$zip_name" \
+            "https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}-stable/${zip_name}"
+          echo "${GODOT_SHA512}  $RUNNER_TEMP/$zip_name" | sha512sum --check
+          mkdir -p ~/godot-bin
+          unzip -q "$RUNNER_TEMP/$zip_name" -d ~/godot-bin
+
+      - name: Instalar gdtoolkit (venv isolado)
+        run: |
+          set -euo pipefail
+          python3 -m venv "$RUNNER_TEMP/venv"
+          "$RUNNER_TEMP/venv/bin/pip" install --quiet "gdtoolkit==${GDTOOLKIT_VERSION}"
+          echo "$RUNNER_TEMP/venv/bin" >> "$GITHUB_PATH"
+          echo "GODOT=$HOME/godot-bin/Godot_v${GODOT_VERSION}-stable_linux.x86_64" >> "$GITHUB_ENV"
+
+      - name: tools/check.sh
+        env:
+          REQUIRE_LINT: "1"
+        run: |
+          chmod +x "$GODOT"
+          tools/check.sh

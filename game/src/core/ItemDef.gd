@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 class_name ItemDef
 extends RefCounted
 ## Definição mínima de um item: dado puro, sem cena nem sprite.

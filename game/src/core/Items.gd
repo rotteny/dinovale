@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 class_name Items
 extends RefCounted
 ## Catálogo de itens. Ids são strings estáveis (é o que vai para o save).

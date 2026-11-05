@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 class_name Main
 extends Node2D
 ## Cena principal: liga o mundo à UI. Quando o jogador interage com uma criatura,

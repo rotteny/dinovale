@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 class_name DinoTamedState
 extends DinoState
 ## Domesticado e parado, aguardando ordens. Seguir e ficar entram no roadmap.

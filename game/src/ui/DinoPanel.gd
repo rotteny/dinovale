@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 class_name DinoPanel
 extends PanelContainer
 ## Painel da criatura: estado, torpor e progresso de domesticação.

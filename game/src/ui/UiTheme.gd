@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 class_name UiTheme
 extends RefCounted
 ## Tema único da UI: fonte padrão da engine em tamanho legível em 640x360.

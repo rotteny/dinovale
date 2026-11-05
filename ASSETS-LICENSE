@@ -1,0 +1,29 @@
+Licença dos assets do Dino Vale
+===============================
+
+Escopo
+------
+Esta licença cobre a ARTE e o SOM do jogo e da página (pasta `html/`):
+sprites, tilesets, ícones, ilustrações, música e efeitos sonoros criados
+para o projeto.
+
+Estes arquivos são licenciados sob Creative Commons Atribuição 4.0
+Internacional (CC BY 4.0):
+
+    https://creativecommons.org/licenses/by/4.0/legalcode
+
+Você pode copiar, redistribuir e adaptar o material, inclusive para fins
+comerciais, desde que dê o crédito apropriado, indique se houve mudanças e
+forneça o link da licença. Crédito sugerido: "Dino Vale (rotteny/dinovale),
+CC BY 4.0".
+
+O que NÃO está coberto
+----------------------
+- Código (GDScript, scripts, HTML/CSS/JS): licença MIT, ver `LICENSE`.
+- Fontes: cada fonte mantém a própria licença (OFL), registrada em
+  `game/assets/CREDITS.md`.
+- Assets de terceiros: mantêm a licença do autor original (somente CC0 ou
+  CC BY são aceitos no projeto), registrada por arquivo em
+  `game/assets/CREDITS.md`.
+
+Registro por arquivo: `game/assets/CREDITS.md`.

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 class_name InventoryScreen
 extends Control
 ## Tela de inventário: o do jogador e, se houver, o da criatura (compartilhado).

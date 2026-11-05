@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 class_name TorporComponent
 extends Node
 ## Torpor: barra independente de Health. Em `current >= max_torpor` a criatura

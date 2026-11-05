@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 class_name StaminaComponent
 extends Node
 ## Fôlego de uma entidade. Gasta enquanto ela corre e regenera quando não corre.

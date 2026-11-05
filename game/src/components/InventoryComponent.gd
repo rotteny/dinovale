@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 class_name InventoryComponent
 extends Node
 ## Inventário em slots com pilhas (id do item + quantidade).

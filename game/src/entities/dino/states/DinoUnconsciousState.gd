@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 class_name DinoUnconsciousState
 extends DinoState
 ## Desmaiado. A saída vem de fora: `TorporComponent.woke_up` ou

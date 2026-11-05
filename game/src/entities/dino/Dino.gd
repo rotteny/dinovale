@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 class_name Dino
 extends CharacterBody2D
 ## Corpo da criatura: compõe os componentes e aplica `desired_direction` à física.

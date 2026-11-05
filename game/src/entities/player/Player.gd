@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 class_name Player
 extends CharacterBody2D
 ## Corpo do jogador: lê o input, aplica a velocidade à física e compõe os atributos.

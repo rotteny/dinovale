@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 class_name Enums
 extends RefCounted
 ## Enums compartilhados. Em saves, grave o NOME do valor, não o número:

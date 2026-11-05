@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 class_name PlayerHud
 extends Control
 ## HUD do jogador: barras de vida, stamina e fome, painel da criatura-alvo e o

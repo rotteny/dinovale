@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 class_name DinoStateMachine
 extends Node
 ## Cérebro da criatura. Não conhece física nem sprite: publica `desired_direction`

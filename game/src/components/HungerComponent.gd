@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 class_name HungerComponent
 extends Node
 ## Fome: `current_hunger` é a saciedade (cheio = 100, vazio = 0) e cai com o tempo.

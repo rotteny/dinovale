@@ -4,10 +4,11 @@ Versão 1.0 do plano, 05/11/2026. Autor: `SHIKAMARU`. Documento vivo: atualize a
 
 **Como ler.** Fato = veio do brief, do `game/README.md` ou do repositório. Tudo marcado **[premissa]** é suposição minha e deve ser confirmada ou corrigida pelo dono.
 
-**Já decidido pelo dono (fora de discussão):** código em **MIT** (`LICENSE` na raiz); repositório **rotteny/dinovale**, **público** (ainda sem commit); Godot 4.7 + GDScript; arquitetura de lógica separada da apresentação, composição e saves em Dictionary/JSON.
-**Em aberto:** licença dos **assets** (arte e som). A MIT do código não cobre isso por si só (seção 9).
+**Já decidido pelo dono (fora de discussão):** código em **MIT** (`LICENSE` na raiz); repositório **rotteny/dinovale**, **público** (2 commits locais em `main`; push ainda não confirmado); Godot 4.7 + GDScript; arquitetura de lógica separada da apresentação, composição e saves em Dictionary/JSON.
+**Decidido em 05/11 (ver seção 9):** D1 (assets em CC-BY 4.0, separados da MIT), D2 (tile 16 px, 3 direções com espelhamento), D3 (arte de IA só como placeholder identificado, trocada antes do lançamento público) e D8 (servidor autoritativo, single-player como host local).
+**Ainda em aberto:** D6 (nome e marca) e D7 (horas por semana).
 
-Estado de partida (fato): 127 verificações headless passando (Health, Torpor, Stamina, Hunger, Taming, máquina de estados do dino, Player com input); cerca de 1,2 mil linhas de GDScript, testes incluídos; `SORA` entregando Inventory, InteractableArea, ataque de torpor, HUD e inventário compartilhado; `BULMA` na landing em `html/`. Sem commit, sem CI, sem arte, sem som.
+Estado de partida (fato): 235 verificações headless passando (Health, Torpor, Stamina, Hunger, Taming, Inventory, máquina de estados do dino, Player com input); cerca de 2,4 mil linhas de GDScript, testes incluídos; ciclo de domar jogável com HUD, ataque de torpor e inventário compartilhado; landing page pronta em `html/`. Dois commits locais (`ff4635a`, `0856ba5`). Sem CI, sem arte, sem som; `tools/check.sh` e `AGENTS.md` em criação no M0.
 
 ---
 
@@ -101,8 +102,8 @@ flowchart LR
 | 4 | Morte e respawn na Fase 2 | Survival sem consequência não gera tensão (H1) | Mínimo no M1, completo no M2 |
 | 5 | Ordens "seguir e ficar" na Fase 2 | Sem elas domar não tem retorno (H2) | Entram no M1 |
 | 6 | Arte e som definitivos na Fase 2 | Arte é o maior gargalo e o mais demorado; decidir tarde trava tudo | Guia de arte no M1, kit v0 no M2, arte final no M5 |
-| 7 | Sem CI, sem teste de cena, sem política de agentes | 127 checagens de lógica não pegam quebra de cena; agentes em paralelo sobrescrevem trabalho | M0 inteiro: commit, `check.sh`, testes de arquitetura, `AGENTS.md` |
-| 8 | Licença "a definir" | Já decidida (MIT). Falta a licença dos assets | D1 |
+| 7 | Sem CI, sem teste de cena, sem política de agentes | 235 checagens de lógica não pegam quebra de cena; agentes em paralelo sobrescrevem trabalho | M0 inteiro: commit, `check.sh`, testes de arquitetura, `AGENTS.md` |
+| 8 | Licença "a definir" | Já decidida (MIT); assets em CC-BY 4.0 | D1 (decidido) |
 
 ### M0: Higiene do repositório
 - **Objetivo:** ninguém perde trabalho e toda mudança é verificada do mesmo jeito.
@@ -160,7 +161,7 @@ flowchart LR
 | COM-01 | SPDX MIT nos `.gd`, `assets/CREDITS.md` (formato), `ASSETS-LICENSE` provisório, checklist pré-push (segredos, nome verificado) | D1, D6 | 1/1/2 | Must | `SAITAMA` |
 | INF-02 | `tools/check.sh`: import, testes, gdlint/gdformat, testes de arquitetura; mesmo comando local e no CI | INF-01 | 1/2/3 | Must | `SAITAMA` + `SORA` |
 | ARQ-01 | ADR-001 autoridade e regras "pronto para rede"; ADR-002 formato e versão de save; ADR-003 IDs estáveis e registries de dados | | 2/3/5 | Must | `KURAMA` |
-| INF-03 | Testes de arquitetura: componentes não herdam `CanvasItem`; `Input` só em corpos; todo saveable tem `to_dict`/`from_dict` com roundtrip | ARQ-01 | 1/2/3 | Must | `LEVI` |
+| INF-03 | Testes de arquitetura: componentes não herdam `CanvasItem` (exceção: `InteractableArea`); `Input` só em `PlayerController` e `src/ui/`; todo saveable tem `to_dict`/`from_dict` com roundtrip | ARQ-01 | 1/2/3 | Must | `LEVI` |
 | INF-04 | `AGENTS.md` do projeto: convenções, tipagem estática, comandos, definição de pronto, limite de escopo por tarefa | | 1/1/2 | Must | `SHIKAMARU` / dono |
 | | **Total M0** | | **7/10/17** | | |
 
@@ -211,7 +212,7 @@ flowchart LR
 | UIX-04 | HUD v1 final, hotbar, tooltips | UIX-01 | 3/5/8 | Must | `SORA` |
 | UIX-05 | Tutorial contextual | PRO-05, CON-03 | 3/5/8 | Must | `SORA` |
 | UIX-06 | Configurações: volume, remap, tela cheia | | 2/3/4 | Should | `SORA` |
-| ART-02 | Kit visual v0: tileset, jogador, 3 dinos, itens e UI coesos | ART-01, D2, D3 | 5/8/15 | Must | dono + (artista, se D3) |
+| ART-02 | Kit visual v0: tileset, jogador, 3 dinos, itens e UI coesos | ART-01, D2, D3 | 5/8/15 | Must | dono + `YATORA` (placeholder de IA permitido, D3) + artista na arte final |
 | ART-03 | SFX e música mínimos CC0, com proveniência | D1 | 2/3/5 | Must (SFX), Should (música) | dono |
 | SAV-02 | Save v2 (estruturas, crafting, mundo) e migração v1 para v2 com fixture | CON-01 | 3/4/6 | Must | `SORA` |
 | NET-03 | Repetir o spike S0 com construção e crafting | CON-02, PRO-04 | 2/3/5 | Should | `SORA` |
@@ -308,11 +309,11 @@ Cortes automáticos se o prazo apertar: SOB-11, UIX-22, NET-15, ART-11 música e
 - Pedir orçamento a 2 ou 3 artistas durante o M2, com o kit v0 como briefing.
 - Placeholder de cores e silhuetas legíveis vale para o playtest da 0.1; para a 0.2 a arte precisa ser coesa, mesmo que genérica.
 
-**R4. Autoria e licença dos assets.** A MIT do código não diz nada sobre arte e som. Riscos: pack CC0 que na verdade não é; "grátis para uso" sem licença; arte gerada por IA com status autoral incerto e rejeição na comunidade; contribuidor que submete arte copiada.
+**R4. Autoria e licença dos assets.** A MIT do código não diz nada sobre arte e som. Riscos: pack CC0 que na verdade não é; "grátis para uso" sem licença; arte gerada por IA com status autoral incerto e rejeição na comunidade (por isso só como placeholder identificado, D3); contribuidor que submete arte copiada.
 - Todo arquivo em `assets/` tem linha em `CREDITS.md` (origem, autor, licença, URL, data). Script no CI falha se faltar (ativo a partir do M2, obrigatório no M5).
 - Só entram CC0, CC-BY e licenças próprias; nada "NC" nem "ND".
-- Licença da arte própria: decisão D1. Recomendo CC-BY 4.0 (reuso livre com crédito), separada da MIT em `assets/LICENSE`.
-- Nada de arte ou som gerado por IA no repositório sem política explícita do dono (D3).
+- Licença da arte própria: **decidido (D1)**, CC-BY 4.0, separada da MIT em `assets/LICENSE`.
+- Arte gerada por IA (decisão D3): permitida **só como placeholder**, identificada como tal no `CREDITS.md` (ferramenta e data) e trocada por arte humana ou CC0 antes do lançamento público. Nunca como asset final. O gate de lançamento verifica que não resta placeholder de IA.
 - Referência a jogos existentes só em conversa, nunca em arquivos de dados ou nomes.
 
 **R5. Licença do código (MIT).** Decidida pelo dono; registro só as consequências para que seja uma escolha consciente. MIT permite que alguém pegue o jogo, feche e venda sem devolver nada, e permite operar servidor modificado fechado. Para um jogo "gratuito, comunitário" isso é um risco de apropriação, não técnico. Alternativas (GPL ou AGPL) estavam em aberto e foram descartadas pelo dono. Efeitos práticos:
@@ -330,7 +331,7 @@ Cortes automáticos se o prazo apertar: SOB-11, UIX-22, NET-15, ART-11 música e
 - Sem servidor oficial público até a 1.0 [premissa]: cada anfitrião responde pelo seu.
 
 **R7. Qualidade do código gerado por agentes.** Riscos: deriva de arquitetura, duplicação, testes que só confirmam o próprio código, conflitos entre agentes em paralelo, regressões silenciosas, e direitos autorais incertos de código 100% gerado [premissa: status jurídico incerto; vale conferir com advogado antes da 1.0, mas não bloqueia agora]. Mitigações:
-- **Regras como testes executáveis** (INF-03): o CI quebra se um componente herdar `CanvasItem`, se `Input` vazar para fora dos corpos ou se um saveable não fizer roundtrip.
+- **Regras como testes executáveis** (INF-03): o CI quebra se um componente herdar `CanvasItem`, se `Input` vazar para fora do `PlayerController` e da UI ou se um saveable não fizer roundtrip.
 - Tipagem estática com avisos de GDScript promovidos a erro; gdlint e gdformat no `check.sh`.
 - Tarefas pequenas (diff de até cerca de 400 linhas [premissa]), com especificação, arquivos permitidos e critérios de aceite; um agente por conjunto de arquivos; branch ou worktree por agente.
 - Revisão antes de merge por `LEVI` em Opus (conforme regra do squad) e ADRs por `KURAMA`; dono é o integrador e a única autoridade de merge.
@@ -357,7 +358,7 @@ Cortes automáticos se o prazo apertar: SOB-11, UIX-22, NET-15, ART-11 música e
 | R14 | Conflito entre agentes em paralelo e repo sem commit | Alta | Médio | sobrescrita | INF-01 agora; worktrees |
 | R15 | Desempenho com muitos dinos e chunks em GDScript | Média | Médio | queda de fps | orçamento no M2, INF-20 no M4, otimizar com dados |
 | R16 | Dependência de Godot 4.7 (versão nova) e do `Logger` nos testes | Baixa | Médio | regressão de engine | fixar versão no CI; atualizar por ADR |
-| R17 | Crítica da comunidade a código ou arte de IA | Média | Baixo | issues e comentários | política pública de IA (D3), transparência |
+| R17 | Crítica da comunidade a código ou arte de IA; placeholder de IA esquecido no lançamento | Média | Baixo | issues e comentários; placeholder de IA sem troca | política pública de IA (D3), transparência; placeholders marcados no `CREDITS.md` e checados no gate de lançamento |
 
 ---
 
@@ -365,7 +366,7 @@ Cortes automáticos se o prazo apertar: SOB-11, UIX-22, NET-15, ART-11 música e
 
 ### 7.1 Testes e CI
 
-- **Pirâmide:** (1) lógica headless (existe: 127 checagens em `tests/run_tests.gd`); (2) testes de arquitetura; (3) fixtures de save por versão; (4) smoke de cena (carrega `Main`, roda N segundos, executa o roteiro de domar); (5) a partir do M3, testes multiprocesso (1 servidor + N clientes headless); (6) playtest humano por marco.
+- **Pirâmide:** (1) lógica headless (existe: 235 checagens em `tests/run_tests.gd`); (2) testes de arquitetura; (3) fixtures de save por versão; (4) smoke de cena (carrega `Main`, roda N segundos, executa o roteiro de domar); (5) a partir do M3, testes multiprocesso (1 servidor + N clientes headless); (6) playtest humano por marco.
 - Quando o runner caseiro ficar pesado (guia: cerca de 500 checagens ou necessidade de mocks), avaliar GdUnit4 ou GUT [premissa]; decidir no M2. Até lá, dividir em `tests/unit/*.gd` com descoberta automática.
 - Determinismo: `rng.seed` fixo e helper `simulate(seconds)` com passo fixo; nenhum teste depende de relógio real.
 - **CI (GitHub Actions)**, em PR: importar o projeto com a versão de Godot fixada e verificada por checksum; testes; gdlint e gdformat; arquitetura; smoke. Em tag: exports e imagem Docker. Repo público tende a ter minutos gratuitos [premissa; no gtsystem do dono as Actions de repo privado ficaram sem minutos].
@@ -373,7 +374,7 @@ Cortes automáticos se o prazo apertar: SOB-11, UIX-22, NET-15, ART-11 música e
 
 ### 7.2 Versionamento de save
 
-- Envelope: `{ "format_version": 1, "game_version": "0.1.0", "saved_at": ..., "world": {...}, "player": {...}, "entities": [...] }`. Versão do formato e versão do jogo são coisas diferentes.
+- Envelope: `{ "format_version": 1, "game_version": "0.1.0", "saved_at": ..., "world": {...}, "players": [...], "entities": [...] }`. Versão do formato e versão do jogo são coisas diferentes.
 - Migrações como funções puras encadeadas (`v1_to_v2`, `v2_to_v3`), cada uma com fixture em `tests/fixtures/saves/vN.json` que **nunca é removida**.
 - Escrita atômica (arquivo temporário, depois rename), `.bak` da versão anterior, recusa explícita de arquivo de versão maior que a do jogo.
 - IDs de itens e espécies são strings estáveis; renomear exige alias de legado. Enums por nome (já é regra do README).
@@ -401,7 +402,7 @@ Cortes automáticos se o prazo apertar: SOB-11, UIX-22, NET-15, ART-11 música e
 
 ### 7.6 Fluxo com agentes
 
-- Modelo do squad: `SORA` implementa; `SHIRO` (game design) para loop, balanceamento e o diferencial D5 (CRI-07, CRI-08, QA-01); `YATORA` (arte e SFX) para ART-01 a ART-03, **sujeito à política D3**: se a produção dela for gerada por IA, a regra "sem arte de IA no repo" precisa ser revista antes de ela entrar; `LEVI` revisa em Opus antes do merge; `KURAMA` para ADRs; `NEZUKO` no gate de segurança do M3; `SAITAMA` em CI, Docker e releases; `BULMA` só na landing (não na UI do jogo).
+- Modelo do squad: `SORA` implementa; `SHIRO` (game design) para loop, balanceamento e o diferencial D5 (CRI-07, CRI-08, QA-01); `YATORA` (arte e SFX) para ART-01 a ART-03, **sob a política D3**: o que ela gera por IA entra só como placeholder identificado no `CREDITS.md`, nunca como arte final; a substituição por arte humana ou CC0 é pré-requisito do lançamento público; `LEVI` revisa em Opus antes do merge; `KURAMA` para ADRs; `NEZUKO` no gate de segurança do M3; `SAITAMA` em CI, Docker e releases; `BULMA` só na landing (não na UI do jogo).
 - Cada briefing: contexto, arquivos permitidos, interfaces, critérios de aceite, testes exigidos, não-objetivos.
 
 ---
@@ -427,18 +428,18 @@ O repositório é público por decisão do dono. O plano ajusta o **que** se pro
 
 ## 9. Decisões pendentes do dono
 
-Já decidido e portanto fora desta lista: licença do código (MIT), repositório público rotteny/dinovale.
+Já decidido e portanto fora desta lista: licença do código (MIT), repositório público rotteny/dinovale. Decisões do dono de 05/11 estão marcadas **DECIDIDO** na tabela.
 
 | ID | Decisão | Recomendação | Bloqueia |
 |---|---|---|---|
-| **D1** | Licença dos assets (arte e som próprios) | CC-BY 4.0 em `assets/LICENSE`, separada da MIT; terceiros só CC0 ou CC-BY | COM-01, ART-02, gate A |
-| **D2** | Formato visual: tamanho de tile, escala de sprites, direções | Tile 16 px, jogador 16x24, dinos 24 a 48 px, 3 direções com espelhamento [premissas] | ART-01, MUN-01 |
-| **D3** | Política de arte: quem produz e se IA entra | CC0 coeso no M1 e M2; artista pago ou voluntário para a arte final; nada de arte gerada por IA no repo; orçamento definido até o meio do M2 | ART-02, ART-10, M5 |
+| **D1** | Licença dos assets (arte e som próprios) | **DECIDIDO:** CC-BY 4.0 em `assets/LICENSE`, separada da MIT; terceiros só CC0 ou CC-BY | COM-01, ART-02, gate A (desbloqueado) |
+| **D2** | Formato visual: tamanho de tile, escala de sprites, direções | **DECIDIDO:** tile 16 px, 3 direções com espelhamento. Jogador 16x24 e dinos 24 a 48 px seguem como [premissa] a fechar no ART-01 | ART-01, MUN-01 (desbloqueados) |
+| **D3** | Política de arte: quem produz e se IA entra | **DECIDIDO (difere da minha recomendação original, que vetava IA):** arte de IA permitida só como placeholder identificado no `CREDITS.md`, trocada por arte humana ou CC0 antes do lançamento público. Mantém: CC0 coeso no M1 e M2; artista pago ou voluntário para a arte final; orçamento definido até o meio do M2 | ART-02, ART-10, M5 |
 | **D4** | Escopo do primeiro lançamento | 0.2 single-player; co-op na 0.3 (com S0 no M1) | M2 |
 | **D5** | Diferencial do vínculo (identidade além do loop de domar) | Cuidado e "ofícios": dino domado tem fome, humor e função na base (carregar, defender). Reusa Hunger e inventário compartilhado; custa menos que ecossistema simulado | CRI-07, CRI-08 |
-| **D6** | Nome e marca: busca de marca, domínio e repositórios; política de marca | Fazer a busca antes do gate A; política de uma página (código livre, nome do projeto) | gate A, landing |
-| **D7** | Capacidade em h/semana e meta de data | Definir 5, 10 ou 20; recalcular a seção 5. Abaixo de 10 h, tratar 0.4 como "versão completa" | calendário |
-| **D8** | Modelo de autoridade (ADR-001): servidor autoritativo, single-player como host local | Aprovar | NET-01, tudo de gameplay |
+| **D6** | Nome e marca: busca de marca, domínio e repositórios; política de marca | **PENDENTE.** Busca feita em 05/11: `dinovale.com`, `.com.br` e `.org` livres; sem repo ou organização homônima no GitHub. Alertas: há registro "DINO VALLEY" nos EUA com titular não verificado, e o jogo "Paleo Pines: The Dino Valley" está no mesmo nicho. Falta consulta no INPI e no USPTO. Depois, política de uma página (código livre, nome do projeto). Repo já público e landing já feita, então o risco de renomear sobe com o tempo | gate A, landing |
+| **D7** | Capacidade em h/semana e meta de data | **PENDENTE:** o dono não informou as horas por semana. Definir 5, 10 ou 20; recalcular a seção 5. Abaixo de 10 h, tratar 0.4 como "versão completa". Sem isso a seção 5 segue só como faixa | calendário |
+| **D8** | Modelo de autoridade (ADR-001): servidor autoritativo, single-player como host local | **DECIDIDO:** aprovado. ADR-001 a 003 aceitos em 05/11 | NET-01, tudo de gameplay (desbloqueado) |
 | **D9** | Plataformas | Linux e Windows Must; macOS Could; web e mobile Won't | INF-06, INF-08 |
 | **D10** | Discord | Só após a 0.2 e com demanda | comunidade |
 | **D11** | Servidor oficial | Nenhum até a 1.0 | custo e segurança |
@@ -447,10 +448,10 @@ Já decidido e portanto fora desta lista: licença do código (MIT), repositóri
 
 ## 10. Próximos passos
 
-1. **Dono:** responder D1, D2, D6, D7 e D8 (são os que desbloqueiam o M0 e o M1).
-2. **Quando `SORA` e `BULMA` fecharem a rodada atual:** INF-01, o primeiro commit separado por pasta, com varredura de segredos antes do push (nada de commit enquanto os agentes ainda editam `game/` e `html/`).
-3. **Pedir a `KURAMA` o ARQ-01** (ADR-001 a 003). Enquanto isso, `SORA` termina o bloco em andamento seguindo duas regras novas no briefing: ações como `request_*` e `to_dict`/`from_dict` com roundtrip.
-4. **`SAITAMA`:** INF-02 e INF-07; **`LEVI`:** INF-03; **`SHIKAMARU`/dono:** INF-04.
+1. **Dono:** D1, D2, D3 e D8 decididos. Faltam D6 (consulta no INPI e USPTO antes do gate A) e D7 (horas por semana).
+2. **INF-01:** os 2 commits iniciais já existem localmente; falta a varredura de segredos no histórico e o push (o repo já é público), além de branch ou worktree por agente.
+3. **ARQ-01 feito:** ADR-001 a 003 aceitos em 05/11 (`WorldAuthority` único, `entity_id` inteiro, manifesto explícito de conteúdo, dono provisório da domesticação). Enquanto isso, `SORA` termina o bloco em andamento seguindo duas regras novas no briefing: ações como `request_*` e `to_dict`/`from_dict` com roundtrip.
+4. **`SAITAMA`:** INF-02 e INF-07; **`LEVI`:** INF-03; **INF-04 (`AGENTS.md`):** feito em 05/11.
 5. **Dono com `YATORA` consultiva:** ART-01 (guia de arte) e busca de nomes e marca (D6).
 6. **Recrutar de 3 a 5 testadores** para o playtest da 0.1 (COM-02), mesmo que o build só exista daqui a algumas semanas.
 7. **Atualizar o README** para apontar para este documento e refletir a nova ordem de roadmap (o README está sendo editado em paralelo; não toquei nele).

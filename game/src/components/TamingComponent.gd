@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 class_name TamingComponent
 extends Node
 ## Domesticação: enquanto a criatura selvagem está inconsciente, consome a comida

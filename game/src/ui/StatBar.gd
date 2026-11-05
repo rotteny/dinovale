@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 class_name StatBar
 extends HBoxContainer
 ## Rótulo + barra de progresso. Só apresentação: recebe valores prontos.

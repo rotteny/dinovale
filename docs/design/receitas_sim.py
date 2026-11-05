@@ -19,6 +19,8 @@ R = {  # id: (nome, cat, tier, Saber, prereq (lista plana: vazio), conhecida, ma
  "portao":   ("Portao de dino", "C", 2, 1, [], False, "M2", 1, "Maos"),
  "bau":      ("Bau", "M", 1, 1, [], False, "M2", 1, "Maos"),
  "cocho":    ("Cocho", "M", 2, 2, [], False, "M2", 1, "Maos"),
+ "saco":     ("Saco de dormir (1 respawn, GDD 12.1)", "M", 1, 1, [], False, "M2", 1, "Maos"),
+ "cama":     ("Cama (respawn infinito e save manual, GDD 12.1)", "M", 1, 1, [], False, "M2", 1, "Bancada"),
  "bandagem": ("Bandagem", "D", 1, 1, [], False, "M2", 1, "Maos"),
  "preparado": ("Preparado de sono (no Pilao)", "D", 2, 3, [], False, "M2 cortavel", 1, "Pilao"),
  # ---- 1.0 (depois da 0.2)
@@ -47,7 +49,7 @@ R = {  # id: (nome, cat, tier, Saber, prereq (lista plana: vazio), conhecida, ma
  "besta":    ("Besta (usa as mesmas flechas)", "A", 3, 4, [], False, "M5", 1, "Bancada"),
 }
 V02 = {k for k, v in R.items() if v[6].startswith(("M1", "M2"))}
-CORTADOS = ["Armadilha de lanca de laco", "Rifle, Dardo, Fosforo, Polvora, Silex (sem marco)", "Cama de fibra", "Bastao reforcado", "Traje de pele, de osso e de quitina", "Escudo (todos)", "Couro curtido", "Placa", "Tapete de pele", "Tocha", "Secador", "Composteira", "Teto", "Rampa e escada", "Portao reforcado", "Muralha", "Tecido", "Argamassa", "Aco", "Bau reforcado", "Lanca de pedra", "estruturas de metal"]
+CORTADOS = ["Armadilha de lanca de laco", "Rifle, Dardo, Fosforo, Polvora, Silex (sem marco)", "Bastao reforcado", "Traje de pele, de osso e de quitina", "Escudo (todos)", "Couro curtido", "Placa", "Tapete de pele", "Tocha", "Secador", "Composteira", "Teto", "Rampa e escada", "Portao reforcado", "Muralha", "Tecido", "Argamassa", "Aco", "Bau reforcado", "Lanca de pedra", "estruturas de metal"]
 def saber_ate(L): return (L - 1) + (1 if L >= 3 else 0) + L // 5     # 1 por nivel, +1 no 3 e +1 a cada multiplo de 5
 def xp_ate(L): return sum(30 + 15 * (i - 1) for i in range(1, L))
 def arvore():
@@ -77,7 +79,7 @@ def ritmo():
     for L in (2, 3, 4, 5, 6, 8, 10, 12, 15, 20):
         print(f"  L{L:2}: {saber_ate(L):2} Saber | " + "  ".join(f"{r} XP/min: {xp_ate(L)/r:5.0f} min" for r in (8, 13, 20)))
 def ordem():
-    ordem_ = ["bancada", "bastao", "racao_c", "abrigo", "curral", "bandagem", "bau", "portao", "racao_b", "cocho", "racao_a", "pilao", "preparado"]
+    ordem_ = ["bancada", "bastao", "racao_c", "abrigo", "curral", "bandagem", "saco", "cama", "bau", "portao", "racao_b", "cocho", "racao_a", "pilao", "preparado"]
     acc = 0; print("Ordem recomendada (13 XP/min)")
     for k in ordem_:
         acc += R[k][3]; L = 2

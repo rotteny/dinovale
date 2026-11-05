@@ -175,7 +175,7 @@ Nove posições na parte de baixo da tela. **Concordo com o M1**, porque resolve
 
 > **Revisto (06/11, dono):** a **Lança volta como Lança de madeira** (5.4) e **Dodo e Listro entram** como presas pequenas (6.1); o resto da camada 1 segue fora (Gallimimus, Ração S, Mel, Temperamento, dia e noite, configurações, música, NET-03, vocalizações). O parágrafo 1 abaixo vale para **antes** da Lança: com ela, ver 5.4.
 
-**Fora da 0.2:** Arco, Flecha, Boleadeira e Besta (M4 a M5; Rifle, Dardo, arma de fogo, pólvora, fósforo e sílex **sem marco**), Bastão reforçado e Cama (cortados), peças de fibra (depois do playtest), Listro (M4 com o Oviraptor), slot de Oferta (depois do playtest), Lança-de-pedra, Gallimimus, Ração S e Mel-de-cipó, Temperamento do domado, dia e noite, configurações, música, NET-03 e vocalizações por limiar. A **pausa de torpor já está implementada**: fica, sem custo novo. Tudo continua documentado como futuro. **Mantidos:** Peso, batismo (6.9) e barra de atalhos (5.2).
+**Fora da 0.2:** Arco, Flecha, Boleadeira e Besta (M4 a M5; Rifle, Dardo, arma de fogo, pólvora, fósforo e sílex **sem marco**), Bastão reforçado (cortado); **a Cama voltou à v0.2 no M2, com o Saco de dormir (12.3)**, peças de fibra (depois do playtest), Listro (M4 com o Oviraptor), slot de Oferta (depois do playtest), Lança-de-pedra, Gallimimus, Ração S e Mel-de-cipó, Temperamento do domado, dia e noite, configurações, música, NET-03 e vocalizações por limiar. A **pausa de torpor já está implementada**: fica, sem custo novo. Tudo continua documentado como futuro. **Mantidos:** Peso, batismo (6.9) e barra de atalhos (5.2).
 
 **1. Sem Lança, como o jogador lida com o Utahraptor?** O Bastão (dano 2) **não mata**: 40 golpes em 27 s, 18 mordidas de 8 = 144 de dano contra 100 de vida [calculado]. O caminho é **nocautear**: Utahraptor L20 (torpor 144) cai em 5 golpes, 2,8 s, com 1 mordida (11 dano); com 10 pontos em Dano, 3 golpes e 1,4 s. Ele dorme cerca de 103 s, mais que os 40 s de domar um Paquicéfalo em C. O que muda: **o ponto de Dano do jogador** passa a multiplicar também o torpor do golpe (é o menor ajuste que dá uso ao atributo sem Lança), e a regra "abaixo de 25% de vida foge" fica sem uso até haver dano maior (sem custo).
 
@@ -521,7 +521,7 @@ Simulação: `teto_sim.py spawn|teto|xp|saber`. **Regras do dono:** (1) dinos na
 
 **Ao travar** (dino ou jogador no teto efetivo): **o XP para de acumular** (não fica guardado), a **barra de XP fica cheia com o selo "teto"** (no dino, na tela dele; no jogador, na HUD no lugar do "Nv"), **não nascem pontos novos**, e os **pontos livres que já existiam continuam gastáveis**. Se o teto do servidor subir depois, o XP recomeça de zero no nível atual. **Save acima do teto (recomendo: só trava, não reduz):** reduzir o nível devolveria pontos já gastos e puniria o jogador por uma mudança do servidor; o dino ou jogador acima do novo teto **mantém nível e pontos** e não ganha XP; domar novo respeita o teto novo (o final é cortado nele). **Ponto para o dono (V60).**
 
-**Teto do jogador.** **MVP: `jogador_nivel_max` = 20** (19 pontos de atributo, **24 Saber**; a v0.2 custa **23**, cobre com 1 sobrando). **1.0: recomendo 75** (**90 Saber** contra os **82 da 1.0**, 74 pontos de atributo). **Conferido: a 1.0 só completa no L69** (L68 dá 81, L69 dá 82 [calculado]); com teto 50 o jogador chega a 60 Saber (74% da árvore), com 20 a 24 (30%): **se o servidor baixar o teto do jogador abaixo de 69, a 1.0 fica incompleta por desenho**. XP do jogador (curva `30 + 15(L-1)`): L20 3.135 XP (4,0 h a 13/min), **L68 35.175 XP (45 h)**, L75 42.735 XP (55 h).
+**Teto do jogador.** **MVP: `jogador_nivel_max` = 20** (19 pontos de atributo, **24 Saber**; a v0.2 custa **23**, cobre com 1 sobrando). **1.0: recomendo 75** (**90 Saber** contra os **84 da 1.0**, 74 pontos de atributo). **Conferido: a 1.0 completa no L70** (84 Saber com Mochila, selas, Saco e Cama; antes L69 com 82 [calculado, `receitas_sim.py`]); com teto 50 o jogador chega a 60 Saber (71% da árvore), com 20 a 24 (30%): **se o servidor baixar o teto do jogador abaixo de 69, a 1.0 fica incompleta por desenho**. XP do jogador (curva `30 + 15(L-1)`): L20 3.135 XP (4,0 h a 13/min), **L68 35.175 XP (45 h)**, L75 42.735 XP (55 h).
 
 **Custo e marco [estimativa minha; `SHIKAMARU` confirma]:** teto efetivo (fórmula, `min`, corte do final e do spawn) 2 h; XP que trava, barra cheia e selo "teto" 1,5 h; sorteio com poucos altos e faixas por espécie em dado 1,5 h; chaves de servidor e leitura 0,5 h; save acima do teto (só travar) 1 h; texto na tela do dino 0,5 h = **7 h**, **M2** (junto do XP do dino). **Menor recorte: constantes e XP que trava, sem selo nem chaves = 3 h.** `YATORA`: selo "teto" (dino e jogador). `SORA`: `Attributes` com `teto_efetivo(dino)`. Precisa jogar: se 2,5 a 3 h de companhia até o teto parece progressão ou espera, e se "poucos altos" deixa os dinos fortes raros demais.
 
@@ -548,7 +548,7 @@ Simulação: `teto_sim.py spawn|teto|xp|saber`. **Regras do dono:** (1) dinos na
 
 ### 5.18 Pilão e químicos (decisão do dono, 06/11)
 
-**Pilão:** item **portátil**, feito **à mão** (Saber 1, 2 pedra + 1 madeira, 3,5 kg, 100 moagens), usado no personagem pela aba "Moer" do menu de Receitas. **Preparado de sono** (nome único) passa a ser moído no Pilão: 3 fruta-do-sono + 1 carne podre rendem 3, 4 s. **v0.2: 19 receitas, 20 Saber** (sobra 4 dos 24; antes 21 e 23, com Cama e Bastão reforçado); o Pilão e o Preparado são **cortáveis juntos** (sem eles 17 e 16), **mas ficam: aceitos pelo dono**. O Preparado é o único consumidor do Pilão na v0.2.
+**Pilão:** item **portátil**, feito **à mão** (Saber 1, 2 pedra + 1 madeira, 3,5 kg, 100 moagens), usado no personagem pela aba "Moer" do menu de Receitas. **Preparado de sono** (nome único) passa a ser moído no Pilão: 3 fruta-do-sono + 1 carne podre rendem 3, 4 s. **v0.2: 21 receitas, 22 Saber** (sobra 2 dos 24; Saco e Cama voltaram, 12.3; o Bastão reforçado segue cortado); o Pilão e o Preparado são **cortáveis juntos** (sem eles 17 e 16), **mas ficam: aceitos pelo dono**. O Preparado é o único consumidor do Pilão na v0.2.
 
 **Fósforo, pólvora e sílex: SEM MARCO (decisão final do dono, 06/11).** Sem Rifle e sem arma de fogo nada os consome, então saem da árvore ativa e do mapa de recursos; ficam só como registro (fósforo 2 sílex + 2 pedra rendem 6; pólvora 2 carvão + 2 fósforo rendem 4). **O carvão continua só da Forja** (aceito; opcional na Fogueira, V61). **Custo da v0.2 [estimativa minha]:** Pilão (item, aba Moer, durabilidade) **3 h**, junto com o Preparado: **Pilão e Preparado entram na v0.2** (aceito). `YATORA`: ícone do Pilão. `SORA`: estação "Pilão" no `RecipeDef` (portátil).
 
@@ -563,13 +563,13 @@ Simulação: `teto_sim.py spawn|teto|xp|saber`. **Regras do dono:** (1) dinos na
 
 **Aceitas pelo dono:** (1) **"2x" é sobre o nível final** (nível da captura mais o bônus de Eficiência); (2) **servidor só trava, sem reduzir** (save acima do teto fica parado); (3) **teto de dino 50 no MVP** (75 na 1.0); (4) **Triceratops L18 a L24 na v0.2**; (5) **Dodo no início do M2**; (6) **carvão só na Forja**; (7) **Pilão e Preparado na v0.2**. **Cortes leves aceitos:** dano em construções no recorte mínimo (8.1), **sem Bastão reforçado**, **sem Cama**, **Saber em lista plana** (sem pré-requisito entre receitas; a cadeia mais longa cai de 3 elos para 0). **Corte maior: decidir depois do QA-01a.**
 
-**Totais** (`receitas_sim.py arvore`): **v0.2 19 receitas e 20 Saber (24 disponíveis no L20; sobra 4)**, antes 21 e 23; **1.0 53 receitas e 73 Saber (completa no L61; antes 44 e 82, L69; as 53 contam as 15 peças de roupa, 5.20)**. A diferença é Cama, Bastão reforçado, Rifle, Dardo e a **Barra de ferro** (que é processo da Forja, sem receita no menu, e estava contada por engano), mais Besta e Boleadeira que entram.
+**Totais** (`receitas_sim.py arvore`): **v0.2 21 receitas e 22 Saber (24 disponíveis no L20; sobra 2)** (Saco e Cama de volta, 12.3; antes 19 e 20, e antes 21 e 23 com Bastão reforçado); **1.0 53 receitas e 73 Saber (completa no L61; antes 44 e 82, L69; as 53 contam as 15 peças de roupa, 5.20)**. A diferença é Cama, Bastão reforçado, Rifle, Dardo e a **Barra de ferro** (que é processo da Forja, sem receita no menu, e estava contada por engano), mais Besta e Boleadeira que entram.
 
 ### 5.20 Vagas de equipamento e tela do inventário (decisão do dono, 06/11)
 
 **Seis vagas:** **Arma, Capacete, Camisa, Luva, Calça e Bota.** Cada item equipável tem um campo `slot`; só cabe na sua vaga. A vaga **Arma** recebe **qualquer item de mão** (arma ou ferramenta: Soco não conta, Bastão, Lança, Machado, Picareta, Arco). **Sem vaga de acessório e sem segunda mão** (nada pedido).
 
-**Receitas (decidido, V69; conta minha): um nó de Saber por material libera as 5 peças** (as 5 aparecem no menu P de uma vez). **Fibra Saber 1, couro Saber 2, metal Saber 6**, os mesmos custos do traje antigo. Alternativa rejeitada, **Saber por peça** (fibra 1, couro 2, metal 4 cada): +26 Saber, **1.0 com 99 Saber**, acima dos 90 do L75 (`receitas_sim.py por_peca`: completa no L83, que não existe). **Totais (`receitas_sim.py arvore`): v0.2 19 receitas e 20 Saber (sem mudança: não há roupa); 1.0 53 receitas (antes 41; +12 = 15 peças menos 3 trajes) e 73 Saber (não muda), completa no L61.** Estações 1.0: Mãos 37, Bancada 15, Pilão 1 (peças de fibra e couro à mão; as de metal na Bancada, com a barra pronta da Forja).
+**Receitas (decidido, V69; conta minha): um nó de Saber por material libera as 5 peças** (as 5 aparecem no menu P de uma vez). **Fibra Saber 1, couro Saber 2, metal Saber 6**, os mesmos custos do traje antigo. Alternativa rejeitada, **Saber por peça** (fibra 1, couro 2, metal 4 cada): +26 Saber, **1.0 com 99 Saber**, acima dos 90 do L75 (`receitas_sim.py por_peca`: completa no L83, que não existe). **Totais (`receitas_sim.py arvore`): v0.2 21 receitas e 22 Saber (a roupa não entra; +Saco e Cama, 12.3); 1.0 53 receitas (antes 41; +12 = 15 peças menos 3 trajes) e 73 Saber (não muda), completa no L61.** Estações 1.0: Mãos 37, Bancada 15, Pilão 1 (peças de fibra e couro à mão; as de metal na Bancada, com a barra pronta da Forja).
 
 **Tela mínima:** a tela de inventário (menu) mostra uma **coluna de 6 vagas à esquerda da grade de 40**, de cima para baixo: Capacete, Camisa, Luva, Calça, Bota e, separada embaixo, Arma; cada vaga vazia mostra uma **silhueta** do tipo. Embaixo da coluna, **dois números: "Redução 25%" e "Peso 18/50 kg"** (o Peso já existe no HUD). **Sem boneco.**
 - **Equipar:** arrastar o item da grade para a vaga, **ou duplo clique no item** (vai à vaga certa). Vaga errada: recusa sem mensagem. Vaga ocupada: **troca** (o item antigo volta à grade). Leva **0,3 s** (5.2), sem bloqueio em combate.
@@ -595,7 +595,7 @@ Simulação: `teto_sim.py spawn|teto|xp|saber`. **Regras do dono:** (1) dinos na
 - **Peso:** a Mochila pesa [premissa 1,5 kg vazia] e **não aumenta a capacidade de Peso** (o dono pediu slots; Peso continua dos atributos): slots limitam a variedade e o Peso limita a massa.
 - **Sem durabilidade** (uma Mochila que quebra e some conteúdo é punição sem decisão).
 - **É uma 7ª vaga de equipamento: sim, "Mochila" (costas)**, recomendo. Sem redução de dano, só `slots_extra`. Aparece na coluna de vagas (5.20) **quando existir o item** (`slot_visivel`). Só uma Mochila por vez e **um só tier** (sem Mochila grande por enquanto).
-- **Receita [provisória]:** couro + fibra (**o couro ganha um uso, hoje ele não tem nenhum na v0.2**), estação Mãos, **Saber 2 (T2)**, **marco M4** (junto das peças de couro e do Arco, 5.20). **Totais provisórios:** v0.2 **não muda** (19 receitas, 20 Saber); **1.0 54 receitas e 75 Saber** (completa no L63, antes L61).
+- **Receita [provisória]:** couro + fibra (**o couro ganha um uso, hoje ele não tem nenhum na v0.2**), estação Mãos, **Saber 2 (T2)**, **marco M4** (junto das peças de couro e do Arco, 5.20). **Totais provisórios:** v0.2 **não muda** (21 receitas, 22 Saber, com Saco e Cama); **1.0 56 receitas e 77 Saber** (completa no L65; sem Saco e Cama eram 54 e 75, L63).
 
 **Marco e custo [estimativa minha, premissa; `SHIKAMARU` confirma]: M4, fora da v0.2.** Motivo: na v0.2 o limite de slots só cria atrito sem um jeito de aliviar (a Mochila vem depois), e a v0.2 já tem a maior parte do trabalho de inventário (Peso, validade, vagas de 5.20). **Custo 9 h:** limite de slots no servidor, excesso na sacolinha e save acima do limite 4 h; 7ª vaga, item, equipar e recusa de tirar cheia 2 h; tela com posições escurecidas e contador 2 h; item e receita em dados 1 h. `YATORA`: 1 ícone (e **sem sprite de corpo**, mesma regra da roupa, V70). **Se o dono quiser a Mochila antes (couro útil na v0.2):** custa os mesmos 9 h na v0.2 e o limite de 24 passa a valer já no meio da v0.2 (21 de 24); **não recomendo**.
 
@@ -828,14 +828,14 @@ Já dito antes (não duplico): a Stamina do dino **espera a montaria** (5.1, M4)
 - **Dino morto (morte permanente, opção de servidor):** a sela vai à **sacolinha** da carcaça (5.6) com os itens do alforje, **durabilidade preservada**, **só do dono por 120 s**, depois de todos; a sacolinha **aceita item individual** (o jogador a coleta no mundo; só a criatura recusa).
 - **Save e rede:** o dino salva `sela`; versão do save sobe; `equipar_sela(dino_id, iid)` e `retirar_sela(dino_id)` validados no servidor (alcance, dono, espécie com sela, dino não montado, Peso do alforje).
 
-**Receitas e totais (`receitas_sim.py arvore`):** **três receitas, um nó cada** (fibra Saber 1, couro 2, metal 4): **+3 receitas e +7 Saber.** Com a Mochila provisória (5.21: 1 receita, Saber 2): **1.0 com 57 receitas e 82 Saber, completa no L69** (antes 53 e 73, L61). **v0.2 não muda (19 e 20).** Marco: **junto da montaria (depois do playtest)**; fibra e couro **M4+**, metal **M5**. O couro ganha mais um uso (Mochila e selas).
+**Receitas e totais (`receitas_sim.py arvore`):** **três receitas, um nó cada** (fibra Saber 1, couro 2, metal 4): **+3 receitas e +7 Saber.** Com a Mochila provisória (5.21: 1 receita, Saber 2): **1.0 com 59 receitas e 84 Saber, completa no L70** (com Saco e Cama, 12.3; antes 57 e 82, L69; 53 e 73, L61). **v0.2 não muda (21 e 22).** Marco: **junto da montaria (depois do playtest)**; fibra e couro **M4+**, metal **M5**. O couro ganha mais um uso (Mochila e selas).
 
 **Custo [estimativa minha, premissa]:** item e receitas em dados 2 h; vaga de sela no dino e tela (arrastar, retirar com regras) 5 h; defesa e durabilidade por golpe no dino, com dano mínimo 2 h; extra de Peso, trava e recusa 3 h; sacolinha com individual na morte permanente 2 h; save e rede 3 h = **17 h**. **Montaria e sela juntas: 43 h (cheia) ou 36 h (recorte, só dois dinos: 26 + 10 h de sela sem metal)**, **ambas depois do playtest.** `SORA`, lista: `montaria` (nenhuma|livre|sela) em `SpeciesDef`; `sela` como vaga do dino; menu de interação; `dino_permissao`; autoridade do movimento do montado; `rider_id`; defesa do dino com `max(1, ...)`; sacolinha aceitando individual. `YATORA`: 3 ícones de sela e silhueta da vaga; **sem sprite de sela sobre o dino** (recomendo, V73) e 12 deslocamentos do jogador (dado). **Precisa jogar:** se a sela como obrigatória nos dois grandes dá objetivo ou só barreira; se o extra de Peso aparece; se a vaga na tela do dino é achada.
 
 ## 7. Coleta e crafting
 
 - **Coleta:** nós de árvore, pedra, arbusto de baga, fibra, com respawn (MUN-02). Tempos [premissa]: baga 3 s/unidade, madeira 8 s por 3, pedra 10 s por 4.
-- **Crafting:** `RecipeDef` por dados, **19 receitas na v0.2 (20 Saber)** (4 conhecidas: Fogueira, Lança de madeira, Machado e Picareta; o Bastão-de-sono já nasce no inventário no M1, sem receita; o resto por Saber, `receitas.md`). **Estações: Mãos (menu P; fibra, madeira e pedra), Bancada comum (metal e engenharia, Ração e reparo), Fogueira (assar) e o **Pilão** (portátil).** Regra de produção em 5.19. Sem timers de espera (espera sem decisão é defeito).
+- **Crafting:** `RecipeDef` por dados, **21 receitas na v0.2 (22 Saber; inclui Saco e Cama, 12.3)** (4 conhecidas: Fogueira, Lança de madeira, Machado e Picareta; o Bastão-de-sono já nasce no inventário no M1, sem receita; o resto por Saber, `receitas.md`). **Estações: Mãos (menu P; fibra, madeira e pedra), Bancada comum (metal e engenharia, Ração e reparo), Fogueira (assar) e o **Pilão** (portátil).** Regra de produção em 5.19. Sem timers de espera (espera sem decisão é defeito).
 - **Receitas núcleo** [proposta]: Bastão-de-sono no inventário (M1, sem receita; receita de reposição Saber 1 no M2), **Preparado de sono** (3 frutas + 1 carne podre rendem 3, 4 s, **no Pilão, 5.18**; M2, aceito), Ração C a A (Bancada), fundação, parede, porta, baú (à mão).
 - Tier 1: madeira, pedra, fibra, baga. Tier 2: Tubérculo, Sal, Mel (risco). Tier 3 (M4): Seiva, receitas de dino grande.
 
@@ -843,7 +843,7 @@ M1: coleta e arma de torpor. M2: tudo acima. **Cortável:** Mel e Ração S (rac
 
 ## 8. Construção e base
 
-Grade de 16 px por `Vector2i` (CON-01). Peças da 0.2: fundação, parede, porta, baú (CON-02/03). Propósito (pilar 3): **abrigo** contra noite/predador, **guardar** (baú), e **ponto de ofício** dos dinos.
+Grade de 16 px por `Vector2i` (CON-01). Peças da 0.2: fundação, parede, porta, baú (CON-02/03) e **Cama** (12.3, M2). Propósito (pilar 3): **abrigo** contra noite/predador, **guardar** (baú), e **ponto de ofício** dos dinos.
 
 Conta do abrigo mínimo [premissa de custo]: 2x2 = 4 fundações (3 madeira + 1 pedra), 8 paredes (2 madeira), 1 porta (4 madeira + 1 fibra) = 32 madeira, 4 pedra, 1 fibra. Coleta ~8 s por 3 madeira: 32 madeira = 85 s de coleta + 20 s de pedra + caminhada: ~3 a 4 min de jogo [calculado com premissas]. Cabe na primeira hora.
 
@@ -897,7 +897,7 @@ M2 Essencial. Reparo de **peça** por ação: **cortado** (a peça tem vida e re
 | 3 | Ração S, ofício avançado | Ingrediente de risco, Afeto 40 | M2 Should/M4 |
 | 4 a 5 | S+, dinos grandes, região nova | Campanha de recurso | M4 |
 
-**Desbloqueio por Saber (decisão do dono, 06/11):** o personagem **aprende receitas gastando Saber**, moeda separada dos pontos de atributo (1 por nível, +1 nos níveis 5, 10, 15 e 20); o tier continua sendo o gate de **ingrediente**. Árvore em cinco categorias (armas, armaduras, mobílias, construções, recursos diversos), 57 receitas na 1.0 e **19 na 0.2** (6 conhecidas, 22 Saber): `receitas.md`, `receitas_sim.py`. Substitui "desbloqueio por ter feito". Plano: PRO-10 (3 a 5 tiers, M4); 0.2 só 2 tiers.
+**Desbloqueio por Saber (decisão do dono, 06/11):** o personagem **aprende receitas gastando Saber**, moeda separada dos pontos de atributo (1 por nível, +1 nos níveis 5, 10, 15 e 20); o tier continua sendo o gate de **ingrediente**. Árvore em cinco categorias (armas, armaduras, mobílias, construções, recursos diversos), 59 receitas na 1.0 e **21 na 0.2** (4 conhecidas, 22 Saber): `receitas.md`, `receitas_sim.py`. Substitui "desbloqueio por ter feito". Plano: PRO-10 (3 a 5 tiers, M4); 0.2 só 2 tiers.
 
 ## 10. Economia de recursos
 
@@ -927,11 +927,99 @@ Ralos permanentes: **fome do jogador**, **fome do rebanho** (fixa), **flechas** 
 
 M1: Flee, Chase, Attack (CRI-04). M2: invasão da base. M4: ameaças e dificuldade (SOB-10). **Cortável**: invasão escalonada.
 
-## 12. Morte e penalidade
+## 12. Morte, respawn e save (decisões do dono, rodada após 06/11)
 
-Morte do jogador: **cai o inventário num corpo recuperável** (SOB-02), volta numa cama/ponto de respawn, perde nada além do tempo. Mínimo no M1 (respawn), completo no M2. Conta: se a recuperação leva 2 a 3 min [premissa], a penalidade é ~3 min, no ritmo de sessão de 45 min são 6,7%. [jogar]: se não dói, sobe (o plano aceita "custa algo, não destrói horas").
+> **Decisões do dono (não se rediscutem):** 1 mundo na v0.2; autosave a cada 5 min, ao deitar na Cama, ao morrer o jogador, ao morrer um dino domado, ao voltar ao menu e ao sair; **o jogo nunca pergunta antes de salvar.** Respawn: escolher uma **região** (renasce num ponto aleatório dela) ou renascer numa **Cama** ou **Saco de dormir**. Saco: 1 respawn e some, feito à mão com fibra. Cama: respawns infinitos, 1 min de espera entre usos, feita na Bancada, **só ela salva manualmente**. **Cama e Saco voltam para a v0.2, no M2, com a construção** (a Cama tinha saído em 06/11: revertido). Uma Cama em espera aparece na tela de morte com o tempo restante. **Tudo marcado [proposta SHIRO] é meu e o dono aceita ou muda;** números a testar jogando levam [premissa].
 
-Opção de servidor: corpo some em N min; morte permanente de dino (seção 13).
+**Penalidade (já definida, mantida).** Morte do jogador: **cai o inventário num corpo recuperável** (SOB-02) e volta numa Cama, num Saco ou numa região; perde nada além do tempo. Mínimo no M1 (respawn numa região, a Campina), completo no M2. Conta: se a recuperação leva 2 a 3 min [premissa], a penalidade é ~3 min, no ritmo de sessão de 45 min são 6,7%. [jogar]: se não dói, sobe (o plano aceita "custa algo, não destrói horas"). Opção de servidor: corpo some em N min; morte permanente de dino (seção 13).
+
+### 12.1 Save
+
+| Gatilho | Salva? | Observação |
+|---|---|---|
+| Autosave | a cada **300 s** de relógio real (`autosave_segundos`) | o relógio **zera a cada save** de qualquer origem |
+| Deitar na Cama | sim, é o **save manual** | único save manual do jogo; não há botão "salvar" no menu |
+| Morte do jogador | sim | salva **o estado de morto** (corpo, itens no corpo, tela de escolha pendente) |
+| Morte de dino domado | sim | vale quando a vida do domado chega a 0 (v0.2: vira "ferido" e some 5 min, 6.8; com morte permanente de servidor, vira carcaça) |
+| Voltar ao menu / sair | sim | também ao fechar a janela |
+
+- **Sem pergunta, nunca.** Sem "deseja salvar?", sem tela de confirmação, sem pausa. Indicador discreto de 1 s ("Salvando") no canto, sem bloquear. **[proposta]**
+- **1 mundo na v0.2.** Menu: Continuar e Novo jogo (Novo jogo apaga o mundo atual, **sem pergunta de salvar, mas com a confirmação normal de apagar**, porque apagar não é salvar). Vários mundos: depois da v0.2; o `map_id` já está reservado no SAV-01. **[proposta: a confirmação de apagar é minha; se o dono quer sem confirmação, avisar]**
+- **Eventos em rajada [proposta]:** gatilhos a menos de **10 s** do último save viram **um** save (ex.: jogador e dino morrem no mesmo golpe). Sair ignora o intervalo.
+- **Consequência assumida:** como o jogo salva sozinho na morte, **não existe "recarregar para desfazer"**. É o objetivo do dono: a morte do dino domado e a do jogador são definitivas no save.
+- **Perda máxima numa queda:** 300 s = 5 min (compatível com o plano: "`kill -9` perde no máximo o intervalo de autosave"). 12 saves/h pelo intervalo, mais os eventos [calculado].
+- **Orçamento [premissa, medir]:** escrita atômica com `.bak` (SAV-01) sem travar o quadro: meta < 100 ms ou em thread; se travar, o autosave espera o jogador sair de combate por até 30 s.
+- **Servidor dedicado (M3):** `autosave_segundos` vale no servidor; deitar na Cama pede o save ao servidor, que salva o mundo inteiro.
+
+### 12.2 Respawn
+
+**Tela de morte (lista única, ordem fixa [proposta]):** (1) **Camas** do jogador, (2) **Saco**, se houver, (3) as **3 regiões**. Cada linha mostra nome e distância ao corpo. Uma **Cama em espera** fica cinza com o **tempo restante** ("libera em 0:42"), sem opção de clicar; o tempo corre na própria tela. A região **Campina** vem pré-selecionada se não houver Cama pronta; havendo, vem a Cama pronta mais próxima do corpo. **O jogador nunca fica sem opção** (as regiões são sempre válidas).
+
+**Regiões em dados (`respawn_regioes`; retângulos e ponto reserva saem do MUN-03):**
+
+| id | bioma | área sorteável | ponto reserva |
+|---|---|---|---|
+| `campina` | Campina | tiles caminháveis do bioma | 1 ponto fixo livre, longe de qualquer toca |
+| `mata_baixa` | Mata-baixa | idem | idem |
+| `pedreira` | Pedreira | idem | idem |
+
+Clareira-brasa (M4) ganha a sua linha quando existir; **uma linha por bioma** mantém o sistema em dados.
+
+**Regras do ponto aleatório (sorteio uniforme entre tiles caminháveis da região):**
+1. **Nunca em colisão:** tile caminhável do mapa, fora do `BuildGrid`, de nó de recurso, de carcaça e de água/borda do mapa.
+2. **Distância mínima de dino Agressivo: 16 tiles [proposta]** (o dobro da percepção de 8 tiles do Utahraptor, 6.1); **de Semi-agressivo, 8 tiles [proposta]** (Triceratops só ataca provocado; a margem evita nascer na frente dele). Dino domado não conta.
+3. **Até 30 sorteios** [proposta]; se nenhum servir, usa o **ponto reserva** da região. Conta [`respawn_sim.py ponto`]: região de ~4.900 tiles, R=16: com até 8 agressivos o reserva sai em 0,05% dos respawns; com 16, 6,65% (R=24 já daria 15% com 8: por isso 16).
+4. **Proteção de 3 s [proposta]** (invulnerável, sem atacar) ao nascer; o agressivo pode estar a 16 tiles, não colado.
+5. **Efeito do respawn:** vida 100%, fome 50%, torpor 0, **inventário vazio** (tudo está no corpo), Saber, receitas e nível intactos [proposta: fome 50% = 250 s para achar comida].
+
+**Custo do "teleporte":** escolher a Pedreira ao morrer leva o jogador a ~29 s de caminhada de qualquer lugar; a penalidade real é largar o inventário no corpo, não a distância [calculado]. Não é falha, mas o jogador pode usar a morte como viagem: custo de largar tudo.
+
+### 12.3 Saco de dormir e Cama
+
+| | Saco de dormir | Cama |
+|---|---|---|
+| Receita | **8 fibra** [proposta] | **12 fibra + 8 madeira** [proposta] |
+| Estação | Mãos (menu P) | **Bancada** (decisão do dono) |
+| Saber | **1** [proposta] | **1** [proposta] |
+| Respawn | **1 vez e some** | infinitos |
+| Espera entre usos | -- (some) | **60 s** (`cama_espera_s`) |
+| Salva ao deitar | **não** | **sim** (único save manual) |
+| Colocar | no chão, 2 s; recolher devolve o item | peça no mundo (como o Baú), 3 s |
+| Colisão e vida | sem colisão; **não é alvo** de dino | colisão; vida 30 por unidade de madeira = **240** [8.1], dino só a ataca se ela bloquear o caminho |
+| Limite por jogador | **1 colocado** (colocar outro recolhe o primeiro) | **3 colocadas** (`cama_max_por_jogador`) |
+| Tempo de coleta | 24 s | 57 s (~1 min) |
+
+Conta [`respawn_sim.py custo`]: fibra 3 s/un, madeira 8 s por 3: Saco 8 x 3 = **24 s**; Cama 12 x 3 + 8 x 8/3 = **57 s**, contra 3 a 4 min do abrigo mínimo (8). A Cama não pode custar mais que o abrigo, senão ninguém a faz antes da primeira noite; e custa mais que o Saco porque rende infinito. **Por que fibra (3 s/un) e não pedra:** a fibra só tem consumidor pequeno na v0.2 (Machado 1, Picareta 1, Bastão 2, Bandagem 3), então sobra; é o ralo natural da Campina. **Peso (premissa):** Saco 0,4 kg (8 fibra x 0,05); Cama 9 kg (12 x 0,05 + 8 x 1), colocada logo, não carregada.
+
+**Conhecidas ou aprendidas [proposta]: ambas aprendidas, Saber 1 cada** (T1, como Baú e Bancada). Motivo: manter as 4 conhecidas que o dono fechou (Fogueira, Lança, Machado, Picareta). O respawn por região já protege o jogador antes de aprender, então o Saco não é urgente. **Impacto na contagem [`receitas_sim.py arvore`]: v0.2 passa de 19 receitas e 20 Saber para 21 e 22** (sobra 2 dos 24 do L20, antes 4); aprender tudo vai do **L17 (175 min) ao L19 (218 min)** a 13 XP/min; **1.0 de 53/73 para 55/75** (completa no **L63**, antes L61), e **com Mochila e selas 59/84 (completa no L70**, antes 57/82, L69). Estações v0.2: Mãos 16, Bancada 4 (Ração x3 + Cama), Pilão 1. Alternativa para o dono: **Saco conhecido** (5 conhecidas): v0.2 21 receitas e 21 Saber, sobra 3, L18.
+
+**Vínculo e uso:**
+- **Deitar** (tecla de interagir, 1 s): salva o mundo (12.1), mostra "Salvo" e marca a Cama como ponto de respawn **do dono**. **Não cura, não passa o tempo, não dá bônus** (sem dia e noite na v0.2). Qualquer jogador pode deitar numa Cama alheia para **salvar**; só o **dono** (quem a colocou) renasce nela. Deitar não tem espera; a espera é só do **respawn**.
+- **Espera de 60 s:** conta do instante em que alguém **renasce** na Cama. É **por Cama**, não por jogador. Medida em **tempo de jogo** (só corre com o mundo rodando; menu de pausa do single-player não conta e servidor desligado não conta) e **salva como `espera_restante_s`** (não como instante), então fechar e abrir o jogo não a zera nem a estende. Conta: a recuperação do corpo leva 120 a 180 s, então a espera só morde em **morte em sequência** (menos de 60 s depois de renascer); impede ressuscitar sem limite ao lado de uma Cama no meio de uma luta.
+
+### 12.4 Casos de borda
+
+| Caso | Regra |
+|---|---|
+| **Cama destruída** | sai da lista na hora (também com a tela de morte aberta); o jogador cai nas outras opções; **não devolve material** (peça destruída some, 8.1). Espera some junto. |
+| **Cama recolhida pelo dono** | devolve o item inteiro; a espera some; libera 1 do limite de 3. |
+| **Saco usado** | o respawn o consome **só depois** do jogador estar posto no mundo. Sai do save. Se a pessoa fecha o jogo na tela de morte, o Saco **continua** (o consumo vem com a escolha). |
+| **Saco já colocado e dono morre longe** | continua no chão como opção; sem prazo de validade. |
+| **O que se perde ao morrer** | tudo o que carrega **e o que veste/atalhos** cai num corpo; Saber, receitas, nível, pontos e dinos domados **não** se perdem. **Corpo some em 20 min [proposta]** (`corpo_minutos`; `morte_item` mantém corpo/perde/mantém). **Até 3 corpos por jogador [proposta]**; o 4º apaga o mais antigo. Marcador do corpo na borda da tela. |
+| **Camas por jogador** | **3 colocadas** (limite na hora de colocar, com aviso; recolher libera). Fabricar não tem limite. |
+| **Sem Cama nem Saco** | sempre há as **3 regiões**; Campina pré-selecionada. Sem softlock. |
+| **Nenhum ponto válido na região** | ponto reserva fixo da região (garantido livre). |
+| **Dinos domados quando o dono morre** | ficam onde estavam, na ordem atual (Seguir/Ficar, 6.11); não se perdem. |
+| **Morte do dino e do jogador no mesmo golpe** | um save só (rajada de 10 s). |
+| **Fechar na tela de morte** | o save guarda "morto, escolha pendente"; ao abrir, a tela de morte volta, com as esperas contando de onde pararam. |
+| **Relógio da espera** | `espera_restante_s` no save; só decresce com o mundo rodando. |
+| **Co-op (M3)** | Cama é do dono; Saco idem; espera por Cama; autosave no servidor. |
+
+### 12.5 Custo e marco [estimativa minha, premissa; `SHIKAMARU` confirma]
+
+M2 (Cama e Saco com a construção; o respawn mínimo do M1 fica como está, só a Campina). **SORA:** autosave e gatilhos, indicador, coalescência 3 h (SAV-04); tela de morte com lista, espera e pré-seleção 5 h; sorteio do ponto com regras e reserva 3 h; regiões em dados 1 h (junto do MUN-03); Saco (item, colocar, recolher, consumir) 3 h; Cama (peça, deitar, dono, limite, espera, save, destruição) 6 h; corpo com tempo e limite de 3, marcador 3 h; testes 3 h = **27 h**. **YATORA:** 2 sprites (Saco e Cama) e 2 ícones de receita 3 h. Total **30 h**. Cortável sem quebrar o loop: marcador do corpo (1 h) e o limite de 3 corpos (1 h).
+
+**Precisa jogar:** se 300 s é intervalo bom (travada ao salvar?); se a Cama sem benefício além de salvar e respawn tem valor; se 1 min de espera é perceptível; se 16 tiles de folga ao nascer basta contra o Utahraptor em corrida; se 20 min de corpo e 3 corpos são generosos ou punitivos; se escolher a Pedreira para "viajar" vira hábito.
 
 ## 13. Co-op e regras de servidor
 
@@ -947,6 +1035,13 @@ Regras configuráveis por servidor (arquivo de dados; todo valor que varia):
 | `dano_fome` | 1,0 | Dano de fome |
 | `morte_item` | corpo | corpo / perde / mantém |
 | `dino_ferido_minutos` | 5 | 0 desliga, -1 permanente |
+| `autosave_segundos` | 300 | Intervalo do autosave (12.1) |
+| `cama_espera_s` | 60 | Espera da Cama entre respawns (12.3) |
+| `cama_max_por_jogador` | 3 | Camas colocadas por jogador (12.3) |
+| `corpo_minutos` / `corpos_max_por_jogador` | 20 / 3 | Duração e quantidade de corpos (12.4) |
+| `respawn_dist_agressivo_tiles` / `_semi_` | 16 / 8 | Distância mínima ao nascer em região (12.2) |
+| `respawn_protecao_s` | 3 | Invulnerável ao renascer |
+| `respawn_fome_pct` | 50 | Fome ao renascer |
 | `afeto_decai` | 1,0 | Ritmo de negligência |
 | `eficiencia_fixa_ataque_jogador` / `_carnivoro` | 4 / 8 | Perda de Eficiência por ataque ao dormindo |
 | `raio_ronco_tiles` | 8 | Detecção do dormindo pelo carnívoro |
@@ -1009,7 +1104,9 @@ Metas do plano: 3 de 5 testadores completam o fluxo em até 20 min (M1) [premiss
 | Coleta, inventário | M1 | Essencial |
 | Domar (baga crua) | M1 | Essencial |
 | Ordens seguir/ficar | M1 | Essencial |
-| Morte e respawn mínimos | M1 | Essencial |
+| Morte e respawn mínimos (região Campina) | M1 | Essencial |
+| Autosave 5 min e nos eventos (12.1) | M2 | Essencial (~3 h) |
+| Respawn por região, Saco e Cama (12.2 a 12.4) | M2 | Essencial (~27 h SORA + 3 h YATORA) |
 | Ração C a A (Bancada) | M2 | Essencial |
 | Nível, Eficiência, nível previsto, painel de 3 barras | M2 | Essencial |
 | Barra de vida (após dano, máx. 3) | M2 | Essencial |
@@ -1107,6 +1204,8 @@ Metas do plano: 3 de 5 testadores completam o fluxo em até 20 min (M1) [premiss
 49. **Alforje recusa item individual e a sela é individual** (6.13): resolvido com vaga própria de sela no dino, fora do `InventoryComponent`; a sacolinha da morte permanente aceita individual. **RESOLVIDO (dono, 06/11): vaga própria de sela.**
 50. **Montaria sem ganho de velocidade** (6.12): com as velocidades fixas da espécie (75 a 90) a montaria seria mais lenta que correr (~86); só vale com o x1,3 [premissa]. **RESOLVIDO (dono, 06/11): montaria só no M4 com o x1,3 [premissa] a validar jogando; dano ao montado todo no dino.**
 51. **Sela só nas espécies "montável com sela"** (correção do dono): Utahraptor monta sem sela e sem vaga; Paquicéfalo não monta. **RESOLVIDO (dono, 06/11).**
+52. **Cama e Saco voltam à v0.2 (12.3):** a Cama saiu em 06/11 (cortes leves) e volta por decisão do dono; v0.2 passa a 21 receitas e 22 Saber (sobra 2 no L20, antes 4); 1.0 com Mochila e selas 59/84 (L70). Plano: Cama no M2, junto da construção.
+53. **Teleporte pela morte (12.2):** escolher a Pedreira ao morrer equivale a ~29 s de caminhada; o custo real é largar o inventário no corpo. Aceito; vira problema só se o playtest mostrar morte como viagem.
 13. **CRI-04 (M1)** prevê "Flee (herbívoro), Chase e Attack (carnívoro)". Seis tipos de Conduta exigem uma máquina de estados orientada a dados; o herbívoro do M1 é **Passivo** (revida), não foge. Cabe ao `SHIKAMARU` reestimar.
 14. **Tipos x espécies** (CRI-03, CRI-06): a 0.2 mostra 4 tipos com 4 espécies (cabe no plano); o Gallimimus eleva a 5 espécies e 5 tipos, **acima** dos 3 a 4 do plano; Curioso só no M4 (CRI-10).
 15. **"Isca"** aparece no core loop do plano (seção 2) sem tarefa no backlog. Se o Covarde entrar na 0.2 e a corrida não bastar, a isca vira necessária.
@@ -1148,7 +1247,7 @@ Metas do plano: 3 de 5 testadores completam o fluxo em até 20 min (M1) [premiss
 | V35 | Couro na 0.2 sem uso: Bastão reforçado ou M4? | **Bastão reforçado CORTADO (06/11, dono)**: o couro só tem uso no M4. |
 | V36 | Tempos: carcaça 10 min, carniça até 20, sacolinha 10, só dono 120 s | Recomendo; **DECIDIDO (06/11, dono aceita a recomendação).** |
 | V37 | Saber: moeda separada, 1 por nível, +1 no L3 e nos níveis 5, 10, 15 e 20 | **DECIDIDO (06/11, dono aceita a recomendação).** |
-| V38 | 0.2 com **19 receitas (4 conhecidas, 20 Saber de 24)**, aprender tudo no teto; 1.0 (53 receitas com as peças, 73 Saber, completa no L61) não; sem reinício | **DECIDIDO (06/11, dono aceita a recomendação).** |
+| V38 | 0.2 com **21 receitas (4 conhecidas, 22 Saber de 24)**, aprender tudo no teto; 1.0 (53 receitas com as peças, 73 Saber, completa no L61) não; sem reinício | **DECIDIDO (06/11, dono aceita a recomendação).** |
 | V39 | Armadura: 3 materiais x 5 peças, soma linear, mistura vale, todas as peças sofrem o golpe, dano mínimo 1; **fibra depois do playtest, fora da v0.2** | **DECIDIDO (dono, 06/11); substitui "1 vaga".** Divisão por peça e "Reparar tudo": recomendo, **PENDENTE** (V69) |
 | V40 | Mobílias com função; fogueira passa a ter função (assar), pilão fora | **DECIDIDO (06/11, dono aceita a recomendação).** |
 | V41 | Pergaminho ensina sem gastar Saber (S e S+ só por pergaminho, M4) | **DECIDIDO (06/11, dono aceita a recomendação).** |
@@ -1163,11 +1262,11 @@ Metas do plano: 3 de 5 testadores completam o fluxo em até 20 min (M1) [premiss
 | V50 | Validade (carne 30 min, assada 90, baga 45, fruta 30, preparado 45; Ração não vence; juntar até 2 min; baú igual) | **DECIDIDO (06/11, dono aceita a recomendação).** |
 | V51 | Metal: Forja (**construída na Bancada, decidido 06/11**, e estação dos itens de metal), Barra, Espada no M4, Machado e Picareta de ferro no M5; nada na v0.2; construções de metal fora | Forja na Bancada **DECIDIDO (dono)**; marcos recomendo, **PENDENTE** |
 | V61 | Forja: queima 3 madeira em 1 carvão (30 s) e converte 2 minério + 1 carvão em 1 barra (10 s); 4 vagas, funciona longe, carvão só da Forja ou também Fogueira | Regra **DECIDIDA (dono)**; números e o uso do carvão: **PENDENTE** |
-| V62 | Pilão (à mão, portátil, Saber 1) e Preparado no Pilão: **v0.2 com 19 receitas e 20 Saber** (antes 21 e 23); fósforo, pólvora e sílex **sem marco** | **DECIDIDO (dono, 06/11).** |
+| V62 | Pilão (à mão, portátil, Saber 1) e Preparado no Pilão: **v0.2 com 21 receitas e 22 Saber com Saco e Cama (V75; eram 19 e 20)**; fósforo, pólvora e sílex **sem marco** | **DECIDIDO (dono, 06/11).** |
 | V63 | Rifle, Dardo, arma de fogo, pólvora, fósforo e sílex | **Adiados sem marco (decisão final do dono, 06/11).** |
 | V64 | Armas à distância: arco, flecha comum e **flecha de sono** (M4), boleadeira (M4), besta (M5); Preparado como ingrediente da flecha de sono | Recomendo; **PENDENTE** (números em 5.4: flecha de sono 75, Besta 22 de dano a 14 tiles, Boleadeira prende x0,4 por 5 s) |
 | V65 | Regra de produção: fibra, madeira e pedra à mão; metal e engenharia na Bancada; Forja feita na Bancada | **DECIDIDO (dono, 06/11).** Ração na Bancada é recomendação minha |
-| V66 | Aceitas: 2x sobre nível final, servidor só trava, dino 50 no MVP, Triceratops L18 a L24, Dodo no início do M2, carvão só na Forja, Pilão e Preparado na v0.2; cortes leves (sem Bastão reforçado, sem Cama, Saber em lista plana, dano em construções no recorte mínimo) | **DECIDIDO (dono, 06/11).** Corte maior só depois do QA-01a |
+| V66 | Aceitas: 2x sobre nível final, servidor só trava, dino 50 no MVP, Triceratops L18 a L24, Dodo no início do M2, carvão só na Forja, Pilão e Preparado na v0.2; cortes leves (sem Bastão reforçado, **sem Cama: revertido, a Cama volta com o Saco no M2, V75**, Saber em lista plana, dano em construções no recorte mínimo) | **DECIDIDO (dono, 06/11).** Corte maior só depois do QA-01a |
 | V67 | Bastão-de-sono no inventário no M1, sem receita | Recomendo e confirmo; **PENDENTE** de aceite explícito |
 | V69 | Divisão por peça (camisa 30%, calça 25%, capacete 20%, bota 15%, luva 10%), mistura livre, "Reparar tudo equipado", Saber por conjunto (não por peça) | Aceito; **DECIDIDO (dono, 06/11)**: Saber por conjunto, não por peça |
 | V70 | Sprite do jogador **não** muda por peça (só UI) | Aceito; **DECIDIDO (dono, 06/11)** |
@@ -1175,6 +1274,7 @@ Metas do plano: 3 de 5 testadores completam o fluxo em até 20 min (M1) [premiss
 | V72 | Menu de interação do domado, Postura (Calma, Guarda, Ataque), Ir até aqui, comando de rebanho, `dino_permissao` | **DECIDIDO (dono aceitou, 06/11)**: v0.2 só menu + Seguir/Ficar todos + permissão (11 h); Postura (Calma, Guarda, Ataque) e Ir até aqui **depois do playtest** |
 | V73 | Montaria: Utahraptor sem sela; Parassaurolofo e Triceratops com sela obrigatória; Paquicéfalo e presas não; x1,3 de velocidade; sem sprite novo | **DECIDIDO (dono aceitou, 06/11)**: classes por espécie, montaria no M4, dano ao montado todo no dino; números seguem [premissa] |
 | V74 | Sela (fibra, couro, metal): Peso extra +20/+40/+60%, defesa 8/15/25%, durabilidade 100/150/300, vaga própria no dino | **DECIDIDO (dono aceitou, 06/11)**: sela no M4 junto da montaria (metal M5); valores seguem [premissa] |
+| V75 | Save, respawn, Saco e Cama (12): 1 mundo; autosave 300 s e nos eventos, sem perguntar; região ou Cama ou Saco; Saco 8 fibra Saber 1; Cama 12 fibra + 8 madeira na Bancada, Saber 1, espera 60 s | **DECIDIDO (dono, rodada após 06/11)** o desenho; **PENDENTE** os números marcados [proposta] em 12 |
 | V68 | Triceratops da 1.0: L18 a L24 (menor ajuste) ou até L28 com couro, Arco ou metal | Recomendo L18 a L24; **PENDENTE** |
 | V52 | Dodo presa sem domar; **Listro fora da v0.2, no M4 com o Oviraptor**; 5 espécies na v0.2 | **DECIDIDO (06/11, dono).** |
 | V53 | Fome do jogador (queda 0,2/s, valores de comida) e morte por fome em ciclos | **DECIDIDO (06/11, dono aceita a recomendação).** |

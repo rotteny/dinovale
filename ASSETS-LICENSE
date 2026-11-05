@@ -26,5 +26,10 @@ O que NÃO está coberto
   original (somente CC0 ou CC BY são aceitos no projeto), registrada por
   arquivo em `game/assets/CREDITS.md`. Ficam em `game/assets/third_party/`,
   cada pacote com o próprio texto de licença (ex.: `LICENSE.txt` do pacote).
+- Placeholders gerados por IA: não estão sob esta licença nem sob a CC BY 4.0.
+  São provisórios, marcados com origem `IA-placeholder` em
+  `game/assets/CREDITS.md`, e seguem os termos da ferramenta que os gerou, o
+  que pode incluir a proibição de usá-los para treinar IA. Podem não ter
+  proteção de direito autoral, e o projeto não concede direitos sobre eles.
 
 Registro por arquivo: `game/assets/CREDITS.md`.

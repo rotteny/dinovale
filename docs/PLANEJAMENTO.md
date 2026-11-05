@@ -648,7 +648,7 @@ Sem o M4b a 1.0 custa 926 h R em vez de 1001. Ordem de corte dentro do M4b: Ofer
 #### D. Pendências reais desta rodada
 
 1. **Commit do PRO-15** e revisão do `LEVI`: o crédito de 8 h e o trabalho todo estão só no working tree.
-2. **Dono aceita a divisão M4 e M4b** (D27).
+2. ~~Dono aceita a divisão M4 e M4b (D27).~~ **Aceita pelo dono em 05/11.**
 3. **Mochila e selas são "provisórias" no GDD** (sem números definitivos): a 1.0 de 57 receitas e 82 Saber muda se mudarem.
 4. **Artista:** depois do playtest, com o resultado do ART-08; o gate C (arte final antes do lançamento público) continua valendo e o prazo do artista fica espremido (R18, R39).
 5. **Herdadas:** XP do jogador no M1 (GDD diz sim, plano diz M2), Dodo antes ou depois do QA-01a (+10 h), Cocho como Must; estimativas minhas a confirmar pela `SHIRO`; D6, D7, D13 e D14.
@@ -780,7 +780,7 @@ Sem o M4b a 1.0 custa 926 h R em vez de 1001. Ordem de corte dentro do M4b: Ofer
 | R35 | **Tetos de nível e "poucos altos" sem playtest**: 2,5 a 3 h de companhia até o teto 50 pode parecer espera; dinos fortes podem ficar raros demais | Média | Baixo | testador não nota progressão | valores em chave de servidor (`dino_nivel_max` e outras); PRO-20 em dado; revisar no QA-01 |
 | R36 | **M4 inchado de novo** (R34): peças, Mochila, Forja com carvão, Arco, Montaria, Sela, comandos, Oferta | Alta | Alto | M4 passa do pessimista | **divisão M4 e M4b** (4.11): o M4b (48/75/120) só entra depois do playtest 3 e é cortável por inteiro; ordem de corte dentro do M4b: Oferta, Postura, Sela, Montaria |
 | R37 | **Mochila faz os slots limitarem** (24 base, +16): contradiz o "slots só exibição" de 5.1; sem playtest pode parecer atrito sem alívio | Média | Médio | testador reclama de "inventário cheio" | só no M4; valores em `ServerRules`; excesso vai à sacolinha; a v0.2 **não** tem limite de slots |
-| R38 | **PRO-15 está só no working tree** (768 linhas inseridas, 20 arquivos, sem commit nem revisão): perda ou sobrescrita (R14), e o crédito de 8 h R depende de revisão do `LEVI` | Média | Alto | `git checkout` ou agente em paralelo mexe nos mesmos arquivos | commit em branch própria antes de qualquer outra tarefa; `LEVI` revisa antes do merge; sem tarefa nova em `InventoryComponent`, `HotbarComponent` ou `Player` até lá |
+| R38 | ~~PRO-15 só no working tree~~ **Resolvido em 05/11:** revisado pelo `LEVI`, commitado e publicado (`19732fa`, `255e2be`) | Encerrado | n/a | n/a | n/a |
 | R39 | **Arte de IA como placeholder** (ART-08): o teste pode agradar e virar atalho ("fica assim"); crítica da comunidade (R17) e a D3 exigem troca antes do lançamento | Média | Médio | placeholder de IA sem marca no `CREDITS.md` ou usado em release | marca obrigatória no `CREDITS.md`; veredito do dono só sobre estilo; **artista só depois do playtest**, então o gate C aperta o fim do M2 (R18) |
 | R40 | **Vagas só com a Arma visível no M1**: o modelo genérico de 6 vagas é pago agora e só 1 vaga é testada; as 5 de roupa (`slot_visivel`) só aparecem no M4 | Média | Baixo | bug de vaga de roupa descoberto no M4 | testes de modelo cobrem as 6 vagas por dado desde o M1 (inclusive `equipar` recusando vaga errada) |
 | R41 | **Montaria é o maior risco de rede** (6 h estimadas dentro das 32 h) e muda a autoridade do movimento; a sela adiciona item individual na sacolinha e extra de Peso | Alta | Alto | S0 repetido (NET-03) não cobre movimento montado | M4b depois do playtest e do M3; ADR do `KURAMA` antes de CRI-45; recorte de 26 h (sem ataque montado, só dois dinos) como saída |
@@ -883,7 +883,7 @@ Já decidido e portanto fora desta lista: licença do código (MIT), repositóri
 | **D24** | Decisões finais de armas e química (06/11): Rifle, Dardo, fósforo, pólvora e sílex sem marco; Arco, flechas e Boleadeira no M4, Besta no M5; Forja com carvão (M4 a M5); tetos de nível e Pilão na 0.2 | **DECIDIDO (06/11)** | CRI-34, CRI-35, CRI-39, CRI-40, PRO-20, PRO-21 |
 | **D25** | Artista só depois do playtest; teste de arte de dino com IA como placeholder (ART-08), sem custo do dono além do teste | **DECIDIDO (06/11)** | ART-06, D12 |
 | **D26** | Vagas de equipamento (M1 só a Arma; peças no M4), Mochila (M4), menu do domado e Seguir/Ficar todos (M2), Ir até aqui e Postura, Montaria e Sela (depois do playtest) | **DECIDIDO (06/11)**; 1.0 em 57 receitas e 82 Saber (L69), v0.2 em 19 e 20 | PRO-22, CRI-31, CRI-42 a CRI-46 |
-| **D27** | Dividir o M4 em M4 e M4b (Montaria, Sela, Postura, Oferta depois do playtest) | **Recomendo sim**; decide o dono | M4, M4b |
+| **D27** | Dividir o M4 em M4 e M4b (Montaria, Sela, Postura, Oferta depois do playtest) | **Decidido pelo dono em 05/11: sim** | M4, M4b |
 
 ---
 

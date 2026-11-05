@@ -9,6 +9,7 @@ extends Control
 
 const HOTBAR_WIDTH := 9 * 26.0 + 8 * 2.0
 const BOTTOM_MARGIN := 4.0
+const NOTICE_SECONDS := 2.0
 
 @export var player: Player
 
@@ -20,6 +21,8 @@ var _xp_label := Label.new()
 var _xp_bar := StatBar.new("", Color(0.45, 0.6, 1.0), Vector2(HOTBAR_WIDTH - 30.0, 4.0))
 var _hotbar := HotbarBar.new()
 var _prompt := Label.new()
+var _notice := Label.new()
+var _notice_tween: Tween
 var _watched: InteractableArea = null
 
 
@@ -66,8 +69,16 @@ func _ready() -> void:
 	_prompt.visible = false
 	add_child(_prompt)
 
+	_notice.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM, Control.PRESET_MODE_MINSIZE, 76)
+	_notice.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_notice.add_theme_color_override("font_outline_color", Color.BLACK)
+	_notice.add_theme_constant_override("outline_size", 4)
+	_notice.visible = false
+	add_child(_notice)
+
 	if player == null:
 		return
+	player.equip_refused.connect(show_notice_for)
 	player.health.health_changed.connect(_health_bar.set_values)
 	player.hunger.hunger_changed.connect(_hunger_bar.set_values)
 	player.target_changed.connect(_on_target_changed)
@@ -106,6 +117,24 @@ func hunger_bar() -> StatBar:
 
 func prompt_label() -> Label:
 	return _prompt
+
+
+func notice_label() -> Label:
+	return _notice
+
+
+## Aviso curto de uma recusa de equipar (a tecla de atalho não abre a tela, então o aviso é daqui).
+func show_notice_for(reason: String) -> void:
+	var message := EquipmentComponent.refusal_message(reason)
+	if message == "":
+		return
+	_notice.text = message
+	_notice.visible = true
+	if _notice_tween != null:
+		_notice_tween.kill()
+	_notice_tween = create_tween()
+	_notice_tween.tween_interval(NOTICE_SECONDS)
+	_notice_tween.tween_callback(func() -> void: _notice.visible = false)
 
 
 func _on_target_changed(target: InteractableArea) -> void:

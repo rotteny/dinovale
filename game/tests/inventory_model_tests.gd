@@ -23,6 +23,11 @@ func run() -> void:
 	_test_two_phase_load()
 	_test_survivors()
 	_test_final_findings()
+	_test_save_blocks()
+	_test_equipment_slots()
+	_test_clothing_slots()
+	_test_equipment_player()
+	_test_equipment_screen()
 	_test_legacy_starting_equipment()
 	_test_hands_and_cooldowns()
 	_test_add_entry_and_slot_transfer()
@@ -204,7 +209,9 @@ func _test_player_equipment() -> void:
 	var changes: Array[String] = []
 	player.equipped_changed.connect(func(value: String) -> void: changes.append(value))
 	_check(player.request_use_item(3) and player.equipped_iid == iid and player.current_weapon().id == "sleep_staff" and changes == [iid],
-			"a tecla seleciona o Bastão")
+			"a tecla equipa o Bastão")
+	_check(not player.inventory.has_iid(iid) and player.equipment.iid_in("weapon") == iid and player.inventory.count(STAFF) == 0,
+			"o equipado sai da grade e fica na vaga Arma")
 	_check(not player.request_use_item(3) and player.equipped_iid == iid, "recarga de troca de 0,3 s")
 	player.tick(0.3)
 	# Comida consome e NÃO mexe no equipado; equipamento seleciona e NÃO gasta estoque.
@@ -212,21 +219,22 @@ func _test_player_equipment() -> void:
 	_check(player.request_use_item(0) and player.equipped_iid == iid and player.inventory.count(Items.BERRY) == 9,
 			"comer não troca o equipado")
 	player.tick(0.5)
-	var items_before := player.inventory.count(STAFF)
 	_check(player.request_use_item(3) and player.equipped_iid == "" and player.current_weapon() == player.unarmed
-			and player.inventory.count(STAFF) == items_before and changes == [iid, ""],
-			"a mesma tecla desequipa (mãos livres) sem gastar o item")
+			and player.inventory.has_iid(iid) and player.equipment.count(STAFF) == 0 and changes == [iid, ""],
+			"a mesma tecla desequipa (volta à grade, mãos livres) sem gastar o item")
 	player.tick(0.3)
-	# Mover o item de lugar (para o dino e de volta) mantém a barra ligada pelo iid.
+	# Equipado fora da grade: não dá para transferi-lo; na grade, mover de lugar mantém o atalho pelo iid.
+	var chest := _inventory(4, "c")
 	player.request_use_item(3)
 	player.tick(0.3)
-	var chest := _inventory(4, "c")
+	_check(player.inventory.transfer(chest, STAFF, 1) == 0 and chest.is_empty(), "equipado não está na grade: não se transfere")
+	player.request_use_item(3)
+	player.tick(0.3)
 	var slot_index := -1
 	for i in player.inventory.slot_count():
 		if player.inventory.get_slot(i).get("iid", "") == iid:
 			slot_index = i
-	_check(player.inventory.transfer_slot(slot_index, chest) == 1 and player.equipped_iid == "",
-			"item em mãos que sai do inventário solta as mãos")
+	_check(player.inventory.transfer_slot(slot_index, chest) == 1 and player.equipped_iid == "", "fora da vaga, sai da grade normalmente")
 	_check(not player.request_use_item(3), "sem o item, a tecla não faz nada")
 	chest.transfer_slot(0, player.inventory)
 	_check(player.hotbar.iid_at(3) == iid and player.request_use_item(3) and player.equipped_iid == iid,
@@ -246,12 +254,12 @@ func _test_player_equipment() -> void:
 	var restored := _player()
 	restored.from_dict(JSON.parse_string(JSON.stringify(player.to_dict())))
 	_check(restored.equipped_iid == iid and restored.current_weapon().id == "sleep_staff", "o equipado vai e volta pelo save")
-	restored.from_dict({"equipped": "naoexiste"})
-	_check(restored.equipped_iid == "", "equipado que não existe no inventário: mãos livres")
+	restored.from_dict({"inventory": {"slots": [{"id": STAFF, "iid": "z"}]}, "equipped": "naoexiste"})
+	_check(restored.equipped_iid == "" and restored.inventory.has_iid("z"), "save antigo, equipped que não existe: mãos livres")
 	restored.from_dict({"inventory": player.inventory.to_dict(), "equipped": 5})
-	_check(restored.equipped_iid == "", "equipado que não é texto: mãos livres")
+	_check(restored.equipped_iid == "", "save antigo, equipped que não é texto: mãos livres")
 	restored.from_dict({"inventory": {"slots": [{"id": "berry", "count": 2, "iid": "z"}]}, "equipped": "z"})
-	_check(restored.equipped_iid == "", "só arma pode estar em mãos")
+	_check(restored.equipped_iid == "", "save antigo, só arma vai para a vaga")
 
 
 func _test_player_save_migration() -> void:
@@ -271,7 +279,8 @@ func _test_player_save_migration() -> void:
 			"save antigo: a barra migra e as mãos ficam livres")
 	_check(is_equal_approx(player.health.current_health, 80.0) and player.position == Vector2(5.0, 6.0), "save antigo: o resto carrega")
 	var resaved: Dictionary = JSON.parse_string(JSON.stringify(player.to_dict()))
-	_check(resaved["inventory"]["version"] == 2 and resaved["hotbar"]["version"] == 2 and resaved["equipped"] == "",
+	_check(resaved["inventory"]["version"] == 2 and resaved["hotbar"]["version"] == 2
+			and resaved["equipment"]["slots"] == {} and resaved["version"] == 2,
 			"ao salvar de novo, sai na versão 2")
 
 
@@ -290,8 +299,6 @@ func _test_equipment_ui() -> void:
 	player.tick(0.3)
 	player.request_use_item(3)
 	_check(not bar.is_equipped(3) and bar.highlight_color(3).a == 0.0, "desequipado: o destaque some")
-	player.tick(0.3)
-	player.request_use_item(3)
 	player.tick(0.3)
 	player.inventory.remove_iid(player.hotbar.iid_at(3))
 	_check(bar.is_dimmed(3) and not bar.is_equipped(3) and bar.highlight_color(3).a == 0.0 and bar.slot_button(3).icon != null,
@@ -471,25 +478,22 @@ func _test_hands_and_cooldowns() -> void:
 	_check(not player.request_use_item(1) and not player.request_use_item(3), "cada uma com a sua recarga")
 	player.tick(0.3)
 	_check(player.request_use_item(3) and not player.request_use_item(1), "a de equipar (0,3 s) passou; a de comer (0,5 s) não")
-	# Limpar o atalho do item em mãos solta as mãos.
+	# Limpar o atalho do item na vaga NÃO o tira dela (a vaga é a fonte da verdade; tira-se pela tela).
 	player.tick(0.5)
 	player.request_use_item(3)
-	_check(player.equipped_iid == iid, "em mãos de novo")
+	_check(player.equipped_iid == iid, "equipado de novo")
 	player.hotbar.clear(3)
-	_check(player.equipped_iid == "" and player.current_weapon() == player.unarmed, "limpar o atalho do que está em mãos solta as mãos")
-	# Mover o atalho de posição não solta.
-	player.hotbar.assign_iid(5, iid, STAFF)
+	_check(player.equipped_iid == iid and player.equipment.iid_in("weapon") == iid, "limpar o atalho não tira o item da vaga")
 	player.tick(0.3)
-	player.request_use_item(5)
-	player.hotbar.assign_iid(6, iid, STAFF)
-	_check(player.equipped_iid == iid, "mudar o atalho de posição mantém as mãos")
+	_check(player.request_unequip("weapon") == "" and player.equipped_iid == "" and player.inventory.has_iid(iid),
+			"tirar pela vaga devolve à grade")
 	# Pela Main (o caminho da tela).
 	var wired := Main.new()
 	wired.player = player
-	wired._on_hotbar_assign_requested(6, "", "")
-	_check(player.equipped_iid == "", "a Main, ao limpar o atalho, também solta as mãos")
 	wired._on_hotbar_assign_requested(2, STAFF, iid)
 	_check(player.hotbar.iid_at(2) == iid and player.hotbar.type_at(2) == STAFF, "a Main aplica o atalho por iid (ramo iid)")
+	wired._on_hotbar_assign_requested(2, "", "")
+	_check(player.hotbar.iid_at(2) == "", "e a limpeza")
 	wired.free()
 
 
@@ -583,18 +587,14 @@ func _test_survivors() -> void:
 	screen.assign_to_hotbar(-1, 0)
 	_check(requests.is_empty(), "limpeza de órfão não apaga atalho válido (Bastão no inventário, nem comida)")
 	screen.close()
-	# `equipped` só vale com o item na barra.
+	# O equipado vai e volta pelo save; `{}` não muda; bloco vazio explícito esvazia a vaga.
 	player.request_use_item(3)
 	var saved := player.to_dict()
-	var loose: Dictionary = JSON.parse_string(JSON.stringify(saved))
-	loose["hotbar"] = {"version": 2, "slots": []}
 	var other := _player()
-	other.from_dict(loose)
-	_check(other.equipped_iid == "" and other.inventory.has_iid(iid), "equipped sem o item na barra: mãos livres")
-	_check(other.from_dict(JSON.parse_string(JSON.stringify(saved))) and other.equipped_iid == iid, "com o item na barra, vale")
-	# `{}` não solta as mãos.
+	_check(other.from_dict(JSON.parse_string(JSON.stringify(saved))) and other.equipped_iid == iid, "equipado vai e volta pelo save")
 	_check(other.from_dict({}) and other.equipped_iid == iid, "{} não solta as mãos")
-	_check(other.from_dict({"equipped": ""}) and other.equipped_iid == "", "equipped explícito vazio solta")
+	_check(other.from_dict({"inventory": saved["inventory"], "equipment": {"version": 1, "slots": {}}}) and other.equipped_iid == "",
+			"equipment vazio explícito esvazia (junto do inventário)")
 	# transfer() com colisão de iid.
 	var source := _inventory(3, "a")
 	var dest := _inventory(3, "b")
@@ -633,12 +633,9 @@ func _test_final_findings() -> void:
 			"custo limitado: 9999 baga (teto 1) e 9999 Bastões viram no máximo slots+1 entradas")
 	_check(not tiny.from_dict({"slots": [{"id": "berry", "count": 9999}]})
 			and not tiny.from_dict({"slots": [{"id": STAFF, "count": 9999}]}) and tiny.is_empty(), "e a carga segue recusada (não cabe)")
-	var started := Time.get_ticks_usec()
-	var hostile: Array = []
-	for i in InventoryComponent.MAX_SAVED_SLOTS:
-		hostile.append({"id": "berry", "count": 9999999})
-	tiny.from_dict({"slots": hostile})
-	_check(Time.get_ticks_usec() - started < 2000000, "save hostil no teto de posições, todas com contagem enorme: rápido")
+	var edge := InventoryComponent.MAX_SAVED_SLOTS
+	_check(tiny.from_dict({"slots": new_array(edge)}) and not tiny.from_dict({"slots": new_array(edge + 1)}),
+			"borda de MAX_SAVED_SLOTS: %d passa, %d recusa" % [edge, edge + 1])
 	# 2. `slots` corrompido recusa (inventário, barra e criatura); nada muda.
 	var player := _player()
 	var base := player.to_dict()
@@ -665,10 +662,11 @@ func _test_final_findings() -> void:
 				"estilo '%s' do equipado: fundo e borda amarelos" % state)
 	_check(not bar.slot_button(0).has_theme_stylebox_override("normal"),
 			"célula sem item em mãos não tem o estilo de destaque")
-	# 4b. Atalho em mãos trocado por comida: solta as mãos e o destaque some.
+	# 4b. Atalho do equipado trocado por comida: o item segue na vaga e a célula perde o destaque.
 	player.hotbar.assign(3, Items.BERRY)
-	_check(player.equipped_iid == "" and not bar.slot_button(3).has_theme_stylebox_override("normal") and not bar.is_equipped(3)
-			and bar.highlight_color(3).a == 0.0 and bar.count_text(3) != "", "atalho do equipado trocado por comida: sem destaque, mãos livres")
+	_check(player.equipped_iid != "" and not bar.slot_button(3).has_theme_stylebox_override("normal") and not bar.is_equipped(3)
+			and bar.highlight_color(3).a == 0.0 and bar.count_text(3) != "",
+			"atalho do equipado trocado por comida: sem destaque, item segue na vaga")
 	# 4c. preview: capacidade, teto, prefixo, regra; vazio; não toca no original.
 	var original := _inventory(5, "z")
 	original.max_stack = 7
@@ -703,3 +701,245 @@ func _test_final_findings() -> void:
 func _player_refuse_legacy(crowded: Array) -> void:
 	var player := _player()
 	player.from_dict({"inventory": {"slots": crowded}})
+
+
+## Bloco salvo que existe e não é dicionário, ou com versão e sem `slots`, é corrupção; `{}` é parcial.
+func _test_save_blocks() -> void:
+	var player := _player()
+	var base := player.to_dict()
+	var dino := _spawn_dino()
+	dino.set_physics_process(false)
+	var dino_base := dino.to_dict()
+	for key in ["inventory", "hotbar", "equipment"]:
+		for bad: Variant in [5, "x", null, [], true]:
+			_check(not player.from_dict({key: bad, "position": {"x": 9.0, "y": 9.0}}) and player.to_dict() == base,
+					"Player: %s que não é dicionário (%s) recusa" % [key, str(bad)])
+		_check(not player.from_dict({key: {"version": 1}, "position": {"x": 9.0, "y": 9.0}}) and player.to_dict() == base,
+				"Player: %s com version e sem slots recusa" % key)
+	for bad: Variant in [5, "x", null, [], true]:
+		_check(not dino.from_dict({"inventory": bad, "level": 2}) and dino.to_dict() == dino_base, "Dino: inventory (%s) recusa" % str(bad))
+	_check(not dino.from_dict({"inventory": {"version": 2}, "level": 2}) and dino.to_dict() == dino_base,
+			"Dino: inventory com version e sem slots recusa")
+	_check(player.from_dict({}) and player.to_dict() == base, "{} no Player segue sendo save parcial válido")
+	for bad: Variant in ["x", 0, 3, 2.5]:
+		_check(not player.from_dict({"version": bad}) and player.to_dict() == base, "Player: version %s recusa" % str(bad))
+
+
+## O modelo de vagas (6, por dado): equipar, trocar, tirar, grade cheia, validação e save.
+func _test_equipment_slots() -> void:
+	var layout := Items.EQUIPMENT
+	_check(layout.ids() == ["weapon", "helmet", "shirt", "glove", "pants", "boot"], "seis vagas em dados, na ordem do GDD")
+	_check(layout.shown_slots().size() == 1 and layout.shown_slots()[0].id == "weapon", "só a Arma é visível no M1")
+	_check(Items.slot_of(STAFF) == "weapon" and Items.slot_of(Items.BERRY) == "" and Items.hotbar_allowed(STAFF)
+			and Items.hotbar_allowed(Items.BERRY), "Bastão é de mão (vaga Arma); comida não tem vaga")
+	_check(not layout.slot_def("helmet").hotbar and layout.slot_def("weapon").hotbar, "roupa não vai ao atalho (dado)")
+	var grid := _inventory(2, "g")
+	var gear: EquipmentComponent = _track.call(EquipmentComponent.new())
+	gear.inventory = grid
+	grid.add(STAFF, 1)
+	var iid := gear.inventory.get_slot(0)["iid"] as String
+	for wrong in ["helmet", "shirt", "glove", "pants", "boot"]:
+		_check(gear.equip(iid, wrong) == EquipmentComponent.REFUSED_WRONG_SLOT and grid.has_iid(iid), "Bastão na vaga %s: recusa" % wrong)
+	_check(gear.equip(iid, "mochila") == EquipmentComponent.REFUSED_UNKNOWN_SLOT and gear.equip("nao") == EquipmentComponent.REFUSED_MISSING,
+			"vaga desconhecida e item inexistente: recusa")
+	var events := [0]
+	gear.changed.connect(func() -> void: events[0] += 1)
+	_check(gear.equip(iid) == "" and not grid.has_iid(iid) and gear.iid_in("weapon") == iid and events[0] == 1,
+			"equipar (vaga do item) tira da grade e põe na vaga")
+	_check(gear.find_iid(iid)["durab"] == 120, "o item inteiro fica na vaga (durabilidade)")
+	# Troca: o novo entra, o antigo volta ao slot que o novo liberou, mesmo com a grade cheia.
+	grid.add(STAFF, 1)
+	grid.add(Items.BERRY, 1)
+	var second := ""
+	for i in grid.slot_count():
+		if grid.get_slot(i).has("iid"):
+			second = grid.get_slot(i)["iid"]
+	_check(grid.room_for(Items.MEAT) == 0 and gear.equip(second) == "" and gear.iid_in("weapon") == second and grid.has_iid(iid)
+			and not grid.has_iid(second), "troca com a grade cheia: o antigo volta à grade, nada some")
+	# Grade cheia: tirar recusa e nada muda.
+	var full_before := grid.to_dict()
+	var worn_before := gear.to_dict()
+	_check(gear.unequip("weapon") == EquipmentComponent.REFUSED_FULL and grid.to_dict() == full_before and gear.to_dict() == worn_before,
+			"tirar com a grade cheia: recusa 'full', sem perder item")
+	grid.remove(Items.BERRY, 1)
+	_check(gear.unequip("weapon") == "" and grid.has_iid(second) and gear.iid_in("weapon") == "", "com espaço, tira")
+	_check(gear.unequip("weapon") == EquipmentComponent.REFUSED_EMPTY_SLOT and gear.unequip("x") == EquipmentComponent.REFUSED_UNKNOWN_SLOT,
+			"vaga vazia e vaga desconhecida: recusa")
+	# Save: roundtrip, iid, migração de iid colidindo, recusas.
+	gear.equip(second)
+	var saved: Dictionary = JSON.parse_string(JSON.stringify(gear.to_dict()))
+	var grid2 := _inventory(3, "g")
+	var gear2: EquipmentComponent = _track.call(EquipmentComponent.new())
+	gear2.inventory = grid2
+	_check(saved["version"] == 1 and gear2.from_dict(saved) and gear2.to_dict() == gear.to_dict(), "roundtrip de {vaga: item}")
+	grid2.from_dict({"slots": [{"id": STAFF, "iid": second, "durab": 3, "durab_max": 120}]})
+	var grid2_before := grid2.to_dict()
+	var worn2_before := gear2.to_dict()
+	_check(not gear2.can_load(saved) and not gear2.from_dict(saved) and gear2.to_dict() == worn2_before and grid2.to_dict() == grid2_before,
+			"iid que colide com a grade: recusa (o mesmo item não fica em dois lugares) e nada muda, nem o next_iid")
+	var no_iid := {"slots": {"weapon": {"id": STAFF}}}
+	_check(gear2.can_load(no_iid) and grid2.to_dict() == grid2_before, "can_load não mexe na grade (next_iid)")
+	grid2.add(STAFF, 1)
+	_check(gear2.from_dict(no_iid) and gear2.iid_in("weapon") != "" and not grid2.has_iid(gear2.iid_in("weapon")),
+			"iid ausente: a grade emite um novo que não colide")
+	var before := gear2.to_dict()
+	var grid_before := grid2.to_dict()
+	var bad_saves: Array = [
+		{"version": 2, "slots": {}}, {"version": "x", "slots": {}}, {"slots": []}, {"slots": "x"}, {},
+		{"slots": {"helmet": {"id": STAFF}}}, {"slots": {"weapon": {"id": Items.BERRY, "count": 1}}},
+		{"slots": {"mochila": {"id": STAFF}}}, {"slots": {"weapon": 5}}, {"slots": {"weapon": {"id": "lixo"}}},
+		{"slots": {"weapon": {"id": STAFF, "iid": "a"}, "boot": {"id": STAFF, "iid": "a"}}},
+	]
+	for bad: Dictionary in bad_saves:
+		_check(not gear2.from_dict(bad) and gear2.to_dict() == before and not gear2.can_load(bad) and grid2.to_dict() == grid_before,
+				"vagas inválidas recusam sem tocar na grade: %s" % str(bad))
+	_check(gear2.from_dict({"slots": {"weapon": {"id": STAFF}}}) and gear2.find_iid(gear2.iid_in("weapon"))["durab"] == 120,
+			"individual sem durabilidade nem iid: padrão seguro")
+
+
+## Player: pedido validado, recarga, aviso de grade cheia, atalho e `iid` com o item na vaga, migração.
+func _test_equipment_player() -> void:
+	var player := _player()
+	var iid := player.hotbar.iid_at(3)
+	var refusals: Array[String] = []
+	player.equip_refused.connect(func(reason: String) -> void: refusals.append(reason))
+	_check(player.request_equip(iid, "boot") == EquipmentComponent.REFUSED_WRONG_SLOT and refusals == ["wrong_slot"],
+			"vaga errada pelo pedido: recusa e avisa a tela")
+	_check(player.request_equip(iid) == "" and player.request_unequip("weapon") == Player.COOLDOWN and refusals.size() == 1,
+			"recarga de 0,3 s: recusa silenciosa")
+	player.tick(0.3)
+	_check(player.hotbar.iid_at(3) == iid and player.find_item(iid)["id"] == STAFF, "atalho e iid seguem válidos com o item na vaga")
+	# Grade cheia: tirar recusa com aviso e nada some.
+	player.inventory.add(Items.BERRY, 9999)
+	player.inventory.add(Items.MEAT, 9999)
+	var snapshot := player.to_dict()
+	_check(player.inventory.room_for(Items.BERRY) + player.inventory.room_for(Items.MEAT) == 0, "grade cheia de verdade")
+	_check(player.request_unequip("weapon") == "full" and refusals.back() == "full" and player.equipped_iid == iid
+			and player.to_dict() == snapshot, "grade cheia: recusa com aviso e nada some")
+	_check(not player.request_use_item(3) and player.equipped_iid == iid, "a tecla também recusa (grade cheia)")
+	# Migração: save antigo com `equipped` na grade vai para a vaga.
+	var old := _player()
+	_check(old.from_dict({"inventory": {"slots": [{"id": STAFF, "iid": "k1", "durab": 70, "durab_max": 120}, {"id": "berry", "count": 2}]},
+			"hotbar": {"slots": ["berry"]}, "equipped": "k1"}), "save antigo com equipped carrega")
+	_check(old.equipped_iid == "k1" and not old.inventory.has_iid("k1") and old.find_item("k1")["durab"] == 70
+			and old.inventory.count(STAFF) == 0 and old.equipment.count(STAFF) == 1,
+			"migração: o equipado vai da grade para a vaga; o Bastão inicial não é duplicado")
+	# Sem `equipped`: nada vai à vaga; Bastão inicial na grade.
+	var plain := _player()
+	plain.from_dict({"inventory": {"slots": [{"id": "berry", "count": 2}]}})
+	_check(plain.equipped_iid == "" and plain.inventory.count(STAFF) == 1, "save antigo sem equipped: mãos livres, Bastão na grade")
+	# Vagas no save novo: roundtrip e validação contra o inventário (iid colidindo, recusa sem mudar nada).
+	var restored := _player()
+	_check(restored.from_dict(JSON.parse_string(JSON.stringify(player.to_dict()))) and restored.equipped_iid == iid, "roundtrip do Player")
+	var keep := restored.to_dict()
+	var hostile := keep.duplicate(true)
+	hostile["equipment"] = {"version": 1, "slots": {"helmet": {"id": STAFF, "iid": "h"}}}
+	hostile["position"] = {"x": 70.0, "y": 70.0}
+	_check(not restored.from_dict(hostile) and restored.to_dict() == keep, "vaga inválida recusa o save inteiro, nada muda")
+	hostile = keep.duplicate(true)
+	hostile["equipment"] = {"version": 2, "slots": {}}
+	_check(not restored.from_dict(hostile) and restored.to_dict() == keep, "versão de vagas maior recusa")
+
+
+func _test_equipment_screen() -> void:
+	var player := _player()
+	var iid := player.hotbar.iid_at(3)
+	var screen := InventoryScreen.new()
+	screen.hotbar = player.hotbar
+	screen.equipment = player.equipment
+	_root.add_child(screen)
+	_track.call(screen)
+	var equips: Array = []
+	var unequips: Array = []
+	screen.equip_requested.connect(func(value: String) -> void: equips.append(value))
+	screen.unequip_requested.connect(func(value: String) -> void: unequips.append(value))
+	screen.open_with(player.inventory, null, null, "")
+	_check(screen.equipment_button("weapon") != null and screen.equipment_button("helmet") == null, "a tela mostra só a vaga Arma")
+	_check(screen.equipment_button("weapon").text.contains("Arma"), "vaga vazia mostra a silhueta (nome do tipo)")
+	var staff_index := -1
+	for i in player.inventory.slot_count():
+		if player.inventory.get_slot(i).get("iid", "") == iid:
+			staff_index = i
+	var click := InputEventMouseButton.new()
+	click.button_index = MOUSE_BUTTON_LEFT
+	click.pressed = true
+	click.double_click = false
+	screen._on_slot_gui_input(click, staff_index)
+	_check(equips.is_empty(), "clique simples não equipa")
+	click.double_click = true
+	screen._on_slot_gui_input(click, staff_index)
+	_check(equips == [iid], "duplo clique no item da grade pede para equipar")
+	var accept := InputEventKey.new()
+	accept.keycode = KEY_ENTER
+	accept.pressed = true
+	screen._on_slot_gui_input(accept, staff_index)
+	_check(equips == [iid, iid], "Enter no item pede para equipar")
+	screen._on_slot_gui_input(click, 0)
+	_check(equips.size() == 2, "duplo clique em comida não equipa")
+	# Com o item na vaga: a coluna mostra o item, a grade não; duplo clique ou Enter na vaga pede para tirar.
+	player.request_equip(iid)
+	_check(screen.equipment_button("weapon").text.contains("Bastão") and screen.equipment_button("weapon").text.contains("120/120"),
+			"vaga ocupada mostra o item e a durabilidade")
+	var total := ""
+	for i in player.inventory.slot_count():
+		total += screen.slot_button(true, i).text
+	_check(not total.contains("Bastão"), "o equipado sai da grade na tela")
+	screen._on_equipment_gui_input(click, "weapon")
+	screen._on_equipment_gui_input(accept, "weapon")
+	_check(unequips == ["weapon", "weapon"], "duplo clique e Enter na vaga pedem para tirar")
+	# Atalho órfão não é o equipado: a tecla na posição do Bastão equipado não limpa.
+	var requests: Array = []
+	screen.hotbar_assign_requested.connect(func(slot: int, item_id: String, id: String) -> void: requests.append([slot, item_id, id]))
+	screen.assign_to_hotbar(-1, 3)
+	_check(requests.is_empty(), "atalho do item equipado não é órfão")
+	# O aviso de grade cheia vem do Player para a tela.
+	screen.show_refusal("wrong_slot")
+	_check(screen.notice_text() == "", "vaga errada: sem mensagem")
+	screen.show_refusal("full")
+	_check(screen.notice_text() == "Inventário cheio", "grade cheia: 'Inventário cheio'")
+	screen.close()
+	_check(not player.equipment.changed.is_connected(screen._refresh), "fechada, a tela solta equipment.changed")
+	# Barra: destaque com o item na vaga.
+	var hud := PlayerHud.new()
+	hud.player = player
+	_root.add_child(hud)
+	_track.call(hud)
+	_check(hud.hotbar_bar().is_equipped(3) and not hud.hotbar_bar().is_dimmed(3), "barra: equipado na vaga mantém o destaque amarelo")
+
+
+## Itens de roupa de teste (o catálogo do M1 não tem nenhum): prova o modelo das 6 vagas por dado.
+func _test_clothing_slots() -> void:
+	var catalog := Items._catalog()
+	var made: Array[String] = []
+	for slot_id in ["helmet", "shirt", "glove", "pants", "boot"]:
+		var def := ItemDef.new("test_" + slot_id, slot_id, 1, Color.WHITE)
+		def.durability_max = 10
+		def.slot = slot_id
+		catalog[def.id] = def
+		made.append(def.id)
+	var grid := _inventory(8, "g")
+	var gear: EquipmentComponent = _track.call(EquipmentComponent.new())
+	gear.inventory = grid
+	for id in made:
+		grid.add(id, 1)
+	grid.add(STAFF, 1)
+	for i in grid.slot_count():
+		var item := grid.get_slot(i)
+		if not item.is_empty():
+			_check(gear.equip(item["iid"]) == "", "equipa %s na vaga %s" % [item["id"], Items.slot_of(item["id"])])
+	_check(gear.count(STAFF) == 1 and made.all(func(id: String) -> bool: return gear.count(id) == 1) and grid.is_empty(),
+			"as 6 vagas ocupadas, a grade vazia")
+	var saved: Dictionary = JSON.parse_string(JSON.stringify(gear.to_dict()))
+	var other: EquipmentComponent = _track.call(EquipmentComponent.new())
+	other.inventory = _inventory(8, "h")
+	_check(other.from_dict(saved) and other.to_dict() == gear.to_dict(), "roundtrip de {vaga: item} nas 6 vagas")
+	grid.add("test_shirt", 1)
+	_check(grid.add("test_helmet", 1) == 0 and gear.equip(grid.get_slot(1)["iid"], "shirt") == EquipmentComponent.REFUSED_WRONG_SLOT,
+			"capacete na vaga Camisa: recusa")
+	# Roupa não vai ao atalho (dado) nem sobrevive no save da barra.
+	var bar: HotbarComponent = _track.call(HotbarComponent.new())
+	_check(not bar.assign_iid(0, "x1", "test_helmet") and bar.assign_iid(0, "x2", STAFF), "roupa não vai ao atalho; arma vai")
+	bar.from_dict({"version": 2, "slots": [{"iid": "a", "id": "test_boot"}, {"iid": "b", "id": STAFF}]})
+	_check(bar.iid_at(0) == "" and bar.iid_at(1) == "b", "o save da barra descarta roupa")
+	for id in made:
+		catalog.erase(id)

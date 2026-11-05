@@ -293,19 +293,30 @@ func _sanitize(entry: Variant) -> Array[Dictionary]:
 	return result
 
 
+## Entrada individual saneada (id conhecido e individual; `iid` e durabilidade com padrão seguro,
+## `iid` repetido ou inválido ganha um novo da cópia), ou `{}` se não for um individual válido.
+## Usada pelas vagas de equipamento para ler o save sem duplicar a regra.
+func clean_individual_entry(entry: Dictionary) -> Dictionary:
+	var item_id := SafeRead.text(entry.get("id"), "")
+	if not Items.is_individual(item_id):
+		return {}
+	return _clean_individual(item_id, entry)
+
+
 ## Individual saneado: `iid` texto curto e único (senão novo); durabilidade com padrão seguro
 ## (máximo do item e cheia, se faltar).
 func _clean_individual(item_id: String, entry: Dictionary) -> Dictionary:
 	var iid := SafeRead.text(entry.get("iid"), "")
 	if iid == "" or iid.length() > MAX_IID_LENGTH or has_iid(iid):
-		iid = _new_iid()
+		iid = issue_iid()
 	var limit := Items.durability_max(item_id)
 	var durab_max := SafeRead.integer(entry.get("durab_max"), limit, 1, 1000000)
 	var durab := SafeRead.integer(entry.get("durab"), durab_max, 0, durab_max)
 	return {"id": item_id, "iid": iid, "durab": durab, "durab_max": durab_max}
 
 
-func _new_iid() -> String:
+## Emite um `iid` novo, que não existe na grade (a vaga de equipamento usa ao restaurar).
+func issue_iid() -> String:
 	var iid := "%s%d" % [iid_prefix, _next_iid]
 	while has_iid(iid):
 		_next_iid += 1
@@ -316,7 +327,7 @@ func _new_iid() -> String:
 
 func _new_individual(item_id: String) -> Dictionary:
 	var limit := Items.durability_max(item_id)
-	return {"id": item_id, "iid": _new_iid(), "durab": limit, "durab_max": limit}
+	return {"id": item_id, "iid": issue_iid(), "durab": limit, "durab_max": limit}
 
 
 func _amount(slot: Dictionary) -> int:
@@ -340,7 +351,7 @@ func _put_entry(entry: Dictionary) -> bool:
 			return false
 		var placed := entry.duplicate()
 		if has_iid(placed["iid"]):
-			placed["iid"] = _new_iid()
+			placed["iid"] = issue_iid()
 		return _put(placed)
 	var wanted := int(entry["count"])
 	return _put_stack(entry["id"], wanted, float(entry.get("expira_em", 0.0))) == wanted

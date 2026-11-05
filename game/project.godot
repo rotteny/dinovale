@@ -7,13 +7,14 @@ config_version=5
 
 config/name="Dino Vale"
 config/description="Sandbox survival 2D top-down em pixel art, comunitário e auto-hospedado."
-run/main_scene="res://src/world/Main.tscn"
+run/main_scene="res://src/ui/TitleScreen.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 
 [display]
 
 window/size/viewport_width=640
 window/size/viewport_height=360
+window/size/mode=3
 window/size/window_width_override=1280
 window/size/window_height_override=720
 window/stretch/mode="viewport"
@@ -102,4 +103,4 @@ textures/canvas_textures/default_texture_filter=0
 2d/snap/snap_2d_transforms_to_pixel=true
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
-environment/defaults/default_clear_color=Color(0.29, 0.45, 0.27, 1)
+environment/defaults/default_clear_color=Color(0, 0, 0, 1)

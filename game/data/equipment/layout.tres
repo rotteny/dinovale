@@ -1,0 +1,50 @@
+[gd_resource type="Resource" script_class="EquipmentLayout" load_steps=9 format=3]
+
+[ext_resource type="Script" path="res://src/core/EquipmentLayout.gd" id="1_layout"]
+[ext_resource type="Script" path="res://src/core/EquipmentSlotDef.gd" id="2_def"]
+
+[sub_resource type="Resource" id="Slot_weapon"]
+script = ExtResource("2_def")
+id = "weapon"
+display_name = "Arma"
+shown = true
+hotbar = true
+
+[sub_resource type="Resource" id="Slot_helmet"]
+script = ExtResource("2_def")
+id = "helmet"
+display_name = "Capacete"
+shown = false
+hotbar = false
+
+[sub_resource type="Resource" id="Slot_shirt"]
+script = ExtResource("2_def")
+id = "shirt"
+display_name = "Camisa"
+shown = false
+hotbar = false
+
+[sub_resource type="Resource" id="Slot_glove"]
+script = ExtResource("2_def")
+id = "glove"
+display_name = "Luva"
+shown = false
+hotbar = false
+
+[sub_resource type="Resource" id="Slot_pants"]
+script = ExtResource("2_def")
+id = "pants"
+display_name = "Calça"
+shown = false
+hotbar = false
+
+[sub_resource type="Resource" id="Slot_boot"]
+script = ExtResource("2_def")
+id = "boot"
+display_name = "Bota"
+shown = false
+hotbar = false
+
+[resource]
+script = ExtResource("1_layout")
+slots = Array[ExtResource("2_def")]([SubResource("Slot_weapon"), SubResource("Slot_helmet"), SubResource("Slot_shirt"), SubResource("Slot_glove"), SubResource("Slot_pants"), SubResource("Slot_boot")])

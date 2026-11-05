@@ -18,8 +18,15 @@ signal input_lock_changed(locked: bool)
 signal attacked
 ## Comeu um item (quem mostra o efeito é a apresentação).
 signal ate(item_id: String)
-## O item em mãos mudou (`iid` do equipado, "" = mãos livres).
+## O item na vaga Arma mudou (`iid` do equipado, "" = mãos livres).
 signal equipped_changed(iid: String)
+## Um pedido de equipar ou tirar foi recusado (`EquipmentComponent.REFUSED_*`); a tela mostra o aviso.
+signal equip_refused(reason: String)
+
+## Versão do formato do save do jogador. 1 = antigo (sem campo; item em mãos em `equipped`, na grade);
+## 2 = vagas de equipamento (`equipment`).
+const FORMAT_VERSION := 2
+const COOLDOWN := "cooldown"
 
 @export var walk_speed: float = 70.0
 @export var sprint_speed: float = 120.0
@@ -33,8 +40,10 @@ signal equipped_changed(iid: String)
 @export var starting_items: Dictionary = {Items.BERRY: 10, Items.MEAT: 4, Items.FERN: 3}
 
 var target: InteractableArea = null
-## `iid` do item em mãos; "" = mãos livres (Soco). Sempre aponta para um item do inventário.
-var equipped_iid: String = ""
+## `iid` do item na vaga Arma; "" = mãos livres (Soco). O item equipado NÃO está na grade.
+var equipped_iid: String:
+	get:
+		return equipment.iid_in(EquipmentLayout.WEAPON)
 var input_locked: bool = false:
 	set(value):
 		if input_locked != value:
@@ -45,6 +54,7 @@ var _in_range: Array[InteractableArea] = []
 var _attack_timer: float = 0.0
 var _eat_timer: float = 0.0
 var _equip_timer: float = 0.0
+var _last_equipped: String = ""
 
 ## Sprite: só a apresentação (`PlayerView`) escolhe o quadro.
 @onready var visual: Sprite2D = $Visual
@@ -53,6 +63,7 @@ var _equip_timer: float = 0.0
 @onready var hunger: HungerComponent = $HungerComponent
 @onready var inventory: InventoryComponent = $InventoryComponent
 @onready var hotbar: HotbarComponent = $HotbarComponent
+@onready var equipment: EquipmentComponent = $EquipmentComponent
 @onready var detector: Area2D = $InteractionDetector
 
 
@@ -70,8 +81,7 @@ func _ready() -> void:
 	for item_id in starting_equipment:
 		if inventory.add(item_id, 1) == 0:
 			hotbar.assign_iid(hotbar.first_free(), _newest_iid(item_id), item_id)
-	inventory.changed.connect(_on_inventory_changed)
-	hotbar.changed.connect(_on_inventory_changed)
+	equipment.changed.connect(_on_equipment_changed)
 
 
 func _physics_process(delta: float) -> void:
@@ -159,8 +169,7 @@ func attack() -> bool:
 
 ## Arma em mãos: a do item equipado, ou o Soco com as mãos livres.
 func current_weapon() -> WeaponDef:
-	var item := inventory.find_iid(equipped_iid)
-	var weapon := Items.weapon_of(str(item.get("id", "")))
+	var weapon := Items.weapon_of(str(equipment.item_in(EquipmentLayout.WEAPON).get("id", "")))
 	return weapon if weapon != null else unarmed
 
 
@@ -190,27 +199,67 @@ func request_use_item(slot: int) -> bool:
 	return true
 
 
-func _toggle_equipped(iid: String) -> bool:
+## Item pelo `iid`, na grade ou em uma vaga de equipamento; `{}` se não existe.
+func find_item(iid: String) -> Dictionary:
 	var item := inventory.find_iid(iid)
-	if item.is_empty() or Items.weapon_of(item["id"]) == null:
-		return false
-	_set_equipped("" if equipped_iid == iid else iid)
-	_equip_timer = rules.equip_cooldown
-	return true
+	return item if not item.is_empty() else equipment.find_iid(iid)
 
 
-func _set_equipped(iid: String) -> void:
-	if iid == equipped_iid:
+## Pedido de equipar o item `iid` da grade (vaga "" = a do item). Recarga de 0,3 s. Devolve "" se
+## equipou ou o motivo da recusa (`EquipmentComponent.REFUSED_*`, ou "cooldown"); recusa avisa por
+## `equip_refused`, exceto a recarga, que é silenciosa.
+func request_equip(iid: String, slot_id: String = "") -> String:
+	var reason := _after_equip_request(equipment.equip(iid, slot_id) if _can_equip_now() else COOLDOWN)
+	if reason == "":
+		_ensure_hotbar_slot(iid)
+	return reason
+
+
+## O equipado precisa de atalho para ter o destaque na barra: sem atalho, vai ao primeiro livre
+## (barra cheia: fica sem; o que já tem atalho não muda).
+func _ensure_hotbar_slot(iid: String) -> void:
+	var item := find_item(iid)
+	if item.is_empty() or hotbar.slot_of_iid(iid) >= 0 or hotbar.first_free() < 0:
 		return
-	equipped_iid = iid
-	equipped_changed.emit(iid)
+	hotbar.assign_iid(hotbar.first_free(), iid, item["id"])
 
 
-## O item em mãos saiu do inventário (movido, entregue) ou do atalho (limpo, trocado de lugar
-## é outra coisa: continua na barra): volta a mãos livres. Só se equipa pela barra.
-func _on_inventory_changed() -> void:
-	if equipped_iid != "" and (not inventory.has_iid(equipped_iid) or hotbar.slot_of_iid(equipped_iid) < 0):
-		_set_equipped("")
+## Pedido de tirar o item da vaga para a grade (grade sem posição livre: recusa "full").
+func request_unequip(slot_id: String) -> String:
+	return _after_equip_request(equipment.unequip(slot_id) if _can_equip_now() else COOLDOWN)
+
+
+func _can_equip_now() -> bool:
+	return not input_locked_for_equip() and _equip_timer <= 0.0
+
+
+## A tela de inventário trava o corpo (`input_locked`), mas é por ela que se equipa: só a morte impede.
+func input_locked_for_equip() -> bool:
+	return health.is_dead()
+
+
+func _after_equip_request(reason: String) -> String:
+	if reason == "":
+		_equip_timer = rules.equip_cooldown
+	elif reason != COOLDOWN:
+		equip_refused.emit(reason)
+	return reason
+
+
+## A tecla do atalho: o que está na vaga é tirado; o que está na grade é equipado (troca).
+func _toggle_equipped(iid: String) -> bool:
+	var item := find_item(iid)
+	if item.is_empty() or Items.slot_of(item["id"]) != EquipmentLayout.WEAPON:
+		return false
+	var reason := request_unequip(EquipmentLayout.WEAPON) if equipment.has_iid(iid) else request_equip(iid)
+	return reason == ""
+
+
+func _on_equipment_changed() -> void:
+	var now := equipped_iid
+	if now != _last_equipped:
+		_last_equipped = now
+		equipped_changed.emit(now)
 
 
 func _newest_iid(item_id: String) -> String:
@@ -223,42 +272,43 @@ func _newest_iid(item_id: String) -> String:
 
 func to_dict() -> Dictionary:
 	return {
+		"version": FORMAT_VERSION,
 		"position": {"x": position.x, "y": position.y},
 		"health": health.to_dict(),
 		"stamina": stamina.to_dict(),
 		"hunger": hunger.to_dict(),
 		"inventory": inventory.to_dict(),
 		"hotbar": hotbar.to_dict(),
-		"equipped": equipped_iid,
+		"equipment": equipment.to_dict(),
 	}
 
 
 ## Chame depois de adicionar à árvore. Silencioso: não emite `died` nem `starved`.
 ##
 ## CONTRATO DO RETORNO (para o SAV-01): `true` = aplicado; `false` = RECUSADO e NADA mudou
-## (posição, vida, fome, inventário, barra, mãos). O SaveManager deve tratar `false` como save
+## (posição, vida, fome, inventário, barra, vagas). O SaveManager deve tratar `false` como save
 ## inválido ou incompatível, nunca seguir com carga parcial. Carga em duas fases: primeiro valida
-## sem aplicar (versões do inventário e da barra, e se o inventário cabe em `inventory`, via
-## `can_load`); só depois toca em qualquer campo. Recusa também a migração de formato antigo
-## (versão 1 ou ausente) cujo inventário está cheio demais para receber o equipamento inicial:
-## abrir espaço descartaria itens do jogador. A recusa é PERMANENTE para aquele arquivo (o save
-## antigo não muda sozinho): só uma migração fora do jogo (ferramenta ou SAV-01) que libere
-## espaço, ou o dono do arquivo, resolve. `slots` presente e que não é Array (corrompido) também
-## recusa, tanto no inventário quanto na barra.
-## Save parcial é consistente: sem `inventory` mantém inventário e barra; com `inventory` e sem
-## `hotbar`, a barra é esvaziada (os `iid` antigos não valem); sem `equipped` as mãos não mudam.
-## Save de formato antigo ganha o equipamento inicial que não tinha, e seu atalho.
+## sem aplicar; só depois toca em qualquer campo. Recusa: versão do jogador, do inventário, da barra
+## ou das vagas inválida ou maior; bloco `inventory`, `hotbar` ou `equipment` que existe e não é
+## dicionário, ou com `version` e sem `slots` (corrupção); `slots` que não é do tipo certo;
+## inventário que não cabe; vagas inválidas; e a migração de formato antigo (inventário v1) cujo
+## inventário está cheio demais para receber o equipamento inicial. Essa última recusa é PERMANENTE
+## para o arquivo (só migração fora do jogo, ou o dono do arquivo, resolve): abrir espaço
+## descartaria itens do jogador. `{}` é save parcial válido e não muda nada.
+## Save parcial: sem `inventory` mantém inventário e barra; com `inventory` e sem `hotbar`, a barra
+## é esvaziada (os `iid` antigos não valem). Vagas: com `equipment` valem as dele; sem `equipment`
+## e com `inventory`, ficam vazias (o item equipado de um save antigo vem de `equipped`, que está na
+## grade: MIGRAÇÃO, move para a vaga Arma se for arma); sem os dois, não mudam.
 func from_dict(data: Dictionary) -> bool:
+	if not _shape_is_valid(data):
+		return false
 	var saved_inventory := SafeRead.dict(data.get("inventory"))
 	var saved_hotbar := SafeRead.dict(data.get("hotbar"))
-	if SafeRead.format_version(saved_inventory, InventoryComponent.FORMAT_VERSION) == 0 \
-			or SafeRead.format_version(saved_hotbar, HotbarComponent.FORMAT_VERSION) == 0:
-		return false
+	var saved_equipment := SafeRead.dict(data.get("equipment"))
 	var replaces_inventory := saved_inventory.has("slots")
-	if saved_hotbar.has("slots") and typeof(saved_hotbar["slots"]) != TYPE_ARRAY:
-		return false
 	var legacy := replaces_inventory and SafeRead.format_version(saved_inventory, InventoryComponent.FORMAT_VERSION) == 1
-	if replaces_inventory and not _inventory_accepts(saved_inventory, legacy):
+	var has_equipment := data.has("equipment")
+	if not _load_is_valid(saved_inventory, saved_equipment, replaces_inventory, has_equipment, legacy):
 		return false
 	var saved_position := SafeRead.dict(data.get("position"))
 	position = Vector2(
@@ -270,37 +320,66 @@ func from_dict(data: Dictionary) -> bool:
 	hunger.from_dict(SafeRead.dict(data.get("hunger")))
 	if replaces_inventory:
 		inventory.from_dict(saved_inventory)
+	if has_equipment:
+		equipment.from_dict(saved_equipment)
+	elif replaces_inventory:
+		equipment.from_dict({"slots": {}})
 	if not hotbar.from_dict(saved_hotbar) and replaces_inventory:
 		hotbar.from_dict({"slots": []})
+	# Migração: o item "em mãos" do save antigo está na grade; vai para a vaga Arma se for arma.
+	if not has_equipment and data.has("equipped"):
+		var migrated := SafeRead.text(data["equipped"], "")
+		if equipment.equip(migrated, EquipmentLayout.WEAPON) == "":
+			_ensure_hotbar_slot(migrated)
 	if legacy:
 		_grant_starting_equipment()
-	if data.has("equipped"):
-		# Só vale se o item existe, é arma e está na barra; silencioso (sem golpe nem recarga).
-		var saved_iid := SafeRead.text(data["equipped"], "")
-		var saved_item := inventory.find_iid(saved_iid)
-		var valid := not saved_item.is_empty() and Items.weapon_of(saved_item["id"]) != null
-		_set_equipped(saved_iid if valid and hotbar.slot_of_iid(saved_iid) >= 0 else "")
 	return true
 
 
-## Primeira fase: o inventário do save cabe (e, no formato antigo, ainda sobra espaço para o
-## equipamento inicial que ele não tem)? Não muda nada.
-func _inventory_accepts(saved: Dictionary, legacy: bool) -> bool:
+## Forma do save: versões conhecidas, blocos que são dicionários, `slots` da barra no tipo certo e
+## vagas sempre junto do inventário (vagas sozinhas tirariam da vaga um item que a grade não recebe).
+func _shape_is_valid(data: Dictionary) -> bool:
+	if SafeRead.format_version(data, FORMAT_VERSION) == 0:
+		return false
+	for key in ["inventory", "hotbar", "equipment"]:
+		if not SafeRead.block_valid(data, key):
+			return false
+	var saved_inventory := SafeRead.dict(data.get("inventory"))
+	var saved_hotbar := SafeRead.dict(data.get("hotbar"))
+	var saved_equipment := SafeRead.dict(data.get("equipment"))
+	var versions_ok := SafeRead.format_version(saved_inventory, InventoryComponent.FORMAT_VERSION) != 0 \
+			and SafeRead.format_version(saved_hotbar, HotbarComponent.FORMAT_VERSION) != 0 \
+			and SafeRead.format_version(saved_equipment, EquipmentComponent.FORMAT_VERSION) != 0
+	var hotbar_ok := not saved_hotbar.has("slots") or typeof(saved_hotbar["slots"]) == TYPE_ARRAY
+	return versions_ok and hotbar_ok and (not data.has("equipment") or saved_inventory.has("slots"))
+
+
+## Primeira fase: o inventário do save cabe, as vagas valem contra esse inventário e, no formato
+## antigo, ainda sobra espaço para o equipamento inicial. Não muda nada.
+func _load_is_valid(saved_inventory: Dictionary, saved_equipment: Dictionary, replaces_inventory: bool,
+		has_equipment: bool, legacy: bool) -> bool:
 	var scratch := inventory.preview()
-	var ok := scratch.from_dict(saved)
+	var ok := true
+	if replaces_inventory:
+		ok = scratch.from_dict(saved_inventory)
+	else:
+		ok = scratch.from_dict(inventory.to_dict())
+	if ok and has_equipment:
+		ok = equipment.can_load(saved_equipment, scratch)
 	if ok and legacy:
 		for item_id in starting_equipment:
-			if scratch.count(item_id) == 0 and scratch.add(item_id, 1) > 0:
+			var owned := scratch.count(item_id) + (equipment.count(item_id) if not replaces_inventory else 0)
+			if owned == 0 and scratch.add(item_id, 1) > 0:
 				ok = false
 	scratch.free()
 	return ok
 
 
 ## Save de formato antigo: garante o equipamento inicial no inventário e na barra. O que já
-## existe não é duplicado. Sem espaço, o item não entra (o inventário não perde nada por isso).
+## existe (na grade ou na vaga) não é duplicado. Sem espaço, o item não entra.
 func _grant_starting_equipment() -> void:
 	for item_id in starting_equipment:
-		if inventory.count(item_id) == 0:
+		if inventory.count(item_id) + equipment.count(item_id) == 0:
 			inventory.add(item_id, 1)
 		var iid := _newest_iid(item_id)
 		if iid != "" and hotbar.slot_of_iid(iid) < 0 and hotbar.first_free() >= 0:

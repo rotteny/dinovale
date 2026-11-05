@@ -14,6 +14,9 @@ const WEAPONS: Dictionary[String, WeaponDef] = {
 	SLEEP_STAFF: preload("res://data/weapons/sleep_staff.tres"),
 }
 
+## Vagas de equipamento (dados).
+const EQUIPMENT: EquipmentLayout = preload("res://data/equipment/layout.tres")
+
 static var _defs: Dictionary = {}
 
 
@@ -35,6 +38,21 @@ static func max_stack(item_id: String) -> int:
 static func is_individual(item_id: String) -> bool:
 	var def := get_def(item_id)
 	return def != null and def.durability_max > 0
+
+
+## Vaga do item ("" se não é equipável).
+static func slot_of(item_id: String) -> String:
+	var def := get_def(item_id)
+	return def.slot if def != null else ""
+
+
+## Pode ir à barra de atalhos: o que não é equipável, ou o equipável cuja vaga permite (roupa não).
+static func hotbar_allowed(item_id: String) -> bool:
+	var slot := slot_of(item_id)
+	if slot == "":
+		return true
+	var def := EQUIPMENT.slot_def(slot)
+	return def != null and def.hotbar
 
 
 static func durability_max(item_id: String) -> int:
@@ -72,4 +90,5 @@ static func _catalog() -> Dictionary:
 			_defs[def.id] = def
 		# Durabilidade do Bastão: 120 (GDD 5.9). Só o campo; nada gasta ainda.
 		_defs[SLEEP_STAFF].durability_max = 120
+		_defs[SLEEP_STAFF].slot = EquipmentLayout.WEAPON
 	return _defs

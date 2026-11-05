@@ -82,6 +82,8 @@ func _run() -> void:
 	DinoReviewTests.new(root, _track, _check).run()
 	HudHotbarTests.new(root, _track, _check).run()
 	InventoryModelTests.new(root, _track, _check).run()
+	EquipmentFlowTests.new(root, _track, _check).run()
+	await MenuTests.new(root, _track, _check).run()
 	await _test_full_taming_integration()
 	_test_saveable_roundtrip_table()
 	for node in _nodes:

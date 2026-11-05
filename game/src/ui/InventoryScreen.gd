@@ -15,6 +15,10 @@ signal closed
 ## "" e `iid` "" pedem para limpá-la.
 ## Para um item individual vai também o `iid` (a barra segue o item); senão `iid` é "".
 signal hotbar_assign_requested(slot: int, item_id: String, iid: String)
+## Pede para equipar o item `iid` da grade (duplo clique ou teclado) ou tirar o da vaga `slot_id`.
+## Quem liga (a `Main`) pede ao `Player`, que valida; a tela não muda nada.
+signal equip_requested(iid: String)
+signal unequip_requested(slot_id: String)
 
 const COLUMNS := 4
 const SLOT_SIZE := Vector2(84, 32)
@@ -23,6 +27,8 @@ const SLOT_FONT_SIZE := 8
 @export var player_inventory: InventoryComponent
 ## Só leitura: marca na célula a tecla de atalho do item.
 @export var hotbar: HotbarComponent
+## Só leitura: o que está nas vagas de equipamento (a coluna ao lado da grade).
+@export var equipment: EquipmentComponent
 
 var is_open: bool = false
 
@@ -36,6 +42,8 @@ var _other_grid := GridContainer.new()
 var _player_buttons: Array[Button] = []
 var _other_buttons: Array[Button] = []
 var _hover_index := -1
+var _equipment_column := VBoxContainer.new()
+var _equipment_buttons: Dictionary = {}
 var _notice := Label.new()
 
 
@@ -71,6 +79,7 @@ func _ready() -> void:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 16)
 	column.add_child(row)
+	row.add_child(_equipment_column)
 	var player_column := VBoxContainer.new()
 	var player_title := Label.new()
 	player_title.text = "Jogador"
@@ -88,7 +97,8 @@ func _ready() -> void:
 	_notice.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(_notice)
 	var hint := Label.new()
-	hint.text = "Clique ou Enter: transferir   1-9 ou botão direito: atalho   Esc/I/E: fechar"
+	hint.text = "Clique ou Enter: transferir   1-9 ou botão direito: atalho   Esc/I/E: fechar\n" \
+			+ "Equipamento: duplo clique ou Enter equipa (na vaga, tira)   Shift+clique: transferir equipamento"
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(hint)
 	for label: Label in [_title, player_title, _other_title, hint, _notice]:
@@ -113,11 +123,14 @@ func open_with(own: InventoryComponent, other: InventoryComponent, source: Inter
 	_other_title.text = title
 	_other_column.visible = other != null
 	_title.text = "Inventário" if other == null else "Inventário compartilhado"
+	_build_equipment()
 	_build_buttons(_player_grid, _player_buttons, own, true)
 	_build_buttons(_other_grid, _other_buttons, other, false)
 	own.changed.connect(_refresh)
 	if hotbar != null:
 		hotbar.changed.connect(_refresh)
+	if equipment != null:
+		equipment.changed.connect(_refresh)
 	if other != null:
 		other.changed.connect(_refresh)
 	if source != null:
@@ -142,6 +155,8 @@ func close() -> void:
 	if hotbar != null and hotbar.changed.is_connected(_refresh):
 		hotbar.changed.disconnect(_refresh)
 	_hover_index = -1
+	if equipment != null and equipment.changed.is_connected(_refresh):
+		equipment.changed.disconnect(_refresh)
 	if _other != null and is_instance_valid(_other) and _other.changed.is_connected(_refresh):
 		_other.changed.disconnect(_refresh)
 	if _source != null and is_instance_valid(_source):
@@ -180,7 +195,7 @@ func assign_to_hotbar(index: int, hotbar_slot: int) -> void:
 	var slot := player_inventory.get_slot(index)
 	if not slot.is_empty():
 		hotbar_assign_requested.emit(hotbar_slot, slot["id"], str(slot.get("iid", "")))
-	elif hotbar != null and hotbar.iid_at(hotbar_slot) != "" and not player_inventory.has_iid(hotbar.iid_at(hotbar_slot)):
+	elif hotbar != null and hotbar.iid_at(hotbar_slot) != "" and not _owns(hotbar.iid_at(hotbar_slot)):
 		hotbar_assign_requested.emit(hotbar_slot, "", "")
 
 
@@ -197,6 +212,18 @@ func toggle_hotbar(index: int) -> void:
 		hotbar_assign_requested.emit(current, "", "")
 	elif hotbar.first_free() >= 0:
 		hotbar_assign_requested.emit(hotbar.first_free(), slot["id"], iid)
+
+
+## O item está na grade do jogador ou numa vaga de equipamento (atalho válido).
+func _owns(iid: String) -> bool:
+	return player_inventory.has_iid(iid) or (equipment != null and equipment.has_iid(iid))
+
+
+## Aviso da recusa de equipar (vem do `Player`). Vaga errada recusa sem mensagem (GDD 5.20).
+func show_refusal(reason: String) -> void:
+	var message := EquipmentComponent.refusal_message(reason)
+	if message != "":
+		_notice.text = message
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -245,8 +272,68 @@ func _build_buttons(grid: GridContainer, buttons: Array[Button], inventory: Inve
 
 
 func _refresh() -> void:
+	_refresh_equipment()
 	_refresh_buttons(_player_buttons, player_inventory)
 	_refresh_buttons(_other_buttons, _other)
+
+
+## Coluna de vagas: só as `shown` (no M1, a Arma). Vazia mostra o nome da vaga como silhueta.
+func _build_equipment() -> void:
+	for old in _equipment_column.get_children():
+		_equipment_column.remove_child(old)
+		old.queue_free()
+	_equipment_buttons.clear()
+	_equipment_column.visible = equipment != null
+	if equipment == null:
+		return
+	var title := Label.new()
+	title.text = "Equipado"
+	title.add_theme_color_override("font_color", UiTheme.INK)
+	_equipment_column.add_child(title)
+	for def in equipment.layout.shown_slots():
+		var button := Button.new()
+		button.custom_minimum_size = SLOT_SIZE
+		button.clip_text = true
+		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		button.add_theme_font_size_override("font_size", SLOT_FONT_SIZE)
+		button.gui_input.connect(_on_equipment_gui_input.bind(def.id))
+		_equipment_column.add_child(button)
+		_equipment_buttons[def.id] = button
+
+
+func _refresh_equipment() -> void:
+	if equipment == null:
+		return
+	for slot_id: String in _equipment_buttons:
+		var button: Button = _equipment_buttons[slot_id]
+		var item := equipment.item_in(slot_id)
+		if item.is_empty():
+			button.text = "(%s)" % equipment.layout.slot_def(slot_id).display_name
+			button.icon = null
+			button.modulate.a = 0.55
+		else:
+			button.text = "%s\n%d/%d" % [Items.display_name(item["id"]), item["durab"], item["durab_max"]]
+			button.icon = ItemIcons.icon_of(item["id"])
+			button.modulate.a = 1.0
+
+
+## Botão da vaga (para testes). null se a vaga não está visível.
+func equipment_button(slot_id: String) -> Button:
+	return _equipment_buttons.get(slot_id) as Button
+
+
+## Duplo clique ou Enter/Espaço na vaga: pede para tirar o item para a grade.
+func _on_equipment_gui_input(event: InputEvent, slot_id: String) -> void:
+	if _is_activation(event):
+		unequip_requested.emit(slot_id)
+		accept_event()
+
+
+## Duplo clique esquerdo ou Enter/Espaço (ação de aceitar do teclado).
+func _is_activation(event: InputEvent) -> bool:
+	if event is InputEventMouseButton:
+		return event.pressed and event.button_index == MOUSE_BUTTON_LEFT and event.double_click
+	return event.is_action_pressed("ui_accept") and not event.is_echo()
 
 
 func _refresh_buttons(buttons: Array[Button], inventory: InventoryComponent) -> void:
@@ -271,17 +358,32 @@ func _refresh_buttons(buttons: Array[Button], inventory: InventoryComponent) -> 
 
 
 func _on_slot_gui_input(event: InputEvent, index: int) -> void:
+	if _is_activation(event):
+		var slot := player_inventory.get_slot(index)
+		if slot.has("iid") and Items.slot_of(slot["id"]) != "":
+			equip_requested.emit(slot["iid"])
+			accept_event()
+			return
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
 		toggle_hotbar(index)
 		accept_event()
 
 
 func _on_slot_pressed(from_player: bool, index: int) -> void:
+	_transfer(from_player, index, Input.is_key_pressed(KEY_SHIFT))
+
+
+## Transfere o slot para o outro lado. Equipamento que o destino aceita só vai com Shift: o clique
+## simples é o primeiro de um duplo clique (equipar) e não pode mover o item antes.
+func _transfer(from_player: bool, index: int, forced: bool) -> void:
 	if _other == null:
 		return
 	var source := player_inventory if from_player else _other
 	var destination := _other if from_player else player_inventory
 	var slot := source.get_slot(index)
+	if not forced and slot.has("iid") and Items.slot_of(slot["id"]) != "" and destination.accepts_individual:
+		_notice.text = "Duplo clique equipa; Shift+clique transfere o equipamento."
+		return
 	if source.transfer_slot(index, destination) == 0 and not slot.is_empty():
 		_notice.text = _refusal_text(slot, destination)
 	else:

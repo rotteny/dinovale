@@ -142,6 +142,8 @@ func to_dict() -> Dictionary:
 ## o inventário (versão e se cabe, inclusive equipamento, que a criatura não guarda) ANTES de
 ## tocar em qualquer campo; o SaveManager trata `false` como save inválido, sem carga parcial.
 func from_dict(data: Dictionary) -> bool:
+	if not SafeRead.block_valid(data, "inventory"):
+		return false
 	var saved_inventory := SafeRead.dict(data.get("inventory"))
 	if SafeRead.format_version(saved_inventory, InventoryComponent.FORMAT_VERSION) == 0:
 		return false

@@ -14,6 +14,7 @@ const PlayerScene := preload("res://src/entities/player/Player.tscn")
 
 # SAVEABLES-BEGIN
 const SCRIPTS: Array[String] = [
+	"res://src/components/EquipmentComponent.gd",
 	"res://src/components/HealthComponent.gd",
 	"res://src/components/HotbarComponent.gd",
 	"res://src/components/HungerComponent.gd",
@@ -40,6 +41,7 @@ func _init(host: Node, track: Callable) -> void:
 ## Devolve `[original, restaurado]`, ou `[]` se o script não tem caso na tabela.
 func build(script_path: String) -> Array:
 	var cases := {
+		"res://src/components/EquipmentComponent.gd": _equipment_case,
 		"res://src/components/HealthComponent.gd": _health_case,
 		"res://src/components/HotbarComponent.gd": _hotbar_case,
 		"res://src/components/HungerComponent.gd": _hunger_case,
@@ -60,6 +62,17 @@ func _health_case() -> Array:
 	var original: HealthComponent = _track.call(HealthComponent.new())
 	original.take_damage(25.0)
 	return [original, _track.call(HealthComponent.new())]
+
+
+func _equipment_case() -> Array:
+	var grid: InventoryComponent = _track.call(InventoryComponent.new())
+	grid.add("sleep_staff", 1)
+	var original: EquipmentComponent = _track.call(EquipmentComponent.new())
+	original.inventory = grid
+	original.equip(grid.get_slot(0)["iid"])
+	var restored: EquipmentComponent = _track.call(EquipmentComponent.new())
+	restored.inventory = grid
+	return [original, restored]
 
 
 func _hotbar_case() -> Array:

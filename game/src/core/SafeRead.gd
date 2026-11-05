@@ -46,3 +46,14 @@ static func format_version(data: Dictionary, known: int) -> int:
 	if not data.has("version"):
 		return 1
 	return SafeRead.integer(data["version"], 0, 1, known)
+
+
+## Bloco salvo (`key` em `data`) estruturalmente válido? Ausente vale (save parcial). Presente tem de
+## ser dicionário, e bloco com `version` sem `slots` é corrupção. Não olha o conteúdo de `slots`.
+static func block_valid(data: Dictionary, key: String) -> bool:
+	if not data.has(key):
+		return true
+	var block: Variant = data[key]
+	if typeof(block) != TYPE_DICTIONARY:
+		return false
+	return not (block as Dictionary).has("version") or (block as Dictionary).has("slots")

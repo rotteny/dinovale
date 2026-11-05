@@ -49,6 +49,7 @@ func _ready() -> void:
 	player.hotbar.changed.connect(refresh)
 	player.equipped_changed.connect(func(_iid: String) -> void: refresh())
 	player.inventory.changed.connect(refresh)
+	player.equipment.changed.connect(refresh)
 	refresh()
 
 
@@ -59,7 +60,7 @@ func refresh() -> void:
 		if iid != "":
 			# Individual: segue o item; apagado se saiu do inventário (o ícone vem da dica de tipo
 			# da barra); o que está em mãos ganha o destaque amarelo.
-			var item := player.inventory.find_iid(iid)
+			var item := player.find_item(iid)
 			item_id = str(item.get("id", player.hotbar.type_at(i)))
 			_slots[i].icon = ItemIcons.icon_of(item_id) if item_id != "" else null
 			_counts[i].text = ""

@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=3]
+[gd_scene load_steps=13 format=3]
 
 [ext_resource type="PackedScene" path="res://src/entities/dino/Dino.tscn" id="1_dino"]
 
@@ -6,6 +6,7 @@
 [ext_resource type="Script" path="res://src/world/Main.gd" id="3_main"]
 [ext_resource type="Script" path="res://src/ui/PlayerHud.gd" id="4_hud"]
 [ext_resource type="Script" path="res://src/ui/InventoryScreen.gd" id="5_screen"]
+[ext_resource type="Script" path="res://src/ui/PauseMenu.gd" id="13_pause"]
 [ext_resource type="Script" path="res://src/ui/DinoStatusBars.gd" id="6_bars"]
 [ext_resource type="Script" path="res://src/ui/DinoView.gd" id="7_view"]
 [ext_resource type="PackedScene" path="res://src/world/Terrain.tscn" id="8_terrain"]
@@ -28,12 +29,14 @@ normal = Vector2(1, 0)
 normal = Vector2(-1, 0)
 distance = -640.0
 
-[node name="Main" type="Node2D" node_paths=PackedStringArray("player", "screen", "dino")]
+[node name="Main" type="Node2D" node_paths=PackedStringArray("player", "screen", "dino", "pause")]
 y_sort_enabled = true
 script = ExtResource("3_main")
 player = NodePath("Player")
 screen = NodePath("UI/InventoryScreen")
 dino = NodePath("Dino")
+pause = NodePath("UI/PauseMenu")
+menu_scene = "res://src/ui/TitleScreen.tscn"
 
 [node name="Terrain" parent="." instance=ExtResource("8_terrain")]
 
@@ -95,3 +98,12 @@ anchor_bottom = 1.0
 mouse_filter = 2
 script = ExtResource("5_screen")
 player_inventory = NodePath("../../Player/InventoryComponent")
+
+[node name="PauseMenu" type="Control" parent="UI" node_paths=PackedStringArray("screen")]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+script = ExtResource("13_pause")
+screen = NodePath("../InventoryScreen")

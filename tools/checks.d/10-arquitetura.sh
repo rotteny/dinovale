@@ -127,9 +127,27 @@ rule_logic_does_not_know_ui() {
 
 # ADR-002: dado externo nunca executa código nem carrega recurso arbitrário.
 rule_no_unsafe_deserialization() {
-  index_grep 'src/' '\b(bytes_to_var_with_objects|str_to_var|dict_to_inst)\b|\bget_var\(\s*true\b|(?<![\w])(?:load|load_threaded_request)\(\s*(?!"res://)' \
+  index_grep 'src/' '\b(bytes_to_var_with_objects|str_to_var|dict_to_inst)\b|\bget_var\(\s*true\b|\bConfigFile\b|(?<![\w])(?:load|load_threaded_request)\(\s*(?!"res://)' \
     | judge "sem desserialização insegura" \
-      "só JSON; load() só com literal res:// (nunca user://)"
+      "só JSON; load() só com literal res:// (nunca user://); ConfigFile proibido (o formato executa código; configuração em JSON)"
+}
+
+# Créditos (CC-BY exige atribuição): o preset de exportação versionado tem de incluir CREDITS.md,
+# que o Godot não exporta sozinho (não é recurso). Sem segredo nem caminho local no arquivo.
+rule_export_includes_credits() {
+  local preset="$GAME_DIR/export_presets.cfg"
+  local rule="exportação inclui os créditos"
+  local before=$total_violations
+  if [[ ! -f "$preset" ]]; then
+    report "$rule" "game/export_presets.cfg não existe (versione o preset)"
+  else
+    grep -qP '^include_filter="[^"]*assets/CREDITS\.md' "$preset" \
+      || report "$rule" "include_filter do preset sem assets/CREDITS.md"
+    grep -nP '/home/|/Users/|[A-Za-z]:\\|^(script_encryption_key|keystore\S*|.*password\S*|.*_key)\s*=\s*"[^"]' "$preset" \
+      | { while IFS= read -r hit; do report "$rule" "segredo ou caminho local no preset: ${hit%%=*}"; done; } || true
+  fi
+  [[ $total_violations -eq $before ]] && echo "  ok   [$rule]"
+  return 0
 }
 
 # Asset de apresentação (imagem) não entra na lógica: quem mostra o ícone é a UI.
@@ -242,6 +260,7 @@ main() {
   rule_logic_does_not_know_ui
   rule_no_unsafe_deserialization
   rule_no_presentation_assets_in_logic
+  rule_export_includes_credits
   rule_no_instance_ids_in_data
   rule_input_only_in_controller_and_ui
   rule_ui_does_not_call_mutators

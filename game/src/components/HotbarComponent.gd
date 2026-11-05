@@ -57,6 +57,8 @@ func assign(index: int, item_id: String) -> bool:
 func assign_iid(index: int, iid: String, item_id: String = "") -> bool:
 	if iid == "" or iid.length() > MAX_IID_LENGTH:
 		return false
+	if item_id != "" and not Items.hotbar_allowed(item_id):
+		return false  # roupa não vai ao atalho
 	var entry := {"iid": iid}
 	if Items.is_individual(item_id):
 		entry["id"] = item_id
@@ -125,6 +127,8 @@ func _clean(raw: Variant) -> Dictionary:
 		item_id = SafeRead.text(raw.get("id"), "")
 		iid = SafeRead.text(raw.get("iid"), "")
 	if iid != "" and iid.length() <= MAX_IID_LENGTH:
+		if item_id != "" and not Items.hotbar_allowed(item_id):
+			return {}
 		return {"iid": iid, "id": item_id} if Items.is_individual(item_id) else {"iid": iid}
 	if Items.get_def(item_id) != null and not Items.is_individual(item_id):
 		return {"id": item_id}

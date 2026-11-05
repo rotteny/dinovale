@@ -82,7 +82,8 @@ run_extra_steps() {
 main() {
   run_godot_step "import" --import
   run_godot_step "testes" --script res://tests/run_tests.gd
-  run_godot_step "cena principal (120 frames)" --quit-after 120
+  run_godot_step "cena do jogo (Main, 120 frames)" res://src/world/Main.tscn --quit-after 120
+  run_godot_step "cena inicial (apresentação, 120 frames)" --quit-after 120
   run_lint_step
   run_extra_steps
 

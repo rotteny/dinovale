@@ -10,6 +10,8 @@ signal stamina_changed(current: float, maximum: float)
 signal exhausted
 signal recovered
 
+## Limiar de ofegar (`winded_ratio`) vem dos dados.
+@export var rules: PlayerRules = preload("res://data/balance/player_rules.tres")
 @export var max_stamina: float = 100.0:
 	set(value):
 		max_stamina = maxf(value, 1.0)
@@ -23,6 +25,18 @@ signal recovered
 
 var current_stamina: float = 100.0
 var is_exhausted: bool = false
+
+
+## Ofegante: abaixo de 25% do máximo (inclui o tempo exausto, até recuperar).
+func is_winded() -> bool:
+	return current_stamina < max_stamina * rules.winded_ratio
+
+
+## 0 a 1: quão perto de zerar, dentro da faixa ofegante. Serve ao som crescente.
+func winded_intensity() -> float:
+	if not is_winded():
+		return 0.0
+	return clampf(1.0 - current_stamina / (max_stamina * rules.winded_ratio), 0.0, 1.0)
 
 
 ## Quem não tem stamina (ou está exausto) não corre.

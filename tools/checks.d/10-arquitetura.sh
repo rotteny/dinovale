@@ -134,8 +134,8 @@ rule_no_unsafe_deserialization() {
 
 # Asset de apresentação (imagem) não entra na lógica: quem mostra o ícone é a UI.
 rule_no_presentation_assets_in_logic() {
-  index_grep 'src/(core|components)/' '\b(preload|load)\(\s*"[^"]*\.(png|jpe?g|webp|svg|bmp)"' \
-    | judge "sem asset de imagem em core/components" \
+  index_grep 'src/(core|components|entities)/' '\b(preload|load)\(\s*"[^"]*\.(png|jpe?g|webp|svg|bmp)"' \
+    | judge "sem asset de imagem em core/components/entities" \
       "o mapa item -> ícone fica em src/ui (ItemIcons)"
 }
 

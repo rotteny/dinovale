@@ -1,4 +1,4 @@
-[gd_scene load_steps=10 format=3]
+[gd_scene load_steps=11 format=3]
 
 [ext_resource type="Script" path="res://src/entities/player/Player.gd" id="1_player"]
 [ext_resource type="Script" path="res://src/components/HealthComponent.gd" id="2_health"]
@@ -6,6 +6,7 @@
 [ext_resource type="Script" path="res://src/components/HungerComponent.gd" id="4_hunger"]
 
 [ext_resource type="Script" path="res://src/components/InventoryComponent.gd" id="5_inventory"]
+[ext_resource type="Script" path="res://src/components/HotbarComponent.gd" id="7_hotbar"]
 [ext_resource type="Texture2D" path="res://assets/third_party/ninja-adventure/characters/caveman.png" id="6_sprite"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_reach"]
@@ -38,6 +39,9 @@ script = ExtResource("4_hunger")
 [node name="InventoryComponent" type="Node" parent="."]
 script = ExtResource("5_inventory")
 capacity = 12
+
+[node name="HotbarComponent" type="Node" parent="."]
+script = ExtResource("7_hotbar")
 
 [node name="InteractionDetector" type="Area2D" parent="."]
 collision_layer = 0

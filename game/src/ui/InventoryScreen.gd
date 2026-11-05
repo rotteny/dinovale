@@ -3,17 +3,24 @@ class_name InventoryScreen
 extends Control
 ## Tela de inventário: o do jogador e, se houver, o da criatura (compartilhado).
 ## Clique, ou setas + Enter/Espaço, transfere o slot inteiro para o outro lado.
+## Atalhos: com o cursor (ou o foco) sobre um item do jogador, as teclas 1 a 9 o atribuem à
+## barra de atalhos; o botão direito o atribui à primeira posição livre (ou o tira, se já
+## estiver). O pedido sai por `hotbar_assign_requested` (quem liga muda o `HotbarComponent`).
 ## Fecha com Esc, I, Tab ou E. Só apresentação: a transferência é a do `InventoryComponent`
 ## e a regra de "quando pode abrir" fica na entidade (`InteractableArea.availability_changed`).
 
 signal opened
 signal closed
+## Pede para atribuir `item_id` à posição `slot` (0 a 8) da barra; "" pede para limpá-la.
+signal hotbar_assign_requested(slot: int, item_id: String)
 
 const COLUMNS := 4
 const SLOT_SIZE := Vector2(72, 32)
 const SLOT_FONT_SIZE := 8
 
 @export var player_inventory: InventoryComponent
+## Só leitura: marca na célula a tecla de atalho do item.
+@export var hotbar: HotbarComponent
 
 var is_open: bool = false
 
@@ -26,6 +33,7 @@ var _other_title := Label.new()
 var _other_grid := GridContainer.new()
 var _player_buttons: Array[Button] = []
 var _other_buttons: Array[Button] = []
+var _hover_index := -1
 
 
 func _ready() -> void:
@@ -75,7 +83,7 @@ func _ready() -> void:
 		grid.add_theme_constant_override("v_separation", 2)
 
 	var hint := Label.new()
-	hint.text = "Clique ou Enter: transferir   Esc/I/E: fechar"
+	hint.text = "Clique ou Enter: transferir   1-9 ou botão direito: atalho   Esc/I/E: fechar"
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(hint)
 	for label: Label in [_title, player_title, _other_title, hint]:
@@ -103,6 +111,8 @@ func open_with(own: InventoryComponent, other: InventoryComponent, source: Inter
 	_build_buttons(_player_grid, _player_buttons, own, true)
 	_build_buttons(_other_grid, _other_buttons, other, false)
 	own.changed.connect(_refresh)
+	if hotbar != null:
+		hotbar.changed.connect(_refresh)
 	if other != null:
 		other.changed.connect(_refresh)
 	if source != null:
@@ -123,6 +133,9 @@ func close() -> void:
 	visible = false
 	if player_inventory != null and player_inventory.changed.is_connected(_refresh):
 		player_inventory.changed.disconnect(_refresh)
+	if hotbar != null and hotbar.changed.is_connected(_refresh):
+		hotbar.changed.disconnect(_refresh)
+	_hover_index = -1
 	if _other != null and is_instance_valid(_other) and _other.changed.is_connected(_refresh):
 		_other.changed.disconnect(_refresh)
 	if _source != null and is_instance_valid(_source):
@@ -144,7 +157,44 @@ func slot_button(from_player: bool, index: int) -> Button:
 	return buttons[index] if index >= 0 and index < buttons.size() else null
 
 
+## Índice do slot do jogador sob o cursor ou com o foco; -1 se nenhum.
+func cursor_slot() -> int:
+	if _hover_index >= 0:
+		return _hover_index
+	var focused := get_viewport().gui_get_focus_owner() if is_inside_tree() else null
+	return _player_buttons.find(focused) if focused != null else -1
+
+
+## Atribui o item do slot do jogador `index` à posição `hotbar_slot` da barra.
+func assign_to_hotbar(index: int, hotbar_slot: int) -> void:
+	if not is_open or player_inventory == null or index < 0 or index >= _player_buttons.size():
+		return
+	var slot := player_inventory.get_slot(index)
+	if not slot.is_empty():
+		hotbar_assign_requested.emit(hotbar_slot, slot["id"])
+
+
+## Botão direito: leva o item à primeira posição livre; se já está na barra, tira.
+func toggle_hotbar(index: int) -> void:
+	if not is_open or hotbar == null or player_inventory == null:
+		return
+	var slot := player_inventory.get_slot(index)
+	if slot.is_empty():
+		return
+	var current := hotbar.slot_of(slot["id"])
+	if current >= 0:
+		hotbar_assign_requested.emit(current, "")
+	elif hotbar.first_free() >= 0:
+		hotbar_assign_requested.emit(hotbar.first_free(), slot["id"])
+
+
 func _unhandled_input(event: InputEvent) -> void:
+	if is_open:
+		for number in HotbarComponent.SLOT_COUNT:
+			if event.is_action_pressed("hotbar_%d" % (number + 1)):
+				assign_to_hotbar(cursor_slot(), number)
+				get_viewport().set_input_as_handled()
+				return
 	if event.is_action_pressed("inventory") and not is_open:
 		open_own()
 		get_viewport().set_input_as_handled()
@@ -169,6 +219,10 @@ func _build_buttons(grid: GridContainer, buttons: Array[Button], inventory: Inve
 		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		button.add_theme_font_size_override("font_size", SLOT_FONT_SIZE)
 		button.pressed.connect(_on_slot_pressed.bind(from_player, i))
+		if from_player:
+			button.mouse_entered.connect(func() -> void: _hover_index = i)
+			button.mouse_exited.connect(func() -> void: _hover_index = -1 if _hover_index == i else _hover_index)
+			button.gui_input.connect(_on_slot_gui_input.bind(i))
 		var swatch := ColorRect.new()
 		swatch.size = Vector2(6, 6)
 		swatch.position = Vector2(3, 3)
@@ -193,11 +247,19 @@ func _refresh_buttons(buttons: Array[Button], inventory: InventoryComponent) -> 
 			buttons[i].icon = null
 			swatch.visible = false
 		else:
-			buttons[i].text = "%s\nx%d" % [Items.display_name(slot["id"]), slot["count"]]
+			var key := hotbar.slot_of(slot["id"]) if hotbar != null and buttons == _player_buttons else -1
+			var tag := "[%d] " % (key + 1) if key >= 0 else ""
+			buttons[i].text = "%s%s\nx%d" % [tag, Items.display_name(slot["id"]), slot["count"]]
 			var icon := ItemIcons.icon_of(slot["id"])
 			buttons[i].icon = icon
 			swatch.color = Items.color_of(slot["id"])
 			swatch.visible = icon == null
+
+
+func _on_slot_gui_input(event: InputEvent, index: int) -> void:
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
+		toggle_hotbar(index)
+		accept_event()
 
 
 func _on_slot_pressed(from_player: bool, index: int) -> void:

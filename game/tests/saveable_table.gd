@@ -15,6 +15,7 @@ const PlayerScene := preload("res://src/entities/player/Player.tscn")
 # SAVEABLES-BEGIN
 const SCRIPTS: Array[String] = [
 	"res://src/components/HealthComponent.gd",
+	"res://src/components/HotbarComponent.gd",
 	"res://src/components/HungerComponent.gd",
 	"res://src/components/InventoryComponent.gd",
 	"res://src/components/StaminaComponent.gd",
@@ -40,6 +41,7 @@ func _init(host: Node, track: Callable) -> void:
 func build(script_path: String) -> Array:
 	var cases := {
 		"res://src/components/HealthComponent.gd": _health_case,
+		"res://src/components/HotbarComponent.gd": _hotbar_case,
 		"res://src/components/HungerComponent.gd": _hunger_case,
 		"res://src/components/InventoryComponent.gd": _inventory_case,
 		"res://src/components/StaminaComponent.gd": _stamina_case,
@@ -58,6 +60,13 @@ func _health_case() -> Array:
 	var original: HealthComponent = _track.call(HealthComponent.new())
 	original.take_damage(25.0)
 	return [original, _track.call(HealthComponent.new())]
+
+
+func _hotbar_case() -> Array:
+	var original: HotbarComponent = _track.call(HotbarComponent.new())
+	original.assign(0, "berry")
+	original.assign(4, "fern")
+	return [original, _track.call(HotbarComponent.new())]
 
 
 func _hunger_case() -> Array:
@@ -113,6 +122,7 @@ func _player_case() -> Array:
 	var original := _spawn(PlayerScene) as Player
 	original.health.take_damage(10.0)
 	original.inventory.remove("berry", 3)
+	original.hotbar.assign(8, "meat")
 	return [original, _spawn(PlayerScene)]
 
 

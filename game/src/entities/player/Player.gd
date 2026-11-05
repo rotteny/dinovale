@@ -16,10 +16,14 @@ signal interacted(target: InteractableArea)
 signal input_lock_changed(locked: bool)
 ## O golpe acertou uma criatura (a apresentação anima e toca o som).
 signal attacked
+## Comeu um item (quem mostra o efeito é a apresentação).
+signal ate(item_id: String)
 
 @export var walk_speed: float = 70.0
 @export var sprint_speed: float = 120.0
 ## Arma equipada: dano, torpor e recarga vêm dos dados (`res://data/weapons/`).
+## Números do jogador (fome, recarga de comida, ofego) vindos dos dados.
+@export var rules: PlayerRules = preload("res://data/balance/player_rules.tres")
 @export var weapon: WeaponDef = preload("res://data/weapons/sleep_staff.tres")
 ## Comida inicial para poder testar o ciclo de domesticação (id -> quantidade).
 @export var starting_items: Dictionary = {Items.BERRY: 10, Items.MEAT: 4, Items.FERN: 3}
@@ -33,6 +37,7 @@ var input_locked: bool = false:
 
 var _in_range: Array[InteractableArea] = []
 var _attack_timer: float = 0.0
+var _use_timer: float = 0.0
 
 ## Sprite: só a apresentação (`PlayerView`) escolhe o quadro.
 @onready var visual: Sprite2D = $Visual
@@ -40,10 +45,12 @@ var _attack_timer: float = 0.0
 @onready var stamina: StaminaComponent = $StaminaComponent
 @onready var hunger: HungerComponent = $HungerComponent
 @onready var inventory: InventoryComponent = $InventoryComponent
+@onready var hotbar: HotbarComponent = $HotbarComponent
 @onready var detector: Area2D = $InteractionDetector
 
 
 func _ready() -> void:
+	hunger.decay_per_second = rules.hunger_decay_per_second
 	hunger.starved.connect(health.take_damage)
 	detector.area_entered.connect(_on_area_entered)
 	detector.area_exited.connect(_on_area_exited)
@@ -51,6 +58,7 @@ func _ready() -> void:
 	for item_id: Variant in starting_items:
 		if item_id is String:
 			inventory.add(item_id, int(starting_items[item_id]))
+			hotbar.assign(hotbar.first_free(), item_id)
 
 
 func _physics_process(delta: float) -> void:
@@ -63,6 +71,7 @@ func _physics_process(delta: float) -> void:
 ## Passo de tempo da parte de interação: recarga do golpe e escolha do alvo.
 func tick(delta: float) -> void:
 	_attack_timer = maxf(_attack_timer - delta, 0.0)
+	_use_timer = maxf(_use_timer - delta, 0.0)
 	update_target()
 
 
@@ -72,6 +81,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		try_interact()
 	elif event.is_action_pressed("attack"):
 		attack()
+	else:
+		for slot in HotbarComponent.SLOT_COUNT:
+			if event.is_action_pressed("hotbar_%d" % (slot + 1)):
+				request_use_item(slot)
+				break
 
 
 ## Única leitura de input. `get_vector` já devolve comprimento no máximo 1, então
@@ -128,6 +142,34 @@ func attack() -> bool:
 	return true
 
 
+## Intenção "usar o atalho `slot`" (0 a 8): quem lê a tecla só pede, e as regras decidem
+## aqui. Com uma criatura selvagem dormindo ao alcance que aceita aquele item e tem espaço,
+## ele vai para o inventário dela (o mesmo caminho da tela de inventário). Senão, se é comida,
+## o jogador come 1 e recupera fome, sem gastar se a fome está cheia. Sem estoque, sem efeito.
+## Arma/ferramenta: não há equipamento trocável no modelo atual (`weapon` é fixo).
+## Retorna true se algo foi consumido ou entregue. Vira `request_use_item(actor_id, slot)`
+## no NET-01 (ADR-001).
+func request_use_item(slot: int) -> bool:
+	if input_locked or health.is_dead() or _use_timer > 0.0:
+		return false
+	var item_id := hotbar.item_at(slot)
+	if item_id == "" or inventory.count(item_id) <= 0:
+		return false
+	var dino := target.entity as Dino if target != null and is_instance_valid(target) else null
+	if dino != null and target.can_interact() and dino.taming.ideal_food == item_id \
+			and inventory.transfer(dino.inventory, item_id, 1) >= 1:
+		_use_timer = rules.food_cooldown
+		return true
+	# Sem criatura que aceite o item (ou ela não tem espaço): o jogador come.
+	var restore := Items.hunger_restore_of(item_id)
+	if restore <= 0.0 or hunger.current_hunger >= hunger.max_hunger or inventory.remove(item_id, 1) < 1:
+		return false
+	hunger.eat(restore)
+	ate.emit(item_id)
+	_use_timer = rules.food_cooldown
+	return true
+
+
 func to_dict() -> Dictionary:
 	return {
 		"position": {"x": position.x, "y": position.y},
@@ -135,6 +177,7 @@ func to_dict() -> Dictionary:
 		"stamina": stamina.to_dict(),
 		"hunger": hunger.to_dict(),
 		"inventory": inventory.to_dict(),
+		"hotbar": hotbar.to_dict(),
 	}
 
 
@@ -149,6 +192,7 @@ func from_dict(data: Dictionary) -> void:
 	stamina.from_dict(SafeRead.dict(data.get("stamina")))
 	hunger.from_dict(SafeRead.dict(data.get("hunger")))
 	inventory.from_dict(SafeRead.dict(data.get("inventory")))
+	hotbar.from_dict(SafeRead.dict(data.get("hotbar")))
 
 
 func _on_area_entered(area: Area2D) -> void:

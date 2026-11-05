@@ -185,7 +185,7 @@ func _show_text(text: String) -> void:
 
 func _on_damaged(amount: float) -> void:
 	_flash_left = FLASH_SECONDS
-	_spawn_popup("-" + String.num(snappedf(amount, 0.1)).trim_suffix(".0"), Color(1.0, 0.45, 0.4))
+	_spawn_popup(FloatingText.damage_text(amount), Color(1.0, 0.45, 0.4))
 	_cue(CUE_HIT)
 
 
@@ -199,18 +199,7 @@ func _on_tamed(final_level: int) -> void:
 
 
 func _spawn_popup(text: String, color: Color) -> void:
-	var label := Label.new()
-	label.text = text
-	label.add_theme_font_size_override("font_size", 8)
-	label.add_theme_color_override("font_color", color)
-	label.add_theme_color_override("font_outline_color", Color.BLACK)
-	label.add_theme_constant_override("outline_size", 3)
-	label.position = Vector2(-6.0, -16.0)
-	_popups.add_child(label)
-	var tween := create_tween().set_parallel()
-	tween.tween_property(label, "position:y", label.position.y - POPUP_RISE, POPUP_SECONDS)
-	tween.tween_property(label, "modulate:a", 0.0, POPUP_SECONDS)
-	tween.chain().tween_callback(label.queue_free)
+	FloatingText.spawn(_popups, text, color, Vector2(-6.0, -16.0), POPUP_RISE, POPUP_SECONDS)
 
 
 ## Ponto de ligação do som: sempre avisa; toca só se houver stream.

@@ -2,7 +2,7 @@
 
 Sandbox survival 2D top-down em pixel art, com exploração, construção e domesticação de dinossauros. É um jogo comunitário, gratuito e auto-hospedado, feito em Godot 4 com GDScript.
 
-> **Estado:** fundação técnica, com o ciclo de domesticação jogável. A cena principal tem mapa com grama, caminho de terra, árvores, folhagem nas bordas, casa e baú decorativos, um jogador animado (Caveman) e um bicho placeholder (Reptile) passeando em uma área fechada. Arte e sons são do pacote Ninja Adventure (CC0), só como placeholder. A HUD mostra vida, stamina e fome do jogador. Com o dino inconsciente, barras de torpor e de domesticação aparecem sobre ele, a qualquer distância, e somem quando ele acorda (domesticado que desmaia mostra só o torpor). O dino da cena tem nível fixo (20, exportado na `Main`). Dá para derrubar o dino com o bastão-de-sono (F ou Espaço: 2 de dano e 30 de torpor, recarga de 0,7 s), abrir o inventário compartilhado com E enquanto ele está inconsciente, passar comida para ele por clique e ver a domesticação chegar a 100%. Dormindo, a Eficiência cai com o tempo, a comida e os golpes, e o nível final sobe pela fórmula (a barra mostra "Nv 20 -> 28"). A barra de vida só aparece depois de dano. Ainda não há construção, save em arquivo, arte nem som definitivos.
+> **Estado:** fundação técnica, com o ciclo de domesticação jogável. A cena principal tem mapa com grama, caminho de terra, árvores, folhagem nas bordas, casa e baú decorativos, um jogador animado (Caveman) e um bicho placeholder (Reptile) passeando em uma área fechada. Arte e sons são do pacote Ninja Adventure (CC0), só como placeholder. A HUD mostra vida e fome, a barra de XP fina ("Nv 1", só o ponto de ligação) e a barra de atalhos 1 a 9, sem barra de stamina (o fôlego é som e nuvem). Com o dino inconsciente, barras de torpor e de domesticação aparecem sobre ele, a qualquer distância, e somem quando ele acorda (domesticado que desmaia mostra só o torpor). O dino da cena tem nível fixo (20, exportado na `Main`). Dá para derrubar o dino com o bastão-de-sono (F ou Espaço: 2 de dano e 30 de torpor, recarga de 0,7 s), abrir o inventário compartilhado com E enquanto ele está inconsciente, passar comida para ele por clique e ver a domesticação chegar a 100%. Dormindo, a Eficiência cai com o tempo, a comida e os golpes, e o nível final sobe pela fórmula (a barra mostra "Nv 20 -> 28"). A barra de vida só aparece depois de dano. Ainda não há construção, save em arquivo, arte nem som definitivos.
 
 ## Controles
 
@@ -13,6 +13,8 @@ Sandbox survival 2D top-down em pixel art, com exploração, construção e dome
 | Interagir (abrir a criatura inconsciente) | E |
 | Golpe com a arma equipada (dano + torpor) na criatura ao alcance | F ou Espaço |
 | Inventário próprio | I ou Tab |
+| Usar o atalho da barra (comer; baga em dino dormindo ao alcance vai para ele) | 1 a 9 |
+| Na tela de inventário: atribuir o item sob o cursor ao atalho | 1 a 9, ou botão direito (primeira posição livre; de novo, tira) |
 | Na tela de inventário | clique, ou setas + Enter/Espaço, transfere o slot inteiro; Esc, I ou E fecham |
 
 Com a tela aberta o jogador não anda. O jogador começa com 10 bagas (a comida ideal do dino), 4 carnes e 3 samambaias. Só a baga avança a domesticação; as outras ficam no inventário.
@@ -59,6 +61,7 @@ game/
 │   │   ├── DinoBaseStats.gd   # atributos base do dino (precursor do SpeciesDef)
 │   │   ├── TamingRules.gd     # regras da Eficiência
 │   │   ├── TorporBandRules.gd # faixas de torpor
+│   │   ├── PlayerRules.gd     # fome, recarga de comida, ofego
 │   │   ├── WeaponDef.gd       # arma do jogador
 │   │   └── Items.gd         # catálogo: berry, meat, fern
 │   ├── components/          # componentes reutilizáveis
@@ -66,6 +69,7 @@ game/
 │   │   ├── HungerComponent.gd
 │   │   ├── InteractableArea.gd
 │   │   ├── InventoryComponent.gd
+│   │   ├── HotbarComponent.gd
 │   │   ├── StaminaComponent.gd
 │   │   ├── TamingComponent.gd
 │   │   └── TorporComponent.gd
@@ -80,7 +84,10 @@ game/
 │   │       ├── Player.gd            # corpo: lê o input e aplica a física
 │   │       └── Player.tscn
 │   ├── ui/                  # só apresentação, reage a sinais
-│   │   ├── PlayerHud.gd     # barras do jogador e prompt
+│   │   ├── PlayerHud.gd     # vida, fome, XP (Nv) e prompt
+│   │   ├── HotbarBar.gd     # barra de atalhos 1 a 9
+│   │   ├── FloatingText.gd  # número flutuante (dano no dino e no jogador)
+│   │   ├── BreathSound.gd   # placeholder sintetizado do ofegar
 │   │   ├── DinoStatusBars.gd # barras de vida, torpor, domesticação e Eficiência
 │   │   ├── DinoView.gd       # sprite do dino: direção, andar, sono, cambaleio, pausa, flash, números, som
 │   │   ├── PlayerView.gd     # sprite do jogador: parado, andar, ataque, morto, som do golpe
@@ -96,6 +103,8 @@ game/
 └── tests/
     ├── run_tests.gd
     ├── dino_level_tests.gd  # nível, Eficiência, combate, faixas, apresentação
+    ├── dino_review_tests.gd # regras de save e achados das revisões
+    ├── hud_hotbar_tests.gd  # HUD, atalhos 1 a 9, ofegar, dano recebido
     └── saveable_table.gd
 ```
 
@@ -105,7 +114,9 @@ game/
 
 **`TorporComponent`** é uma barra independente da vida. Acordada, a criatura não mostra barra: só a faixa 0 a 3 (`band`, 25/50/75% com histerese de 3 pontos, `band_changed`). Faixa 2: velocidade x0,85; faixa 3: x0,65, pausa de 0,8 s a cada 4 s (determinística, `pause_phase`) e cooldown x1,5 (`movement_multiplier`, `is_paused`, `attack_cooldown_multiplier`). Valores em `data/balance/torpor_bands.tres`. Quando `current_torpor >= max_torpor`, emite `knocked_out`. A criatura só acorda quando o torpor cai até `wake_ratio * max_torpor`, e então emite `woke_up`. A queda por segundo é configurável separadamente para consciente e inconsciente, e essa segunda taxa define quanto tempo o jogador tem para domesticar.
 
-**`StaminaComponent`** é o fôlego. Gasta enquanto o corpo diz que está correndo e regenera parado. Ao zerar, entra em exaustão e só volta a correr ao recuperar `resume_threshold`. Sinais: `stamina_changed`, `exhausted` e `recovered`.
+**`StaminaComponent`** é o fôlego. Gasta enquanto o corpo diz que está correndo e regenera parado. Ao zerar, entra em exaustão e só volta a correr ao recuperar `resume_threshold`. Sinais: `stamina_changed`, `exhausted` e `recovered`. Abaixo de 25% do máximo (`winded_ratio`, dados) está ofegante (`is_winded`, `winded_intensity`): o `PlayerView` toca sopros cada vez mais rápidos e agudos e, ao zerar, um fôlego longo e uma nuvem de suor (GDD 5.7). Parar de correr por ~1,3 s vem do limiar de retomada (20 a 15/s). Golpes e coleta ainda NÃO gastam stamina (aguarda a SHIRO).
+
+**`HotbarComponent`** guarda 9 IDs de tipo de item (não slots do inventário). O atalho mostra a soma das pilhas e, sem estoque, fica apagado mas atribuído. O mesmo item ocupa uma posição só (atribuir de novo move). `Player.request_use_item(slot)` é a intenção de usar a tecla (a leitura da tecla é do corpo, ações `hotbar_1` a `hotbar_9`): comida recupera a fome (`data/balance/player_rules.tres`, classe `PlayerRules`: baga 25 do GDD; carne 40 e samambaia 15 são placeholders), não gasta com a fome cheia, e tem recarga de 0,5 s. Com uma criatura selvagem dormindo ao alcance que aceita aquele item e tem espaço, a unidade vai para o inventário dela (o mesmo caminho da tela de inventário); se ela não aceita ou está cheia, o jogador come. Os números do jogador (queda de fome 0,1/s, recarga de comida, limiar de ofego 25%, saciedade) ficam nesse `.tres`. Não há item de arma: o `weapon` do `Player` é fixo, então equipar/desequipar não existe ainda.
 
 **`HungerComponent`** guarda a saciedade (cheia = 100), que cai com o tempo. Em zero emite `starved(damage)` a cada `starvation_interval`; o `Player` liga esse sinal ao `HealthComponent.take_damage`. `eat(amount)` interrompe o dano.
 
@@ -129,7 +140,7 @@ Tudo vem de `assets/third_party/ninja-adventure/` (caminhos, quadros e direçõe
 
 - **Mapa:** `Terrain.tscn` tem as camadas `Ground` (grama e caminho), `Decor` (tufos, flores, pedras), `Trees` (árvores com colisão só no tronco, ordenadas por `y` com o jogador e o dino) e `Foliage` (folhagem das bordas, à frente do jogador, sem colisão), mais a casa (colisão só na base da parede) e o baú (só decorativo). A área continua fechada pelas 4 bordas da `Main`. O arquivo é gerado por `tools/gerar_mundo.gd` (determinístico): `godot --headless --path game --script ../tools/gerar_mundo.gd`, depois `--import`.
 - **Sprites:** o jogador usa `characters/caveman.png` (linhas 0 a 3 andar, 4 ataque, 6 morto); o dino usa `animals/reptile.png` (4 direções x 4 quadros de andar), com o sprite girado 90 graus e o balão "zz" quando dorme. A escolha do quadro é só apresentação (`PlayerView`, `DinoView`); o corpo só expõe `visual`, `velocity` e o sinal `attacked`. O cambaleio é um deslocamento de 1 a 2 px (pixel art não gira em ângulo fracionário).
-- **UI:** painéis 9-slice (`panel_a`, margem 6), células de inventário (`inventory_cell`), ícones de item (`Items.icon_of`) e da HUD (coração, pena, carne). As barras seguem coloridas por código.
+- **UI:** painéis 9-slice (`panel_a`, margem 6), células de inventário (`inventory_cell`), ícones de item (`ItemIcons.icon_of`) e da HUD (coração, pena, carne). As barras seguem coloridas por código.
 - **Sons:** `hit/hit1.wav` (dano no dino), `pickup/powerup1.wav` (domesticou) e `swing/whoosh.wav` (golpe do jogador), ligados em `cue_streams` das views na `Main.tscn` com `volume_db` +6 (o pacote tem pico de -10 dBFS). Sem som ainda: bocejo, dor, ronco.
 
 ### Jogador
@@ -140,7 +151,7 @@ Um detector (`Area2D`) enxerga as `InteractableArea` no alcance, e o `target` é
 
 ### UI
 
-Tudo em `src/ui/` é só apresentação, reage a sinais e pode ser removido sem efeito nas regras. `PlayerHud` mostra as barras do jogador e o prompt "E para interagir". `DinoStatusBars` é instanciada na `Main` (fora do `Dino.tscn`), segue o dino e mostra torpor, domesticação e Eficiência com o nível previsto só enquanto ele dorme (domesticação e Eficiência somem se ele já é domesticado), e a barra de vida só depois de dano, até 5 s após o último. `DinoView` faz a apresentação sobre o placeholder: cambaleio por faixa, achatamento e "..." na pausa, bocejo, flash branco de 0,1 s e número flutuante ao levar dano.
+Tudo em `src/ui/` é só apresentação, reage a sinais e pode ser removido sem efeito nas regras. `PlayerHud` mostra vida, fome, a barra de XP com "Nv N" e a `HotbarBar` (9 atalhos), mais o prompt "E para interagir". O XP ainda não existe: `set_experience(nível, atual, necessário)` é só o ponto de ligação e a HUD nasce em Nv 1, XP 0. `PlayerView` mostra o dano recebido (número vermelho e `sound_cue(hurt)`) e o ofegar (`pant`, `gasp`, nuvem). Na tela de inventário, a tecla 1 a 9 com o foco ou o mouse sobre um item o atribui ao atalho; o pedido sai por `hotbar_assign_requested` e a `Main` muda o `HotbarComponent`. `DinoStatusBars` é instanciada na `Main` (fora do `Dino.tscn`), segue o dino e mostra torpor, domesticação e Eficiência com o nível previsto só enquanto ele dorme (domesticação e Eficiência somem se ele já é domesticado), e a barra de vida só depois de dano, até 5 s após o último. `DinoView` faz a apresentação sobre o placeholder: cambaleio por faixa, achatamento e "..." na pausa, bocejo, flash branco de 0,1 s e número flutuante ao levar dano.
 
 **Som (ponto de ligação, sem áudio criado):** `DinoView` emite `sound_cue(cue)` (`hit`, `yawn`, `tamed`) e toca no seu `AudioStreamPlayer2D` se houver stream em `cue_streams`. Coloque os arquivos em `res://assets/sounds/dino/`, registre-os em `assets/CREDITS.md` e arraste-os para `cue_streams` do nó `DinoView` na `Main.tscn`. `InventoryScreen` mostra o inventário do jogador e o da criatura; ela fecha sozinha se o dino acordar, for domesticado ou sair da cena. A `Main` liga `Player.interacted` à tela e a tela ao `input_locked` do jogador. A fonte é a padrão da engine em tamanho 10, pensada para 640x360.
 
@@ -180,7 +191,7 @@ Exemplo do que `Dino.to_dict()` produz:
 }
 ```
 
-`Player.to_dict()` salva `position`, `health`, `stamina`, `hunger` e `inventory` no mesmo formato. Slot vazio é `{}`. No `from_dict` do inventário, ids desconhecidos, contagens inválidas e slots além da capacidade são descartados, e a contagem é limitada à pilha. Save sem `level` (ou com nível inválido) usa o `base_level` do dado e sem `efficiency` usa 100. A faixa de torpor, o relógio e a fase da pausa são salvos; a faixa é revalidada com `next_band(faixa_salva, fração)`, preservando a histerese. O `max` de vida e de torpor do save é ignorado. Campos de tipo errado, NaN ou fora da faixa caem no padrão (`SafeRead`), vida 0 no save vira dino morto na carga (sem `died`) e `progress = 100` dormindo volta à penúltima refeição. `from_dict` não emite `band_changed` nem `level_changed`. A fase da pausa vem do ponto de nascimento até existir id de entidade. Saves antigos com `taming.food_stock` são ignorados (o jogo não foi publicado).
+`Player.to_dict()` salva `position`, `health`, `stamina`, `hunger`, `inventory` e `hotbar` (`{"slots": [9 ids ou ""]}`, validada com `SafeRead`: não-Array mantém os atalhos, id desconhecido ou repetido é descartado) no mesmo formato. Slot vazio é `{}`. No `from_dict` do inventário, ids desconhecidos, contagens inválidas e slots além da capacidade são descartados, e a contagem é limitada à pilha. Save sem `level` (ou com nível inválido) usa o `base_level` do dado e sem `efficiency` usa 100. A faixa de torpor, o relógio e a fase da pausa são salvos; a faixa é revalidada com `next_band(faixa_salva, fração)`, preservando a histerese. O `max` de vida e de torpor do save é ignorado. Campos de tipo errado, NaN ou fora da faixa caem no padrão (`SafeRead`), vida 0 no save vira dino morto na carga (sem `died`) e `progress = 100` dormindo volta à penúltima refeição. `from_dict` não emite `band_changed` nem `level_changed`. A fase da pausa vem do ponto de nascimento até existir id de entidade. Saves antigos com `taming.food_stock` são ignorados (o jogo não foi publicado).
 
 - Enums são salvos pelo nome, então reordená-los não corrompe mundos antigos.
 - `from_dict()` não dispara eventos de jogo como `died` ou `knocked_out`.

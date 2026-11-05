@@ -14,9 +14,19 @@ extends Node2D
 func _ready() -> void:
 	dino.level = dino_level
 	screen.player_inventory = player.inventory
+	screen.hotbar = player.hotbar
+	screen.hotbar_assign_requested.connect(_on_hotbar_assign_requested)
 	screen.opened.connect(func() -> void: player.input_locked = true)
 	screen.closed.connect(func() -> void: player.input_locked = false)
 	player.interacted.connect(_on_player_interacted)
+
+
+## A tela pede, o mundo muda a barra do jogador ("" limpa a posição).
+func _on_hotbar_assign_requested(slot: int, item_id: String) -> void:
+	if item_id == "":
+		player.hotbar.clear(slot)
+	else:
+		player.hotbar.assign(slot, item_id)
 
 
 func _on_player_interacted(target: InteractableArea) -> void:

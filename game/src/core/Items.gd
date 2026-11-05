@@ -7,6 +7,8 @@ extends RefCounted
 const BERRY := "berry"
 const MEAT := "meat"
 const FERN := "fern"
+## Saciedade por item vem dos dados (`player_rules.tres`).
+const PLAYER_RULES: PlayerRules = preload("res://data/balance/player_rules.tres")
 
 static var _defs: Dictionary = {}
 
@@ -33,6 +35,11 @@ static func display_name(item_id: String) -> String:
 static func color_of(item_id: String) -> Color:
 	var def := get_def(item_id)
 	return def.color if def != null else Color.MAGENTA
+
+
+## Saciedade que 1 unidade devolve; 0 se não é comida (ou não existe).
+static func hunger_restore_of(item_id: String) -> float:
+	return PLAYER_RULES.hunger_restore_of(item_id) if get_def(item_id) != null else 0.0
 
 
 static func all_ids() -> Array:

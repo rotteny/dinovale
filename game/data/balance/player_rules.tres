@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="PlayerRules" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/core/PlayerRules.gd" id="1_rules"]
+
+[resource]
+script = ExtResource("1_rules")
+hunger_decay_per_second = 0.1
+food_cooldown = 0.5
+winded_ratio = 0.25
+hunger_restore = Dictionary[String, float]({
+"berry": 25.0,
+"fern": 15.0,
+"meat": 40.0
+})

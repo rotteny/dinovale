@@ -41,6 +41,8 @@ torpor = NodePath("../TorporComponent")
 [node name="InventoryComponent" type="Node" parent="."]
 script = ExtResource("6_inventory")
 capacity = 8
+iid_prefix = "d"
+accepts_individual = false
 
 [node name="TamingComponent" type="Node" parent="." node_paths=PackedStringArray("state_machine", "inventory", "health")]
 script = ExtResource("5_taming")

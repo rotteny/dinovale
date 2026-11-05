@@ -37,3 +37,12 @@ static func integer(value: Variant, fallback: int, low: int, high: int) -> int:
 	if not is_finite(result) or result != floorf(result) or result < low or result > high:
 		return fallback
 	return int(result)
+
+
+## Versão do formato de um dado salvo: ausente = 1 (save antigo, sem campo); presente tem de ser
+## inteiro em [1, known]. Inválida (texto, NaN, 0, negativa, fracionária) ou maior que a conhecida
+## devolve 0 = recusar (não dá para interpretar com segurança, então nada é aplicado).
+static func format_version(data: Dictionary, known: int) -> int:
+	if not data.has("version"):
+		return 1
+	return SafeRead.integer(data["version"], 0, 1, known)

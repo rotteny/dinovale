@@ -78,6 +78,8 @@ func _hunger_case() -> Array:
 func _inventory_case() -> Array:
 	var original: InventoryComponent = _track.call(InventoryComponent.new())
 	original.add("berry", 3)
+	original.add_entry({"id": "meat", "count": 2, "expira_em": 90.5})
+	original.add("sleep_staff", 2)
 	return [original, _track.call(InventoryComponent.new())]
 
 
@@ -123,6 +125,7 @@ func _player_case() -> Array:
 	original.health.take_damage(10.0)
 	original.inventory.remove("berry", 3)
 	original.hotbar.assign(8, "meat")
+	original.request_use_item(3)
 	return [original, _spawn(PlayerScene)]
 
 

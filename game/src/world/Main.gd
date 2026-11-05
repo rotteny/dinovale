@@ -22,9 +22,11 @@ func _ready() -> void:
 
 
 ## A tela pede, o mundo muda a barra do jogador ("" limpa a posição).
-func _on_hotbar_assign_requested(slot: int, item_id: String) -> void:
+func _on_hotbar_assign_requested(slot: int, item_id: String, iid: String) -> void:
 	if item_id == "":
 		player.hotbar.clear(slot)
+	elif iid != "":
+		player.hotbar.assign_iid(slot, iid, item_id)
 	else:
 		player.hotbar.assign(slot, item_id)
 

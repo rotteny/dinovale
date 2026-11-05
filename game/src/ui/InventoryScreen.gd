@@ -11,11 +11,13 @@ extends Control
 
 signal opened
 signal closed
-## Pede para atribuir `item_id` à posição `slot` (0 a 8) da barra; "" pede para limpá-la.
-signal hotbar_assign_requested(slot: int, item_id: String)
+## Pede para atribuir `item_id` (ou o item `iid`) à posição `slot` (0 a 8) da barra; `item_id`
+## "" e `iid` "" pedem para limpá-la.
+## Para um item individual vai também o `iid` (a barra segue o item); senão `iid` é "".
+signal hotbar_assign_requested(slot: int, item_id: String, iid: String)
 
 const COLUMNS := 4
-const SLOT_SIZE := Vector2(72, 32)
+const SLOT_SIZE := Vector2(84, 32)
 const SLOT_FONT_SIZE := 8
 
 @export var player_inventory: InventoryComponent
@@ -34,6 +36,7 @@ var _other_grid := GridContainer.new()
 var _player_buttons: Array[Button] = []
 var _other_buttons: Array[Button] = []
 var _hover_index := -1
+var _notice := Label.new()
 
 
 func _ready() -> void:
@@ -82,11 +85,13 @@ func _ready() -> void:
 		grid.add_theme_constant_override("h_separation", 2)
 		grid.add_theme_constant_override("v_separation", 2)
 
+	_notice.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	column.add_child(_notice)
 	var hint := Label.new()
 	hint.text = "Clique ou Enter: transferir   1-9 ou botão direito: atalho   Esc/I/E: fechar"
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(hint)
-	for label: Label in [_title, player_title, _other_title, hint]:
+	for label: Label in [_title, player_title, _other_title, hint, _notice]:
 		label.add_theme_color_override("font_color", UiTheme.INK)
 
 
@@ -118,6 +123,7 @@ func open_with(own: InventoryComponent, other: InventoryComponent, source: Inter
 	if source != null:
 		source.availability_changed.connect(_on_availability_changed)
 		source.tree_exiting.connect(close)
+	_notice.text = ""
 	_refresh()
 	is_open = true
 	visible = true
@@ -166,12 +172,16 @@ func cursor_slot() -> int:
 
 
 ## Atribui o item do slot do jogador `index` à posição `hotbar_slot` da barra.
+## Sem item sob o cursor, a tecla só limpa um atalho ÓRFÃO (de item individual que saiu do
+## inventário): é o jeito de tirá-lo da barra, já que ele não aparece em nenhuma célula.
 func assign_to_hotbar(index: int, hotbar_slot: int) -> void:
-	if not is_open or player_inventory == null or index < 0 or index >= _player_buttons.size():
+	if not is_open or player_inventory == null:
 		return
 	var slot := player_inventory.get_slot(index)
 	if not slot.is_empty():
-		hotbar_assign_requested.emit(hotbar_slot, slot["id"])
+		hotbar_assign_requested.emit(hotbar_slot, slot["id"], str(slot.get("iid", "")))
+	elif hotbar != null and hotbar.iid_at(hotbar_slot) != "" and not player_inventory.has_iid(hotbar.iid_at(hotbar_slot)):
+		hotbar_assign_requested.emit(hotbar_slot, "", "")
 
 
 ## Botão direito: leva o item à primeira posição livre; se já está na barra, tira.
@@ -181,11 +191,12 @@ func toggle_hotbar(index: int) -> void:
 	var slot := player_inventory.get_slot(index)
 	if slot.is_empty():
 		return
-	var current := hotbar.slot_of(slot["id"])
+	var iid := str(slot.get("iid", ""))
+	var current := hotbar.slot_of_iid(iid) if iid != "" else hotbar.slot_of(slot["id"])
 	if current >= 0:
-		hotbar_assign_requested.emit(current, "")
+		hotbar_assign_requested.emit(current, "", "")
 	elif hotbar.first_free() >= 0:
-		hotbar_assign_requested.emit(hotbar.first_free(), slot["id"])
+		hotbar_assign_requested.emit(hotbar.first_free(), slot["id"], iid)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -247,9 +258,12 @@ func _refresh_buttons(buttons: Array[Button], inventory: InventoryComponent) -> 
 			buttons[i].icon = null
 			swatch.visible = false
 		else:
-			var key := hotbar.slot_of(slot["id"]) if hotbar != null and buttons == _player_buttons else -1
+			var key := -1
+			if hotbar != null and buttons == _player_buttons:
+				key = hotbar.slot_of_iid(slot["iid"]) if slot.has("iid") else hotbar.slot_of(slot["id"])
 			var tag := "[%d] " % (key + 1) if key >= 0 else ""
-			buttons[i].text = "%s%s\nx%d" % [tag, Items.display_name(slot["id"]), slot["count"]]
+			var detail := "%d/%d" % [slot["durab"], slot["durab_max"]] if slot.has("iid") else "x%d" % slot["count"]
+			buttons[i].text = "%s\n%s%s" % [Items.display_name(slot["id"]), tag, detail]
 			var icon := ItemIcons.icon_of(slot["id"])
 			buttons[i].icon = icon
 			swatch.color = Items.color_of(slot["id"])
@@ -265,10 +279,25 @@ func _on_slot_gui_input(event: InputEvent, index: int) -> void:
 func _on_slot_pressed(from_player: bool, index: int) -> void:
 	if _other == null:
 		return
-	if from_player:
-		player_inventory.transfer_slot(index, _other)
+	var source := player_inventory if from_player else _other
+	var destination := _other if from_player else player_inventory
+	var slot := source.get_slot(index)
+	if source.transfer_slot(index, destination) == 0 and not slot.is_empty():
+		_notice.text = _refusal_text(slot, destination)
 	else:
-		_other.transfer_slot(index, player_inventory)
+		_notice.text = ""
+
+
+## Por que o item não foi: equipamento recusado pelo destino, ou sem espaço.
+func _refusal_text(slot: Dictionary, destination: InventoryComponent) -> String:
+	if Items.is_individual(slot["id"]) and not destination.accepts_individual:
+		return "%s não vai para a criatura." % Items.display_name(slot["id"])
+	return "Sem espaço para %s." % Items.display_name(slot["id"])
+
+
+## Texto do aviso atual ("" = sem aviso).
+func notice_text() -> String:
+	return _notice.text
 
 
 func _on_availability_changed(available: bool) -> void:

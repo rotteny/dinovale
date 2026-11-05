@@ -39,6 +39,7 @@ script = ExtResource("4_hunger")
 [node name="InventoryComponent" type="Node" parent="."]
 script = ExtResource("5_inventory")
 capacity = 12
+iid_prefix = "p"
 
 [node name="HotbarComponent" type="Node" parent="."]
 script = ExtResource("7_hotbar")

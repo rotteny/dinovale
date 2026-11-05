@@ -338,7 +338,8 @@ func _test_player_weapon_attack() -> void:
 	dino.torpor.set_physics_process(false)
 	player.target = dino.interactable
 	player._in_range.append(dino.interactable)
-	_check(player.weapon.id == "sleep_staff", "arma inicial vem dos dados")
+	_check(player.current_weapon().id == "punch", "mãos livres: Soco")
+	_check(player.request_use_item(3) and player.current_weapon().id == "sleep_staff", "a tecla 4 põe o Bastão em mãos")
 	_check(player.attack(), "golpe acerta")
 	_check(is_equal_approx(dino.health.current_health, 98.0), "bastão causa 2 de dano")
 	_check(is_equal_approx(dino.torpor.current_torpor, 30.0), "bastão aplica 30 de torpor")
@@ -350,7 +351,9 @@ func _test_player_weapon_attack() -> void:
 	other.damage = 18.0
 	other.torpor = 6.0
 	other.cooldown = 0.9
-	player.weapon = other
+	player.tick(0.5)
+	_check(player.request_use_item(3) and player.current_weapon() == player.unarmed, "a mesma tecla desequipa")
+	player.unarmed = other
 	player.tick(1.0)
 	_check(player.attack() and is_equal_approx(dino.health.current_health, 98.0 - 2.0 - 18.0), "outra arma, outros números")
 	player.tick(0.5)
@@ -362,6 +365,7 @@ func _test_player_weapon_attack() -> void:
 	full.torpor.set_physics_process(false)
 	player2.target = full.interactable
 	player2._in_range.append(full.interactable)
+	player2.request_use_item(3)
 	for i in 4:
 		player2.tick(0.7)
 		if player2.attack():

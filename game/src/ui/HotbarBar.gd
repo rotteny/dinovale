@@ -8,6 +8,10 @@ extends HBoxContainer
 const SLOT_SIZE := Vector2(26, 26)
 const EMPTY_ALPHA := 0.35
 const FONT_SIZE := 8
+## Destaque do item em mãos: fundo e borda amarelos claros (distinto do apagado, que só some).
+const EQUIPPED_FILL := Color(1.0, 0.93, 0.45, 0.55)
+const EQUIPPED_BORDER := Color(1.0, 0.85, 0.1)
+const EQUIPPED_BORDER_WIDTH := 2
 
 @export var player: Player
 
@@ -24,6 +28,7 @@ func _ready() -> void:
 		slot.custom_minimum_size = SLOT_SIZE
 		slot.focus_mode = Control.FOCUS_NONE
 		slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		slot.toggle_mode = true
 		slot.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		slot.expand_icon = false
 		var key := _corner_label(str(i + 1), Control.PRESET_TOP_LEFT, Vector2(3, 0))
@@ -42,14 +47,27 @@ func _ready() -> void:
 	if player == null:
 		return
 	player.hotbar.changed.connect(refresh)
+	player.equipped_changed.connect(func(_iid: String) -> void: refresh())
 	player.inventory.changed.connect(refresh)
 	refresh()
 
 
 func refresh() -> void:
 	for i in _slots.size():
+		var iid := player.hotbar.iid_at(i)
 		var item_id := player.hotbar.item_at(i)
+		if iid != "":
+			# Individual: segue o item; apagado se saiu do inventário (o ícone vem da dica de tipo
+			# da barra); o que está em mãos ganha o destaque amarelo.
+			var item := player.inventory.find_iid(iid)
+			item_id = str(item.get("id", player.hotbar.type_at(i)))
+			_slots[i].icon = ItemIcons.icon_of(item_id) if item_id != "" else null
+			_counts[i].text = ""
+			_slots[i].modulate.a = 1.0 if not item.is_empty() else EMPTY_ALPHA
+			_mark_equipped(i, not item.is_empty() and iid == player.equipped_iid)
+			continue
 		var stock := player.inventory.count(item_id) if item_id != "" else 0
+		_mark_equipped(i, false)
 		_slots[i].icon = ItemIcons.icon_of(item_id) if item_id != "" else null
 		_counts[i].text = str(stock) if item_id != "" else ""
 		_slots[i].modulate.a = 1.0 if stock > 0 or item_id == "" else EMPTY_ALPHA
@@ -62,6 +80,32 @@ func slot_button(index: int) -> Button:
 ## Quantidade mostrada na posição ("" se vazia).
 func count_text(index: int) -> String:
 	return _counts[index].text if index >= 0 and index < _counts.size() else ""
+
+
+## Individual em mãos (célula com o destaque amarelo).
+func is_equipped(index: int) -> bool:
+	return index >= 0 and index < _slots.size() and _slots[index].button_pressed
+
+
+## Cor de fundo do destaque da célula, ou transparente se não está em mãos (para testes).
+func highlight_color(index: int) -> Color:
+	if not is_equipped(index):
+		return Color(0, 0, 0, 0)
+	return (_slots[index].get_theme_stylebox("normal") as StyleBoxFlat).bg_color
+
+
+func _mark_equipped(index: int, equipped: bool) -> void:
+	var slot := _slots[index]
+	slot.button_pressed = equipped
+	for state in ["normal", "hover", "pressed", "hover_pressed"]:
+		if not equipped:
+			slot.remove_theme_stylebox_override(state)
+			continue
+		var box := StyleBoxFlat.new()
+		box.bg_color = EQUIPPED_FILL
+		box.set_border_width_all(EQUIPPED_BORDER_WIDTH)
+		box.border_color = EQUIPPED_BORDER
+		slot.add_theme_stylebox_override(state, box)
 
 
 ## Atribuído mas sem estoque.

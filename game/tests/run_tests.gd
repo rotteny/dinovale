@@ -81,6 +81,7 @@ func _run() -> void:
 	DinoLevelTests.new(root, _track, _check).run()
 	DinoReviewTests.new(root, _track, _check).run()
 	HudHotbarTests.new(root, _track, _check).run()
+	InventoryModelTests.new(root, _track, _check).run()
 	await _test_full_taming_integration()
 	_test_saveable_roundtrip_table()
 	for node in _nodes:
@@ -531,10 +532,11 @@ func _make_inventory(slots: int, stack: int = 99) -> InventoryComponent:
 func _test_inventory_stacks_and_capacity() -> void:
 	var inv := _make_inventory(3, 20)
 	_check(inv.add("berry", 25) == 0, "25 baga cabem em 3 slots de 20")
-	_check(inv.get_slot(0) == {"id": "berry", "count": 20} and inv.get_slot(1) == {"id": "berry", "count": 5},
+	_check(inv.get_slot(0) == {"id": "berry", "count": 20, "expira_em": 0.0}
+			and inv.get_slot(1) == {"id": "berry", "count": 5, "expira_em": 0.0},
 			"pilha enche e transborda para o próximo slot")
 	_check(inv.add("berry", 10) == 0 and inv.get_slot(1)["count"] == 15, "completa a pilha existente antes de abrir slot")
-	_check(inv.add("meat", 3) == 0 and inv.get_slot(2) == {"id": "meat", "count": 3}, "item diferente usa slot livre")
+	_check(inv.add("meat", 3) == 0 and inv.get_slot(2) == {"id": "meat", "count": 3, "expira_em": 0.0}, "item diferente usa slot livre")
 	_check(inv.add("berry", 10) == 5 and inv.count("berry") == 40, "cheio: devolve o que não coube e guarda o resto")
 	_check(inv.add("fern", 1) == 1, "sem slot livre, outro item não entra")
 	_check(inv.add("pedra", 5) == 5 and inv.count("pedra") == 0, "item desconhecido é rejeitado")
@@ -620,14 +622,16 @@ func _test_inventory_save_is_validated() -> void:
 	_check(copy.to_dict() == inv.to_dict(), "inventário idêntico depois do JSON")
 	_check(copy.count("berry") == 25 and copy.get_slot(2).get("id") == "meat", "posições dos slots preservadas")
 	var hostile := _make_inventory(2, 20)
-	hostile.from_dict({"slots": [
-		{"id": "berry", "count": 99999999},
-		{"id": "pedra", "count": 5},
-		{"id": "meat", "count": 1},
-		{"id": "fern", "count": 3},
-	]})
-	_check(hostile.get_slot(0)["count"] == 20, "contagem do save é limitada à pilha")
-	_check(hostile.get_slot(1).is_empty() and hostile.count("fern") == 0, "id desconhecido e slots além da capacidade são descartados")
+	hostile.add("meat", 1)
+	_check(not hostile.from_dict({"slots": [{"id": "berry", "count": 99999999}]}) and hostile.count("meat") == 1
+			and hostile.count("berry") == 0, "contagem absurda que não cabe: carga recusada, nada muda")
+	hostile.from_dict({"slots": [{"id": "berry", "count": 30}]})
+	_check(hostile.get_slot(0)["count"] == 20 and hostile.get_slot(1)["count"] == 10, "pilha acima do teto é dividida, não cortada")
+	hostile.from_dict({"slots": [{"id": "pedra", "count": 5}, {"id": "meat", "count": 1}]})
+	_check(hostile.get_slot(0).is_empty() and hostile.count("meat") == 1, "id desconhecido é descartado")
+	_check(not hostile.from_dict({"slots": [{"id": "meat", "count": 1}, {"id": "fern", "count": 1}, {"id": "berry", "count": 3}]})
+			and hostile.count("fern") == 0 and hostile.count("meat") == 1, "item válido além da capacidade: recusa a carga inteira")
+	hostile.from_dict({"slots": []})
 	for bad: Variant in [{"slots": "lixo"}, {"slots": [null, 3, "x", [], {"id": 7, "count": 1}]},
 			{"slots": [{"id": "berry", "count": -4}]}, {"slots": [{"id": "berry", "count": "9"}]},
 			{"slots": [{"id": "berry", "count": INF}]}, {"slots": [{"id": "berry", "count": NAN}]}, {}]:
@@ -692,9 +696,9 @@ func _test_attack_rules() -> void:
 	player.target = dino.interactable
 	player._in_range.append(dino.interactable)
 	_check(player.attack(), "golpe acerta o alvo")
-	_check(is_equal_approx(dino.torpor.current_torpor, player.weapon.torpor), "aplica o torpor da arma")
+	_check(is_equal_approx(dino.torpor.current_torpor, player.current_weapon().torpor), "aplica o torpor da arma")
 	_check(not player.attack(), "recarga impede golpe seguido")
-	player.tick(player.weapon.cooldown)
+	player.tick(player.current_weapon().cooldown)
 	_check(player.attack(), "depois da recarga ataca de novo")
 	player.tick(1.0)
 	player.input_locked = true
@@ -909,6 +913,7 @@ func _test_full_taming_integration() -> void:
 	_check(player.target == dino.interactable, "jogador detecta o dino no alcance")
 	_check(not player.try_interact() and not screen.is_open, "dino acordado: E não abre nada")
 	_check(dino.level == 20 and main.dino_level == 20, "a Main fixa o nível do dino")
+	_check(player.request_use_item(3) and player.current_weapon().id == "sleep_staff", "tecla 4 põe o Bastão em mãos")
 	for i in 12:
 		player.attack()
 		player.tick(0.7)

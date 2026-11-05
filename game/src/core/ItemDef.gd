@@ -8,6 +8,10 @@ var display_name: String
 var max_stack: int
 ## Cor placeholder usada pela UI até existir arte.
 var color: Color
+## Durabilidade máxima. Maior que 0 = item INDIVIDUAL (arma, ferramenta, armadura): não
+## empilha e cada unidade carrega `iid` e durabilidade (GDD 5.9, PRO-15). 0 = empilhável.
+## Só o campo: desgaste, quebra e reparo são do PRO-16.
+var durability_max: int = 0
 
 
 func _init(p_id: String, p_name: String, p_max_stack: int, p_color: Color) -> void:

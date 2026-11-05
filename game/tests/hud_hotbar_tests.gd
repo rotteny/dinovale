@@ -108,7 +108,7 @@ func _test_player_rules_data() -> void:
 	custom.set_physics_process(false)
 	_check(custom.stamina.rules == custom.rules and custom.hunger.decay_per_second == 0.2,
 			"regras trocadas na cena chegam à stamina e à fome")
-	_check(Items.hunger_restore_of(Items.BERRY) == 25.0 and Items.hunger_restore_of("inexistente") == 0.0, "saciedade vem dos dados")
+	_check(rules.hunger_restore_of(Items.BERRY) == 25.0 and rules.hunger_restore_of("inexistente") == 0.0, "saciedade vem dos dados")
 	var stamina: StaminaComponent = _track.call(StaminaComponent.new())
 	stamina.rules = rules.duplicate()
 	stamina.rules.winded_ratio = 0.5
@@ -134,7 +134,7 @@ func _test_use_item_eating() -> void:
 			"passada a recarga, come a carne (limitado a 100)")
 	player.hunger.current_hunger = 10.0
 	player.tick(0.5)
-	_check(not player.request_use_item(3) and not player.request_use_item(-1) and not player.request_use_item(9),
+	_check(not player.request_use_item(4) and not player.request_use_item(-1) and not player.request_use_item(9),
 			"posição vazia ou fora da faixa não faz nada")
 	player.inventory.remove(Items.FERN, 3)
 	player.tick(0.5)
@@ -173,7 +173,16 @@ func _test_use_item_with_sleeping_dino_in_reach() -> void:
 	_check(player.request_use_item(0) and awake.inventory.count(Items.BERRY) == 0, "dino acordado no alvo: também come")
 	# Item que não é comida (sem saciedade) não faz nada.
 	player.tick(0.5)
-	_check(Items.hunger_restore_of("inexistente") == 0.0 and not player.request_use_item(8), "posição vazia: nada")
+	_check(not player.request_use_item(8), "posição vazia: nada")
+	# Item sem saciedade nos dados não é comida: a tecla não o gasta.
+	player.tick(0.5)
+	var shared_rules := player.rules
+	player.rules = shared_rules.duplicate(true)
+	player.rules.hunger_restore.erase(Items.FERN)
+	_check(shared_rules.hunger_restore.has(Items.FERN), "o teste não altera o recurso compartilhado dos dados")
+	player.hunger.current_hunger = 10.0
+	_check(not player.request_use_item(2) and player.inventory.count(Items.FERN) == 3 and player.hunger.current_hunger == 10.0,
+			"item não comestível não é gasto pela tecla")
 
 
 func _test_hotbar_keys_and_input_map() -> void:
@@ -240,29 +249,34 @@ func _test_inventory_assigns_hotbar() -> void:
 	_root.add_child(screen)
 	_track.call(screen)
 	var requests: Array = []
-	screen.hotbar_assign_requested.connect(func(slot: int, item_id: String) -> void: requests.append([slot, item_id]))
+	screen.hotbar_assign_requested.connect(func(slot: int, item_id: String, iid: String) -> void: requests.append([slot, item_id, iid]))
 	screen.open_with(player.inventory, null, null, "")
-	_check(screen.slot_button(true, 0).text.begins_with("[1] Baga"), "a célula mostra a tecla do atalho")
+	var cell := screen.slot_button(true, 0).text
+	_check(cell.begins_with("Baga") and cell.contains("[1] "), "a célula mostra a tecla do atalho")
 	_check(player.hotbar.changed.is_connected(screen._refresh), "aberta, a tela escuta hotbar.changed")
 	player.hotbar.assign(4, Items.BERRY)
-	_check(screen.slot_button(true, 0).text.begins_with("[5] Baga"), "e redesenha a tecla quando a barra muda")
+	_check(screen.slot_button(true, 0).text.contains("[5] "), "e redesenha a tecla quando a barra muda")
 	player.hotbar.assign(0, Items.BERRY)
 	screen.assign_to_hotbar(1, 6)
-	_check(requests == [[6, Items.MEAT]], "pedido de atribuição por teclado leva o tipo do item do slot")
+	_check(requests == [[6, Items.MEAT, ""]], "pedido de atribuição por teclado leva o tipo do item do slot")
 	requests.clear()
 	screen.slot_button(true, 1).grab_focus()
 	_check(screen.cursor_slot() == 1, "o foco define o item sob o cursor")
 	screen._unhandled_input(_action("hotbar_4"))
-	_check(requests == [[3, Items.MEAT]], "tecla 4 com o foco no slot 1 atribui a carne à posição 4")
+	_check(requests == [[3, Items.MEAT, ""]], "tecla 4 com o foco no slot 1 atribui a carne à posição 4")
+	requests.clear()
+	var staff_iid: String = player.inventory.get_slot(3)["iid"]
+	screen.assign_to_hotbar(3, 7)
+	_check(requests == [[7, Items.SLEEP_STAFF, staff_iid]], "o Bastão vai por iid (a barra segue o item)")
 	requests.clear()
 	screen.toggle_hotbar(5)
 	_check(requests.is_empty(), "slot vazio não gera pedido")
 	player.hotbar.clear(2)
 	screen.toggle_hotbar(2)
-	_check(requests == [[2, Items.FERN]], "botão direito: primeira posição livre")
+	_check(requests == [[2, Items.FERN, ""]], "botão direito: primeira posição livre")
 	requests.clear()
 	screen.toggle_hotbar(0)
-	_check(requests == [[0, ""]], "botão direito num item já atribuído pede para tirar")
+	_check(requests == [[0, "", ""]], "botão direito num item já atribuído pede para tirar")
 	screen.close()
 	_check(not player.hotbar.changed.is_connected(screen._refresh), "fechada, a tela solta o hotbar.changed")
 	screen.assign_to_hotbar(0, 1)
@@ -270,9 +284,9 @@ func _test_inventory_assigns_hotbar() -> void:
 	# O mundo liga o pedido ao componente (como a `Main`).
 	var wired := Main.new()
 	wired.player = player
-	wired._on_hotbar_assign_requested(8, Items.BERRY)
+	wired._on_hotbar_assign_requested(8, Items.BERRY, "")
 	_check(player.hotbar.item_at(8) == Items.BERRY and player.hotbar.item_at(0) == "", "a Main aplica a atribuição")
-	wired._on_hotbar_assign_requested(8, "")
+	wired._on_hotbar_assign_requested(8, "", "")
 	_check(player.hotbar.item_at(8) == "", "e a limpeza")
 	wired.free()
 

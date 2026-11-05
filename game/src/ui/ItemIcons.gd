@@ -7,6 +7,7 @@ extends RefCounted
 const _ICONS: Dictionary[String, Texture2D] = {
 	Items.BERRY: preload("res://assets/third_party/ninja-adventure/items/food_seed3.png"),
 	Items.MEAT: preload("res://assets/third_party/ninja-adventure/items/food_meat.png"),
+	Items.SLEEP_STAFF: preload("res://assets/third_party/ninja-adventure/items/res_branch.png"),
 	Items.FERN: preload("res://assets/third_party/ninja-adventure/items/res_grass.png"),
 }
 

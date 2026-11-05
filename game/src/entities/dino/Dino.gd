@@ -138,7 +138,15 @@ func to_dict() -> Dictionary:
 
 
 ## Chame depois de adicionar à árvore. A ordem importa: inventário, torpor e domesticação antes da máquina.
-func from_dict(data: Dictionary) -> void:
+## CONTRATO DO RETORNO (para o SAV-01): `true` = aplicado; `false` = RECUSADO e NADA mudou. Valida
+## o inventário (versão e se cabe, inclusive equipamento, que a criatura não guarda) ANTES de
+## tocar em qualquer campo; o SaveManager trata `false` como save inválido, sem carga parcial.
+func from_dict(data: Dictionary) -> bool:
+	var saved_inventory := SafeRead.dict(data.get("inventory"))
+	if SafeRead.format_version(saved_inventory, InventoryComponent.FORMAT_VERSION) == 0:
+		return false
+	if typeof(saved_inventory.get("slots")) == TYPE_ARRAY and not inventory.can_load(saved_inventory):
+		return false
 	# Restaurar não é evento de jogo: `level_changed` fica quieto (a UI lê o estado).
 	_restoring = true
 	var saved_position := SafeRead.dict(data.get("position"))
@@ -149,7 +157,7 @@ func from_dict(data: Dictionary) -> void:
 	# Ausente ou não numérico: nível padrão. Número legítimo fora da faixa: limitado.
 	level = level_rules.clamp_level(SafeRead.integer(data.get("level"), level_rules.base_level, -LEVEL_SANITY, LEVEL_SANITY))
 	health.from_dict(SafeRead.dict(data.get("health")))
-	inventory.from_dict(SafeRead.dict(data.get("inventory")))
+	inventory.from_dict(saved_inventory)
 	torpor.from_dict(SafeRead.dict(data.get("torpor")))
 	taming.from_dict(SafeRead.dict(data.get("taming")))
 	state_machine.from_dict(SafeRead.dict(data.get("state_machine")))
@@ -160,5 +168,6 @@ func from_dict(data: Dictionary) -> void:
 	# Vida 0 no save: morta na carga, sem emitir `died` (não é evento de jogo).
 	if health.is_dead():
 		queue_free()
+	return true
 
 

@@ -19,6 +19,7 @@ const SCRIPTS: Array[String] = [
 	"res://src/components/HotbarComponent.gd",
 	"res://src/components/HungerComponent.gd",
 	"res://src/components/InventoryComponent.gd",
+	"res://src/components/ResourceNodeComponent.gd",
 	"res://src/components/StaminaComponent.gd",
 	"res://src/components/TamingComponent.gd",
 	"res://src/components/TorporComponent.gd",
@@ -46,6 +47,7 @@ func build(script_path: String) -> Array:
 		"res://src/components/HotbarComponent.gd": _hotbar_case,
 		"res://src/components/HungerComponent.gd": _hunger_case,
 		"res://src/components/InventoryComponent.gd": _inventory_case,
+		"res://src/components/ResourceNodeComponent.gd": _resource_node_case,
 		"res://src/components/StaminaComponent.gd": _stamina_case,
 		"res://src/components/TamingComponent.gd": _taming_case,
 		"res://src/components/TorporComponent.gd": _torpor_case,
@@ -133,9 +135,21 @@ func _dino_case() -> Array:
 	return [original, _spawn(DinoScene)]
 
 
+func _resource_node_case() -> Array:
+	var def: ResourceNodeDef = load("res://data/resources/tree.tres")
+	var original: ResourceNodeComponent = _track.call(ResourceNodeComponent.new())
+	original.def = def
+	original.harvest()
+	original.tick(30.0)
+	var restored: ResourceNodeComponent = _track.call(ResourceNodeComponent.new())
+	restored.def = def
+	return [original, restored]
+
+
 func _player_case() -> Array:
 	var original := _spawn(PlayerScene) as Player
 	original.health.take_damage(10.0)
+	original.health.grant_protection(2.5)
 	original.inventory.remove("berry", 3)
 	original.hotbar.assign(8, "meat")
 	original.request_use_item(3)

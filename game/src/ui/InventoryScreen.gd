@@ -31,6 +31,8 @@ const SLOT_FONT_SIZE := 8
 @export var equipment: EquipmentComponent
 
 var is_open: bool = false
+## Bloqueada (jogador morto): não abre, nem pelo atalho nem pela criatura. Quem liga é a `Main`.
+var locked: bool = false
 
 var _other: InventoryComponent = null
 var _source: InteractableArea = null
@@ -107,7 +109,7 @@ func _ready() -> void:
 
 ## Abre o inventário próprio sozinho (ação `inventory`).
 func open_own() -> void:
-	if player_inventory != null:
+	if player_inventory != null and not locked:
 		open_with(player_inventory, null, null, "")
 
 
@@ -115,6 +117,8 @@ func open_own() -> void:
 ## cuja disponibilidade mantém a tela aberta: se ela ficar indisponível, fecha.
 func open_with(own: InventoryComponent, other: InventoryComponent, source: InteractableArea,
 		title: String) -> void:
+	if locked:
+		return
 	if is_open:
 		close()
 	player_inventory = own

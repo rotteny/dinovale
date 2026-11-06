@@ -31,6 +31,8 @@ enum Reason {
 	## Deitar na cama (a Cama não existe ainda: só o ponto de entrada).
 	BED,
 	PLAYER_DEATH,
+	## O jogador escolheu onde renascer (a morte pendente deixa de existir no save).
+	RESPAWN,
 	## Morreu um dino domado.
 	TAMED_DINO_DEATH,
 	EXIT_MENU,

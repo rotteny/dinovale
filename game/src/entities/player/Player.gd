@@ -22,11 +22,21 @@ signal ate(item_id: String)
 signal equipped_changed(iid: String)
 ## Um pedido de equipar ou tirar foi recusado (`EquipmentComponent.REFUSED_*`); a tela mostra o aviso.
 signal equip_refused(reason: String)
+## Coletou de um nó de recurso (a apresentação mostra o ganho).
+signal gathered(item_id: String, amount: int)
+## Um pedido de coleta foi recusado (`GATHER_*`); recarga é silenciosa.
+signal gather_refused(reason: String)
 
 ## Versão do formato do save do jogador. 1 = antigo (sem campo; item em mãos em `equipped`, na grade);
 ## 2 = vagas de equipamento (`equipment`).
 const FORMAT_VERSION := 2
 const COOLDOWN := "cooldown"
+## Motivos de recusa de `request_gather`.
+const GATHER_NO_TARGET := "no_target"
+const GATHER_DEPLETED := "depleted"
+const GATHER_FULL := "full"
+const GATHER_BLOCKED := "blocked"
+const GATHER_TOO_FAR := "too_far"
 
 @export var walk_speed: float = 70.0
 @export var sprint_speed: float = 120.0
@@ -54,6 +64,7 @@ var _in_range: Array[InteractableArea] = []
 var _attack_timer: float = 0.0
 var _eat_timer: float = 0.0
 var _equip_timer: float = 0.0
+var _gather_timer: float = 0.0
 var _last_equipped: String = ""
 
 ## Sprite: só a apresentação (`PlayerView`) escolhe o quadro.
@@ -96,6 +107,8 @@ func tick(delta: float) -> void:
 	_attack_timer = maxf(_attack_timer - delta, 0.0)
 	_eat_timer = maxf(_eat_timer - delta, 0.0)
 	_equip_timer = maxf(_equip_timer - delta, 0.0)
+	_gather_timer = maxf(_gather_timer - delta, 0.0)
+	health.tick(delta)
 	update_target()
 
 
@@ -135,7 +148,7 @@ func update_target() -> void:
 	var best: InteractableArea = null
 	var best_distance := INF
 	for area in _in_range:
-		if not is_instance_valid(area):
+		if not is_instance_valid(area) or _is_spent_resource(area):
 			continue
 		var distance := global_position.distance_squared_to(area.global_position)
 		if distance < best_distance:
@@ -144,6 +157,25 @@ func update_target() -> void:
 	if best != target:
 		target = best
 		target_changed.emit(target)
+
+
+## Nó de recurso esgotado não disputa o alvo: o dino ou o nó cheio ao lado continuam alcançáveis.
+func _is_spent_resource(area: InteractableArea) -> bool:
+	return area.entity is ResourceNode and not area.can_interact()
+
+
+## Criatura mais próxima no alcance (o golpe não depende de qual interagível é o alvo).
+func _nearest_dino() -> Dino:
+	var best: Dino = null
+	var best_distance := INF
+	for area in _in_range:
+		if not is_instance_valid(area) or not (area.entity is Dino):
+			continue
+		var distance := global_position.distance_squared_to(area.global_position)
+		if distance < best_distance:
+			best_distance = distance
+			best = area.entity as Dino
+	return best
 
 
 ## Interage com o alvo se a regra da entidade permitir. Retorna true se interagiu.
@@ -156,14 +188,70 @@ func try_interact() -> bool:
 
 ## Golpe da arma equipada na criatura selvagem ao alcance (dano e torpor). Retorna true se acertou.
 func attack() -> bool:
-	if input_locked or health.is_dead() or _attack_timer > 0.0 or target == null:
+	if input_locked or health.is_dead() or _attack_timer > 0.0:
 		return false
-	var dino := target.entity as Dino
+	var dino := _nearest_dino()
 	var weapon := current_weapon()
 	if dino == null or not dino.receive_hit(weapon.damage, weapon.torpor, TamingRules.ATTACKER_PLAYER):
 		return false
 	_attack_timer = weapon.cooldown
 	attacked.emit()
+	return true
+
+
+## Intenção "colher o nó de recurso em alcance": o jogador só pede, as regras decidem aqui. Devolve ""
+## se coletou ou o motivo da recusa (`GATHER_*`, ou "cooldown", silenciosa). Recusa por falta de
+## espaço NÃO gasta o nó. A recarga é o tempo de ação do tipo de nó (`gather_seconds`).
+func request_gather() -> String:
+	if input_locked or health.is_dead():
+		return GATHER_BLOCKED
+	if _gather_timer > 0.0:
+		return COOLDOWN
+	var node := target.entity as ResourceNode if target != null else null
+	var reason := _gather_refusal(node)
+	if reason != "":
+		return _refuse_gather(reason)
+	var amount := node.harvest()
+	inventory.add(node.def.item_id, amount)
+	_gather_timer = node.def.gather_seconds
+	gathered.emit(node.def.item_id, amount)
+	return ""
+
+
+## Motivo de o nó não poder ser colhido agora ("" = pode): alvo, esgotado, alcance e espaço inteiro.
+func _gather_refusal(node: ResourceNode) -> String:
+	if node == null:
+		return GATHER_NO_TARGET
+	if not node.is_available():
+		return GATHER_DEPLETED
+	if global_position.distance_to(node.global_position) > node.def.reach:
+		return GATHER_TOO_FAR
+	if inventory.room_for(node.def.item_id) < node.def.yield_amount:
+		return GATHER_FULL
+	return ""
+
+
+func _refuse_gather(reason: String) -> String:
+	gather_refused.emit(reason)
+	return reason
+
+
+## Renasce em `point` (GDD 12.4): vida e fome nas frações das regras, fôlego cheio, proteção por
+## alguns segundos. O inventário, a barra e as vagas ficam como estavam (o corpo com os itens é
+## SOB-02, M2). Só vale para quem está morto; devolve se renasceu.
+func respawn_at(point: Vector2, respawn_rules: RespawnRules) -> bool:
+	if not health.is_dead():
+		return false
+	position = point
+	velocity = Vector2.ZERO
+	health.revive(respawn_rules.health_ratio)
+	hunger.set_ratio(respawn_rules.hunger_ratio)
+	stamina.from_dict({"current": stamina.max_stamina, "is_exhausted": false})
+	health.grant_protection(respawn_rules.protection_seconds)
+	# `_in_range` fica: o detector devolve o que continuar sobreposto e o `area_exited` tira o resto.
+	if target != null:
+		target = null
+		target_changed.emit(null)
 	return true
 
 
@@ -271,7 +359,7 @@ func _newest_iid(item_id: String) -> String:
 
 
 func to_dict() -> Dictionary:
-	return {
+	var data := {
 		"version": FORMAT_VERSION,
 		"position": {"x": position.x, "y": position.y},
 		"health": health.to_dict(),
@@ -281,6 +369,9 @@ func to_dict() -> Dictionary:
 		"hotbar": hotbar.to_dict(),
 		"equipment": equipment.to_dict(),
 	}
+	if health.protection_left > 0.0:  # só o jogador faz a proteção correr: só ele a salva
+		data["protection"] = health.protection_left
+	return data
 
 
 ## Chame depois de adicionar à árvore. Silencioso: não emite `died` nem `starved`.
@@ -316,6 +407,7 @@ func from_dict(data: Dictionary) -> bool:
 		SafeRead.number(saved_position.get("y"), position.y, -SafeRead.COORD_LIMIT, SafeRead.COORD_LIMIT)
 	)
 	health.from_dict(SafeRead.dict(data.get("health")))
+	health.protection_left = SafeRead.number(data.get("protection"), 0.0, 0.0, HealthComponent.MAX_PROTECTION)
 	stamina.from_dict(SafeRead.dict(data.get("stamina")))
 	hunger.from_dict(SafeRead.dict(data.get("hunger")))
 	if replaces_inventory:

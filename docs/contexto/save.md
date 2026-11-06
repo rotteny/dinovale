@@ -23,7 +23,10 @@ Fontes de verdade: `docs/adr/ADR-002-save.md` (formato, escrita atômica, migra�
 
 Quem decide é o `SaveScheduler` (`game/src/world/SaveScheduler.gd`; números em `game/data/balance/save_rules.tres`). Não grave direto com o `SaveManager` a partir de gameplay: peça por `request(reason)` ou `save_now(reason)`.
 
-- Gatilhos: a cada 300 s de jogo (relógio que zera a cada save de qualquer origem), morte do jogador, morte de dino domado, Salvar da pausa, voltar ao menu e fechar a janela. A Cama (`SaveManager.Reason.BED`) é o ponto de entrada previsto e ainda não existe.
+- Gatilhos: a cada 300 s de jogo (relógio que zera a cada save de qualquer origem), morte do jogador, morte de dino domado, Salvar da pausa, voltar ao menu e fechar a janela. A Cama (`SaveManager.Reason.BED`) é o ponto de entrada previsto e ainda não existe. Escolher onde renascer salva (`Reason.RESPAWN`).
+- **Morto fica morto no arquivo.** O jogador morto é gravado (`life: dead_pending_choice`, vida 0) e carregado morto: o Continuar reabre a tela de morte; só a escolha de respawn (`Main.request_respawn`) o revive. Nunca reviva no `WorldSnapshot.restore`.
+- **Respawn dentro do prazo de 10 s:** morte e escolha de região a menos de 10 s do save anterior geram UM save só, o de vivo (o save da morte espera o prazo e leva o estado de então); o arquivo nunca vê o morto. Com a morte já gravada, o respawn também espera o prazo e o arquivo segue como morto até lá. Quem fecha o jogo nesse intervalo salva na hora (`EXIT_MENU`/`QUIT` ignoram o prazo).
+- **Formato v2** (`world.resource_nodes`, `world.respawn_count`): migração `SaveMigrations.v1_to_v2`, fixture `v2.json`.
 - Gatilhos no mesmo quadro viram um save só; morte muito próxima do último save espera o prazo, nunca é descartada.
 - **O jogo nunca pergunta antes de salvar** e falha de escrita não derruba o jogo nem apaga o arquivo anterior. O pedido que falhou **não se perde**: é refeito depois de `retry_seconds_after_failure` (10 s), sem esperar o intervalo; o aviso na HUD sai só na primeira falha da sequência (ou se a mensagem mudar) e a fila não cresce (um motivo entra uma vez).
 - Regras de morte, respawn por região, Saco e Cama, e o que ainda é proposta: `docs/design/GDD.md` seção 12. Em caso de dúvida entre o código e o GDD, o código mostra o que existe e o GDD, o que foi decidido; registre a diferença no relatório.

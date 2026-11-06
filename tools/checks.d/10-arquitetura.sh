@@ -215,18 +215,23 @@ rule_from_dict_does_not_emit_game_events() {
   local emit_pattern="\b($NON_REPLAYABLE_SIGNALS)\.emit\(|emit_signal\(\s*[\"'](${NON_REPLAYABLE_SIGNALS})[\"']"
   local emitters changed name
   emitters="$(index_grep 'src/' "$emit_pattern" | cut -f3 | sort -u | grep -vx -e '-' -e 'from_dict' || true)"
-  changed=1
-  while [[ $changed -eq 1 ]]; do
-    changed=0
-    while IFS= read -r name; do
-      [[ -n "$name" && "$name" != "from_dict" && "$name" != "-" ]] || continue
-      grep -qx "$name" <<<"$emitters" && continue
-      if calls_any "$name" "$emitters"; then
-        emitters+=$'\n'"$name"
-        changed=1
-      fi
-    done < <(cut -f3 "$INDEX" | sort -u)
-  done
+  # Fecho transitivo dos emissores num único awk (antes: um awk+grep por par função x emissor,
+  # ~5 min de relógio): uma função que chama um emissor (fora da linha `func`) também é emissora.
+  emitters="$(awk -F'\t' -v seed="$emitters" '
+    BEGIN { n = split(seed, initial, "\n"); for (i = 1; i <= n; i++) if (initial[i] != "") emitter[initial[i]] = 1 }
+    { name[NR] = $3; code[NR] = $0; sub(/^([^\t]*\t){3}/, "", code[NR]) }
+    END {
+      do {
+        changed = 0
+        for (row = 1; row <= NR; row++) {
+          if (name[row] == "from_dict" || name[row] == "-" || (name[row] in emitter) || code[row] ~ /^func /) continue
+          for (candidate in emitter) {
+            if (code[row] ~ ("(^|[^A-Za-z0-9_])" candidate "\\(")) { emitter[name[row]] = 1; changed = 1; break }
+          }
+        }
+      } while (changed)
+      for (candidate in emitter) print candidate
+    }' "$INDEX" | sort -u)"
 
   {
     index_grep 'src/' "$emit_pattern" | awk -F'\t' '$3 == "from_dict"'
@@ -237,19 +242,6 @@ rule_from_dict_does_not_emit_game_events() {
     done <<<"$emitters"
   } | judge "from_dict não emite eventos de jogo" \
     "$NON_REPLAYABLE_SIGNALS: restaurar não é evento; emita só *_changed"
-}
-
-# calls_any FUNCAO EMISSORES: a função chama algum emissor?
-calls_any() {
-  local function_name="$1" emitter
-  while IFS= read -r emitter; do
-    [[ -n "$emitter" ]] || continue
-    if awk -F'\t' -v f="$function_name" '$3 == f' "$INDEX" \
-        | grep -qP "^(?:[^\t]*\t){3}(?!func ).*?(?<![\w])$emitter\("; then
-      return 0
-    fi
-  done <<<"$2"
-  return 1
 }
 
 main() {

@@ -88,6 +88,7 @@ func _run() -> void:
 	EquipmentFlowTests.new(root, _track, _check).run()
 	await MenuTests.new(root, _track, _check).run()
 	await SaveTests.new(root, _track, _check).run()
+	await RespawnResourceTests.new(root, _track, _check).run()
 	await _test_full_taming_integration()
 	_test_saveable_roundtrip_table()
 	GameSession.save_root = GameSession.DEFAULT_SAVE_ROOT

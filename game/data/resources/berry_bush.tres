@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ResourceNodeDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/core/ResourceNodeDef.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = "berry_bush"
+display_name = "Arbusto de baga"
+item_id = "berry"
+yield_amount = 3
+gather_seconds = 9.0
+reach = 32.0
+respawn_seconds = 240.0
+prompt = "colher bagas"
+color = Color(0.8, 0.2, 0.35, 1)

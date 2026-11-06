@@ -157,7 +157,11 @@ func _test_world_id() -> void:
 func _test_fixture_v1() -> void:
 	var manager := SaveManager.new(ROOT)
 	var outcome := manager.read_file(FIXTURE_V1)
-	_check(outcome.status == SaveManager.Status.OK and outcome.data.get("format_version") == 1, "fixture v1 carrega")
+	var raw: Variant = JSON.parse_string(FileAccess.get_file_as_string(FIXTURE_V1))
+	_check(outcome.status == SaveManager.Status.OK and (raw as Dictionary).get("format_version") == 1
+			and outcome.data.get("format_version") == SaveMigrations.CURRENT_VERSION, "fixture v1 carrega e é migrada para a versão atual")
+	_check((outcome.data["world"]["resource_nodes"] as Array).is_empty() and outcome.data["world"]["respawn_count"] == 0,
+			"a migração v1 para v2 acrescenta os campos novos vazios")
 	var pair := _fresh_pair()
 	var player: Player = pair[0]
 	var dino: Dino = pair[1]
@@ -458,13 +462,13 @@ func _test_triggers_on_main() -> void:
 			"o arquivo guarda a verdade: morto, escolha pendente")
 	var loaded := _fresh_pair()
 	_check(dying.save_manager.load_first(_accept_into(loaded)).status == SaveManager.Status.OK, "o save da morte carrega")
-	var revived: Player = loaded[0]
-	_check(not revived.health.is_dead() and revived.health.current_health == revived.health.max_health
-			and revived.hunger.current_hunger == revived.hunger.max_hunger and revived.inventory.count("berry") == 10,
-			"carregar save de morte nunca prende um jogador morto: vida e fome cheias, inventário mantido (provisório)")
+	var still_dead: Player = loaded[0]
+	_check(still_dead.health.is_dead() and still_dead.inventory.count("berry") == 10,
+			"carregar save de morte não desfaz a morte e mantém o inventário")
 	GameSession.continue_requested = true
 	var resumed := _main("trig_death")
-	_check(resumed.pending_death_choice and not resumed.player.health.is_dead(), "Continuar sinaliza a escolha de respawn pendente")
+	_check(resumed.pending_death_choice and resumed.player.health.is_dead() and resumed.death_screen.is_open,
+			"Continuar com save de morto abre a tela de morte")
 	var alive_save := _main("trig_alive")
 	alive_save.save_game()
 	GameSession.continue_requested = true
@@ -623,8 +627,8 @@ func _test_life_field_and_dead_state() -> void:
 	var dead_state := {"health": {"current": 0.0}}
 	var dead := SaveManager.make_envelope({}, [{"player_id": "local", "entity_id": 1, "state": dead_state}], [], "0.1.0", "x")
 	_check(WorldSnapshot.was_dead_pending_choice(dead) and WorldSnapshot.restore(dead, pair[0], pair[1])
-			and not (pair[0] as Player).health.is_dead(),
-			"vida 0 sem life: carrega vivo, não preso morto")
+			and (pair[0] as Player).health.is_dead(),
+			"vida 0 sem life: carrega morto (a escolha de respawn é a saída)")
 	var player: Player = pair[0]
 	player.hunger.from_dict({"current": 50.0, "max": 1.0e308})
 	player.stamina.from_dict({"current": 20.0, "max": 1.0e308})

@@ -12,6 +12,8 @@ signal died
 const DEFAULT_MAX_HEALTH := 100.0
 ## Teto de sanidade para um valor vindo de save.
 const MAX_SAVED := 1.0e7
+## Teto da proteção lida de um save (segundos). Quem salva a proteção é o `Player`, o único que a faz correr.
+const MAX_PROTECTION := 60.0
 
 ## Quem está com a vida cheia continua cheio quando o máximo muda.
 @export var max_health: float = DEFAULT_MAX_HEALTH:
@@ -22,14 +24,40 @@ const MAX_SAVED := 1.0e7
 		health_changed.emit(current_health, max_health)
 
 var current_health: float = DEFAULT_MAX_HEALTH
+## Segundos que faltam de proteção (GDD 12.4): enquanto > 0, `take_damage` não tira vida. Quem
+## concede e quem faz o tempo correr é o dono do componente (`grant_protection`, `tick`).
+var protection_left: float = 0.0
 
 
 func is_dead() -> bool:
 	return current_health <= 0.0
 
 
+func is_protected() -> bool:
+	return protection_left > 0.0
+
+
+## Concede `seconds` de proteção (nunca encurta a que já existe).
+func grant_protection(seconds: float) -> void:
+	protection_left = maxf(protection_left, maxf(seconds, 0.0))
+
+
+## Faz a proteção correr. Só quem concede a usa (o jogador); os demais nunca a têm.
+func tick(delta: float) -> void:
+	protection_left = maxf(protection_left - delta, 0.0)
+
+
+## Volta à vida com `ratio` do máximo (respawn). Não emite `died` nem `damaged`: é o fim da morte, não
+## um golpe. Só tem efeito em quem está morto.
+func revive(ratio: float = 1.0) -> void:
+	if not is_dead():
+		return
+	current_health = clampf(max_health * ratio, minf(1.0, max_health), max_health)
+	health_changed.emit(current_health, max_health)
+
+
 func take_damage(amount: float) -> void:
-	if amount <= 0.0 or is_dead():
+	if amount <= 0.0 or is_dead() or is_protected():
 		return
 	var dealt := minf(amount, current_health)
 	current_health -= dealt

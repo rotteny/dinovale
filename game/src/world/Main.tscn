@@ -1,4 +1,4 @@
-[gd_scene load_steps=13 format=3]
+[gd_scene load_steps=24 format=3]
 
 [ext_resource type="PackedScene" path="res://src/entities/dino/Dino.tscn" id="1_dino"]
 
@@ -7,6 +7,13 @@
 [ext_resource type="Script" path="res://src/ui/PlayerHud.gd" id="4_hud"]
 [ext_resource type="Script" path="res://src/ui/InventoryScreen.gd" id="5_screen"]
 [ext_resource type="Script" path="res://src/ui/PauseMenu.gd" id="13_pause"]
+[ext_resource type="Script" path="res://src/ui/DeathScreen.gd" id="14_death"]
+[ext_resource type="Script" path="res://src/world/ResourceField.gd" id="15_field"]
+[ext_resource type="PackedScene" path="res://src/entities/resource/ResourceNode.tscn" id="16_node"]
+[ext_resource type="Resource" path="res://data/resources/tree.tres" id="17_tree"]
+[ext_resource type="Resource" path="res://data/resources/rock.tres" id="18_rock"]
+[ext_resource type="Resource" path="res://data/resources/berry_bush.tres" id="19_berry"]
+[ext_resource type="Resource" path="res://data/resources/fiber_plant.tres" id="20_fiber"]
 [ext_resource type="Script" path="res://src/ui/DinoStatusBars.gd" id="6_bars"]
 [ext_resource type="Script" path="res://src/ui/DinoView.gd" id="7_view"]
 [ext_resource type="PackedScene" path="res://src/world/Terrain.tscn" id="8_terrain"]
@@ -29,7 +36,7 @@ normal = Vector2(1, 0)
 normal = Vector2(-1, 0)
 distance = -640.0
 
-[node name="Main" type="Node2D" node_paths=PackedStringArray("player", "screen", "dino", "pause", "hud")]
+[node name="Main" type="Node2D" node_paths=PackedStringArray("player", "screen", "dino", "pause", "hud", "death_screen", "resources")]
 y_sort_enabled = true
 script = ExtResource("3_main")
 player = NodePath("Player")
@@ -37,6 +44,8 @@ screen = NodePath("UI/InventoryScreen")
 dino = NodePath("Dino")
 pause = NodePath("UI/PauseMenu")
 hud = NodePath("UI/PlayerHud")
+death_screen = NodePath("UI/DeathScreen")
+resources = NodePath("Resources")
 menu_scene = "res://src/ui/TitleScreen.tscn"
 
 [node name="Terrain" parent="." instance=ExtResource("8_terrain")]
@@ -54,6 +63,65 @@ shape = SubResource("WorldBoundaryShape2D_left")
 
 [node name="Right" type="CollisionShape2D" parent="Bounds"]
 shape = SubResource("WorldBoundaryShape2D_right")
+
+[node name="Resources" type="Node2D" parent="."]
+y_sort_enabled = true
+script = ExtResource("15_field")
+
+[node name="Berry1" parent="Resources" instance=ExtResource("16_node")]
+position = Vector2(250, 230)
+node_id = "berry_1"
+def = ExtResource("19_berry")
+
+[node name="Berry2" parent="Resources" instance=ExtResource("16_node")]
+position = Vector2(280, 240)
+node_id = "berry_2"
+def = ExtResource("19_berry")
+
+[node name="Berry3" parent="Resources" instance=ExtResource("16_node")]
+position = Vector2(150, 120)
+node_id = "berry_3"
+def = ExtResource("19_berry")
+
+[node name="Tree1" parent="Resources" instance=ExtResource("16_node")]
+position = Vector2(110, 150)
+node_id = "tree_1"
+def = ExtResource("17_tree")
+
+[node name="Tree2" parent="Resources" instance=ExtResource("16_node")]
+position = Vector2(360, 260)
+node_id = "tree_2"
+def = ExtResource("17_tree")
+
+[node name="Tree3" parent="Resources" instance=ExtResource("16_node")]
+position = Vector2(520, 250)
+node_id = "tree_3"
+def = ExtResource("17_tree")
+
+[node name="Rock1" parent="Resources" instance=ExtResource("16_node")]
+position = Vector2(300, 100)
+node_id = "rock_1"
+def = ExtResource("18_rock")
+
+[node name="Rock2" parent="Resources" instance=ExtResource("16_node")]
+position = Vector2(560, 170)
+node_id = "rock_2"
+def = ExtResource("18_rock")
+
+[node name="Fiber1" parent="Resources" instance=ExtResource("16_node")]
+position = Vector2(180, 260)
+node_id = "fiber_1"
+def = ExtResource("20_fiber")
+
+[node name="Fiber2" parent="Resources" instance=ExtResource("16_node")]
+position = Vector2(400, 170)
+node_id = "fiber_2"
+def = ExtResource("20_fiber")
+
+[node name="Fiber3" parent="Resources" instance=ExtResource("16_node")]
+position = Vector2(60, 250)
+node_id = "fiber_3"
+def = ExtResource("20_fiber")
 
 [node name="Dino" parent="." instance=ExtResource("1_dino")]
 position = Vector2(320, 180)
@@ -99,6 +167,14 @@ anchor_bottom = 1.0
 mouse_filter = 2
 script = ExtResource("5_screen")
 player_inventory = NodePath("../../Player/InventoryComponent")
+
+[node name="DeathScreen" type="Control" parent="UI"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+script = ExtResource("14_death")
 
 [node name="PauseMenu" type="Control" parent="UI" node_paths=PackedStringArray("screen")]
 layout_mode = 3

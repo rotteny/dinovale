@@ -24,6 +24,10 @@ signal saved(reason: SaveManager.Reason, ok: bool, message: String)
 
 var player: Player
 var dino: Dino
+## Nós de recurso do mundo (opcional: sem eles o save leva uma lista vazia).
+var field: ResourceField
+## Contador de respawns do mundo, semente do sorteio de ponto (quem renasce atualiza).
+var respawn_count: int = 0
 var manager: SaveManager
 var frozen: bool = false
 ## Texto do último save (sucesso ou falha).
@@ -109,7 +113,8 @@ func _flush() -> bool:
 	_pending.clear()
 	var started := Time.get_ticks_usec()
 	var live_dino: Dino = dino if is_instance_valid(dino) else null
-	var envelope := WorldSnapshot.capture(player, live_dino, _game_version(), Time.get_datetime_string_from_system(true))
+	var envelope := WorldSnapshot.capture(player, live_dino, _game_version(),
+			Time.get_datetime_string_from_system(true), field, respawn_count)
 	var ok := manager.write(envelope)
 	last_duration_usec = Time.get_ticks_usec() - started
 	_saving = false

@@ -52,6 +52,12 @@ func eat(amount: float) -> void:
 		_starvation_timer = 0.0
 
 
+## Põe a saciedade em `ratio` do máximo (respawn) e zera o dano de fome em andamento.
+func set_ratio(ratio: float) -> void:
+	_set_current(max_hunger * clampf(ratio, 0.0, 1.0))
+	_starvation_timer = 0.0
+
+
 func to_dict() -> Dictionary:
 	return {
 		"current": current_hunger,

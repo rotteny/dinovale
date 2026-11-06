@@ -48,7 +48,7 @@ Os testes saem com código 0 quando passam. Saem com código 1 se uma verificaç
 
 ## Save
 
-Um mundo em `user://saves/main/world.json` (JSON, envelope `{format_version, game_version, saved_at, world, players, entities}`; ADR-002). `SaveManager` (`src/core`) grava de forma atômica (`.tmp`, relê e valida, o save válido atual vira `.bak`, o `.tmp` vira o principal) e lê com limite de 64 MiB, só JSON; principal danificado cai no `.bak`; versão do formato maior que a do jogo é recusada sem tocar no arquivo; arquivo danificado nunca é apagado (vai para `.rejected` ao gravar por cima). `SaveMigrations` guarda as migrações puras encadeadas; a fixture `tests/fixtures/saves/v1.json` nunca é removida. `WorldSnapshot` (`src/world`) captura e aplica jogador, dino (nível e Eficiência inclusos) e o mundo. O jogador morto é gravado como `dead_pending_choice`; até a tela de morte existir, carregar o põe vivo no lugar (`Main.pending_death_choice` sinaliza).
+Um mundo em `user://saves/main/world.json` (JSON, envelope `{format_version, game_version, saved_at, world, players, entities}`; ADR-002). `SaveManager` (`src/core`) grava de forma atômica (`.tmp`, relê e valida, o save válido atual vira `.bak`, o `.tmp` vira o principal) e lê com limite de 64 MiB, só JSON; principal danificado cai no `.bak`; versão do formato maior que a do jogo é recusada sem tocar no arquivo; arquivo danificado nunca é apagado (vai para `.rejected` ao gravar por cima). `SaveMigrations` guarda as migrações puras encadeadas; as fixtures `tests/fixtures/saves/v1.json` e `v2.json` nunca são removidas (a v2 acrescenta ao `world` o estado dos nós de recurso e o contador de respawns; a migração v1 para v2 os cria vazios). `WorldSnapshot` (`src/world`) captura e aplica jogador, dino (nível e Eficiência inclusos) e o mundo. O jogador morto é gravado como `dead_pending_choice` e carregado MORTO: o Continuar abre a tela de morte (`DeathScreen`, regiões em `data/balance/respawn_rules.tres`) e só `Main.request_respawn(region_id)` tira desse estado (ponto sorteado pelo `RespawnPicker`, vida 100%, fome 50%, proteção de 3 s; o inventário fica com o jogador até o corpo do SOB-02, M2). Os nós de recurso (MUN-02: `ResourceNode`, dados em `data/resources/`, coleta por `Player.request_gather`) vão no save pelo `ResourceField`.
 
 Quando salva (`SaveScheduler`, números em `data/balance/save_rules.tres`): a cada 300 s de jogo (pausado não conta; o relógio zera a cada save), na morte do jogador, na morte de um dino domado, no Salvar da pausa, ao voltar ao menu e ao fechar a janela; `SaveManager.Reason.BED` é o ponto de entrada da Cama (que ainda não existe). Gatilhos no mesmo quadro viram um save; morte a menos de 10 s do último espera o prazo (nunca é descartada); menu e sair ignoram o prazo. O jogo nunca pergunta antes de salvar. Um indicador "Salvando" de 1 s aparece no canto. Falha de escrita avisa na HUD, o jogo segue com o arquivo anterior intacto e o pedido é refeito depois de 10 s. Só save válido entra no rodízio `.bak`: versão futura ou arquivo danificado vai para `world.json.rejected[.N]` e nunca é apagado. Continuar com save recusado volta ao título com o motivo, sem jogo novo e sem gravar nada.
 
@@ -116,6 +116,8 @@ game/
 │   └── world/               # mapa, grid, chunks e estruturas
 │       ├── Main.gd          # liga o mundo à UI e ao save
 │       ├── SaveScheduler.gd # quando salvar (intervalo, morte, menu, sair)
+│       ├── RespawnPicker.gd # sorteio do ponto de respawn numa região
+│       ├── ResourceField.gd # nós de recurso do mundo (save e desenho provisório)
 │       ├── WorldSnapshot.gd # captura e aplica o estado no envelope
 │       ├── Main.tscn
 │       ├── Terrain.tscn     # mapa em TileMapLayer (gerado por tools/gerar_mundo.gd)
@@ -129,6 +131,7 @@ game/
     ├── menu_tests.gd            # apresentação, navegação, configurações, créditos e pausa
     ├── save_tests.gd            # save: arquivo, fixture, gatilhos, Continuar/Novo jogo, fome do jogador
     ├── fixtures/saves/v1.json   # save v1 congelado (nunca remover)
+    ├── fixtures/saves/v2.json   # save v2 congelado (nunca remover)
     └── saveable_table.gd
 ```
 
@@ -244,7 +247,7 @@ Exemplo do que `Dino.to_dict()` produz:
 
 - [ ] Chunking e geração de mapa
 - [ ] Ordens para domesticados: seguir e ficar
-- [ ] Morte, respawn e estado `Dead` da criatura
+- [x] Morte e respawn mínimos do jogador (SOB-01, só Campina); [ ] corpo com itens (SOB-02, M2) e estado `Dead` da criatura
 - [ ] Arte, som e fontes definitivos
 
 ### Fase 3: multiplayer e servidor dedicado

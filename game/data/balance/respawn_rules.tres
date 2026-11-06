@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="RespawnRules" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://src/core/RespawnRules.gd" id="1_rules"]
+[ext_resource type="Script" path="res://src/core/RespawnRegion.gd" id="2_region"]
+
+[sub_resource type="Resource" id="Resource_campina"]
+script = ExtResource("2_region")
+id = "campina"
+display_name = "Campina"
+area = Rect2(32, 32, 576, 296)
+fallback_point = Vector2(160, 300)
+
+[resource]
+script = ExtResource("1_rules")
+regions = Array[ExtResource("2_region")]([SubResource("Resource_campina")])
+default_fallback_point = Vector2(160, 300)
+accept_delay = 0.6
+tile_size = 16
+max_attempts = 30
+min_distance_from_wild = 128.0
+min_distance_from_resource = 24.0
+clearance_radius = 8.0
+protection_seconds = 3.0
+health_ratio = 1.0
+hunger_ratio = 0.5

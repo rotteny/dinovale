@@ -20,9 +20,14 @@ extends Node2D
 @export var world_id: String = GameSession.DEFAULT_WORLD
 ## Nível fixo da criatura da cena (sem biomas nem sorteio por enquanto).
 @export var dino_level: int = 20
+## Tela de morte (opcional: um servidor ou teste pode não ter UI).
+@export var death_screen: DeathScreen
+## Nós de recurso do mundo (opcional); o estado deles vai no save.
+@export var resources: ResourceField
+@export var respawn_rules: RespawnRules = preload("res://data/balance/respawn_rules.tres")
 
-## O jogo carregado é de um jogador que morreu sem escolher onde renascer (GDD 12.4). A tela de morte
-## (SOB-01, próxima etapa) lê isto; até lá o jogador volta vivo no lugar (ver `WorldSnapshot`).
+## O jogador morreu e ainda não escolheu onde renascer (GDD 12.4). Vale para a morte em jogo e para o
+## save carregado de um jogador morto: nos dois a tela de morte está aberta e só a escolha tira daqui.
 var pending_death_choice: bool = false
 var save_manager: SaveManager
 var scheduler: SaveScheduler
@@ -31,6 +36,8 @@ var _quit_failed_once: bool = false
 var _last_failure_notice: String = ""
 ## O Continuar falhou: esta partida não existe de verdade (a cena volta ao título) e não grava nada.
 var _load_failed: bool = false
+## Quantos respawns o mundo já fez: semente do sorteio de ponto (vai no save).
+var _respawn_count: int = 0
 
 
 func _ready() -> void:
@@ -51,9 +58,15 @@ func _ready() -> void:
 	scheduler.player = player
 	scheduler.dino = dino
 	scheduler.manager = save_manager
+	scheduler.field = resources
 	scheduler.saved.connect(_on_saved)
 	add_child(scheduler)
-	player.health.died.connect(func() -> void: scheduler.request(SaveManager.Reason.PLAYER_DEATH))
+	player.health.died.connect(_on_player_died)
+	player.gathered.connect(_on_player_gathered)
+	player.gather_refused.connect(_on_gather_refused)
+	if death_screen != null:
+		death_screen.rules = respawn_rules
+		death_screen.region_chosen.connect(request_respawn)
 	dino.health.died.connect(_on_dino_died)
 	if pause != null:
 		pause.set_menu_available(menu_scene != "")
@@ -71,9 +84,13 @@ func save_game(reason: SaveManager.Reason = SaveManager.Reason.MANUAL) -> bool:
 
 
 func _continue_saved_game() -> void:
-	var outcome := save_manager.load_first(func(data: Dictionary) -> bool: return WorldSnapshot.restore(data, player, dino))
+	var outcome := save_manager.load_first(
+			func(data: Dictionary) -> bool: return WorldSnapshot.restore(data, player, dino, resources))
 	if outcome.status == SaveManager.Status.OK:
-		pending_death_choice = WorldSnapshot.was_dead_pending_choice(outcome.data)
+		_respawn_count = WorldSnapshot.respawn_count_of(outcome.data)
+		scheduler.respawn_count = _respawn_count
+		if WorldSnapshot.was_dead_pending_choice(outcome.data):
+			_enter_death()  # carregar um morto reabre a escolha; não desfaz a morte
 		_notify(outcome.message)
 		return
 	# Continuar que falha não abre jogo novo nem grava nada: volta ao título com o motivo, e o arquivo
@@ -83,6 +100,79 @@ func _continue_saved_game() -> void:
 	GameSession.notice = outcome.message if outcome.message != "" else "Nenhum jogo salvo."
 	if menu_scene != "":
 		get_tree().change_scene_to_file.call_deferred(menu_scene)
+
+
+func _on_player_died() -> void:
+	_enter_death()
+	scheduler.request(SaveManager.Reason.PLAYER_DEATH)
+
+
+## Estado de morto: a escolha de respawn fica pendente e a tela abre. Não emite nada nem salva.
+func _enter_death() -> void:
+	pending_death_choice = true
+	screen.close()
+	screen.locked = true  # morto não abre inventário (nem pelo atalho nem por uma criatura)
+	if death_screen != null:
+		death_screen.open(player.global_position)
+
+
+## Intenção "renascer na região `region_id`": o servidor (aqui, o host local) valida e executa. Devolve ""
+## se renasceu ou o motivo da recusa. Sorteia o ponto (GDD 12.2), restaura vida, fome e proteção
+## (12.4) e salva. O inventário não é tocado: o corpo com os itens é do M2 (SOB-02).
+func request_respawn(region_id: String) -> String:
+	if not pending_death_choice or not player.health.is_dead():
+		return "not_dead"
+	var region := respawn_rules.region_by_id(region_id)
+	if region == null:
+		return "unknown_region"
+	var rng := SeededRng.new()
+	rng.seed_from([world_id, _respawn_count])
+	var picked := RespawnPicker.pick(region, respawn_rules, rng, _is_free_point, _wild_positions())
+	if not player.respawn_at(picked["position"], respawn_rules):
+		return "failed"
+	_respawn_count += 1
+	scheduler.respawn_count = _respawn_count
+	pending_death_choice = false
+	screen.locked = false
+	screen.close()
+	if death_screen != null:
+		death_screen.close()
+	scheduler.request(SaveManager.Reason.RESPAWN)
+	return ""
+
+
+## Ponto livre de colisão e longe de nós de recurso.
+func _is_free_point(point: Vector2) -> bool:
+	var shape := CircleShape2D.new()
+	shape.radius = respawn_rules.clearance_radius
+	var query := PhysicsShapeQueryParameters2D.new()
+	query.shape = shape
+	query.transform = Transform2D(0.0, point)
+	query.collision_mask = 1
+	if not get_world_2d().direct_space_state.intersect_shape(query, 1).is_empty():
+		return false
+	if resources != null:
+		for node in resources.nodes():
+			if node.global_position.distance_to(point) < respawn_rules.min_distance_from_resource:
+				return false
+	return true
+
+
+func _wild_positions() -> Array[Vector2]:
+	var positions: Array[Vector2] = []
+	if is_instance_valid(dino) and not dino.is_queued_for_deletion() and not dino.state_machine.is_tamed:
+		positions.append(dino.global_position)
+	return positions
+
+
+func _on_player_gathered(item_id: String, amount: int) -> void:
+	_notify("+%d %s" % [amount, Items.display_name(item_id)], 1.5)
+
+
+func _on_gather_refused(reason: String) -> void:
+	var texts := {Player.GATHER_DEPLETED: "Já foi colhido.", Player.GATHER_FULL: "Inventário cheio.",
+			Player.GATHER_TOO_FAR: "Longe demais."}
+	_notify(str(texts.get(reason, "")), 1.5)
 
 
 func _notify(text: String, seconds: float = PlayerHud.NOTICE_SECONDS) -> void:
@@ -153,6 +243,9 @@ func _on_hotbar_assign_requested(slot: int, item_id: String, iid: String) -> voi
 
 
 func _on_player_interacted(target: InteractableArea) -> void:
+	if target.entity is ResourceNode:
+		player.request_gather()
+		return
 	var target_dino := target.entity as Dino
 	if target_dino != null:
 		screen.open_with(player.inventory, target_dino.inventory, target, "Criatura")

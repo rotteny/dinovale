@@ -8,6 +8,10 @@ const BERRY := "berry"
 const MEAT := "meat"
 const FERN := "fern"
 const SLEEP_STAFF := "sleep_staff"
+## Materiais dos nós de recurso (MUN-02). No M1 ainda não há receita que os consuma.
+const WOOD := "wood"
+const STONE := "stone"
+const FIBER := "fiber"
 
 ## Arma de cada item de arma (o id da arma é o id do item).
 const WEAPONS: Dictionary[String, WeaponDef] = {
@@ -86,6 +90,9 @@ static func _catalog() -> Dictionary:
 			ItemDef.new(MEAT, "Carne", 10, Color(0.75, 0.35, 0.25)),
 			ItemDef.new(FERN, "Samambaia", 30, Color(0.3, 0.7, 0.3)),
 			ItemDef.new(SLEEP_STAFF, "Bastão-de-sono", 1, Color(0.55, 0.4, 0.8)),
+			ItemDef.new(WOOD, "Madeira", 20, Color(0.55, 0.38, 0.2)),
+			ItemDef.new(STONE, "Pedra", 20, Color(0.6, 0.6, 0.65)),
+			ItemDef.new(FIBER, "Fibra", 40, Color(0.75, 0.7, 0.4)),
 		]:
 			_defs[def.id] = def
 		# Durabilidade do Bastão: 120 (GDD 5.9). Só o campo; nada gasta ainda.

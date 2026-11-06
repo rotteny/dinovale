@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ResourceNodeDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/core/ResourceNodeDef.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = "tree"
+display_name = "Árvore"
+item_id = "wood"
+yield_amount = 3
+gather_seconds = 8.0
+reach = 32.0
+respawn_seconds = 480.0
+prompt = "cortar madeira"
+color = Color(0.35, 0.55, 0.25, 1)

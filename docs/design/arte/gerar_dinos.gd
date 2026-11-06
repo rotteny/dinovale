@@ -481,30 +481,41 @@ func para_front(z: Dictionary) -> Image:
 	var b: int = z["b"]
 	var sw: int = z["sw"]
 	var hy: int = z["hy"]
-	var ml := newm(); R(ml, 10 + sw, 24 + b, 4, 7 - z["ll"] - b)
+	# pernas de tras grossas, uma mais escura (fora da luz)
+	var ml := newm(); R(ml, 8 + sw, 25 + b, 5, 6 - z["ll"] - b)
 	put_part(d, ml, ["deep", "deep_dk", "deep_dk"])
-	var mr := newm(); R(mr, 18 + sw, 24 + b, 4, 7 - z["rl"] - b)
+	var mr := newm(); R(mr, 19 + sw, 25 + b, 5, 6 - z["rl"] - b)
 	put_part(d, mr, T_PARA)
-	var mb := newm(); E(mb, 16 + sw, 21.6 + b, 7, 5.6)
-	put_part(d, mb, T_PARA)
-	var mn := newm(); PG(mn, [[14 + sw, 12 + b], [18 + sw, 12 + b], [21 + sw, 20 + b], [11 + sw, 20 + b]])
+	# corpo largo com barriga clara
+	var mb := newm(); E(mb, 16 + sw, 22 + b, 8.6, 6)
+	var pb := put_part(d, mb, T_PARA)
+	var mv := newm(); E(mv, 16 + sw, 24 + b, 4.6, 3)
+	ovl(pb, mv, ["deep_hi", "deep_hi", "deep"])
+	stamp(d, pb, true)
+	# bracos curtos a frente do peito
+	var ma := newm(); R(ma, 10 + sw, 20 + b, 3, 5); R(ma, 19 + sw, 20 + b, 3, 5)
+	put_part(d, ma, ["deep", "deep_dk", "deep_dk"], true)
+	# pescoco curto
+	var mn := newm(); PG(mn, [[13 + sw, 10 + b], [19 + sw, 10 + b], [21 + sw, 18 + b], [11 + sw, 18 + b]])
 	put_part(d, mn, T_PARA, true)
-	# crista: tubo alto e grosso que sobe atras da cabeca e passa bem acima dela
-	var mc := newm(); R(mc, 14 + sw, 1 + b + hy, 5, 9); E(mc, 16.5 + sw, 2.2 + b + hy, 2.5, 1.4)
+	# crista tubular: sobe atras da cabeca, ponta arredondada, listras
+	var mc := newm(); PG(mc, [[14 + sw, 10 + b + hy], [14 + sw, 3.4 + b + hy], [15.2 + sw, 1.4 + b + hy], [17.8 + sw, 1.4 + b + hy], [19 + sw, 3.4 + b + hy], [19 + sw, 10 + b + hy]])
 	var pc := put_part(d, mc, T_CREST)
 	for y in [4, 6]:
-		D(pc, 14 + sw, y + b + hy, "f_dk"); D(pc, 15 + sw, y + b + hy, "f_dk")
-	var mh := newm(); E(mh, 16 + sw, 10.2 + b + hy, 3.6, 3.0)
+		for x in [15, 16, 17]:
+			D(pc, x + sw, y + b + hy, "f_dk")
+	# cabeca: cupula com olhos nas laterais
+	var mh := newm(); E(mh, 16 + sw, 9.6 + b + hy, 4.8, 3.6)
 	var ph := put_part(d, mh, T_PARA)
 	D(ph, 13 + sw, 9 + b + hy, "K"); D(ph, 18 + sw, 9 + b + hy, "K")
 	stamp(d, ph, true)
-	# bico de pato: largo e chato, bem mais largo que a cabeca
-	var mk := newm(); R(mk, 11 + sw, 12 + b + hy, 10, 3)
-	var pk := put_part(d, mk, T_PARA)
-	D(pk, 14 + sw, 13 + b + hy, "deep_dk"); D(pk, 17 + sw, 13 + b + hy, "deep_dk")
+	# bico de pato: espatula larga e chata, de outra cor, a frente
+	var mk := newm(); E(mk, 16 + sw, 14.4 + b + hy, 5.6, 2.6)
+	var pk := put_part(d, mk, ["ring", "orange", "w_dk"])
+	D(pk, 14 + sw, 13 + b + hy, "w_dk"); D(pk, 17 + sw, 13 + b + hy, "w_dk")
 	if z["open"] == 1:
 		for x in [13, 14, 15, 16, 17, 18]:
-			D(pk, x + sw, 14 + b + hy, "K")
+			D(pk, x + sw, 15 + b + hy, "K")
 	return d
 
 func para_back(z: Dictionary) -> Image:
@@ -637,46 +648,69 @@ func utah_leg(d: Image, x: int, b: int, lift: int, tones: Array, near: bool) -> 
 	if near and tones != T_UTAH:
 		pass
 
+## Pontos espelhados em torno de x = S/2 (para formas simetricas na vista de frente).
+func mirp(pts: Array) -> Array:
+	var q := []
+	for p in pts:
+		q.append([S - p[0], p[1]])
+	return q
+
 func utah_front(z: Dictionary) -> Image:
 	var d := newm()
 	var b: int = z["b"]
 	var sw: int = z["sw"]
 	var hy: int = z["hy"]
-	for q in [[10, z["ll"], ["w_dk", "f_dk", "f_dk"]], [19, z["rl"], T_UTAH]]:
-		var lg := newm(); R(lg, q[0] + sw, 22 + b, 3, 8 - q[1] - b)
-		R(lg, q[0] - 1 + sw, G - q[1], 5, 1)
-		put_part(d, lg, q[2])
-		D(d, q[0] - 1 + sw, G - q[1] - 1, "cut"); D(d, q[0] + 3 + sw, G - q[1] - 1, "cut")
-	var mb := newm(); PG(mb, [[12 + sw, 13 + b], [20 + sw, 13 + b], [19 + sw, 24 + b], [13 + sw, 24 + b]])
+	# pernas: coxa para fora, canela fina, pe com garra em foice levantada (lado de dentro)
+	for s in [0, 1]:
+		var lift: int = z["ll"] if s == 0 else z["rl"]
+		var tn: Array = ["w_dk", "f_dk", "f_dk"] if s == 0 else T_UTAH
+		var sx := -1 if s == 0 else 1
+		var cx: int = 16 + sx * 4 + sw
+		var lg := newm()
+		E(lg, cx + sx * 1.2, 21.5 + b, 2.8, 3.6)
+		R(lg, cx - 1, 24 + b, 3, G - lift - 24 - b + 1)
+		R(lg, cx - 2, G - lift, 5, 1)
+		put_part(d, lg, tn)
+		D(d, cx - 2, G - lift, "cut"); D(d, cx + 2, G - lift, "cut")
+		D(d, cx - sx * 2, G - lift - 2, "cut"); D(d, cx - sx * 2, G - lift - 3, "cut")
+	# tronco estreito
+	var mb := newm(); E(mb, 16 + sw, 19 + b, 4.6, 6)
 	var pb := put_part(d, mb, T_UTAH)
-	for q in [[13, 16], [14, 18], [18, 16], [17, 18], [15, 21]]:
+	for q in [[13, 19], [14, 20], [18, 19], [17, 20], [15, 23], [16, 23]]:
 		D(pb, q[0] + sw, q[1] + b, "h_xx")
 	stamp(d, pb, true)
-	# bracos curtos dobrados a frente do peito, com penas e garras
-	var ma := newm(); R(ma, 9 + sw, 14 + b, 3, 5); R(ma, 20 + sw, 14 + b, 3, 5)
-	var pa := put_part(d, ma, T_UTAH, true)
-	for y in [15, 17, 19]:
-		D(pa, 9 + sw, y + b, "yellow"); D(pa, 22 + sw, y + b, "yellow")
-	D(pa, 10 + sw, 19 + b, "cut"); D(pa, 21 + sw, 19 + b, "cut")
-	stamp(d, pa, true)
-	# cabeca larga em cunha, bem maior que o pescoco
-	var mh := newm(); E(mh, 16 + sw, 9 + b + hy, 4.6, 3.4)
+	# bracos curtos e emplumados, abertos, com garras
+	for s in [0, 1]:
+		var pts := [[12, 16], [9.5, 16.5], [7.5, 20], [8.5, 22], [10.5, 20.5], [12, 19]]
+		if s == 1:
+			pts = mirp(pts)
+		var ma := newm(); PG(ma, pts)
+		var pa := put_part(d, ma, T_UTAH, true)
+		for q in [[9, 17], [8, 18], [8, 19]]:
+			D(pa, (q[0] if s == 0 else S - 1 - q[0]) + sw, q[1] + b, "yellow")
+		D(d, (8 if s == 0 else 23) + sw, 22 + b, "cut"); D(d, (7 if s == 0 else 24) + sw, 22 + b, "cut")
+	# cabeca larga: cranio com olhos nas laterais, focinho em cunha para a camera, mandibula
+	var mh := newm()
+	PG(mh, [[10.5, 8 + b + hy], [12.5, 5 + b + hy], [19.5, 5 + b + hy], [21.5, 8 + b + hy], [20, 11 + b + hy], [18.4, 12.5 + b + hy], [17.6, 16 + b + hy], [14.4, 16 + b + hy], [13.6, 12.5 + b + hy], [12, 11 + b + hy]])
 	var ph := put_part(d, mh, T_UTAH)
 	D(ph, 13 + sw, 8 + b + hy, "K"); D(ph, 18 + sw, 8 + b + hy, "K")
-	D(ph, 12 + sw, 7 + b + hy, "K"); D(ph, 14 + sw, 7 + b + hy, "K"); D(ph, 17 + sw, 7 + b + hy, "K"); D(ph, 19 + sw, 7 + b + hy, "K")
-	stamp(d, ph, true)
-	var mk := newm(); R(mk, 13 + sw, 10.5 + b + hy, 6, 3)
-	var pk := put_part(d, mk, ["w_dk", "f_dk", "f_dk"])
+	D(ph, 12 + sw, 7 + b + hy, "w_dk"); D(ph, 13 + sw, 7 + b + hy, "w_dk"); D(ph, 18 + sw, 7 + b + hy, "w_dk"); D(ph, 19 + sw, 7 + b + hy, "w_dk")
+	D(ph, 15 + sw, 11 + b + hy, "f_dk"); D(ph, 16 + sw, 11 + b + hy, "f_dk")
+	var mj := newm(); R(mj, 14, 13.6 + b + hy, 4, 2.4)
+	ovl(ph, mj, ["w_dk", "f_dk", "f_dk"])
 	if z["open"] == 1:
-		for x in [14, 15, 16, 17]:
-			D(pk, x + sw, 12 + b + hy, "f_dk")
-		for x in [13, 15, 16, 18]:
-			D(pk, x + sw, 13 + b + hy, "white")
+		for x in [15, 16]:
+			D(ph, x + sw, 14 + b + hy, "K")
+		for x in [14, 17]:
+			D(ph, x + sw, 13 + b + hy, "white")
+		for x in [15, 16]:
+			D(ph, x + sw, 15 + b + hy, "white")
 	else:
-		for x in [13, 15, 16, 18]:
-			D(pk, x + sw, 13 + b + hy, "white")
-	for q in [[15, 5], [16, 5], [16, 4], [15, 4], [16, 3]]:
-		D(d, q[0] + sw, q[1] + b + hy, "ring")
+		D(ph, 14 + sw, 14 + b + hy, "white"); D(ph, 17 + sw, 14 + b + hy, "white")
+	stamp(d, ph, true)
+	# tufo de penas atras do cranio
+	var mf := newm(); PG(mf, [[14, 5.5 + b + hy], [14.6, 2 + b + hy], [17.4, 2 + b + hy], [18, 5.5 + b + hy]])
+	put_part(d, mf, T_FEATH, true)
 	return d
 
 func utah_back(z: Dictionary) -> Image:

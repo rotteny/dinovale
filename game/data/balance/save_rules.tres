@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="SaveRules" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/core/SaveRules.gd" id="1_rules"]
+
+[resource]
+script = ExtResource("1_rules")
+autosave_interval_seconds = 300.0
+min_seconds_between_saves = 10.0
+retry_seconds_after_failure = 10.0

@@ -5,10 +5,14 @@ extends DinoLevelTests
 ## auxiliares de `DinoLevelTests`. Eventos de teclado entram como `InputEventAction`, direto no `_input`.
 
 const TEMP := "user://test_settings.json"
+## Saves dos testes: caminho descartável, apagado no fim.
+const SAVE_ROOT := "user://test_saves/menu"
 const TITLE_SCENE: PackedScene = preload("res://src/ui/TitleScreen.tscn")
 
 
 func run() -> void:
+	GameSession.save_root = SAVE_ROOT
+	SaveTests.remove_tree(SAVE_ROOT)
 	_test_navigation()
 	_test_settings_file()
 	_test_credits_text()
@@ -17,6 +21,9 @@ func run() -> void:
 	await _test_title_credits()
 	await _test_pause()
 	await _test_round_trip()
+	GameSession.save_root = SaveTests.ROOT
+	GameSession.continue_requested = false
+	SaveTests.remove_tree(SAVE_ROOT)
 
 
 func _key(name: String) -> InputEventAction:
@@ -178,7 +185,9 @@ func _test_title_menu() -> void:
 	_check(menu.selected_id() == TitleScreen.QUIT, "subir do primeiro dá a volta até Sair")
 	title._input(_key("ui_down"))
 	title._input(_key("ui_accept"))
-	_check(chosen == [TitleScreen.SINGLE_PLAYER], "Enter em Um jogador pede para jogar")
+	_check(chosen.is_empty() and title.view == "single", "Enter em Um jogador abre Continuar e Novo jogo (não começa sozinho)")
+	title._input(_key("ui_cancel"))
+	_check(title.view == "menu", "Esc volta ao menu principal")
 	chosen.clear()
 	menu.button_of(TitleScreen.MULTIPLAYER).pressed.emit()
 	_check(chosen.is_empty() and menu.selected_id() == TitleScreen.SINGLE_PLAYER, "clique em Multijogador não faz nada")
@@ -289,7 +298,6 @@ func _test_pause() -> void:
 			"Continuar e Voltar ao menu")
 	pause._input(_key("ui_cancel"))
 	_check(not pause.is_open and not tree.paused and events == ["resumed"], "Esc fecha e retoma")
-	pause.confirm_guard_msec = 0
 	pause.open()
 	pause._input(_key("ui_down"))
 	_check(pause.column().marker_of(PauseMenu.MENU) == MenuColumn.MARKER and pause.column().marker_of(PauseMenu.RESUME) == "",
@@ -301,43 +309,22 @@ func _test_pause() -> void:
 	events.clear()
 	pause._input(_key("ui_down"))
 	pause._input(_key("ui_accept"))
-	_check(events.is_empty() and pause.is_open and pause.column().button_of(PauseMenu.CONFIRM) != null,
-			"Voltar ao menu pede confirmação antes de descartar a partida")
-	_check(pause.column().selected_id() == PauseMenu.CANCEL, "a confirmação começa em Cancelar")
-	pause._input(_key("ui_accept"))
-	_check(events.is_empty() and pause.is_open and pause.column().button_of(PauseMenu.MENU) != null, "Cancelar volta à lista da pausa")
-	pause._input(_key("ui_down"))
-	pause._input(_key("ui_accept"))
-	pause._input(_key("ui_cancel"))
-	_check(events.is_empty() and pause.is_open and pause.column().button_of(PauseMenu.MENU) != null,
-			"Esc na confirmação volta à lista e não fecha")
-	pause._input(_key("ui_down"))
-	pause._input(_key("ui_accept"))
-	pause._input(_key("ui_down"))
-	pause._input(_key("ui_accept"))
-	_check(events == ["menu"] and pause.is_open, "só a confirmação emite o pedido (quem liga troca a cena)")
+	_check(events == ["menu"], "Voltar ao menu pede direto, sem confirmação (o salvamento é de quem liga)")
 	pause.close()
-	# Duplo clique em "Voltar ao menu": o segundo clique cai na confirmação recém-aberta e é ignorado.
-	pause.confirm_guard_msec = 300
-	events.clear()
-	pause.open()
-	var voltar := pause.column().button_of(PauseMenu.MENU)
-	voltar.pressed.emit()
-	pause.column().button_of(PauseMenu.CONFIRM).pressed.emit()
-	_check(events.is_empty() and pause.is_open and pause.column().button_of(PauseMenu.CONFIRM) != null,
-			"duplo clique em Voltar ao menu: o segundo clique não descarta (guarda de 300 ms)")
-	await _root.get_tree().create_timer(0.35).timeout
-	pause.column().button_of(PauseMenu.CONFIRM).pressed.emit()
-	_check(events == ["menu"], "passada a guarda, o clique em Descartar vale")
-	pause.confirm_guard_msec = 0
-	pause.close()
-	pause.confirm_discard = false
+	_check(pause.column().button_of(PauseMenu.SAVE) == null, "sem save configurado, o item Salvar não existe")
+	pause.set_save_available(true)
 	pause.open()
 	pause._input(_key("ui_down"))
+	var saves: Array[int] = [0]
+	pause.save_requested.connect(func() -> void: saves[0] += 1)
 	pause._input(_key("ui_accept"))
-	_check(events == ["menu", "resumed", "menu"], "sem confirmação, pede direto")
+	_check(pause.column().label_of(PauseMenu.SAVE) == "Salvar" and saves[0] == 1 and pause.is_open, "Salvar pede e a pausa continua aberta")
+	pause.show_status("Jogo salvo.")
+	_check(pause.status_text() == "Jogo salvo.", "o resultado aparece na pausa")
 	pause.close()
-	pause.confirm_discard = true
+	pause.open()
+	_check(pause.status_text() == "", "reabrir limpa o resultado")
+	pause.close()
 	pause.set_menu_available(false)
 	_check(pause.column().button_of(PauseMenu.MENU) == null, "sem cena de menu, o item não existe")
 	tree.paused = false
@@ -371,6 +358,7 @@ func _test_round_trip() -> void:
 	_root.add_child(title)
 	await tree.process_frame
 	title._input(_key("ui_accept"))  # Um jogador é o primeiro item
+	title._input(_key("ui_accept"))  # sem save, Continuar está desabilitado: Novo jogo começa direto
 	for _i in 3:
 		await tree.process_frame
 	var game := tree.current_scene as Main
@@ -381,18 +369,17 @@ func _test_round_trip() -> void:
 	title.queue_free()
 	game.dino.set_physics_process(false)
 	game.player.set_physics_process(false)
-	game.pause.confirm_guard_msec = 0
 	game.pause._unhandled_input(_key("ui_cancel"))
 	_check(game.pause.is_open and tree.paused, "Esc na Main abre a pausa")
 	game.pause._input(_key("ui_down"))
-	game.pause._input(_key("ui_accept"))
-	_check(tree.current_scene == game and tree.paused, "pedir o menu só abre a confirmação (a cena não troca)")
 	game.pause._input(_key("ui_down"))
-	game.pause._input(_key("ui_accept"))
+	game.pause._input(_key("ui_accept"))  # Voltar ao menu: salva e volta direto
 	for _i in 3:
 		await tree.process_frame
 	var back := tree.current_scene as TitleScreen
-	_check(back != null and not tree.paused and not is_instance_valid(game), "confirmar volta à apresentação, despausado, e a Main sai")
+	_check(back != null and not tree.paused and not is_instance_valid(game),
+			"Voltar ao menu salva e volta à apresentação, despausado, e a Main sai")
+	_check(SaveManager.new(SAVE_ROOT).probe().status == SaveManager.Status.OK, "o save foi gravado no caminho de teste ao voltar ao menu")
 	_check(back != null and back.view == "menu" and back.menu().selected_id() != TitleScreen.MULTIPLAYER
 			and back.menu().button_of(TitleScreen.SINGLE_PLAYER) != null, "a apresentação reaparece no menu principal")
 	if back != null:

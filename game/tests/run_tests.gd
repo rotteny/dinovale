@@ -31,6 +31,9 @@ func _initialize() -> void:
 
 
 func _run() -> void:
+	# Nenhum teste grava em user://saves: tudo vai para uma pasta descartável.
+	GameSession.save_root = SaveTests.ROOT
+	SaveTests.remove_tree("user://test_saves")
 	_test_health()
 	_test_health_scene_override()
 	_test_torpor_knockout_and_wake()
@@ -84,8 +87,11 @@ func _run() -> void:
 	InventoryModelTests.new(root, _track, _check).run()
 	EquipmentFlowTests.new(root, _track, _check).run()
 	await MenuTests.new(root, _track, _check).run()
+	await SaveTests.new(root, _track, _check).run()
 	await _test_full_taming_integration()
 	_test_saveable_roundtrip_table()
+	GameSession.save_root = GameSession.DEFAULT_SAVE_ROOT
+	SaveTests.remove_tree("user://test_saves")
 	for node in _nodes:
 		if is_instance_valid(node):
 			node.free()
@@ -394,7 +400,7 @@ func _test_player_save_roundtrip_through_json() -> void:
 	_check(copy.position == Vector2(12.0, 34.0), "posição do player restaurada")
 	_check(copy.health.current_health == 70.0, "vida do player restaurada")
 	_check(is_equal_approx(copy.stamina.current_stamina, 50.0), "stamina restaurada")
-	_check(is_equal_approx(copy.hunger.current_hunger, 98.0), "fome restaurada (queda de 0,1/s)")
+	_check(is_equal_approx(copy.hunger.current_hunger, 96.0), "fome restaurada (queda de 0,2/s)")
 	_check(copy.to_dict() == original.to_dict(), "save do player idêntico depois do JSON")
 	var starving := _spawn_player()
 	var hits := [0]

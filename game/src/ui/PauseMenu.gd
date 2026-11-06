@@ -1,36 +1,28 @@
 # SPDX-License-Identifier: MIT
 class_name PauseMenu
 extends Control
-## Pausa do jogo (Esc, quando nenhuma tela está aberta): Continuar e Voltar ao menu. Pausa a árvore
-## enquanto aberta (`process_mode` sempre) e só pede: quem liga decide o que fazer com
-## `menu_requested`. Esc fecha, igual a Continuar. "Voltar ao menu" descarta a partida (não há save
-## em arquivo), então pede confirmação antes de emitir `menu_requested` (`confirm_discard`).
+## Pausa do jogo (Esc, quando nenhuma tela está aberta): Continuar, Salvar (se quem liga o oferece) e
+## Voltar ao menu. Pausa a árvore enquanto aberta (`process_mode` sempre) e só pede: quem liga decide
+## o que fazer com `save_requested` e `menu_requested`. Esc fecha, igual a Continuar. Não pergunta
+## nada: Voltar ao menu salva (quem liga) e volta direto; se o salvamento falhar, quem liga mostra o
+## motivo em `show_status` e a partida continua aberta.
 
 signal resumed
 signal menu_requested
+signal save_requested
 
 const RESUME := "resume"
+const SAVE := "save"
 const MENU := "menu"
-const CANCEL := "cancel"
-const CONFIRM := "confirm"
-const WARNING := "A partida atual será perdida: ainda não há save."
 
 ## A tela de inventário: com ela aberta, o Esc é dela (fecha), não abre a pausa.
 @export var screen: InventoryScreen
 
-## Pede confirmação ao voltar ao menu. Desligue quando houver save em arquivo.
-@export var confirm_discard: bool = true
-
-## Cliques na confirmação são ignorados por este tempo depois que ela abre: a lista troca sob o
-## ponteiro e o segundo clique de um duplo clique em "Voltar ao menu" cairia em "Descartar".
-@export var confirm_guard_msec: int = 300
-
 var is_open: bool = false
-var _confirm_since: int = 0
 var _column := MenuColumn.new()
-var _warning := Label.new()
+var _status := Label.new()
 var _menu_available: bool = true
-var _confirming: bool = false
+var _save_available: bool = false
 
 
 func _ready() -> void:
@@ -57,35 +49,46 @@ func _ready() -> void:
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_color_override("font_color", UiTheme.INK)
 	box.add_child(title)
-	_warning.text = WARNING
-	_warning.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_warning.add_theme_font_size_override("font_size", 8)
-	_warning.add_theme_color_override("font_color", UiTheme.INK)
-	box.add_child(_warning)
+	_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_status.custom_minimum_size.x = 220
+	_status.add_theme_font_size_override("font_size", 8)
+	_status.add_theme_color_override("font_color", UiTheme.INK)
+	_status.visible = false
+	box.add_child(_status)
 	box.add_child(_column)
 	_column.activated.connect(_on_activated)
-	set_menu_available(true)
+	_rebuild()
 
 
 ## Sem cena de menu configurada, o item "Voltar ao menu" não existe.
 func set_menu_available(available: bool) -> void:
 	_menu_available = available
-	_show_list(false)
+	_rebuild()
 
 
-## Lista principal (Continuar, Voltar ao menu) ou a confirmação (Cancelar primeiro: o padrão seguro).
-func _show_list(confirming: bool) -> void:
-	_confirming = confirming
-	if confirming:
-		_confirm_since = Time.get_ticks_msec()
-	_warning.visible = confirming
-	var items: Array[Dictionary] = []
-	if confirming:
-		items = [{"id": CANCEL, "label": "Cancelar"}, {"id": CONFIRM, "label": "Descartar e voltar ao menu"}]
-	else:
-		items = [{"id": RESUME, "label": "Continuar"}]
-		if _menu_available:
-			items.append({"id": MENU, "label": "Voltar ao menu"})
+## Liga o item Salvar (o mundo sabe gravar). Sem isto a pausa não o mostra.
+func set_save_available(available: bool) -> void:
+	_save_available = available
+	_rebuild()
+
+
+## Resultado do último pedido de salvar ou de voltar ao menu, mostrado acima da lista ("" esconde).
+func show_status(text: String) -> void:
+	_status.text = text
+	_status.visible = text != ""
+
+
+func status_text() -> String:
+	return _status.text if _status.visible else ""
+
+
+func _rebuild() -> void:
+	var items: Array[Dictionary] = [{"id": RESUME, "label": "Continuar"}]
+	if _save_available:
+		items.append({"id": SAVE, "label": "Salvar"})
+	if _menu_available:
+		items.append({"id": MENU, "label": "Voltar ao menu"})
 	_column.setup(items)
 
 
@@ -94,10 +97,8 @@ func open() -> void:
 		return
 	is_open = true
 	visible = true
-	if _confirming:
-		_show_list(false)
-	else:
-		_column.reset_selection()
+	show_status("")
+	_column.reset_selection()
 	get_tree().paused = true
 
 
@@ -129,10 +130,7 @@ func _input(event: InputEvent) -> void:
 		return
 	var viewport := get_viewport()  # guardado antes: "Voltar ao menu" troca de cena
 	if event.is_action_pressed("ui_cancel"):
-		if _confirming:
-			_show_list(false)  # Esc na confirmação volta à lista, não fecha a pausa
-		else:
-			close()
+		close()
 		viewport.set_input_as_handled()
 	elif _column.handle_event(event):
 		viewport.set_input_as_handled()
@@ -141,12 +139,7 @@ func _input(event: InputEvent) -> void:
 func _on_activated(id: String) -> void:
 	if id == RESUME:
 		close()
+	elif id == SAVE:
+		save_requested.emit()
 	elif id == MENU:
-		if confirm_discard:
-			_show_list(true)
-		else:
-			menu_requested.emit()
-	elif id == CANCEL:
-		_show_list(false)
-	elif id == CONFIRM and Time.get_ticks_msec() - _confirm_since >= confirm_guard_msec:
 		menu_requested.emit()

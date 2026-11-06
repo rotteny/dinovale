@@ -10,6 +10,13 @@ extends Control
 const HOTBAR_WIDTH := 9 * 26.0 + 8 * 2.0
 const BOTTOM_MARGIN := 4.0
 const NOTICE_SECONDS := 2.0
+const NOTICE_WIDTH := 420.0
+const SAVING_SECONDS := 1.0
+const SAVING_TEXT := "Salvando"
+## Amarelo claro com contorno escuro: legível sobre o painel laranja.
+const HUNGER_WARNING_COLOR := Color("#ffe27a")
+const HUNGRY_TEXT := "Com fome: coma algo"
+const STARVING_TEXT := "Morrendo de fome!"
 
 @export var player: Player
 
@@ -22,6 +29,9 @@ var _xp_bar := StatBar.new("", Color(0.45, 0.6, 1.0), Vector2(HOTBAR_WIDTH - 30.
 var _hotbar := HotbarBar.new()
 var _prompt := Label.new()
 var _notice := Label.new()
+var _hunger_warning := Label.new()
+var _saving := Label.new()
+var _saving_left: float = 0.0
 var _notice_tween: Tween
 var _watched: InteractableArea = null
 
@@ -34,6 +44,12 @@ func _ready() -> void:
 	var bars := VBoxContainer.new()
 	for bar in [_health_bar, _hunger_bar]:
 		bars.add_child(bar)
+	_hunger_warning.add_theme_font_size_override("font_size", 8)
+	_hunger_warning.add_theme_color_override("font_color", HUNGER_WARNING_COLOR)
+	_hunger_warning.add_theme_color_override("font_outline_color", Color.BLACK)
+	_hunger_warning.add_theme_constant_override("outline_size", 3)
+	_hunger_warning.visible = false
+	bars.add_child(_hunger_warning)
 	var panel := PanelContainer.new()
 	panel.position = Vector2(4, 4)
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -71,20 +87,35 @@ func _ready() -> void:
 
 	_notice.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM, Control.PRESET_MODE_MINSIZE, 76)
 	_notice.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_notice.custom_minimum_size.x = NOTICE_WIDTH
+	_notice.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_notice.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_notice.add_theme_color_override("font_outline_color", Color.BLACK)
 	_notice.add_theme_constant_override("outline_size", 4)
 	_notice.visible = false
 	add_child(_notice)
+
+	_saving.text = SAVING_TEXT
+	_saving.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT, Control.PRESET_MODE_MINSIZE, 6)
+	_saving.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	_saving.add_theme_font_size_override("font_size", 8)
+	_saving.add_theme_color_override("font_outline_color", Color.BLACK)
+	_saving.add_theme_constant_override("outline_size", 3)
+	_saving.modulate = Color(1, 1, 1, 0.8)
+	_saving.visible = false
+	add_child(_saving)
 
 	if player == null:
 		return
 	player.equip_refused.connect(show_notice_for)
 	player.health.health_changed.connect(_health_bar.set_values)
 	player.hunger.hunger_changed.connect(_hunger_bar.set_values)
+	player.hunger.hunger_changed.connect(_refresh_hunger_warning)
 	player.target_changed.connect(_on_target_changed)
 	player.input_lock_changed.connect(_on_lock_changed)
 	_health_bar.set_values(player.health.current_health, player.health.max_health)
 	_hunger_bar.set_values(player.hunger.current_hunger, player.hunger.max_hunger)
+	_refresh_hunger_warning(player.hunger.current_hunger, player.hunger.max_hunger)
 	_on_target_changed(player.target)
 
 
@@ -115,6 +146,36 @@ func hunger_bar() -> StatBar:
 	return _hunger_bar
 
 
+func _process(delta: float) -> void:
+	tick(delta)
+
+
+## Passo do indicador de salvamento (separado do `_process` para testar sem quadros).
+func tick(delta: float) -> void:
+	_saving_left = maxf(_saving_left - delta, 0.0)
+	_saving.visible = _saving_left > 0.0
+
+
+## Indicador discreto de 1 s no canto: o jogo salvou (nunca bloqueia nem pergunta).
+func show_saving() -> void:
+	_saving_left = SAVING_SECONDS
+	_saving.visible = true
+
+
+func saving_label() -> Label:
+	return _saving
+
+
+func hunger_warning_label() -> Label:
+	return _hunger_warning
+
+
+## O limiar vem dos dados (`PlayerRules.hunger_warning_ratio`); a HUD só mostra.
+func _refresh_hunger_warning(current: float, maximum: float) -> void:
+	_hunger_warning.visible = player.rules.is_hungry(current, maximum)
+	_hunger_warning.text = STARVING_TEXT if current <= 0.0 else HUNGRY_TEXT
+
+
 func prompt_label() -> Label:
 	return _prompt
 
@@ -125,7 +186,11 @@ func notice_label() -> Label:
 
 ## Aviso curto de uma recusa de equipar (a tecla de atalho não abre a tela, então o aviso é daqui).
 func show_notice_for(reason: String) -> void:
-	var message := EquipmentComponent.refusal_message(reason)
+	show_notice(EquipmentComponent.refusal_message(reason))
+
+
+## Aviso curto no centro de baixo; some sozinho depois de `seconds`. Texto vazio não mostra nada.
+func show_notice(message: String, seconds: float = NOTICE_SECONDS) -> void:
 	if message == "":
 		return
 	_notice.text = message
@@ -133,7 +198,7 @@ func show_notice_for(reason: String) -> void:
 	if _notice_tween != null:
 		_notice_tween.kill()
 	_notice_tween = create_tween()
-	_notice_tween.tween_interval(NOTICE_SECONDS)
+	_notice_tween.tween_interval(seconds)
 	_notice_tween.tween_callback(func() -> void: _notice.visible = false)
 
 

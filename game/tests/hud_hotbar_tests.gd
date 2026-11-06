@@ -96,17 +96,17 @@ func _test_player_save_carries_hotbar() -> void:
 func _test_player_rules_data() -> void:
 	var player := _player()
 	var rules: PlayerRules = load("res://data/balance/player_rules.tres")
-	_check(player.rules == rules and is_equal_approx(rules.hunger_decay_per_second, 0.1) and rules.food_cooldown == 0.5
-			and rules.winded_ratio == 0.25, "dados: queda de fome 0,1/s, recarga 0,5 s, ofego 25%")
-	_check(player.hunger.decay_per_second == 0.1, "o jogador aplica a queda de fome dos dados")
+	_check(player.rules == rules and is_equal_approx(rules.hunger_decay_per_second, 0.2) and rules.food_cooldown == 0.5
+			and rules.winded_ratio == 0.25, "dados: queda de fome 0,2/s, recarga 0,5 s, ofego 25%")
+	_check(is_equal_approx(player.hunger.decay_per_second, 0.2), "o jogador aplica a queda de fome dos dados")
 	var custom: Player = PlayerScene.instantiate()
 	custom.rules = rules.duplicate()
 	custom.rules.winded_ratio = 0.5
-	custom.rules.hunger_decay_per_second = 0.2
+	custom.rules.hunger_decay_per_second = 0.3
 	_root.add_child(custom)
 	_track.call(custom)
 	custom.set_physics_process(false)
-	_check(custom.stamina.rules == custom.rules and custom.hunger.decay_per_second == 0.2,
+	_check(custom.stamina.rules == custom.rules and custom.hunger.decay_per_second == 0.3,
 			"regras trocadas na cena chegam à stamina e à fome")
 	_check(rules.hunger_restore_of(Items.BERRY) == 25.0 and rules.hunger_restore_of("inexistente") == 0.0, "saciedade vem dos dados")
 	var stamina: StaminaComponent = _track.call(StaminaComponent.new())

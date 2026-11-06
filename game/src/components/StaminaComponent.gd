@@ -64,7 +64,7 @@ func to_dict() -> Dictionary:
 
 ## Restaura sem emitir `exhausted` nem `recovered`: carregar um save não é um evento.
 func from_dict(data: Dictionary) -> void:
-	max_stamina = SafeRead.number(data.get("max"), max_stamina, 1.0, SafeRead.MAX_SAVED)
+	# O `max` salvo é ignorado (ADR-002): o máximo vem da cena, não de um arquivo não confiável.
 	current_stamina = SafeRead.number(data.get("current"), current_stamina, 0.0, max_stamina)
 	is_exhausted = SafeRead.flag(data.get("is_exhausted"), is_exhausted) or current_stamina <= 0.0
 	if current_stamina >= resume_threshold:

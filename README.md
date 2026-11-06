@@ -48,4 +48,4 @@ O jogo é feito em [Godot 4](https://godotengine.org/) com GDScript. As regras f
 
 ## Licença
 
-O código é distribuído sob a [licença MIT](LICENSE). A licença de arte e som será definida quando esses materiais forem adicionados.
+O código é distribuído sob a [licença MIT](LICENSE). A arte e o som próprios usam CC BY 4.0, conforme [ASSETS-LICENSE](ASSETS-LICENSE).

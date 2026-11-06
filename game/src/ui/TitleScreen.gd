@@ -6,6 +6,8 @@ extends Control
 ## Esc) e mouse. Só apresentação: as decisões são sinais (`action_chosen`); com `auto_perform` a
 ## própria tela troca de cena ou fecha o jogo. A tela cheia só muda aqui, em Configurações.
 ## Multijogador não existe ainda: o item fica visível e desabilitado.
+## "Um jogador" abre Continuar (só com save utilizável) e Novo jogo; Novo jogo com save existente pede
+## confirmação, com Cancelar selecionado e uma guarda de cliques (500 ms: maior que a janela de duplo clique de alguns sistemas).
 
 signal action_chosen(id: String)
 
@@ -14,6 +16,12 @@ const MULTIPLAYER := "multiplayer"
 const SETTINGS := "settings"
 const CREDITS := "credits"
 const QUIT := "quit"
+const CONTINUE := "continue"
+const NEW_GAME := "new_game"
+const CANCEL := "cancel"
+const START_NEW := "start_new"
+const NEW_GAME_WARNING := "Já existe um jogo salvo. O novo jogo o substitui no primeiro salvamento."
+const UNREADABLE_WARNING := "Há um save que não pôde ser lido; ele será guardado ao lado, não apagado."
 const FULLSCREEN := "fullscreen"
 const VOLUME := "volume"
 const BACK := "back"
@@ -27,11 +35,23 @@ const BACKGROUND := preload("res://src/world/Terrain.tscn")
 @export var auto_perform: bool = true
 ## Onde as configurações são lidas e gravadas.
 @export var settings_path: String = GameSettings.PATH
+## Pasta dos saves; vazio = `GameSession.save_root`.
+@export var save_root: String = ""
+## Cliques na confirmação do novo jogo são ignorados por este tempo depois que ela abre: o segundo
+## clique de um duplo clique em "Novo jogo" cairia em "Começar do zero".
+@export var confirm_guard_msec: int = 500
 
 var settings: GameSettings
 var view: String = "menu"
 
 var _menu := MenuColumn.new()
+var _single_menu := MenuColumn.new()
+var _confirm_menu := MenuColumn.new()
+var _single_box := VBoxContainer.new()
+var _confirm_box := VBoxContainer.new()
+var _confirm_label := Label.new()
+var _confirm_since: int = 0
+var _has_save_files: bool = false
 var _settings_menu := MenuColumn.new()
 var _menu_box := VBoxContainer.new()
 var _settings_box := VBoxContainer.new()
@@ -66,15 +86,19 @@ func _ready() -> void:
 	title.add_theme_color_override("font_color", UiTheme.INK)
 	stack.add_child(title)
 	stack.add_child(_menu_box)
+	stack.add_child(_single_box)
+	stack.add_child(_confirm_box)
 	stack.add_child(_settings_box)
 	stack.add_child(_credits_box)
 	_build_menu()
+	_build_single()
 	_build_settings()
 	_build_credits()
 	_notice.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_notice.add_theme_color_override("font_color", UiTheme.INK)
 	stack.add_child(_notice)
 	_show("menu")
+	_notice.text = GameSession.take_notice()  # ex.: o Continuar falhou e a Main voltou para cá
 
 
 ## Fundo: o terreno do jogo (arte Ninja Adventure) escurecido, só desenho (sem física nem lógica).
@@ -99,6 +123,39 @@ func _build_menu() -> void:
 		{"id": QUIT, "label": "Sair"},
 	])
 	_menu.activated.connect(_on_menu_activated)
+
+
+func _build_single() -> void:
+	_single_box.add_child(_single_menu)
+	_single_menu.activated.connect(_on_single_activated)
+	_confirm_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_confirm_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_confirm_label.custom_minimum_size.x = 190
+	_confirm_label.add_theme_font_size_override("font_size", 8)
+	_confirm_label.add_theme_color_override("font_color", UiTheme.INK)
+	_confirm_box.add_child(_confirm_label)
+	_confirm_box.add_child(_confirm_menu)
+	_confirm_menu.setup([
+		{"id": CANCEL, "label": "Cancelar"},
+		{"id": START_NEW, "label": "Começar do zero"},
+	])
+	_confirm_menu.activated.connect(_on_confirm_activated)
+
+
+## Lê o estado do save e monta a lista de Um jogador: Continuar só vale com save utilizável.
+func _open_single() -> void:
+	var saves := SaveManager.new(save_root if save_root != "" else GameSession.save_root)
+	var outcome := saves.probe()
+	_has_save_files = saves.has_files()
+	_single_menu.setup([
+		{"id": CONTINUE, "label": "Continuar", "enabled": outcome.status == SaveManager.Status.OK},
+		{"id": NEW_GAME, "label": "Novo jogo"},
+		{"id": BACK, "label": "Voltar"},
+	])
+	_confirm_label.text = NEW_GAME_WARNING if outcome.status == SaveManager.Status.OK else UNREADABLE_WARNING
+	_show("single")
+	if outcome.status != SaveManager.Status.NONE:
+		_notice.text = outcome.message
 
 
 func _build_settings() -> void:
@@ -137,6 +194,8 @@ func _build_credits() -> void:
 func _show(which: String) -> void:
 	view = which
 	_menu_box.visible = which == "menu"
+	_single_box.visible = which == "single"
+	_confirm_box.visible = which == "confirm"
 	_settings_box.visible = which == "settings"
 	_credits_box.visible = which == "credits"
 	_notice.text = ""
@@ -147,6 +206,18 @@ func _show(which: String) -> void:
 ## Menu principal (para testes).
 func menu() -> MenuColumn:
 	return _menu
+
+
+func single_menu() -> MenuColumn:
+	return _single_menu
+
+
+func confirm_menu() -> MenuColumn:
+	return _confirm_menu
+
+
+func confirm_text() -> String:
+	return _confirm_label.text if view == "confirm" else ""
 
 
 func settings_menu() -> MenuColumn:
@@ -171,12 +242,24 @@ func _input(event: InputEvent) -> void:
 	match view:
 		"menu":
 			handled = _menu.handle_event(event)
+		"single":
+			handled = _submenu_input(event, _single_menu, "menu")
+		"confirm":
+			handled = _submenu_input(event, _confirm_menu, "single")
 		"settings":
 			handled = _settings_input(event)
 		"credits":
 			handled = _credits_input(event)
 	if handled:
 		viewport.set_input_as_handled()
+
+
+## Esc volta para `back_to`; o resto é do menu da vez.
+func _submenu_input(event: InputEvent, column: MenuColumn, back_to: String) -> bool:
+	if event.is_action_pressed("ui_cancel"):
+		_show(back_to)
+		return true
+	return column.handle_event(event)
 
 
 func _settings_input(event: InputEvent) -> bool:
@@ -217,12 +300,36 @@ func _scroll_credits(delta: int) -> void:
 
 func _on_menu_activated(id: String) -> void:
 	match id:
+		SINGLE_PLAYER:
+			_open_single()
 		SETTINGS:
 			_show("settings")
 		CREDITS:
 			_show("credits")
 		_:
 			_choose(id)
+
+
+func _on_single_activated(id: String) -> void:
+	match id:
+		CONTINUE:
+			_choose(CONTINUE)
+		NEW_GAME:
+			if _has_save_files:
+				_confirm_menu.reset_selection()
+				_show("confirm")
+				_confirm_since = Time.get_ticks_msec()
+			else:
+				_choose(NEW_GAME)
+		BACK:
+			_show("menu")
+
+
+func _on_confirm_activated(id: String) -> void:
+	if id == CANCEL:
+		_show("single")
+	elif id == START_NEW and Time.get_ticks_msec() - _confirm_since >= confirm_guard_msec:
+		_choose(NEW_GAME)
 
 
 func _on_settings_activated(id: String) -> void:
@@ -258,7 +365,8 @@ func _choose(id: String) -> void:
 	action_chosen.emit(id)
 	if not auto_perform:
 		return
-	if id == SINGLE_PLAYER:
+	if id == CONTINUE or id == NEW_GAME:
+		GameSession.continue_requested = id == CONTINUE
 		get_tree().change_scene_to_file(GAME_SCENE)
 	elif id == QUIT:
 		get_tree().quit()

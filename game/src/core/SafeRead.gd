@@ -14,6 +14,10 @@ static func dict(value: Variant) -> Dictionary:
 	return value if typeof(value) == TYPE_DICTIONARY else {}
 
 
+static func list(value: Variant) -> Array:
+	return value if typeof(value) == TYPE_ARRAY else []
+
+
 static func text(value: Variant, fallback: String) -> String:
 	return value if typeof(value) == TYPE_STRING else fallback
 

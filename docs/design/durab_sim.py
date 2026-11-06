@@ -43,7 +43,8 @@ def hora():
     print("  Bastao-de-sono 120 golpes: KO de Paq 4 golpes -> 30 KOs; Soco nao gasta")
 def oferta():
     print("OFERTA DE CARNE (Lanca + Dodo/Listro) x DEMANDA")
-    tempo = {"Dodo": 12+2*0.9+ 2*1.5+3 + 10, "Listro": 15+3*0.9+3*1.5+2*3+10}
+    tempo = {"Dodo": 12+8+2*0.9+ 2*1.5+3 + 10,   # +8 s: o grupo foge (Covarde) e o jogador reencontra outro [premissa]
+              "Listro": 15+3*0.9+3*1.5+2*3+10}
     for n, (v, c, k) in PRESA.items():
         lvl = 8 if n == "Dodo" else 12
         y = max(1, round(c*max(0.7, 1+0.03*(lvl-10)))); yk = max(1, round(k*max(0.7, 1+0.03*(lvl-10))))
@@ -56,9 +57,9 @@ def oferta():
     print("  oferta de podre numa hora de caça ~10 carcaças largadas = 10 podre; demanda 2-6: sobra 2x a 5x")
 def validade():
     print("VALIDADE (minutos reais; tempo corre com o servidor ligado) [premissa]")
-    for n, m in (("Carne crua", 30), ("Carne assada (Fogueira)", 90), ("Baga", 45), ("Fruta-do-sono", 30), ("Preparado de sono", 45), ("Carne podre", None), ("Racao C/B/A", None)):
+    for n, m in (("Carne crua", 30), ("Carne assada (Fogueira)", 90), ("Baga", 45), ("Cochilo", 30), ("Preparado de sono", 45), ("Carne podre", None), ("Racao C/B/A", None)):
         print(f"  {n:26} {m if m else 'nao vence'}")
-    print("  aviso a 25% do prazo: crua 7,5 min; assada 22,5 min; fruta-do-sono 7,5 min")
+    print("  aviso a 25% do prazo: crua 7,5 min; assada 22,5 min; Cochilo 7,5 min")
     print("  domesticacao: carne para Utah (10 a 21) e colhida e usada em ~5 a 10 min [premissa]; margem 30/10 = 3x")
     print("  tolerancia de juncao 2 min: perde no maximo 2 de 30 min (6,7%) da validade da pilha fresca")
 {"lanca": lanca, "ferr": ferr, "reparo": reparo, "hora": hora, "oferta": oferta, "validade": validade}[sys.argv[1]]()

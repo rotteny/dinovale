@@ -48,16 +48,56 @@ Por que é melhor que "ofícios" sozinho: dá uma **segunda via de domar** (viol
 
 ## 4. Mundo e biomas
 
-Mapa fixo na 0.2 (plano: MUN-01, MUN-03); chunk e seed no M4.
+Mapa fixo na 0.2 (plano: MUN-01, MUN-03); chunk e seed no M4. **Na 0.2 o mundo é uma única ilha em meia-lua** (**Lunata**, disponibilidade do nome a conferir pelo dono; desenho, números e lugares em `mapa-ilha.md`). O mapa completo, com mais terras, vem depois.
 
 | Bioma (provisório) | Papel | Perigo | Recursos | Marco |
 |---|---|---|---|---|
 | **Campina** | Início, abrigo, Paquicéfalos | Baixo de dia | Baga, Samambaia, Fibra, Tubérculo, madeira | M1 |
-| **Mata-baixa** | Madeira, caça, Utahraptor, manadas de Parassaurolofo | Médio (carnívoro persegue) | Madeira, Carne, **Fruta-do-sono, Dodo e Listro**, Mel-de-cipó (cortado) | M2 |
+| **Mata-baixa** | Madeira, caça, Utahraptor, manadas de Parassaurolofo | Médio (carnívoro persegue) | Madeira, Carne, **Cochilo, Dodo e Listro**, Mel-de-cipó (cortado) | M2 |
 | **Pedreira** | Pedra, Sal-de-veio, Triceratops | Médio-alto (território) | Pedra, Sal | M2 |
 | **Clareira-brasa** | Seiva, prestígio | Alto | Seiva-de-brasa | M4 |
 
-Regra de desenho: **o perigo é parte do bioma**, não evento aleatório. Cada bioma tem uma ameaça que justifica a vigília de domar (H1 do plano). Tamanho do mapa fixo: [premissa] 128x128 tiles (16 px), cruzar a pé (70 px/s) em ~29 s; sprint 120 px/s dura 4 s [calculado: stamina 100 / dreno 25/s]. Cortável: 3º bioma na 0.2 (basta 2).
+Regra de desenho: **o perigo é parte do bioma**, não evento aleatório. Cada bioma tem uma ameaça que justifica a vigília de domar (H1 do plano). Tamanho do mapa fixo: [premissa] **256x256 tiles (16 px)** para a ilha (fixo, decisão do dono; `mapa-ilha.md` 2); o trajeto mais longo do início à ponta (282 tiles) leva **~64 s a pé** a 70 px/s [calculado, `mapa_sim.py`; o antigo "128x128 em ~29 s" não vale mais]; sprint 120 px/s dura 4 s [calculado: stamina 100 / dreno 25/s]. Cortável: 3º bioma na 0.2 (basta 2).
+
+### 4.1 Regras de mundo (decisão do dono, 06/11)
+
+- **O cenário não tem construção humana.** Só natureza e **formações rochosas** (arco, pilar, lajedo, gruta). Casa, vila, ruína, estrada, cerca, ponte, poço, baú e placa só existem se o **jogador** construir (seção 8). **Trilhas naturais** (terra batida por bicho, 1 a 2 tiles, borda orgânica, sem retas longas) podem existir; estrada não.
+- **Marcos e obstáculos são rochas** (`mapa-ilha.md` 4). A casa e o baú decorativos do cenário de hoje saem no MUN-01; a "Casa" da tabela de arte (`arte/ESTILO.md`) é só peça do jogador.
+- **Limite do mundo:** praia, água rasa e água funda; a funda bloqueia, sem nado na 0.2 (`mapa-ilha.md` 3). **Mapa único e contínuo, sem quadrantes, troca de tela nem teleporte; o que está longe não é desenhado. A câmera acompanha centrada e só para no limite do mapa**, que o personagem não alcança: 12 tiles de mar funda no mínimo entre o caminhável e a borda (`mapa-ilha.md` 2). **Pós-MVP, sem marco e fora da 0.2 (decisão do dono, 06/11):** barcos e dinos que cruzam o mar. Na 0.2 o limite é o retângulo do mapa com uma faixa de oceano visível além da praia, e a água funda bloqueia. **Nada na 0.2 impede a travessia depois:** o mar é parte da grade do mundo (tiles de água funda dentro dos 256 x 256, com colisão só no anel de 2 tiles, que vira regra de dado `atravessavel_por`), então barco e nado mudam a regra de colisão, não o mapa; um mundo maior ou outra ilha entra por `map_id` (6.1) e pelo chunking do M4.
+- **Todo dino é domável (decisão do dono, 06/11).** Não existe espécie de dino "só presa" nem "não domável": toda espécie nasce com perfil de doma (`torpor_max`, queda, comida aceita, fator de refeições) e um ofício, e o método vem da Conduta (6.7): Passivo e Curioso com Bastão; Agressivo com Bastão e curral; Semi-agressivo com Bastão no nível certo; **Covarde com 2 golpes de Bastão dentro do susto, ou Arco**; Medroso (futuro) com Arco ou emboscada. A Lança continua abatendo qualquer espécie com carcaça (caçar ou domar é escolha do jogador). Espécie nova só entra no elenco com perfil de doma. **Criaturas que não são dino (artrópodes das cavernas) ficam fora da regra (decisão do dono, 06/11, V77):** são fauna-recurso, caçadas pela Lança, sem perfil de doma.
+- **Árvores:** as coletáveis têm aparência diferente das decorativas (`mapa-ilha.md` 8). Efeito em 20.8: o fóssil ou a marca na rocha fica numa formação rochosa ou gruta, não numa ruína.
+
+### 4.2 Escala, portes e câmera (decisão do dono, 06/11)
+
+**Referência de escala (dono).** Tile 16 px; **humano de 16x32 px = porte Médio**; câmera bem próxima, **viewport 320x180 (20 x 11,25 tiles; 4x em 1280x720, 6x em 1920x1080)**, para sprites com mais detalhe. Seis portes. Números [premissa], tabela em dado (a mesma linha vai para `game/data`, `porte.tres`, quando o `SORA` implementar).
+
+| Porte | Quadro (px) | Altura em humanos | Colisão no chão (px) | Passagem mínima (tiles) | Cerca / Portão de dino / vão | Entre árvores | Espécies na 0.2 | Exemplos do dono |
+|---|---|---|---|---|---|---|---|---|
+| **Diminuto** | 16x16 | 0,5 | 8x8 | **1** | cerca fecha; Portão de 1 tile passa | passa e some atrás da copa | **Dodo** | dodo, pegomastax, compsognato, lontra |
+| **Pequeno** | 24x24 | 0,75 | 12x12 | **1** | idem | passa; copa cobre | **Paquicéfalo** | moschops, paquicefalossauro, dilofossauro |
+| **Médio** | 32x32 (dino); humano 16x32 | 1,0 | 14x14 (humano: pés 12x8) | **1** | idem | passa por vão de 1 tile | **Parassaurolofo, Utahraptor** (e o jogador) | parassaurolofo, utahraptor, dente-de-sabre, anquilossauro, doedicuro, castoroides |
+| **Grande** | 48x48 | 1,5 | 28x24 | **2** | cerca fecha; **Portão duplo** (2 portões lado a lado); vão de 2 | exige 2 tiles livres | **Triceratops** [assumido] | carnotauro, estegossauro, terizinossauro |
+| **Muito grande** [nome assumido] | 64x64 | 2,0 | 44x36 | **3** | Portão triplo; vão de 3 | exige 3 tiles livres | nenhuma (só tabela) | rex, espinossauro, diplódoco |
+| **Gigante** | 128x96 | 3,0 | 72x40 | **5** | Portão quíntuplo; vão de 5 | só em clareira ou praia | nenhuma (só tabela) | brontossauro, giganotossauro |
+
+**Regras da tabela.** (1) **Colisão só nos pés** (a cabeça, o pescoço e a cauda ficam sem colisão e passam por cima do jogador pela ordem de profundidade): é isso que impede o Gigante de virar parede. (2) **Passagem mínima = ceil((colisão + 2) / 16)** tiles; os 2 px são folga. (3) **Cerca e parede fecham todos os portes**; só o **Portão de dino** (8.1) abre, e o porte **Grande ou maior precisa de portões lado a lado** (peça existente, sem arte nova; Portão = 4 madeira, então 8 madeira para um Triceratops). Isso muda o curral natural (`mapa-ilha.md` 7): trancar o vão de 4 para um Grande custa 2 Portões em vez de 1, +4 madeira. (4) **Árvore nova 48x80** (copa 3 tiles de largura, tronco 12x8): a de 48x48 ficava com 1,5 humano; as árvores nascem com tronco a pelo menos 2 tiles livres de outro (os Grandes passam) e **Muito grande e Gigante só existem em clareira, praia e campina** [proposta]. (5) **Sprite grande cobre o jogador** (copa, Gigante): o jogador ganha **silhueta translúcida** quando está atrás de qualquer coisa de 48 px ou mais. (6) Filhote = **um porte abaixo** do adulto (Médio vira 24 px, Pequeno 16 px) [proposta, M4]. (7) A escala visual por nível (0,85 a 1,15) se mantém dentro do porte.
+
+**Reclassificação do elenco da v0.2 (era: Dodo pequeno, Paquicéfalo e Utahraptor médios, Parassaurolofo e Triceratops grandes).** **Dodo = Diminuto; Paquicéfalo = Pequeno; Parassaurolofo e Utahraptor = Médio** (o dono citou os três). **Triceratops = Grande (decisão do dono)**: 8 a 9 m, o comprimento do estegossauro e do terizinossauro, que ele pôs no Grande. **Contra-argumento:** pela massa (6 a 12 t) ele iguala o rex, que está no Muito grande. Fico com o Grande porque o porte aqui segue o comprimento e a sensação (48 px, 1,5 humano, passa em vão de 2), e porque o sprite de 48 px é menor que o de 64 (o Muito grande exigiria também portão triplo). **Percentuais da população** (`mapa-ilha.md` 5): diminuto 39%, pequeno 30%, médio 29%, grande 2% nos 360 dinos (140, 108, 104, 8).
+
+**Câmera: 640x360 contra 427x240 contra 320x180** [calculado, `mapa_sim.py camera`]:
+
+| Viewport | Tiles vistos | Escala exata | Aviso lateral antes de o Utahraptor perceber (8 tiles) | Aviso vertical | Humano na altura | Gigante (96 px) na altura |
+|---|---|---|---|---|---|---|
+| 640x360 | 40 x 22,5 (900) | 2x (720p), 3x (1080p) | 12 tiles (2,7 s) | 3,2 tiles | 8,9% | 27% |
+| 427x240 | 26,7 x 15 (400) | 3x em 720p (1281 px, corta 1 px); em 1080p é 4,5x, não inteira | 5,3 tiles (1,2 s) | negativo | 13,3% | 40% |
+| **320x180** | **20 x 11,25 (225)** | **4x (720p), 6x (1080p), 8x (1440p)** | **2 tiles (0,5 s)** | **negativo (ele percebe fora da tela)** | **17,8%** | **53%** |
+
+**Recomendo 320x180** (a opção do dono): é de escala inteira em 720p e 1080p e dá mais detalhe aos sprites; a perda (aviso de 0,5 s) é compensada por três mudanças de regra, todas [proposta]: 
+1. **Percepção do Agressivo em elipse (decidido): 8 tiles na horizontal e 5 na vertical** (distância efetiva = raiz de dx² + (1,6 dy)²). Sem isso o Utahraptor ataca de fora da tela (a meia altura é 5,6 tiles). Com a elipse, tudo o que ele percebe já está visível. Os demais tipos de Conduta mantêm 8, porque fugir de longe não machuca.
+2. **Sinal de ameaça (decidido) na borda a 12 tiles** (seta/olho que pisca no canto da tela mais próximo do Agressivo) **e rosnado audível a 14**. [calculado] avisa 0,7 s antes da percepção se ele corre e 1,6 s se ele ronda (40 px/s). Sem isso o aviso visual é de 0,5 s: injusto. **Perseguição não muda com a câmera:** percebe a 8, contato em 1,2 s parado; andando em fuga ele fecha 1,25 tiles/s (5,6 s); o sprint de 4 s abre 7,5 tiles.
+3. **Zona ativa de raio 16** (meia diagonal da tela 11,5 + 4,5 de margem), distante de 16 a 40 (era 24 e 48 a 640x360); quem persegue fica ativo pelo estado. **Câmera centrada que só para no limite do mapa**; a margem de 12 tiles de mar dentro do mapa (`mapa-ilha.md` 2) garante que não pare na prática, e não há mar desenhado além da borda.
+
+**Sensação de tamanho da ilha (256 fixo, decisão do dono):** o tempo a pé não depende da câmera: a ponta norte fica a **64 s** do início (54 s com sprints), e o campo de visão de 320x180 cobre ~4,6 s de caminhada na horizontal. O mapa é um só, contínuo, sem troca de tela nem teleporte. Com a tela menor, a densidade antiga (1 a cada 118 tiles) daria 1,9 no campo de visão; **a densidade é de 1 dino a cada ~59 tiles = 360 dinos (3,8 no campo)**, com 13,5 ativos em média e ~27 no pior caso (raio 16, teto 32). **Escopo de trabalho** (`mapa-ilha.md` 9): o `SORA` refaz HUD, atalhos, inventário e menus para 20x11 tiles; o `YATORA` desenha o jogador 16x32 com animações, Dodo, Paquicéfalo, Utahraptor, Parassaurolofo, Triceratops, árvore 48x80 e a referência dos seis portes. Por espécie: 3 direções desenhadas (a direita espelha a esquerda), andar 4 + parado 2 + ferido 1 (+ ataque 3 a 4 nos que revidam ou mordem) por direção, dormir 2, com limpeza de contorno e paleta e conceito por espécie. **Precisa jogar:** o aviso de 0,5 s mais sinal basta? o sprite de 16 px do Dodo lê bem a 4x? o HUD cabe sem encobrir 11 tiles de altura?
 
 ## 5. Sobrevivência
 
@@ -107,7 +147,7 @@ Dano de fome 5/2 s = 2,5/s: com vida 100 [premissa, conferir] mata em 40 s. Comb
 8. **Servidor e co-op:** só o **dono** (quem domou) distribui pontos do dino; o dino compartilhado obedece e não gasta pontos. Pedido `distribuir_pontos(alvo_id, {atributo: n})` conferido no servidor: dono, pontos livres, alvo vivo, até 6 tiles, sem dano recebido em 10 s [premissa]; o servidor deriva os stats e devolve o resultado. **Save:** jogador `{nivel, xp, pontos_livres, pontos{}}`; dino `{nivel_captura, niveis_extras, xp, pontos_livres, pontos{vida,dano,peso}, nome}`.
 9. **Chaves de servidor:** `pontos_por_nivel` (1), `valor_ponto` (6%), `multiplicador_xp` (1,0); **tetos de nível são chaves (5.16): `jogador_nivel_max`, `dino_nivel_max`, `dino_nivel_spawn_max`, `dino_teto_multiplicador`, `dino_teto_base`**.
 
-**Tamanho (estimativa minha, premissa; `SHIKAMARU` confirma):** `Attributes` com fórmula e testes 3 h; XP e nível do jogador 2 h; XP de companhia e níveis extras do dino 2 h; `distribuir_pontos` e validação 3 h; tela de pontos jogador e dino 5 h; save e versão 2 h = **17 h**.
+**Escopo:** `Attributes` com fórmula e testes; XP e nível do jogador; XP de companhia e níveis extras do dino; `distribuir_pontos` e validação; tela de pontos jogador e dino; save e versão.
 
 **Conta de efeito (`pontos_sim.py build`, jogador L20 com 19 pontos, Bastão 30 de torpor, 0,7 s, sem esquiva):**
 
@@ -129,7 +169,7 @@ Substitui a carga por slots do ofício Carregar. Pesos em kg:
 | Madeira | 1,0 | Ração (qualquer) | 0,2 |
 | Pedra | 1,5 | Flecha (comum e de sono) | 0,05 |
 | Carne | 0,5 | Sal-de-veio | 0,5 |
-| Fruta-do-sono | 0,1 | Preparado de sono / Carne podre | 0,15 / 0,5 |
+| Cochilo | 0,1 | Preparado de sono / Carne podre | 0,15 / 0,5 |
 | Baga, Samambaia | 0,1 | Tubérculo, Mel-de-cipó | 0,3 |
 | Fibra | 0,05 | Bastão-de-sono / Lança-de-pedra | 2,0 / 2,5 |
 
@@ -141,9 +181,29 @@ Contas de referência:
 - **Ração para domar** o Triceratops L28 em C (21 rações): 4,2 kg; nunca é o gargalo.
 - **Slots** continuam só como exibição **na v0.2**: 40 slots fixos nunca limitam, pois o MVP tem cerca de 26 tipos de item (6 recursos, 3 plantas, 10 Rações, 2 armas e ingredientes) [calculado, contagem]. **Isso muda no M4 com a Mochila (decisão do dono, 06/11): os slots passam a limitar; ver 5.21 (item futuro).**
 
-**Ao passar do limite (recomendação mais simples):** **impedir pegar** acima de 100%, sem lentidão. Coletar de um nó cheio não gasta o nó; a mensagem diz "peso máximo". Excesso só nasce por produção ou recuperação de corpo, e então o jogador fica acima do limite sem poder pegar mais nada até gastar peso. **Lentidão por sobrecarga** (x0,8 acima de 100%) fica como opção de servidor desligada, para o M4: exige regra de velocidade no servidor e interface; o ganho no MVP é pequeno.
+**Ao passar do limite (regra da 0.2; vale até a regra de carga em faixas entrar no M4b, ver 5.1b) (recomendação mais simples):** **impedir pegar** acima de 100%, sem lentidão. Coletar de um nó cheio não gasta o nó; a mensagem diz "peso máximo". Excesso só nasce por produção ou recuperação de corpo, e então o jogador fica acima do limite sem poder pegar mais nada até gastar peso. **Lentidão por sobrecarga** (x0,8 acima de 100%) fica como opção de servidor desligada, para o M4: exige regra de velocidade no servidor e interface; o ganho no MVP é pequeno.
 
 **Ofício Carregar:** o dino com Afeto de 10 ou mais e a ordem "seguir" carrega um **alforje**, que é o `InventoryComponent` dele com limite de peso igual ao seu Peso. O jogador abre o alforje ao lado dele; é o mesmo inventário que já recebe a Ração na domesticação. Se o dino fica ferido (seção 6.8), o alforje fica no lugar e é recuperável. O Peso do dino **não soma** ao do jogador: dois limites, uma única regra simples.
+
+#### 5.1b Carga em faixas, Largar e bolsinha (decisão do dono, 06/11; **M4b, depois do MVP; fora da 0.2**)
+
+**Substitui, quando entrar, "impedir pegar acima de 100%, sem lentidão".** Até lá vale o texto acima (PRO-09 como está). A regra vale **igual para o personagem e para o dino domado** (alforje), inclusive a faixa acima de 70%.
+
+| Carga | Efeito [decisão do dono] |
+|---|---|
+| até 70% | nada muda |
+| de 70% a menos de 100% | perde velocidade e **não corre** |
+| 100% ou mais | **não se move** (o personagem ou o dino) |
+
+- **Quanto de velocidade [proposta, em dado]:** queda **gradual linear**: `mult = 1 - 0,6 x (carga - 0,70) / 0,30`, de 1,00 em 70% a 0,40 logo abaixo de 100%, e 0 a partir de 100% (`carga_livre` 0,70, `carga_parada` 1,00, `carga_vel_min` 0,40). Tabela [calculado, `peso_sim.py curva`]: 75% x0,90 (40 tiles em 10,2 s), 80% x0,80 (11,4 s), 90% x0,60 (15,2 s), 99% x0,42 (21,8 s), contra 9,1 s livre. Por que gradual e não degrau: cada item pego dá retorno (o degrau fixo x0,6 daria 15,2 s em toda a faixa e o jogador não sentiria a escolha de levar mais um lote).
+- **Dá para pegar acima de 100%? Sim, em um lote [proposta].** Pegar é permitido enquanto a carga **antes** da ação for menor que 100%; a ação que cruza entra inteira. Máximo = um lote (4 pedra = 6 kg: 112% do jogador, 115% do Paquicéfalo L10). Sem isso a imobilidade nunca aconteceria. "Pegar tudo" (corpo, baú, bolsinha) para em 70% e o restante se pega item a item.
+- **Saída sem travar: Largar.** Hoje **não existe ação de largar** (a regra antiga não precisa). Com a nova ela é obrigatória. **Largar** (menu do item: 1, metade ou tudo; ou arrastar para fora da janela; 0,5 s) deixa uma **bolsinha** no chão; **"Largar excesso"** deixa a carga em 70% com um só toque. **Funciona parado em 100%, em qualquer tile, sem recusa.**
+- **Bolsinha [decisão do dono + propostas]:** some em **5 min** (`bolsinha_largada_s` = 300, em dado); o relógio **só corre com o mundo rodando** e vai ao save como `restante_s`, como a espera da Cama (12.4). **Qualquer jogador pega** (sem exclusividade, `bolsinha_exclusiva_s` = 0), nenhum selvagem. Limites: **8 por jogador e 60 no mundo** (a mais antiga some, com aviso antes); sem colisão, então **nunca falha** por falta de espaço. Duas bolsinhas coladas **não se fundem** (cada uma com o seu relógio, para a fusão não estender nem encurtar prazo); "E" pega a mais próxima e, se houver empate, abre uma lista. Mesma entidade e mesmo código da sacolinha (5.6), só muda tempo e origem.
+- **Dino domado:** o dono abre o alforje (E, a até 2 tiles) e usa o mesmo **Largar**, que deixa a bolsinha ao lado do dino. Dino parado em 100% longe do dono **não trava**: o dono anda até ele (o arco da ilha inteira leva 64 s) e usa Largar; o dono parado também larga primeiro. Dino em **Seguir** que chega a 100% passa para **Ficar** sozinho, com ícone "carga cheia", e o menu mostra Seguir e Ir até aqui cinza com o motivo. Dino com comida no alforje come dali e baixa a carga sozinho (5.12); dino de Ficar a 100% **não vai ao cocho** (não se move): a carga cheia é visível, é responsabilidade do dono. Postura e defesa continuam: um dino a 95% em Guarda anda a x0,5.
+- **Montaria (M4b):** a velocidade montada é `espécie x 1,3 x mult(carga do alforje)` (6.12); a carga do jogador não conta montado (o cavaleiro e o que ele leva não pesam, como já está). Com o alforje em 100% o dino montado não anda; o jogador abre o alforje montado (já permitido) e larga.
+- **Tela de inventário:** mostra a **% de carga** do personagem e do dino domado ("Carga 38/50 kg, 76%"), com marca em 70% e cores (até 70%, de 70% a 99%, 100%+ "imóvel"). Um ícone na HUD só acima de 70%.
+- **Efeitos de conta [calculado, `peso_sim.py viagem`]:** a zona livre é **70% da capacidade antiga** (jogador 35 kg; Paquicéfalo L10 28 kg; Parassaurolofo L20 91 kg). O abrigo mínimo (38,05 kg, 76%) ainda vai em uma viagem, a x0,88 e sem correr (+1,3 s por 40 tiles); dois abrigos (76 kg) já não cabem a pé. Cada ponto de Peso (+6% da base) vale 2,1 kg de zona livre, não 3.
+- **Marco:** M4b, fora da 0.2 (junto de Montaria e carga); PRO-09b faixas e % de carga; Largar e bolsinha; corpo de dino; `YATORA` com os sprites de 12.4. **Precisa jogar:** se x0,4 a 99% é punitivo, se 70% livre cabe a construção, se Largar excesso basta em combate.
 
 #### Stamina do dino
 Não faz diferença no MVP e **recomendo adiar**: não há montaria nem combate de dino domado que gaste fôlego, e o dino domado segue sem custo. No selvagem, a perseguição e a fuga já têm tempo fixo por Conduta (8, 10 e 15 s), sem stamina. Se um dia a stamina do selvagem substituir esses tempos (fuga = stamina / dreno), o nível a ampliaria em 20% por 10 níveis, mas isso muda números já decididos da Conduta. **Montaria, Postura e Sela: 6.11, 6.12 e 6.13.** **Reservar a fórmula no dado (M4, montaria), sem usar na 0.2:** a Stamina do dino **não aceita pontos** até haver montaria ou combate de dino com fôlego.
@@ -162,9 +222,9 @@ Não faz diferença no MVP e **recomendo adiar**: não há montaria nem combate 
 
 Nove posições na parte de baixo da tela. **Concordo com o M1**, porque resolve "comer do inventário" e a troca de arma; só a parte de dino (Ração e dardo) é M2.
 
-- **Fruta e preparado de sono:** ver 5.5. **Regra do dono (06/11): a tecla de atalho sempre faz o jogador consumir.** A fruta-do-sono apertada **come no jogador** (pede segundo aperto em 1,5 s); a Ração **o jogador nunca consome** (decidido); **o preparado de sono também não (decidido 06/11): só vai ao dino pela tela dele**. Dar ao dino **nunca** é pela tecla (5.13).
+- **Fruta e preparado de sono:** ver 5.5. **Regra do dono (06/11): a tecla de atalho sempre faz o jogador consumir.** O Cochilo apertado **come no jogador** (pede segundo aperto em 1,5 s); a Ração **o jogador nunca consome** (decidido); **o preparado de sono também não (decidido 06/11): só vai ao dino pela tela dele**. Dar ao dino **nunca** é pela tecla (5.13).
 - **Atribuir:** arrastar do inventário ou, com o cursor sobre o item, apertar a tecla. O atalho aponta para o **id do item**, não para o slot. Mostra a **soma** das pilhas; com 0 fica **apagado mas atribuído** e volta quando houver estoque.
-- **Usar (tecla):** comida (baga, carne, samambaia, fruta-do-sono): **o jogador come 1** e restaura fome; **não gasta** se a fome está cheia. Arma ou ferramenta: **equipa**; apertar a tecla do item já equipado **desequipa** (mãos livres). **A arma equipada vive na vaga Arma do inventário (5.20)**; a tecla move da grade à vaga e de volta. Só arma e ferramenta trocam o equipado. **Ração: o jogador nunca consome (decisão do dono, 06/11); só o dino**, a tecla não age. **Preparado de sono: o jogador não consome (decidido 06/11); só vai ao dino pela tela dele (E).**
+- **Usar (tecla):** comida (baga, carne, samambaia, Cochilo): **o jogador come 1** e restaura fome; **não gasta** se a fome está cheia. Arma ou ferramenta: **equipa**; apertar a tecla do item já equipado **desequipa** (mãos livres). **A arma equipada vive na vaga Arma do inventário (5.20)**; a tecla move da grade à vaga e de volta. Só arma e ferramenta trocam o equipado. **Ração: o jogador nunca consome (decisão do dono, 06/11); só o dino**, a tecla não age. **Preparado de sono: o jogador não consome (decidido 06/11); só vai ao dino pela tela dele (E).**
 - **Dino (alinhado à regra do dono, 06/11):** a tecla **nunca** age sobre o dino. No **domar ativo**, a comida (Ração, baga, carne, fruta e preparado de sono) vai pela **tela de inventário do dino, aberta com interagir (E)**, e **o dino come de lá** (já implementado). No **domar passivo**, pelo slot de Oferta (5.13).
 - **Cooldown [premissa]:** comida do jogador 0,5 s; troca de equipamento 0,3 s; O intervalo entre Rações vale na tela do dino (`racao.md` 1), e recusar não gasta.
 - **Co-op:** a tecla envia `usar_atalho(item_id)` (sem alvo); o servidor valida item, quantidade, cooldown e se o jogador está vivo; **o cliente não decide consumo**. Dar ao dino é pedido separado `alimentar_dino(dino_id, item_id)` da tela do dino. A atribuição é do perfil do jogador (UI), salva com ele, sem validação.
@@ -175,7 +235,7 @@ Nove posições na parte de baixo da tela. **Concordo com o M1**, porque resolve
 
 > **Revisto (06/11, dono):** a **Lança volta como Lança de madeira** (5.4) e **Dodo e Listro entram** como presas pequenas (6.1); o resto da camada 1 segue fora (Gallimimus, Ração S, Mel, Temperamento, dia e noite, configurações, música, NET-03, vocalizações). O parágrafo 1 abaixo vale para **antes** da Lança: com ela, ver 5.4.
 
-**Fora da 0.2:** Arco, Flecha, Boleadeira e Besta (M4 a M5; Rifle, Dardo, arma de fogo, pólvora, fósforo e sílex **sem marco**), Bastão reforçado (cortado); **a Cama voltou à v0.2 no M2, com o Saco de dormir (12.3)**, peças de fibra (depois do playtest), Listro (M4 com o Oviraptor), slot de Oferta (depois do playtest), Lança-de-pedra, Gallimimus, Ração S e Mel-de-cipó, Temperamento do domado, dia e noite, configurações, música, NET-03 e vocalizações por limiar. A **pausa de torpor já está implementada**: fica, sem custo novo. Tudo continua documentado como futuro. **Mantidos:** Peso, batismo (6.9) e barra de atalhos (5.2).
+**Fora da 0.2:** Arco, Flecha, Boleadeira e Besta (M4 a M5; Rifle, Dardo, arma de fogo, pólvora e fósforo **sem marco**; o sílex volta no M4, 5.9c), Bastão reforçado (cortado); **a Cama voltou à v0.2 no M2, com o Saco de dormir (12.3)**, peças de fibra (depois do playtest), Listro (M4 com o Oviraptor), slot de Oferta (depois do playtest), Lança-de-pedra, Gallimimus, Ração S e Mel-de-cipó, Temperamento do domado, dia e noite, configurações, música, NET-03 e vocalizações por limiar. A **pausa de torpor já está implementada**: fica como está. Tudo continua documentado como futuro. **Mantidos:** Peso, batismo (6.9) e barra de atalhos (5.2).
 
 **1. Sem Lança, como o jogador lida com o Utahraptor?** O Bastão (dano 2) **não mata**: 40 golpes em 27 s, 18 mordidas de 8 = 144 de dano contra 100 de vida [calculado]. O caminho é **nocautear**: Utahraptor L20 (torpor 144) cai em 5 golpes, 2,8 s, com 1 mordida (11 dano); com 10 pontos em Dano, 3 golpes e 1,4 s. Ele dorme cerca de 103 s, mais que os 40 s de domar um Paquicéfalo em C. O que muda: **o ponto de Dano do jogador** passa a multiplicar também o torpor do golpe (é o menor ajuste que dá uso ao atributo sem Lança), e a regra "abaixo de 25% de vida foge" fica sem uso até haver dano maior (sem custo).
 
@@ -183,7 +243,7 @@ Nove posições na parte de baixo da tela. **Concordo com o M1**, porque resolve
 
 **3. Sem Ração S, a escada fica Baga, C, B, A** (`racao.md` 1, 12). Conta com `nivel_sim.py eficiencia` (caso médio, nível final): Triceratops L28 C 30, B 34, A 36; Parassaurolofo L20 C 24, B 25, A 26; Utahraptor L15 B 19, A 19; Paquicéfalo L8 B 10, A 10. A escada **ainda paga no Triceratops e no Parassaurolofo** e é plana nos pequenos (A só poupa 6 a 17 s). `racao_minima` (Paquicéfalo C, Utahraptor B, Parassaurolofo C, Triceratops A) continua válida: o topo exigido é A. A **Eficiência máxima real na 0.2 é 78 a 92%** (A, caso bom), não 100%: o bônus real é de +39% a +46%, não +50%. Sem S+ (M4) e sem S, **ninguém tem dreno 0**; o dardo (-2 E) continua melhor que golpe.
 
-**4. Tipos de Conduta na 0.2: 4 confirmados** (Passivo, Agressivo, Semi-agressivo, Medroso). O Covarde sai com o Gallimimus; o Temperamento (do domado) também. A conta de fuga fica só no Parassaurolofo (75 px/s, alcançável).
+**4. Tipos de Conduta na 0.2: 4 confirmados** (Passivo, Agressivo, Semi-agressivo, Covarde). O Medroso (foge ao avistar) é conduta futura, sem marco; o Temperamento (do domado) também. A conta de fuga fica só no Parassaurolofo (75 px/s, alcançável).
 
 ### 5.4 Armas, torpor contínuo e sono (decisão do dono, 06/11)
 
@@ -191,7 +251,7 @@ Nove posições na parte de baixo da tela. **Concordo com o M1**, porque resolve
 
 | Arma | Dano | Torpor imediato | Contínuo | Cooldown | Munição e recarga | Alcance | Marco |
 |---|---|---|---|---|---|---|---|
-| **Soco** (sem item) | 1 | 10 | -- | 0,6 s | -- | 1 tile | M1 |
+| **Soco** (sem item) | 1 | 10 | -- | 0,6 s | -- | 1 tile | M1 (coleta e pedras: 5.9b) |
 | **Bastão-de-sono** (porrete) | 2 | 30 | -- | 0,7 s | -- | 1,5 tiles | M1: **nasce no inventário, sem receita**; a receita (Saber 1) repõe no M2 |
 | **Lança de madeira** | 12 | 0 | -- | 0,9 s | -- | 1,8 tiles | M1, **conhecida** |
 | **Flecha de sono** (Arco) | 1 | 15 | 12/s por 5 s (60), total 75 | 1,2 s | 1 flecha (4 flechas comuns + 1 Preparado rendem 4); armar 0,6 s incluído | 10 tiles | M4 |
@@ -203,10 +263,10 @@ Nove posições na parte de baixo da tela. **Concordo com o M1**, porque resolve
 
 **Lança de madeira (decisão do dono, 06/11).** Dano **12**, torpor **0** (conta como dano puro na regra de armas), recarga **0,9 s**, Stamina **5** por golpe, alcance **1,8 tiles**, custo **2 graveto + 3 madeira**, receita conhecida, feita à mão. Durabilidade 80 (5.9). **É também a ferramenta de abate e de coleta de carcaça** (5.6). Conta (`durab_sim.py lanca`): **Dodo (vida 24) em 2 golpes, 1,8 s; Listro (36) em 3 golpes, 2,7 s; Utahraptor L20 (126) em 11 golpes, 9,9 s, 5 mordidas de 7,5 dps = 37 de dano e 55 de Stamina**. Contra o Utahraptor ela **ajuda pouco**: a Lança de 18 do desenho antigo fechava em 7 golpes e 5,4 s; esta é **de abate de presa, não de duelo**, e o caminho do Utahraptor continua sendo **nocautear com Bastão** (5 golpes). **Espada** (20, 0,9 s) entra depois, no M4, sem mexer no corte da v0.2.
 
-**Armas à distância (decisão final do dono, 06/11; números nossos [premissa]).** **Sem pólvora, sem arma de fogo, sem Rifle e sem Dardo: adiados sem marco**, e com eles o **fósforo e o sílex** (5.18). Ficam **arco, besta e boleadeira**, todos de material primitivo ou mecânico. **Marco recomendado:** **M4** Corda (Saber 1), Arco (Saber 2), Flecha comum (2), **Flecha de sono (2)** e Boleadeira (2); **M5** Besta (Saber 4, Bancada). **Tudo à mão, exceto a Besta** (regra de produção, 5.19).
-- **Arco** (3 madeira + 2 corda; durabilidade 120 tiros; Stamina 4 por tiro; 10 tiles): **Flecha comum** (2 graveto + 1 pedra + 1 fibra rendem 4; dano 14, torpor 0). **Flecha de sono (entra, recomendo):** 4 flechas comuns + 1 **Preparado de sono** rendem 4 flechas de sono; dano 1, imediato 15, contínuo 12/s por 5 s, **total 75**; **dá ao Preparado um segundo consumidor** (a mão do jogador só o craftar; quem o consome continua sendo o dino, pela tela dele). Conta (`armas_sim.py arco`): nocaute acordado em **3,3 s (Paquicéfalo), 4,1 (Utahraptor), 4,9 (Parassaurolofo) e 6,0 s (Triceratops L28)** = 3, 4, 5 e 6 flechas = **0,75 a 1,5 Preparados**; contra 2,1 a 5,6 s do Bastão, mas **a 10 tiles e sem exposição**. Custo de coleta [premissa]: flecha de sono 3,8 s por dose (`armas_sim.py custo`).
+**Armas à distância (decisão final do dono, 06/11; números nossos [premissa]).** **Sem pólvora, sem arma de fogo, sem Rifle e sem Dardo: adiados sem marco**, e com eles o **fósforo** (5.18); o **sílex volta no M4** como ponta de flecha (5.9c). Ficam **arco, besta e boleadeira**, todos de material primitivo ou mecânico. **Marco recomendado:** **M4** Corda (Saber 1), Arco (Saber 2), Flecha comum (2), **Flecha de sono (2)** e Boleadeira (2); **M5** Besta (Saber 4, Bancada). **Tudo à mão, exceto a Besta** (regra de produção, 5.19).
+- **Arco** (3 madeira + 2 corda; durabilidade 120 tiros; Stamina 4 por tiro; 10 tiles): **Flecha comum** (2 graveto + 1 sílex + 1 fibra rendem 4, sílex no lugar da pedra a partir do M4, 5.9c; dano 14, torpor 0). **Flecha de sono (entra, recomendo):** 4 flechas comuns + 1 **Preparado de sono** rendem 4 flechas de sono; dano 1, imediato 15, contínuo 12/s por 5 s, **total 75**; **dá ao Preparado um segundo consumidor** (a mão do jogador só o craftar; quem o consome continua sendo o dino, pela tela dele). Conta (`armas_sim.py arco`): nocaute acordado em **3,3 s (Paquicéfalo), 4,1 (Utahraptor), 4,9 (Parassaurolofo) e 6,0 s (Triceratops L28)** = 3, 4, 5 e 6 flechas = **0,75 a 1,5 Preparados**; contra 2,1 a 5,6 s do Bastão, mas **a 10 tiles e sem exposição**. Custo de coleta [premissa]: flecha de sono 3,8 s por dose (`armas_sim.py custo`).
 - **Besta** (5 madeira + 2 barra + 2 corda; dano 22, torpor 0; 2,0 s de recarga; 14 tiles; durabilidade 120): mesma flecha. **Vale pelo dano por tiro e alcance, não pela cadência:** Utahraptor L20 em 6 tiros e 12 s contra 9 flechas e 10,8 s do Arco. Custo em metal: 2 barras. **Cortável sem efeito no resto** (a flecha de sono é do Arco).
-- **Boleadeira** (2 corda + 2 pedra; 1 uso por arremesso; 6 tiles): **prende, não nocauteia** (velocidade x0,4 por 5 s, dano 0, torpor 0). Função: é a resposta ao Medroso sem Arco e a fuga de emergência. **Sem Medroso o Arco já resolve (`armas_sim.py fuga`: nocaute em 4,8 s a 160 px), então a Boleadeira é a mais cortável**; só fica se o playtest pedir um item de utilidade barato.
+- **Boleadeira** (2 corda + 2 pedra; 1 uso por arremesso; 6 tiles): **prende, não nocauteia** (velocidade x0,4 por 5 s, dano 0, torpor 0). Função: é a resposta ao Covarde sem Arco e a fuga de emergência. **Sem Covarde o Arco já resolve (`armas_sim.py fuga`: nocaute em 4,8 s a 160 px), então a Boleadeira é a mais cortável**; só fica se o playtest pedir um item de utilidade barato.
 - **Rifle de dardos e Dardo:** **fora**. Saem os números antigos (18 + 9/s por 6 s, pente de 4, recarga 3,5 s, 12 tiles); ficam só como registro no histórico do `racao.md`. Triceratops L28 e acima: ver 5.15.
 
 Todos os valores são [premissa a testar]; o cálculo e as consequências vêm abaixo.
@@ -215,25 +275,27 @@ Todos os valores são [premissa a testar]; o cálculo e as consequências vêm a
 
 **Acúmulo (recomendo): soma até 3 efeitos ativos; o 4º renova o mais antigo.** O teto é **compartilhado** entre flecha de sono, fruta e preparado e vale por alvo. Motivo: renovar sem somar deixaria a flecha sem efeito acordado; soma sem teto faria dela um nocaute instantâneo. Conta (`armas_sim.py arco`, uma flecha a cada 1,2 s, queda 5/s): Paquicéfalo L12 nocauteia em **3,3 s**, Utahraptor L20 em 4,1 s, Parassaurolofo L20 em 4,9 s, Triceratops L28 em 6,0 s, contra 2,1, 3,5, 4,2 e 5,6 s do Bastão (`armas_sim.py ko`): o Arco é cerca de 1,2 a 1,6 vezes mais lento, mas **a 10 tiles**. Escolha real: Bastão rápido e exposto, Arco seguro e lento, **e gasta flecha** (0,75 a 1,5 Preparados por nocaute).
 
-**Efeitos.** Acordado: o torpor sobe e passa pelas faixas (bocejo, passo x0,85, x0,65 com pausa); **nocauteia depois de alguns segundos** conforme a conta acima. **Dino que foge (Medroso, `armas_sim.py fuga`):** Parassaurolofo L20 (75 px/s), jogador a 80 px, flecha a cada 1,2 s a 160 px de alcance: **faixa 2 em 2,7 s e nocaute em 4,8 s**; o Arco é a **resposta ao Medroso** sem depender de sprint. Soco contra o Utahraptor L20: 21 golpes, 12 s, inviável (o ponto é empurrar para o Bastão).
+**Efeitos.** Acordado: o torpor sobe e passa pelas faixas (bocejo, passo x0,85, x0,65 com pausa); **nocauteia depois de alguns segundos** conforme a conta acima. **Dino que foge (Covarde, `armas_sim.py fuga`):** Parassaurolofo L20 (75 px/s), jogador a 80 px, flecha a cada 1,2 s a 160 px de alcance: **faixa 2 em 2,7 s e nocaute em 4,8 s**; o Arco é a **resposta ao Covarde** sem depender de sprint. Soco contra o Utahraptor L20: 21 golpes, 12 s, inviável (o ponto é empurrar para o Bastão).
 
 **Flecha de sono e Eficiência.** A flecha em dino **dormindo** custa **-2 de Eficiência por dose** (sem dano). O torpor contínuo **não conta como ataque** ao dormindo (sem dano, sem custo extra, sem acordar nem atrair carnívoro). Em dino **acordado** não custa Eficiência (ela só começa no nocaute). Flecha comum, besta e espada em dormindo são ataque normal (4 ou 8 de Eficiência fixa + 0,5 x % da vida; `racao.md` 11). **Dormindo, fruta e preparado não gastam Eficiência**: para manter o torpor basta 1 preparado por minuto (`armas_sim.py dormindo`).
 
 **Atributo Dano do jogador:** passa a multiplicar **dano e torpor imediato dos golpes corpo a corpo** (Soco, Bastão); **não** multiplica flecha, besta, fruta nem preparado (valor do item). Com 10 pontos: Bastão 48 em vez de 30 (Utahraptor L20 cai de 6 para 4 golpes).
 
-**Armas de fogo: fora do jogo (decidido, 06/11); sem marco, nem na 1.0.** Não combinam com o tom (sobrevivência com pedra, fibra e Ração) nem com a progressão. **Sem Rifle, sem Dardo, sem pólvora, sem fósforo e sem sílex.** Arco e flecha no **M4**, besta no **M5**, **fora da 0.2**.
+**Armas de fogo: fora do jogo (decidido, 06/11); sem marco, nem na 1.0.** Não combinam com o tom (sobrevivência com pedra, fibra e Ração) nem com a progressão. **Sem Rifle, sem Dardo, sem pólvora e sem fósforo (o sílex volta como ponta de flecha, 5.9c).** Arco e flecha no **M4**, besta no **M5**, **fora da 0.2**.
 
-**Impacto no M1 e M2.** **M1:** Soco e **Bastão-de-sono no inventário desde o início, sem receita** (30 de torpor, 0,7 s). **M2:** a receita do Bastão (Saber 1) repõe; **nenhum dardo na 0.2**. **Custo novo [estimativa minha, premissa; `SHIKAMARU` confirma]:** efeitos de torpor contínuo com teto e save 4 h (só no M4, para a flecha de sono; a 0.2 só tem fruta e preparado, 5.5); Arco, flecha, besta e boleadeira no M4 a M5: `WeaponDef` com projétil 8 h, Besta 2 h, Boleadeira 3 h [estimativa].
+**Impacto no M1 e M2.** **M1:** Soco e **Bastão-de-sono no inventário desde o início, sem receita** (30 de torpor, 0,7 s). **M2:** a receita do Bastão (Saber 1) repõe; **nenhum dardo na 0.2**. **Escopo novo:** efeitos de torpor contínuo com teto e save (só no M4, para a flecha de sono; a 0.2 só tem fruta e preparado, 5.5); Arco, flecha, besta e boleadeira no M4 a M5: `WeaponDef` com projétil, Besta, Boleadeira.
 
-### 5.5 Fruta-do-sono, preparado de sono e carne podre (decisão do dono, 06/11)
+### 5.5 Cochilo, preparado de sono e carne podre (decisão do dono, 06/11)
 
-**Fruta-do-sono.** Nasce em arbusto da **Mata-baixa**; nó com 3 frutas, 4 s por fruta, respawn de 6 a 8 min (como o Tubérculo) [premissa]; 0,1 kg, pilha de 20. **Efeito:** 6 de torpor por segundo durante 5 s (**30 no total**, sem imediato); **não é comida** (não dá fome, não é refeição, não conta para domar, não gera agitação). **Marco M2.**
+**Nome da fruta (decisão do dono, 06/11): Cochilo.** A comestível segue **Baga**. Os ids de código no `game/` não mudam agora.
 
-**Preparado de sono.** Receita na bancada comum: **3 frutas-do-sono + 1 carne podre rendem 3 preparados**, 4 s. Efeito: 12/s durante 5 s (**60 cada**); só se dá a **dino** (o jogador não o usa; sem acidente). Peso 0,15 kg. **Marco M2, cortável.**
+**Cochilo.** Nasce em arbusto da **Mata-baixa**; nó com 3 frutas, 4 s por fruta, respawn de 6 a 8 min (como o Tubérculo) [premissa]; 0,1 kg, pilha de 20. **Efeito:** 6 de torpor por segundo durante 5 s (**30 no total**, sem imediato); **não é comida** (não dá fome, não é refeição, não conta para domar, não gera agitação). **Marco M2.**
+
+**Preparado de sono.** Receita na bancada comum: **3 Cochilos + 1 carne podre rendem 3 preparados**, 4 s. Efeito: 12/s durante 5 s (**60 cada**); só se dá a **dino** (o jogador não o usa; sem acidente). Peso 0,15 kg. **Marco M2, cortável.**
 
 **Carne podre (revisto 06/11, dono): vem de duas fontes que coexistem.** (1) **Carcaça velha**: a carcaça não coletada vira carniça aos 10 min (5.6). (2) **Pilha de carne que vence** no inventário, baú, cocho ou alforje (5.9): a pilha vira `ceil(n/4)` de carne podre. Isso **substitui a recomendação anterior (V31: carne que não estraga, nó de Carniça)**: o **nó de Carniça sai**, a carniça é só um estado da carcaça. Carne podre: 0,5 kg, **comível** com pequeno dano (5.10), ingrediente do preparado e **não vence**. Oferta contra demanda: `durab_sim.py oferta` (cada caçada larga carcaças; a demanda é 1 por 3 preparados, 2 por domesticação).
 
-**Conta de custo** (`armas_sim.py custo`): flecha de sono = 3,8 s por dose de 75 (0,051 s/torpor) mais -2 E em dormindo (de 2 a 8 s por E: **0,1 a 0,3 s/torpor a mais**); fruta = 4 s por 30 (**0,133 s/torpor**, 0 E); preparado = (3 x 4 + 4 + 4) / 180 = **0,111 s/torpor**, 0 E. Em dormindo, **a fruta e o preparado vencem a flecha** (sem gastar Eficiência). Em dino **acordado** a flecha de sono (M4) é única (alcance 10 tiles); **na 0.2 não há arma de torpor à distância**, só Bastão, fruta e preparado.
+**Conta de custo** (`armas_sim.py custo`): flecha de sono = 3,8 s por dose de 75 (0,051 s/torpor) mais -2 E em dormindo (de 2 a 8 s por E: **0,1 a 0,3 s/torpor a mais**); fruta = 4 s por 30 (**0,133 s/torpor**, 0 E); preparado = (3 x 4 + 4 + 4) / 180 = **0,111 s/torpor**, 0 E. Em dormindo, **o Cochilo e o preparado vencem a flecha** (sem gastar Eficiência). Em dino **acordado** a flecha de sono (M4) é única (alcance 10 tiles); **na 0.2 não há arma de torpor à distância**, só Bastão, fruta e preparado.
 
 **Jogador que come fruta** (`armas_sim.py jogador`; torpor máx. 100, queda 5/s, cap 3 efeitos, 0,5 s entre frutas): 1 fruta = +5 (sem sinal); 2 = pico 33 (faixa 1, bocejo); 3 = 60 (faixa 2, lento); 6 = 80 (faixa 3, pausas); **9 = dorme**. Sono [premissa]: acorda em 30 de torpor, queda de 3/s dormindo = **23 s**; **dano acorda**; aliado acorda segurando a interação 2 s. É **só risco**, sem ferramenta: não dá fome nem benefício. **Co-op:** sem PvP; ninguém força fruta em outro jogador; o aliado acorda quem dormiu. **Recomendo no M2: sinais (faixas 1 a 3) e sem sono**; o sono do jogador (bloqueio de entrada, câmera, acordar) fica para o M4: é a parte cara.
 
@@ -243,15 +305,15 @@ Todos os valores são [premissa a testar]; o cálculo e as consequências vêm a
 
 **V6 revisto:** a flecha de sono (M4) deixa de ser a "manutenção barata" do dormindo; é a **ferramenta de dino acordado**; fruta e preparado são a manutenção.
 
-**Atalho (1 a 9), evitar erro:** a tecla da fruta-do-sono **come no jogador** (segundo aperto em 1,5 s: "comer fruta-do-sono?"); a do preparado **não faz nada** (é para o dino, pela tela). Ícone roxo distinto da baga; a baga e a carne nunca dormem ninguém.
+**Atalho (1 a 9), evitar erro:** a tecla do Cochilo **come no jogador** (segundo aperto em 1,5 s: "comer Cochilo?"); a do preparado **não faz nada** (é para o dino, pela tela). Ícone roxo distinto da baga; a baga e a carne nunca dormem ninguém.
 
-**Estimativa [premissa; `SHIKAMARU` confirma]:** nó e item da fruta 2,5 h; forçar o dino pela tela dele (já implementada; só validação e o teto de 3 efeitos) 1 h; sinais de torpor no jogador com o mesmo componente 2 h; Carniça e item 1 h; receita do preparado 1 h = **7,5 h**; sono do jogador M4 (+4 h). **Menor recorte da 0.2:** fruta forçada no dino e sinais no jogador; **preparado e Carniça cortáveis** (+2 h); sem sono do jogador.
+**Escopo:** nó e item da fruta; forçar o dino pela tela dele (já implementada; só validação e o teto de 3 efeitos); sinais de torpor no jogador com o mesmo componente; Carniça e item; receita do preparado; sono do jogador M4. **Menor recorte da 0.2:** fruta forçada no dino e sinais no jogador; **preparado e Carniça cortáveis**; sem sono do jogador.
 
 ### 5.6 Carcaça e sacolinha (decisão do dono, 06/11)
 
 Animal morto deixa **carcaça** coletável; os itens podem virar **sacolinha** no chão. Simulação: `carcaca_sim.py`.
 
-**Rendimento** = `base x (1 + 0,03(L-10))` (piso 0,7, o mesmo fator do Peso), arredondado [premissa]. Tempo **1,5 s por carne e 3 s por couro, com Lança ou Espada** (**sem ferramenta não se coleta carne nem couro**; mãos só pegam item solto e sacolinha), Stamina **3/s**, **1 de durabilidade da arma por carcaça**; peso 0,5 kg a carne e 0,4 kg o couro; carne dá **25 de fome** (baga 10) [premissa, o código ainda não define].
+**Rendimento** = `base x (1 + 0,03(L-10))` (piso 0,7, o mesmo fator do Peso), arredondado [premissa]. Tempo **1,5 s por carne e 3 s por couro com Lança ou Espada; à mão, 3 s e 6 s e 1 de dano ao personagem por item** (Soco em dino, opção B, decisão do dono 06/11, 5.9b), Stamina **3/s**, **1 de durabilidade da arma por carcaça** (só com arma; a mão não gasta nada, só vida, e o piso de 10 de vida vale: o Soco não mata); peso 0,5 kg a carne e 0,4 kg o couro; carne dá **25 de fome** (baga 10) [premissa, o código ainda não define].
 
 | Espécie (base: carne / couro) | Nível típico | Carne | Couro | Tempo | Peso | Fome da carne |
 |---|---|---|---|---|---|---|
@@ -261,9 +323,9 @@ Animal morto deixa **carcaça** coletável; os itens podem virar **sacolinha** n
 | Triceratops (14 / 5) | L28 | 22 | 8 | 57 s | 14,2 kg (28% do Peso) | 550 (92 min) |
 | Artrópode gigante (pós-MVP, cavernas) | -- | **quitina** no lugar do couro | | | | |
 
-Triceratops L42 (domado que morreu): 27 e 10, 70 s. Coleta **parcial** permitida (a barra pode ser interrompida e retomada); interromper por mover mais de 3 tiles ou por dano.
+**À mão (B)** [calculado: o dobro do tempo da tabela e 1 de dano por item]: Paquicéfalo 18 s e 5 de dano; Utahraptor 36 s e 9; Parassaurolofo 63 s e 17; **Triceratops 114 s e 30**. Na prática a mão serve às presas pequenas e a quem ficou sem Lança; carcaça grande pede Lança ou Espada (a coleta parcial vale). Triceratops L42 (domado que morreu): 27 e 10, 70 s. Coleta **parcial** permitida (a barra pode ser interrompida e retomada); interromper por mover mais de 3 tiles ou por dano.
 
-**Quanto tempo ficam [premissa]:** carcaça **fresca 10 min**; de 10 a 20 min vira **carniça** (só carne podre: `ceil(carne/4)`; Triceratops L28 dá 6) e some aos 20 min; **sacolinha 10 min**; no máximo **8 carcaças e 20 sacolinhas** no mundo (a mais antiga some). Save: menos de 2 KB. Isso dá a **carne podre** (5.5) sem nenhuma regra de estragar no inventário e permite cortar a Carniça-nó se o teste mostrar oferta suficiente.
+**Quanto tempo ficam [premissa]:** carcaça **fresca 10 min**; de 10 a 20 min vira **carniça** (só carne podre: `ceil(carne/4)`; Triceratops L28 dá 6) e some aos 20 min; **sacolinha 10 min**; no máximo **8 carcaças e 20 sacolinhas** no mundo (a mais antiga some). **M4b:** a bolsinha de Largar (5.1b) usa a mesma entidade, com 5 min. Save: menos de 2 KB. Isso dá a **carne podre** (5.5) sem nenhuma regra de estragar no inventário e permite cortar a Carniça-nó se o teste mostrar oferta suficiente.
 
 **Co-op:** qualquer jogador coleta carcaça de selvagem e sacolinha (sem PvP; cooperativo). A carcaça e a sacolinha do **dino do dono** são **só do dono por 120 s**, depois de todos. Tudo é pedido validado no servidor: `coletar_carcaca(id, item)` e `pegar_sacolinha(id)` conferem existência, distância (até 2 tiles), tempo, dono e **Peso** (o que não cabe fica na sacolinha); o servidor é quem remove a unidade.
 
@@ -285,7 +347,7 @@ Triceratops L42 (domado que morreu): 27 e 10, 70 s. Coleta **parcial** permitida
 
 **Couro:** sem sumidouro na 0.2 (**o Bastão reforçado foi cortado, 06/11**): o couro cai como dado e só tem uso no M4 (peças de couro e Arco). Quitina só com as cavernas.
 
-**Marco e custo [estimativa minha, premissa; `SHIKAMARU` confirma]:** M2. Carcaça e coleta com barra parcial 5 h; sacolinha (entidade, pegar, excesso, morte do dino) 3 h; save e validação 3 h; interface (barra, lista de itens) 2 h; = **13 h** (sem o Bastão reforçado, -1 h). **Menor recorte da 0.2:** só carne (couro como dado, sem uso), coleta de uma vez, sacolinha só para excesso e dino morto, sem carniça envelhecida = **9 h**.
+**Marco:** M2. Carcaça e coleta com barra parcial; sacolinha (entidade, pegar, excesso, morte do dino); save e validação; interface (barra, lista de itens), sem o Bastão reforçado. **Menor recorte da 0.2:** só carne (couro como dado, sem uso), coleta de uma vez, sacolinha só para excesso e dino morto, sem carniça envelhecida.
 
 ### 5.7 HUD do jogador (decisão do dono, 06/11)
 
@@ -297,13 +359,13 @@ Triceratops L42 (domado que morreu): 27 e 10, 70 s. Coleta **parcial** permitida
 
 **Durabilidade (revisto 06/11, dono): existe, fora da HUD.** Ferramentas, armas e armaduras têm durabilidade individual (5.9). O jogador percebe por **tooltip no inventário, aviso ao ficar baixa e som de quebra**; **nenhuma barra na HUD**. Estimativa de percepção em 5.9.
 
-**Estimativa [premissa; `SHIKAMARU` confirma]:** barra de XP, nível e selo 2,5 h; linha de aviso 0,5 h; estado ofegante com som e partícula 2 h = **5 h** (a barra de stamina, se existir, sai de graça). **`YATORA`:** moldura das 3 barras, ícone do selo, partícula de suor, sons de ofegar e de subir de nível.
+**Escopo:** barra de XP, nível e selo; linha de aviso; estado ofegante com som e partícula (a barra de stamina, se existir, sai de graça). **`YATORA`:** moldura das 3 barras, ícone do selo, partícula de suor, sons de ofegar e de subir de nível.
 
 ### 5.8 Stamina em golpes e coleta (decisão do dono, 06/11)
 
 Golpes e coleta também gastam Stamina. Simulação: `stamina_sim.py`.
 
-**Custos [premissa]:** golpe: **Soco 3**, **Bastão 6**, **tiro de arco 4** (5, 8,6 e 4 por segundo; 33, 17 e 25 golpes até esgotar). Coleta, por segundo de ação: **mãos em madeira e pedra 4/s**, **machado e picareta 3/s**, **baga, fibra, fruta e carcaça 2/s** (a mão em um nó de madeira: 8 s x 4 = 32 por nó, 3 nós seguidos; o machado: 5,2 s x 3 = 15,6). Construir e craftar não gastam. **Regeneração:** 15/s **só depois de 0,5 s sem agir** (sem sprint, golpe nem coleta); sprint 25/s e retomada em 20, como no código.
+**Custos [premissa]:** golpe: **Soco 3**, **Bastão 6**, **tiro de arco 4** (5, 8,6 e 4 por segundo; 33, 17 e 25 golpes até esgotar). Coleta, por segundo de ação: **mãos em madeira 4/s (pedra de nó só com Picareta, 5.9b)**, **machado e picareta 3/s**, **baga, fibra, fruta e carcaça 2/s** (a mão em um nó de madeira: 8 s x 4 = 32 por nó, 3 nós seguidos; o machado: 5,2 s x 3 = 15,6). Construir e craftar não gastam. **Regeneração:** 15/s **só depois de 0,5 s sem agir** (sem sprint, golpe nem coleta); sprint 25/s e retomada em 20, como no código.
 
 **Sem Stamina, nada bloqueia (recomendo e adoto):** o golpe sai com **cooldown x1,5 e efeito x0,75**; a coleta leva **x1,5 de tempo**; só o sprint fica bloqueado até recuperar 20 (1,3 s parado). Motivo: bloquear a coleta é espera vazia e bloquear o golpe diante de um carnívoro é espiral de morte. Coleta contínua exaurida roda a 67% da velocidade, contra 79% de quem pausa (15/19): a diferença é pequena, então **a coleta nunca espera, só desacelera**.
 
@@ -317,7 +379,7 @@ Golpes e coleta também gastam Stamina. Simulação: `stamina_sim.py`.
 
 **O ponto em Stamina vale a pena? Sim, por um limiar claro.** Sprint de 4 s (100) mais os 6 golpes do Utahraptor (36) pedem **136: 6 pontos** deixam correr e nocautear sem esgotar (22 de dano contra 56); o Triceratops (9 golpes, 54) pede **154: 9 pontos** (69 contra 172 de dano, pós-sprint). Também dá sprint de 5,4 s com 6 pontos e 6,4 s com 10, e 26,7 golpes seguidos com 10. Contra 6 pontos de Vida (+36 de vida, 3 mordidas): **a Stamina vence quando o jogador corre antes de lutar**, a Vida quando não. Escolha real. Na coleta o ponto vale pouco (~3 s por carcaça grande), aceitável.
 
-**Muda para o `SORA` [estimativa 3 h, premissa]:** `WeaponDef.stamina_cost`; `ToolDef`/coleta com `stamina_per_second`; estado `exhausted` aplicando x1,5 no cooldown e x0,75 no efeito do golpe e x1,5 no tempo da coleta, **no servidor**; regeneração com atraso de 0,5 s; sinal de ofego abaixo de 25% e ao zerar (bit replicado); o ataque atual do `Player` hoje **não gasta Stamina**; sem barra de stamina; teste headless dos custos e do limiar de 6 pontos.
+**Muda para o `SORA`:** `WeaponDef.stamina_cost`; `ToolDef`/coleta com `stamina_per_second`; estado `exhausted` aplicando x1,5 no cooldown e x0,75 no efeito do golpe e x1,5 no tempo da coleta, **no servidor**; regeneração com atraso de 0,5 s; sinal de ofego abaixo de 25% e ao zerar (bit replicado); o ataque atual do `Player` hoje **não gasta Stamina**; sem barra de stamina; teste headless dos custos e do limiar de 6 pontos.
 
 ### 5.9 Durabilidade e validade (decisões do dono, 06/11)
 
@@ -330,10 +392,12 @@ Simulação: `durab_sim.py`. **Dois sistemas, um modelo de inventário.** Armas,
 | Lança de madeira | 80 | 1 por golpe, 1 por carcaça coletada | dano 12 |
 | Bastão-de-sono | 120 | 1 por golpe | KO de Paquicéfalo em 4 golpes = 30 KOs |
 | Machado de pedra | 150 | 1 por segundo de coleta | 0,75 madeira/s (mão 0,375): 112 madeira por durabilidade |
-| Picareta de pedra | 120 | 1 por segundo de coleta | 0,80 pedra/s (mão 0,40): 96 pedra |
+| Picareta de pedra | 120 | 1 por segundo de coleta | 0,80 pedra/s (sem Picareta a mão **não coleta** nó de pedra, 5.9b): 96 pedra |
 | Machado e Picareta de ferro (M5) | 300 | idem | 1,31 madeira/s e 1,40 pedra/s: 394 e 420 por durabilidade |
 | Espada de ferro (M4) | 250 | 1 por golpe | dano 20 |
 | Peças de roupa (cada uma): fibra (depois do playtest), couro (M4), metal (M5) | 100 / 150 / 300 **por peça** | 1 por golpe sofrido em **cada peça equipada** (mesmo se o dano caiu a 1) | redução da peça (5.11): soma 10 / 25 / 40% |
+
+**Regra de afinidade por ferramenta: M4, não vale na 0.2 (5.9c). Os rendimentos desta tabela são os da 0.2.**
 
 **Pedra versus ferro:** 1,75x mais rápido e 2x a 2,5x mais durável = **3,5x a 4,4x de material por ferramenta**. **Mão nunca gasta, mas é metade da velocidade e gasta 4 de Stamina/s** (5.8): o jogador **nunca fica travado**.
 
@@ -350,7 +414,7 @@ Simulação: `durab_sim.py`. **Dois sistemas, um modelo de inventário.** Armas,
 | Carne crua | 30 min | vira **carne podre** (`ceil(n/4)`) |
 | Carne assada (Fogueira, 2 s por carne, 1 madeira por 4) | 90 min, +10 de fome | idem |
 | Baga | 45 min | **some** |
-| Fruta-do-sono | 30 min | **some** |
+| Cochilo | 30 min | **some** |
 | Preparado de sono | 45 min | **some** |
 | Carne podre, Ração C/B/A, couro | não vencem | -- |
 
@@ -358,8 +422,112 @@ Simulação: `durab_sim.py`. **Dois sistemas, um modelo de inventário.** Armas,
 
 **Domesticação sem surpresa:** (a) a carne do Utahraptor é caçada em 3 a 6,5 min (5.14), **margem de 4,6x a 12x** com 30 min; (b) **aviso a 25%** (7,5 min na carne crua); (c) o **painel de alimentar mostra "vence em N min"**; (d) a **Ração não vence**, então o estoque de Ração C/B/A é seguro; (e) carne vencida vira carne podre e o preparado de sono **ganha** matéria-prima.
 
-**Modelo de inventário (para o `SORA`):** hoje `{id, count}` e a barra guarda tipo. Passa a **`{id, count, expira_em?}`** para empilháveis e **`{id, iid, durab, durab_max}`** (count 1, não empilha) para equipamento; a **barra de atalhos guarda o slot (ou `iid`)**, não o tipo; **slot de "item na mão"** e, no M4, 2 de armadura; save com versão nova; reparo, uso e validade **validados no servidor**. **Menor recorte:** **M1** o modelo novo com durabilidade só da Lança, Machado, Picareta e Bastão; **M2** validade, carne podre, assar, reparo na Bancada e aviso; M4 armaduras. **Custo [estimativa minha; `SHIKAMARU` confirma]:** modelo de inventário e hotbar por slot 12 h; durabilidade, quebra e reparo 6 h; tooltip, aviso e sons 3 h; validade, conversão em carne podre, aviso no painel 5 h; Fogueira (assar) 2 h = **28 h**. Sem isso a Lança de madeira não pode ter durabilidade.
+**Modelo de inventário (para o `SORA`):** hoje `{id, count}` e a barra guarda tipo. Passa a **`{id, count, expira_em?}`** para empilháveis e **`{id, iid, durab, durab_max}`** (count 1, não empilha) para equipamento; a **barra de atalhos guarda o slot (ou `iid`)**, não o tipo; **slot de "item na mão"** e, no M4, 2 de armadura; save com versão nova; reparo, uso e validade **validados no servidor**. **Menor recorte:** **M1** o modelo novo com durabilidade só da Lança, Machado, Picareta e Bastão; **M2** validade, carne podre, assar, reparo na Bancada e aviso; M4 armaduras. **Escopo:** modelo de inventário e hotbar por slot; durabilidade, quebra e reparo; tooltip, aviso e sons; validade, conversão em carne podre, aviso no painel; Fogueira (assar). Sem isso a Lança de madeira não pode ter durabilidade.
 
+
+### 5.9b Soco, mãos e pedras avulsas (decisão do dono, 06/11; vale para o MVP)
+
+**Regras do dono:** (1) **Soco em árvore coleta recursos** e causa **1 de dano ao personagem**; (2) **Soco em pedra causa 1 de dano e não coleta nada**; (3) **pedras avulsas** ficam no chão, coletadas à mão sem ferramenta: são a base das primeiras ferramentas de pedra (Machado 2 pedra, Picareta 3).
+
+- **Soco na árvore [proposta de números]:** 3 madeira em 8 s (0,375/s, metade do Machado), Stamina 4/s, **1 de dano por colheita completa** (por golpe seriam ~13 por árvore). Arbusto à mão: coleta sem dano.
+- **Soco na pedra (nó):** 1 de dano por toque (tecla E), nada coletado, mensagem "só a Picareta quebra pedra". O nó ganha `ferramenta_minima`. **Isso revoga "mão em pedra 0,40/s" da tabela acima.**
+- **Pedra avulsa (`loose_stone`):** 1 pedra em 1 s, sem dano, sem ferramenta; volta em 300 s (núcleo) ou 600 s (trilha). **24 na ilha: 10 no núcleo e 14 na trilha até a Pedreira** (`mapa-ilha.md` 8). Sem softlock: o primeiro Machado e a primeira Picareta pedem 5 pedras avulsas, 6 madeira (2 árvores no Soco) e 2 fibra (1 arbusto rende 2); gastá-las antes em Fogueira ou Bancada só atrasa até 5 min.
+- **O Soco não mata o personagem:** o dano a si mesmo para em 10 de vida; abaixo disso o Soco age sem dano. Coleta segue por **E** (barra de coleta, `request_gather`), não por golpe.
+- **Soco em dino (decisão do dono, 06/11: opção B fechada).** Dino **vivo** leva dano 1 e torpor 10 (CRI-01) e o **personagem leva 1 de dano** por Soco, com o piso de 10 de vida (o Soco não mata). **A carcaça se coleta à mão**: 3 s por carne e 6 s por couro (o dobro de Lança ou Espada, 5.6) e **1 de dano ao personagem por item**, na mesma barra de coleta. Efeito: o Bastão (30 de torpor, sem custo de vida) vale mais que o Soco (10 de torpor, 1 de vida por golpe), e quem perdeu a Lança ainda come, devagar e sangrando. **Escopo: entra no SOB-06** (`mapa-ilha.md` 9).
+- **Escopo:** `ferramenta_minima`, dano do Soco com piso, mensagem e pedra avulsa no MUN-02 (junto do arbusto único); o `YATORA` desenha a pedra avulsa.
+
+### 5.9c Cada ferramenta coleta diferente (decisão do dono, 06/11; **M4, fora da 0.2**)
+
+**Regra do dono.** As duas ferramentas coletam **todos** os recursos, mas cada uma rende mais o que está na sua lista: **Picareta: carne, palha, sílex e metal. Machado: couro, quitina, madeira e pedra.** **"Rende mais" = mais recurso por colheita; a colheita leva o mesmo tempo** (o tempo é do nó, não da ferramenta). Fora da lista rende só a quantidade base. **O Soco não muda**: em pedra de nó não coleta nada (5.9b). Lança e Espada seguem como armas de corte de carcaça, fora desta regra. A regra vem **depois do MVP**; a 0.2 fica como está (5.9b e 5.9). **A pedra fica no Machado (confirmado pelo dono).**
+
+**Qualidade da ferramenta: o GDD já tem um tier, e uso esse (sem segundo sistema).** A tabela de 5.9 já separa **pedra** (Machado 150, Picareta 120 de durabilidade) de **ferro** (M5, Forja; 300 de durabilidade e 1,31 madeira/s e 1,40 pedra/s contra 0,75 e 0,80). A razão é 1,75x na coleta (1,31/0,75 = 1,747; 1,40/0,80 = 1,75) e 2x a 2,5x na durabilidade. Não existe nível de qualidade além disso (as "qualidades" do GDD são da Ração). **O Machado e a Picareta de pedra da v0.2 são a qualidade base (1,0)**: a v0.2 não muda.
+
+**Como a qualidade e a afinidade se somam: multiplicam.** `quantidade = arredondar(base do nó x mult_afinidade x mult_tier)`, arredondando .5 para cima; o tempo é o do nó; a durabilidade máxima é a do tier e cada colheita gasta 1 por segundo dela. Dados [proposta], `ferramentas.tres`:
+
+| Chave | Valor | Conta |
+|---|---|---|
+| `mult_dentro` / `mult_fora` | **2,0 / 1,0** | é o ganho por segundo que as tabelas da 5.9 já dão (Machado 0,75 madeira/s = 2 x 0,375), agora em quantidade: o ritmo por segundo de uma árvore com Machado fica igual ao de hoje |
+| `mult_dentro_carcaca` | **1,5** | carcaça é finita e não volta; o bônus é menor (use 2,0 se o dono quiser a mesma regra) |
+| `tier.pedra` | qtd x1,0; durabilidade 150 (Machado) / 120 (Picareta) | qualidade base = v0.2 |
+| `tier.ferro` (M5) | qtd **x1,75**; durabilidade 300 | 1,31/0,75 e 1,40/0,80 da 5.9; o tier **não** vale na carcaça (`tier_na_carcaca` = falso) |
+| `afinidade.machado` | couro, quitina, madeira, pedra | |
+| `afinidade.picareta` | carne, palha, silex, metal (minério) | |
+| `afinidade.lanca`, `afinidade.espada` | carne, couro; **por tempo**, como na 5.6 | não entram na regra de quantidade |
+| `afinidade.soco` | vazia (`mult_fora` 1,0) | |
+| `exige` (nó de pedra) | `coleta` (qualquer Machado ou Picareta) | troca `ferramenta_minima` = Picareta da 5.9b; "sem Picareta a mão não coleta nó de pedra" passa a "sem Machado nem Picareta" (só no M4) |
+
+**Fontes e colheita, em dado** (`nos.tres`; quantidade **base** = a do Soco; tempo único por colheita; palha, sílex, minério e quitina só no M4 ou depois):
+
+| Nó | Tempo | Base (item: quantidade) | Volta em | Marco |
+|---|---|---|---|---|
+| **Árvore coletável** (`tree`) | 8 s | madeira 3; **palha 2** | 480 s | madeira 0.2; **palha M4** |
+| **Pedra comum** (`rock`) | 10 s | pedra 4; **sílex 1** | 600 s | pedra 0.2; **sílex M4** |
+| **Pedra de minério** (`iron_seam`) | 14 s | **minério 2**; pedra 1; sílex 1 | 900 s | **M4** |
+| **Inseto gigante** (carcaça, com a carne) | por item, 3 s | carne como na 5.6; **quitina no lugar do couro**, 3 por carcaça [premissa] | 10 min | **cavernas e insetos, pós-1.0 (marco atual)** |
+
+**Efeito por colheita (mesmo tempo, quantidades com a afinidade; tier de pedra)** [calculado]:
+
+| Colheita | Machado | Picareta | Soco |
+|---|---|---|---|
+| Árvore, 8 s | **6 madeira + 2 palha** | 3 madeira + **4 palha** | 3 madeira + 2 palha (1 de dano) |
+| Pedra comum, 10 s | **8 pedra** + 1 sílex | 4 pedra + **2 sílex** | não coleta |
+| Pedra de minério, 14 s | 2 minério + **2 pedra** + 1 sílex | **4 minério** + 1 pedra + **2 sílex** | não coleta |
+
+Com tier de ferro (M5), tudo x1,75 e arredondado: Picareta no minério 2 x 2 x 1,75 = **7 por colheita**.
+
+**O que dependia de tempo, revisto.**
+- **Durabilidade** (1 por segundo de coleta, sem mudar): Machado de pedra na árvore, 150 / 8 s = 18,75 colheitas x 6 = **112 madeira por durabilidade cheia, igual à 5.9**; na pedra, 15 colheitas x 8 = **120 pedra**. Picareta de pedra no minério, 120 / 14 = 8,6 colheitas x 4 = **34 minério** (antes 21 com a regra por tempo); na pedra comum (fora da lista), 12 colheitas x 4 = **48 pedra**, como na conta antiga.
+- **Picaretas para as 18 barras (5.17: 36 minério):** 9 colheitas de 4 = 126 s, **1,05 Picareta de pedra**, ou seja, uma Picareta e **um reparo** (50% do material, na Bancada) no M4; com o Machado (fora da lista, 2 por colheita) seriam 18 colheitas e 1,7 Machados; com Picareta de ferro (M5), 36/7 = 5,1 colheitas e **0,24 de uma Picareta** (300 / 14 = 21 colheitas = 150 minério por durabilidade). Dos 28 filões, **9 bastam** (112 minério por passada com a Picareta).
+- **Primeiros 5 minutos: sem softlock, nas mesmas taxas por segundo de antes.** Soco: 3 madeira em 8 s; pedras avulsas à mão. O Machado (3 madeira + 2 pedra avulsa + 1 fibra) abre o nó de pedra com **8 pedra em 10 s (0,8/s)**; a Picareta (3 pedra) deixa de ser o gargalo e o mínimo cai de 5 para 2 pedras avulsas. Gastar as avulsas antes de qualquer ferramenta continua custando até 5 min de respawn. A primeira hora ainda gasta 86 madeira = 115 s e 40 pedra = 50 s, 165 s de 150 de durabilidade do Machado: 1 reparo a mais (~10 s); quem quiser poupar o Machado usa a Picareta, que dá 4 pedra por colheita em vez de 8.
+- **Carcaça da opção B (5.6):** o tempo continua **por item e por arma**, não por ferramenta: mão 3 s carne / 6 s couro com 1 de dano por item; Lança e Espada 1,5 / 3 s; **Picareta e Machado, como a mão no tempo (3 / 6 s) e sem dano**, mas com **quantidade x1,5 no que está na lista** (Picareta na carne, Machado no couro), arredondando para cima. Exemplo, Utahraptor L20 (6 carne, 3 couro): Lança 18 s, 6 carne e 3 couro; Picareta 36 s, **9 carne** e 3 couro; mão 36 s, 6 e 3, **9 de dano**. Triceratops L28 (22 e 8): Lança 57 s; Picareta 114 s e **33 carne**; mão 114 s e 30 de dano. Então a Lança é o caminho rápido, a Picareta e o Machado o caminho que rende mais (e gasta 1 de durabilidade por carcaça, como a Lança), e a mão o último recurso.
+
+**Sílex volta ao jogo (decisão do dono): marco M4, junto do Arco.** Consumidor: **Flecha comum passa a ser 2 graveto + 1 sílex + 1 fibra (rende 4)**, o sílex no lugar da pedra (`receitas.md`). **Fósforo e pólvora seguem sem marco.** Cem flechas gastam 25 sílex; as 159 pedras comuns e os 28 filões dão ~190 por passada com o Soco e mais com a Picareta, então sobra (barato de propósito). **Palha:** 264 árvores dão 528 por passada (1.056 com a Picareta); o gasto por peça é o da 8.1 e se calibra no M4 (2 por colheita é premissa).
+
+**A árvore coletável da v0.2 precisa mudar? Não.** `tree.tres` fica como está (`item_id = wood`, 3, 8 s, 480 s): na 0.2 só rende madeira. No M4, `ResourceNodeDef` ganha `drops` (lista de item e quantidade base) e, se vazio, usa `item_id` + `yield_amount` como hoje, então **nenhum `.tres` da 0.2 é migrado**. Na 0.2 a ferramenta de pedra segue acelerando a coleta como hoje; no M4 passa a render quantidade, **com o mesmo ritmo por segundo** (a conta acima). No M4 entram lista de colheitas, afinidade, tier e interface, fora da 0.2.
+
+**O que entraria se a afinidade viesse já na 0.2**: quantidade por afinidade e tier no `request_gather` e na carcaça; `exige: coleta` e mensagem; tooltip "rende mais em ..."; testes; rebalancear 5.9 e `durab_sim.py` (só `SORA`, nada de `YATORA`). Não recomendo: só 4 dos 8 itens existem na 0.2.
+
+**Existência no catálogo** (`catalogo.md`): palha, quitina e ferro estão na lista; **palha é item novo, não é a fibra** (fibra continua do arbusto único); o sílex saiu da lista "sem marco". Nada usa número ou tabela de outro jogo: 2,0, 1,0, 1,5 e 1,75 saem das tabelas do próprio GDD ou são nossos.
+
+**Proposta em avaliação (ideia do dono, 06/11; NÃO decidida; pós-MVP, a v0.2 não muda): três níveis de ferramenta, madeira, pedra e metal.** Hoje o GDD tem dois tiers de material (pedra e ferro) mais a mão (Soco), que já faz o papel do degrau mais baixo. Avaliação [calculado em `mapa_sim.py inicio`]:
+
+- **O nível de madeira só atrasa, não agrega.** A pedra avulsa está a 12 s, o Machado e a Picareta de pedra saem aos **52 s**; uma ferramenta de madeira (3 madeira + 1 fibra) sairia aos ~44 s, **8 s antes**, e duraria menos de 1 min de coleta. Ela só existe para quem gastou as pedras avulsas antes, que é justamente o caso que o dono quer resolver com as pedras avulsas como base (5.9b).
+- **Dados, se o dono quiser mesmo assim** [proposta], em `ferramentas.tres`, somando-se à afinidade (a quantidade é `base x mult_afinidade x mult_tier`):
+
+| Tier | mult_tier (quantidade) | Durabilidade Machado / Picareta | Madeira por durabilidade cheia (árvore, Machado) | Coleta nó de pedra? | Marco |
+|---|---|---|---|---|---|
+| **madeira** | **0,75** | **40 / 32** | 40 / 8 s = 5 colheitas x 5 = **25** (contra 112 da pedra) | **não** (como o Soco, 5.9b) | pós-MVP |
+| pedra (base, v0.2) | 1,0 | 150 / 120 | 112 | sim | 0.2 |
+| ferro | 1,75 | 300 / 300 | 394 | sim | M5 |
+
+Árvore com Machado de madeira: 6 x 0,75 = 4,5, **5 madeira** por colheita (Soco 3, pedra 6); Picareta de madeira na palha: 4 x 0,75 = **3**. Ferramenta de madeira **não coleta rocha**: se coletasse, apagaria a razão de a pedra avulsa ser a base das primeiras ferramentas e reabriria o caminho do softlock que a 5.9b fechou. **Soco e pedras avulsas:** nada muda; o Soco continua o degrau zero (madeira, fibra, 1 de dano por colheita) e a pedra avulsa continua a única fonte da primeira ferramenta de pedra. O que a madeira daria é só **não tomar o 1 de dano do Soco** (2 de vida no começo), que não justifica um tier.
+- **Escopo, se entrasse**: `SORA` (linha de tier em dado; 2 receitas; tooltip e mensagem de nó de pedra; testes); **`YATORA`** (2 ícones 16x16 com variações de cor; a ferramenta na mão não é desenhada). Efeito colateral: as receitas conhecidas passam de 4 a 6 (conflito com a decisão das 4 conhecidas, 5.19), ou custam Saber.
+- **Recomendação: NÃO.** A escada mão (Soco), pedra e ferro já tem três degraus com ganhos reais (1,0 / 2,0 / 3,5 de quantidade por colheita na árvore, 3, 6 e 10,5). Se o dono quiser um terceiro nível visível, o certo é **separar o ferro em dois** (ferro e uma liga posterior) em vez de pôr um degrau de 8 s antes do começo.
+
+### 5.9d Tamanho de pilha por item (regra do dono, 06/11; só dado: `max_stack` de cada `ItemDef`, sem sistema novo)
+
+Cada item tem a sua pilha; o que acumula bem é leve, o que pesa acumula pouco, e o que vence acumula pouco para a perda por validade (5.9) ser pequena. **Regra para escolher [proposta]:** pilha = alvo de peso por pilha dividido pelo peso do item, arredondada para 5 e entre 5 e 40; **alvo 20 a 30 kg** para material bruto (madeira, pedra, minério, barra), **2 a 6 kg** para leve e vegetal, **5 kg** para o que vence (carne, carne podre). Os seis valores que o código já tem (`Items.gd`) ficam: **v0.2 sem mudança de código**.
+
+| Item (v0.2) | Peso (kg, 5.1) | Pilha | kg por pilha cheia | Fonte do valor |
+|---|---|---|---|---|
+| Baga | 0,1 | **20** | 2 | código |
+| Samambaia | 0,1 | **30** | 3 | código |
+| Carne, carne podre | 0,5 | **10** | 5 | código; vence por pilha (5.9); 4 pilhas = os 40 do Cocho (5.12) |
+| Madeira | 1,0 | **20** | 20 | código |
+| Pedra | 1,5 | **20** | 30 | código |
+| Fibra | 0,05 | **40** | 2 | código |
+| Couro | 0,4 | 20 | 8 | novo (dado) |
+| Cochilo | 0,1 | 20 | 2 | 5.5 |
+| Preparado de sono | 0,15 | 20 | 3 | novo |
+| Ração (A, B, C) | 0,2 | 20 | 4 | novo |
+| Tubérculo | 0,3 | 20 | 6 | novo |
+| Sal-de-veio | 0,5 | 20 | 10 | novo |
+| Graveto | 0,05 | 40 | 2 | novo |
+| Lança, Machado, Picareta, Bastão, armadura | -- | **1** (individual, com durabilidade) | -- | 5.9 |
+
+**Itens do M4 em diante, pela regra** [proposta, em dado]: **palha** 0,1 kg, pilha 40 (4 kg); **sílex** 0,3 kg, pilha 30 (9 kg); **quitina** 0,3 kg, pilha 20 (6 kg); **minério de ferro** 2,0 kg, pilha 10 (20 kg); **Barra de ferro** 1,5 kg, pilha 10 (15 kg); **carvão** 0,2 kg, pilha 20 (4 kg); **flecha comum** 0,05 kg, pilha 40; **flecha de sono** 0,05 kg, pilha 20 (vale mais, vence menos o espaço). Pesos novos são premissa. A Forja (5.17) guarda minério até 20 e barra até 10 em vagas próprias, então a pilha do inventário não a limita.
+
+**Muda alguma conta?** [calculado, `slots_sim.py demanda` agora com pilha por item] **Inventário:** v0.2 meio 21 e pico 26 slots, **iguais**; 1.0 passa de 31 para 32 (minério de 20 vira 2 pilhas de 10). **Peso:** nenhuma, ele é por unidade (5.1). **Domesticação:** nenhuma; fome, Ração, Eficiência e bocado contam por unidade, não por pilha. **Validade:** a regra por pilha da 5.9 fica mais branda com a pilha de 10 da carne (juntar pilhas só dentro de 2 min). **Corrigido de passagem:** a 5.17 dizia "madeira até 30 (15 kg)", mas 1,0 kg por madeira dá 30 kg; a Forja não passa a pesar (o Peso dela é o do item).
 
 ### 5.10 Comida e fome do jogador (decisão do dono, 06/11)
 
@@ -387,7 +555,7 @@ Simulação: `fome_sim.py fome|ciclo`. **Substitui o dano de fome do `HungerComp
 
 **Inconsciente não come sozinho (recomendo): acorda sozinho em 8 s e come na janela de 25 s; no co-op outro jogador pode alimentar o caído** (interação de 1 s com comida em mãos, valida no servidor), o que o **acorda na hora**. Sem comer automático (não é decisão).
 
-**Fruta-do-sono, sono e M4:** a fome é **fonte própria** de torpor, **fora da lista de 3 efeitos e do teto** (5.4); soma com a fruta (comer fruta com fome 0 acelera o colapso; fruta come fome +0). O **estado "inconsciente" do jogador é o mesmo do sono do M4**: a decisão de sono do M4 **reusa** o estado, o dano e o alimentar do co-op. **O torpor do jogador entra antes (M2)**, só pelo caminho da fome. Custo [estimativa minha; `SHIKAMARU` confirma]: torpor no jogador (componente existente) 2 h; estado inconsciente (entrada bloqueada, deitado, acordar) 4 h; regra fome-para-torpor e troca do dano 2 h; dano por segundo 1 h; alimentar no co-op 3 h; sinais de faixa 2 h = **14 h**. **M1** mantém o dano atual de fome com a queda 0,2/s (custo 0).
+**Cochilo, sono e M4:** a fome é **fonte própria** de torpor, **fora da lista de 3 efeitos e do teto** (5.4); soma com a fruta (comer fruta com fome 0 acelera o colapso; fruta come fome +0). O **estado "inconsciente" do jogador é o mesmo do sono do M4**: a decisão de sono do M4 **reusa** o estado, o dano e o alimentar do co-op. **O torpor do jogador entra antes (M2)**, só pelo caminho da fome. Escopo: torpor no jogador (componente existente); estado inconsciente (entrada bloqueada, deitado, acordar); regra fome-para-torpor e troca do dano; dano por segundo; alimentar no co-op; sinais de faixa. **M1** mantém o dano atual de fome com a queda 0,2/s (nada muda).
 
 **Lista para o `SORA`:** `decay_per_second` 0,2; `HungerComponent` sem `starved` periódico (vira sinal `hunger_zero`); `PlayerTorpor` com fonte "fome" de +2/s líquido; estado inconsciente 8 s e acordar a 50; dano 1,5/s; carne crua, cozida, podre como itens com fome, cura e dano; interação "alimentar jogador"; save de torpor e do ciclo. **Sinais para o `YATORA`:** estômago roncando e vinheta fria nas faixas 25/50/75, sprite deitado e estrelinhas, som de ronco, ícone de carne cozida e de carne podre (esverdeada), partícula de brilho curto na cura.
 
@@ -437,19 +605,19 @@ Fome do dino domado: 100, queda **0,1/s** fixa (tabela 5.1): vazio em 1000 s (16
 
 **Consequência de design.** Carne crua vence em 30 min: **cocho de carnívoro pede carne cozida ou reabastecer a cada ~30 min**; para ficar longe da base, **Ração** (não vence). O herbívoro com baga aguenta 45 min. É o ciclo cuidar-do-rebanho (pilar) com custo real.
 
-**Cocho (mobília):** Saber **2**, sem pré-requisito (lista plana, 5.19), **8 madeira**, **à mão**, **M2 cortável (a decisão mantém o Cocho fora do corte)**. **Custo [estimativa minha; `SHIKAMARU` confirma]:** nó de cocho com filtro e alcance 5 h; o dino "ir comer" 6 h; regra do alforje 2 h; fome zero (Afeto e ofício) 2 h; save 1 h; tela (reusa a do baú) 2 h = **18 h**. `YATORA`: cocho vazio e cheio, dino comendo. `SORA`: `Trough {items[], accepts, range=6}`, `fome <= 50` e `<= 25`, filtro de dieta, validade por pilha. Precisa jogar: se 6 tiles e 50% de fome dão conforto ou o dino parece "faminto de pé ao lado do cocho".
+**Cocho (mobília):** Saber **2**, sem pré-requisito (lista plana, 5.19), **8 madeira**, **à mão**, **M2 cortável (a decisão mantém o Cocho fora do corte)**. **Escopo:** nó de cocho com filtro e alcance; o dino "ir comer"; regra do alforje; fome zero (Afeto e ofício); save; tela (reusa a do baú). `YATORA`: cocho vazio e cheio, dino comendo. `SORA`: `Trough {items[], accepts, range=6}`, `fome <= 50` e `<= 25`, filtro de dieta, validade por pilha. Precisa jogar: se 6 tiles e 50% de fome dão conforto ou o dino parece "faminto de pé ao lado do cocho".
 
 
 ### 5.13 Tecla de atalho e slot de oferta (decisão do dono, 06/11; **slot de Oferta ADIADO para depois do playtest**)
 
-> **Decidido (06/11, dono):** (1) **o Cocho fica para dinos domados**; (2) **o slot de Oferta e a domesticação passiva ficam para depois do playtest**: a tabela abaixo é **proposta guardada**, fora do M2 e do custo da v0.2; (3) **o jogador nunca consome Ração, só o dino**; **o preparado de sono ainda não foi decidido**. Sem o slot, **todo domar é ativo** (nocaute, tela do dino com E) e o Paquicéfalo do tutorial segue como está. A regra 2 do dono vale: o dino domado come do inventário dele e do Cocho; o dino em domesticação, da tela dele.
+> **Decidido (06/11, dono):** (1) **o Cocho fica para dinos domados**; (2) **o slot de Oferta e a domesticação passiva ficam para depois do playtest**: a tabela abaixo é **proposta guardada**, fora do M2 e da v0.2; (3) **o jogador nunca consome Ração, só o dino**; **o preparado de sono ainda não foi decidido**. Sem o slot, **todo domar é ativo** (nocaute, tela do dino com E) e o Paquicéfalo do tutorial segue como está. A regra 2 do dono vale: o dino domado come do inventário dele e do Cocho; o dino em domesticação, da tela dele.
 
 **Regras do dono:** (1) a tecla de atalho (1 a 9) **sempre faz o jogador consumir o item**, nunca alimenta dino; (2) o dino só come se a comida estiver no **slot passivo** (domesticação passiva) ou **no próprio inventário dele**. Nome no jogo: **slot de Oferta** [proposta]. Regras abaixo são minhas, com os números do `racao_sim.py tabela` (Paquicéfalo: 10 refeições com baga, 8 com C, 6 com B, 5 com A; Parassaurolofo: 15 com baga, 12 com C, 9 com B, 8 com A).
 
 | Ponto | Regra recomendada [premissa] |
 |---|---|
 | **O que é e onde fica** | **1 slot extra** à direita da barra de atalhos, moldura diferente e ícone de folha; guarda **1 pilha** de comida. Mover para ele: arrastar no inventário ou **tecla O** (manda a pilha do atalho selecionado). **Tecla de atalho não toca nele.** |
-| **Quem aceita** | Dino **selvagem desperto** de Conduta **Passivo** (Paquicéfalo) ou **Medroso** (Parassaurolofo), **nível até 20**. Semi-agressivo, Agressivo, Covarde e Curioso **nunca** (não se aproximam). Presas (Dodo, Listro) não domam. |
+| **Quem aceita** | Dino **selvagem desperto** de Conduta **Passivo** (Paquicéfalo) ou **Covarde que deixa chegar** (Parassaurolofo, Dodo), **nível até 20**. Semi-agressivo, Agressivo e Curioso **nunca** (não se aproximam). Listro (some em toca) não se aproxima: doma só ativa. |
 | **Como pega** | O dino **desperto** vem até **3 tiles** do jogador **parado** (anda a menos de 1 tile por 10 s, sem arma na mão, sem correr) e come **1 unidade do slot a cada 8 s**. O jogador só espera e **vê** (a tensão é parar). |
 | **Quanto leva** | Refeições da tabela x 8 s: **Paquicéfalo baga 80 s, C 64 s, A 40 s; Parassaurolofo baga 120 s, C 96 s**, mais ~20 s de aproximação. Ativo: Paquicéfalo baga 60 s + 8,4 s de Soco. |
 | **Quando perde ou interrompe** | **Interrompe** (o dino se afasta, o slot fica): jogador corre, saca arma, ataca, leva dano; **qualquer** predador a 8 tiles; jogador a mais de 6 tiles. Progresso do dino **regride 1%/s depois de 15 s** parado e **zera em 60 s** (como em 20.3). **Parassaurolofo:** se alguém da manada for atacado, **a manada toda foge** (alarme, 6.7): interrompe todos. |
@@ -462,9 +630,9 @@ Fome do dino domado: 100, queda **0,1/s** fixa (tabela 5.1): vazio em 1000 s (16
 
 **Cocho e a regra 2 (resolvido: o dono mantém o Cocho, para dinos domados).** O cocho não é o inventário do dino nem o slot: fica como **"inventário do rebanho" por alcance**, extensão da regra 2. Não serve ao dino em domesticação.
 
-**Paquicéfalo do tutorial: não muda** (o slot ficou para depois do playtest; o domar é só ativo).
+**Tutorial: a primeira doma é o Dodo na v0.2 (6.1b); o Paquicéfalo é a do M1 e a segunda da v0.2** (o slot ficou para depois do playtest; o domar é só ativo).
 
-**Custo guardado (fora da v0.2, adiado pelo dono; `SORA` e `YATORA` não fazem agora) [estimativa minha]:** slot e tecla O 3 h; IA "aproximar e comer" 4 h (**reusa a IA de "ir comer" do cocho**: soma 2 h se o cocho existe); estado de progresso, regressão e Afeto +20 3 h; interrupções 2 h; co-op `owner_id` 1 h; save 1 h = **~13 h**. `YATORA`: moldura do slot, ícone de folha, dino comendo (compartilhado com o cocho). **Menor recorte: só Paquicéfalo, só baga, sem co-op e sem Afeto** = ~7 h. **Fica depois do playtest (decidido)**: o M1 não depende dele; perde-se a via não violenta (pilar 3) na v0.2. Precisa jogar: se esperar parado 80 a 120 s é tensão ou tédio (espera sem decisão é defeito: a decisão aqui é **quando parar de oferecer e fugir do predador**).
+**Escopo guardado (fora da v0.2, adiado pelo dono; `SORA` e `YATORA` não fazem agora):** slot e tecla O; IA "aproximar e comer" (**reusa a IA de "ir comer" do cocho**); estado de progresso, regressão e Afeto +20; interrupções; co-op `owner_id`; save. `YATORA`: moldura do slot, ícone de folha, dino comendo (compartilhado com o cocho). **Menor recorte: só Paquicéfalo, só baga, sem co-op e sem Afeto**. **Fica depois do playtest (decidido)**: o M1 não depende dele; perde-se a via não violenta (pilar 3) na v0.2. Precisa jogar: se esperar parado 80 a 120 s é tensão ou tédio (espera sem decisão é defeito: a decisão aqui é **quando parar de oferecer e fugir do predador**).
 
 
 ### 5.14 Tempo de domar: alvos em minutos (decisão do dono, 06/11)
@@ -482,27 +650,27 @@ Fome do dino domado: 100, queda **0,1/s** fixa (tabela 5.1): vazio em 1000 s (16
 
 Com a **Ração A** o tempo cai a cerca de um terço: Paquicéfalo 0,5 / 0,5 / 0,7 min; Utahraptor 0,5 / 0,6 / 0,8; Parassaurolofo 0,4 / 0,5 / 0,7; Triceratops 2,4 / 2,8 / 3,4 min. **Taxa do servidor:** chave `domar_velocidade` (padrão 1,0): `tempo = tempo / taxa`.
 
-**Manter dormindo (nível médio, comida-base; extra = tempo x queda + refeições x agitação - torpor máximo):** Paquicéfalo L10: janela 100 s, tempo 90 s, extra 65 = **3 golpes de Bastão (2,1 s) ou 7 de Soco (4,2 s)**; Utahraptor L15: extra 88 = 3 de Bastão ou 9 de Soco; Parassaurolofo L20: extra 24 = 1 de Bastão ou 3 de Soco; **Triceratops L28 com C: extra 343 = 12 de Bastão (8,4 s) ou 35 de Soco, ou ~46 s de fruta-do-sono**; com A: extra 55 = 2 de Bastão. Com Ração A o extra é 0 nos três pequenos. Cada golpe em dormindo custa ~5 de Eficiência.
+**Manter dormindo (nível médio, comida-base; extra = tempo x queda + refeições x agitação - torpor máximo):** Paquicéfalo L10: janela 100 s, tempo 90 s, extra 65 = **3 golpes de Bastão (2,1 s) ou 7 de Soco (4,2 s)**; Utahraptor L15: extra 88 = 3 de Bastão ou 9 de Soco; Parassaurolofo L20: extra 24 = 1 de Bastão ou 3 de Soco; **Triceratops L28 com C: extra 343 = 12 de Bastão (8,4 s) ou 35 de Soco, ou ~46 s de Cochilo**; com A: extra 55 = 2 de Bastão. Com Ração A o extra é 0 nos três pequenos. Cada golpe em dormindo custa ~5 de Eficiência.
 
 **Eficiência (nível médio): dreno por tempo 0,3 atual e 0,15 recomendado.** Paquicéfalo baga 27 (41), B 78 (84), A 86 (91); Utahraptor carne 16 (33), B 72 (81), A 85 (90); Parassaurolofo baga 39 (52); **Triceratops C 0 (0), B 0 (15), A 34 (59)**. Com 0,3 o Triceratops só paga com A; **recomendo `eficiencia_drena_tempo` de 0,3 para 0,15**. Ração S e S+ pioram o dreno por refeição a favor do jogador (`nivel_sim.py`).
 
 **O que muda a jusante:**
 - **Curral (6.x):** o texto dizia 40 a 105 s para o Utahraptor; agora **32 s (Ração A, L10) a 138 s (carne crua, L25)**. A conclusão não muda: a cerca cede em 8 s, a madeira cobre só a intervenção.
 - **Carne e validade:** Utahraptor L15 pede **Ração Rubra C: 14 refeições, ~25 carne (13 Dodos, 6,5 min de caça)**; **B: 11 refeições, ~11 carne**; **A: 9, ~10 carne**. Validade da carne crua (30 min): margem de **4,6x (C), 10x (B), 12x (A)**. Baga (45 min) contra 1,1 a 2,0 min de domar: irrelevante.
-- **Primeira hora:** não quebra. Paquicéfalo L8: **15 bagas (45 s de coleta), 90 s dormindo, 1 a 3 reforços de torpor**. **Recomendo o Paquicéfalo do tutorial entre L5 e L8** (L5: 13 bagas, 78 s; L8: 15 bagas, 90 s). Com Soco (antes do Bastão) a Eficiência de um tutorial com baga fica perto de 0: aceitável, é o aprender.
+- **Primeira hora:** não quebra. Paquicéfalo L8: **15 bagas (45 s de coleta), 90 s dormindo, 1 a 3 reforços de torpor**. **Recomendo o Paquicéfalo (primeira doma no M1, segunda na v0.2) entre L5 e L8** (L5: 13 bagas, 78 s; L8: 15 bagas, 90 s). Com Soco (antes do Bastão) a Eficiência de um tutorial com baga fica perto de 0: aceitável, é o aprender.
 - **Conflito:** `racao.md` 10.x e 6.1 ("Dificuldade 1,0 / 1,5 / 2,0 / 1,5") e as tabelas de 60 s e 105 s ficam **desatualizadas**; vale esta seção e `tempo_sim.py`.
 - **Precisa jogar:** se 5,5 min de Triceratops com a Ração C é tensão ou espera (a saída é a Ração A, 2,8 min); se o Utahraptor com 1,8 min dormindo é vigília longa o bastante para o predador chegar.
 
 
 ### 5.15 A v0.2 sem dardo, sem Oferta, sem Listro e sem fibra: ainda doma? (06/11)
 
-Simulação: `medroso_sim.py para|tri` (perseguição com Stamina por golpe, faixas de torpor e fuga de 16 tiles).
+Simulação: `covarde_sim.py para|tri` (perseguição com Stamina por golpe, faixas de torpor e fuga de 16 tiles).
 
-**Parassaurolofo (Medroso, foge a 75 px/s): doma com Bastão, sem ajuste.** Nível 10, 20 e 30: **6, 7 e 8 golpes de Bastão, 3,5 / 4,2 / 5,3 s**, o dino foge 9 / 11 / 15 tiles (a fuga acaba aos 16) e o jogador **não precisa correr**: caminhando gasta só os golpes (Stamina mínima 94); a lentidão das faixas de torpor deixa o dino a menos de 70 px/s antes do 4o golpe. **Soco não serve**: 20 a 34 golpes, 11 a 28 s (só termina porque a fuga acaba). Depois do nocaute: baga, 15 refeições e 90 s no L20, com 1 reforço de Bastão. **Não precisa de armadilha, curral nem novo sistema.** O alarme faz a manada fugir, e isso não atrapalha o alvo.
+**Parassaurolofo (Covarde, foge a 75 px/s): doma com Bastão, sem ajuste.** Nível 10, 20 e 30: **6, 7 e 8 golpes de Bastão, 3,5 / 4,2 / 5,3 s**, o dino foge 9 / 11 / 15 tiles (a fuga acaba aos 16) e o jogador **não precisa correr**: caminhando gasta só os golpes (Stamina mínima 94); a lentidão das faixas de torpor deixa o dino a menos de 70 px/s antes do 4o golpe. **Soco não serve**: 20 a 34 golpes, 11 a 28 s (só termina porque a fuga acaba). Depois do nocaute: baga, 15 refeições e 90 s no L20, com 1 reforço de Bastão. **Não precisa de armadilha, curral nem novo sistema.** O alarme faz a manada fugir, e isso não atrapalha o alvo.
 
-**Triceratops (Semi-agressivo, investe): doma, mas só com o nível certo; ajuste de dado.** Dano ao jogador (premissa) 20 x (1+0,04(L-10)), a cada 2,5 s, o 1o ataque 0,5 s depois do 1o golpe: **L20: 8 golpes, 4,9 s, 2 ataques de 28 = 56 de dano (de 100)**; **L28: 9 golpes, 5,6 s, 3 ataques = 103: mata**; com 5 pontos em Dano 7 golpes e 69; com 4 em Vida (124) sobra 21. **Menor ajuste: o Triceratops selvagem da v0.2 aparece em L18 a L24** (L24: 62 de dano, sobrevive sem build); **L28 e acima ficam fora (sem Rifle): na 1.0 a faixa continua em L18 a L24**; liberar L25 a L28 só se o dono quiser, e então com conjunto de couro completo (L28: 77 de dano, sobra 23) ou Arco (a 10 tiles) ou metal (62). É só dado de spawn, **sem sistema novo; não precisa de decisão do dono**, só confirmar a faixa. Depois do nocaute, Ração A (2,4 a 2,8 min, extra 42 a 55 = 2 golpes) é o caminho viável; com C o extra é 292 a 343 (fruta-do-sono ou 10 a 12 golpes que zeram a Eficiência).
+**Triceratops (Semi-agressivo, investe): doma, mas só com o nível certo; ajuste de dado.** Dano ao jogador (premissa) 20 x (1+0,04(L-10)), a cada 2,5 s, o 1o ataque 0,5 s depois do 1o golpe: **L20: 8 golpes, 4,9 s, 2 ataques de 28 = 56 de dano (de 100)**; **L28: 9 golpes, 5,6 s, 3 ataques = 103: mata**; com 5 pontos em Dano 7 golpes e 69; com 4 em Vida (124) sobra 21. **Menor ajuste: o Triceratops selvagem da v0.2 aparece em L18 a L24** (L24: 62 de dano, sobrevive sem build); **L28 e acima ficam fora (sem Rifle): na 1.0 a faixa continua em L18 a L24**; liberar L25 a L28 só se o dono quiser, e então com conjunto de couro completo (L28: 77 de dano, sobra 23) ou Arco (a 10 tiles) ou metal (62). É só dado de spawn, **sem sistema novo; não precisa de decisão do dono**, só confirmar a faixa. Depois do nocaute, Ração A (2,4 a 2,8 min, extra 42 a 55 = 2 golpes) é o caminho viável; com C o extra é 292 a 343 (Cochilo ou 10 a 12 golpes que zeram a Eficiência).
 
-**Resto:** Paquicéfalo (Soco ou Bastão) e Utahraptor (Bastão, 6 golpes) como antes. **Espécies da v0.2: Paquicéfalo, Utahraptor, Parassaurolofo, Triceratops (domáveis) e Dodo (presa) = 5**; **na 1.0 entram Listro e Oviraptor (M4)**.
+**Resto:** Paquicéfalo (Soco ou Bastão) e Utahraptor (Bastão, 6 golpes) como antes. **Espécies da v0.2: Paquicéfalo, Utahraptor, Parassaurolofo, Triceratops e Dodo, todas domáveis (regra de mundo 4.1) = 5**; **na 1.0 entram Listro e Oviraptor (M4), também domáveis**.
 
 
 ### 5.16 Tetos de nível: nascimento, evolução, servidor e jogador (decisão do dono, 06/11)
@@ -523,7 +691,7 @@ Simulação: `teto_sim.py spawn|teto|xp|saber`. **Regras do dono:** (1) dinos na
 
 **Teto do jogador.** **MVP: `jogador_nivel_max` = 20** (19 pontos de atributo, **24 Saber**; a v0.2 custa **23**, cobre com 1 sobrando). **1.0: recomendo 75** (**90 Saber** contra os **84 da 1.0**, 74 pontos de atributo). **Conferido: a 1.0 completa no L70** (84 Saber com Mochila, selas, Saco e Cama; antes L69 com 82 [calculado, `receitas_sim.py`]); com teto 50 o jogador chega a 60 Saber (71% da árvore), com 20 a 24 (30%): **se o servidor baixar o teto do jogador abaixo de 69, a 1.0 fica incompleta por desenho**. XP do jogador (curva `30 + 15(L-1)`): L20 3.135 XP (4,0 h a 13/min), **L68 35.175 XP (45 h)**, L75 42.735 XP (55 h).
 
-**Custo e marco [estimativa minha; `SHIKAMARU` confirma]:** teto efetivo (fórmula, `min`, corte do final e do spawn) 2 h; XP que trava, barra cheia e selo "teto" 1,5 h; sorteio com poucos altos e faixas por espécie em dado 1,5 h; chaves de servidor e leitura 0,5 h; save acima do teto (só travar) 1 h; texto na tela do dino 0,5 h = **7 h**, **M2** (junto do XP do dino). **Menor recorte: constantes e XP que trava, sem selo nem chaves = 3 h.** `YATORA`: selo "teto" (dino e jogador). `SORA`: `Attributes` com `teto_efetivo(dino)`. Precisa jogar: se 2,5 a 3 h de companhia até o teto parece progressão ou espera, e se "poucos altos" deixa os dinos fortes raros demais.
+**Marco, M2 (junto do XP do dino); escopo:** teto efetivo (fórmula, `min`, corte do final e do spawn); XP que trava, barra cheia e selo "teto"; sorteio com poucos altos e faixas por espécie em dado; chaves de servidor e leitura; save acima do teto (só travar); texto na tela do dino. **Menor recorte: constantes e XP que trava, sem selo nem chaves.** `YATORA`: selo "teto" (dino e jogador). `SORA`: `Attributes` com `teto_efetivo(dino)`. Precisa jogar: se 2,5 a 3 h de companhia até o teto parece progressão ou espera, e se "poucos altos" deixa os dinos fortes raros demais.
 
 
 ### 5.17 Forja: madeira, carvão e minério (decisão do dono, 06/11)
@@ -538,19 +706,19 @@ Simulação: `teto_sim.py spawn|teto|xp|saber`. **Regras do dono:** (1) dinos na
 | **Converter** | 2 minério de ferro + 1 carvão | 1 Barra de ferro | 10 s |
 
 - **Carvão é item necessário**, não subproduto solto: sem ele não há barra. **Custo de uma barra: 2 minério + 3 madeira, 40 s de fogo** (antes 2 minério + 1 madeira, 5 s). A Forja faz **uma coisa por vez**: **converte se houver 1 carvão e 2 minério, senão queima** (um relógio só).
-- **Inventário da Forja (4 vagas):** madeira até 30 (15 kg), minério até 20, carvão até 10 (0,2 kg cada), barra até 10. **Carga cheia: 30 madeira viram 10 carvão e 20 minério viram 10 barras em 10 x 40 s = 400 s (6,7 min)**.
+- **Inventário da Forja (4 vagas):** madeira até 30 (30 kg), minério até 20, carvão até 10 (0,2 kg cada), barra até 10. **Carga cheia: 30 madeira viram 10 carvão e 20 minério viram 10 barras em 10 x 40 s = 400 s (6,7 min)**.
 - **Funciona sozinha com o jogador longe: sim.** O estado fica salvo `{vagas, relógio, t_ultimo}` e o progresso é calculado **na hora de abrir ou salvar** (como a validade das pilhas, 5.9): sem tique por quadro. Só corre com o servidor ligado. A saída para quando a vaga de barra enche.
 - **Os itens de metal que a Forja faz:** **18 barras ao todo** (Machado 3, Picareta 3, Espada 4, conjunto de metal 6, **Besta 2; o Rifle (4) saiu**) = **720 s de Forja (40 s por barra), 54 madeira, 36 minério**; coleta: 54 madeira = 72 s com Machado de pedra, 36 minério = ~144 s [premissa: nó de minério 0,25/s]. **Antes eram 20 barras, 800 s, 60 madeira e 40 minério: o corte do Rifle poupa 80 s de Forja e 4 minério por jogador.** Dardo e Rifle sem marco.
-- **Carvão tem outro uso? Hoje não.** **Recomendo a forma mais simples: carvão só da Forja (sem receita própria e sem Saber).** **Uso opcional barato:** a **Fogueira aceita carvão** (1 carvão cozinha 10 carnes, 0,2 kg; contra 1 madeira por 4 carnes, 0,5 kg): serve de combustível leve de expedição, +0,5 h. Como 3 madeira dão só 1 carvão, a troca não vale como fonte principal. **Decisão do dono (V61): só Forja ou também Fogueira.**
+- **Carvão tem outro uso? Hoje não.** **Recomendo a forma mais simples: carvão só da Forja (sem receita própria e sem Saber).** **Uso opcional barato:** a **Fogueira aceita carvão** (1 carvão cozinha 10 carnes, 0,2 kg; contra 1 madeira por 4 carnes, 0,5 kg): serve de combustível leve de expedição. Como 3 madeira dão só 1 carvão, a troca não vale como fonte principal. **Decisão do dono (V61): só Forja ou também Fogueira.**
 
-**Custo extra [estimativa minha; `SHIKAMARU` confirma]:** Forja como contêiner de 4 vagas com os dois processos e o catch-up 5 h; save e versão 1,5 h; tela (reusa a do baú) 2 h; item carvão e minério 1 h = **9,5 h**, somado ao que o metal já custa (`receitas.md` 6). **Menor recorte:** sem "funciona longe" (só corre com a tela aberta) = -2 h, mas o jogador fica parado: **não recomendo** (espera sem decisão). `YATORA`: Forja apagada e acesa com fumaça, ícones de carvão, minério e barra. `SORA`: `Forge {slots, timer, t_last}`, `queimar` e `converter` por dados. Precisa jogar: se 6,7 min por carga é espera boa (o jogador mina e volta) ou lenta.
+**Escopo extra:** Forja como contêiner de 4 vagas com os dois processos e o catch-up; save e versão; tela (reusa a do baú); item carvão e minério, somado ao que o metal já exige (`receitas.md` 6). **Menor recorte:** sem "funciona longe" (só corre com a tela aberta) , mas o jogador fica parado: **não recomendo** (espera sem decisão). `YATORA`: Forja apagada e acesa com fumaça, ícones de carvão, minério e barra. `SORA`: `Forge {slots, timer, t_last}`, `queimar` e `converter` por dados. Precisa jogar: se 6,7 min por carga é espera boa (o jogador mina e volta) ou lenta.
 
 
 ### 5.18 Pilão e químicos (decisão do dono, 06/11)
 
-**Pilão:** item **portátil**, feito **à mão** (Saber 1, 2 pedra + 1 madeira, 3,5 kg, 100 moagens), usado no personagem pela aba "Moer" do menu de Receitas. **Preparado de sono** (nome único) passa a ser moído no Pilão: 3 fruta-do-sono + 1 carne podre rendem 3, 4 s. **v0.2: 21 receitas, 22 Saber** (sobra 2 dos 24; Saco e Cama voltaram, 12.3; o Bastão reforçado segue cortado); o Pilão e o Preparado são **cortáveis juntos** (sem eles 17 e 16), **mas ficam: aceitos pelo dono**. O Preparado é o único consumidor do Pilão na v0.2.
+**Pilão:** item **portátil**, feito **à mão** (Saber 1, 2 pedra + 1 madeira, 3,5 kg, 100 moagens), usado no personagem pela aba "Moer" do menu de Receitas. **Preparado de sono** (nome único) passa a ser moído no Pilão: 3 Cochilo + 1 carne podre rendem 3, 4 s. **v0.2: 21 receitas, 22 Saber** (sobra 2 dos 24; Saco e Cama voltaram, 12.3; o Bastão reforçado segue cortado); o Pilão e o Preparado são **cortáveis juntos** (sem eles 17 e 16), **mas ficam: aceitos pelo dono**. O Preparado é o único consumidor do Pilão na v0.2.
 
-**Fósforo, pólvora e sílex: SEM MARCO (decisão final do dono, 06/11).** Sem Rifle e sem arma de fogo nada os consome, então saem da árvore ativa e do mapa de recursos; ficam só como registro (fósforo 2 sílex + 2 pedra rendem 6; pólvora 2 carvão + 2 fósforo rendem 4). **O carvão continua só da Forja** (aceito; opcional na Fogueira, V61). **Custo da v0.2 [estimativa minha]:** Pilão (item, aba Moer, durabilidade) **3 h**, junto com o Preparado: **Pilão e Preparado entram na v0.2** (aceito). `YATORA`: ícone do Pilão. `SORA`: estação "Pilão" no `RecipeDef` (portátil).
+**Fósforo e pólvora: SEM MARCO (decisão final do dono, 06/11); o sílex voltou no M4 com fonte própria (5.9c).** Sem Rifle e sem arma de fogo nada os consome, então saem da árvore ativa e do mapa de recursos; ficam só como registro (fósforo 2 sílex + 2 pedra rendem 6; pólvora 2 carvão + 2 fósforo rendem 4). **O carvão continua só da Forja** (aceito; opcional na Fogueira, V61). **Escopo da v0.2:** Pilão (item, aba Moer, durabilidade), junto com o Preparado: **Pilão e Preparado entram na v0.2** (aceito). `YATORA`: ícone do Pilão. `SORA`: estação "Pilão" no `RecipeDef` (portátil).
 
 
 ### 5.19 Regra de produção e decisões finais do dono (06/11)
@@ -559,7 +727,7 @@ Simulação: `teto_sim.py spawn|teto|xp|saber`. **Regras do dono:** (1) dinos na
 
 **Consequência a conhecer (calculado):** a Bancada passa a servir na v0.2 a **3 receitas (a linha da Ração) e ao reparo** (5.9). Continua valendo o Saber 1 e o marco "Bancada no minuto 5", mas a Bancada deixa de ser pré-requisito de armas e abrigos. **Precisa jogar:** se a Ração na Bancada basta como razão para construí-la ou se ela vira degrau vazio.
 
-**Bastão-de-sono nasce no inventário no M1, sem receita** (confirmado, como recomendei): o tutorial do Paquicéfalo não depende de Saber (4 golpes, 2,1 s). A receita de **reposição** (Saber 1, 3 madeira + 2 fibra, Mãos) entra no M2.
+**Bastão-de-sono nasce no inventário no M1, sem receita** (confirmado, como recomendei): o tutorial da primeira doma (Dodo, 2 golpes; Paquicéfalo no M1, 4 golpes, 2,1 s) não depende de Saber. A receita de **reposição** (Saber 1, 3 madeira + 2 fibra, Mãos) entra no M2.
 
 **Aceitas pelo dono:** (1) **"2x" é sobre o nível final** (nível da captura mais o bônus de Eficiência); (2) **servidor só trava, sem reduzir** (save acima do teto fica parado); (3) **teto de dino 50 no MVP** (75 na 1.0); (4) **Triceratops L18 a L24 na v0.2**; (5) **Dodo no início do M2**; (6) **carvão só na Forja**; (7) **Pilão e Preparado na v0.2**. **Cortes leves aceitos:** dano em construções no recorte mínimo (8.1), **sem Bastão reforçado**, **sem Cama**, **Saber em lista plana** (sem pré-requisito entre receitas; a cadeia mais longa cai de 3 elos para 0). **Corte maior: decidir depois do QA-01a.**
 
@@ -571,7 +739,7 @@ Simulação: `teto_sim.py spawn|teto|xp|saber`. **Regras do dono:** (1) dinos na
 
 **Receitas (decidido, V69; conta minha): um nó de Saber por material libera as 5 peças** (as 5 aparecem no menu P de uma vez). **Fibra Saber 1, couro Saber 2, metal Saber 6**, os mesmos custos do traje antigo. Alternativa rejeitada, **Saber por peça** (fibra 1, couro 2, metal 4 cada): +26 Saber, **1.0 com 99 Saber**, acima dos 90 do L75 (`receitas_sim.py por_peca`: completa no L83, que não existe). **Totais (`receitas_sim.py arvore`): v0.2 21 receitas e 22 Saber (a roupa não entra; +Saco e Cama, 12.3); 1.0 53 receitas (antes 41; +12 = 15 peças menos 3 trajes) e 73 Saber (não muda), completa no L61.** Estações 1.0: Mãos 37, Bancada 15, Pilão 1 (peças de fibra e couro à mão; as de metal na Bancada, com a barra pronta da Forja).
 
-**Tela mínima:** a tela de inventário (menu) mostra uma **coluna de 6 vagas à esquerda da grade de 40**, de cima para baixo: Capacete, Camisa, Luva, Calça, Bota e, separada embaixo, Arma; cada vaga vazia mostra uma **silhueta** do tipo. Embaixo da coluna, **dois números: "Redução 25%" e "Peso 18/50 kg"** (o Peso já existe no HUD). **Sem boneco.**
+**Tela mínima:** a tela de inventário (menu) mostra uma **coluna de 6 vagas à esquerda da grade de 40**, de cima para baixo: Capacete, Camisa, Luva, Calça, Bota e, separada embaixo, Arma; cada vaga vazia mostra uma **silhueta** do tipo. Embaixo da coluna, **dois números: "Redução 25%" e "Peso 18/50 kg"** (M4b: "Carga 18/50 kg, 36%" com marca em 70%, também no inventário do dino, 5.1b) (o Peso já existe no HUD). **Sem boneco.**
 - **Equipar:** arrastar o item da grade para a vaga, **ou duplo clique no item** (vai à vaga certa). Vaga errada: recusa sem mensagem. Vaga ocupada: **troca** (o item antigo volta à grade). Leva **0,3 s** (5.2), sem bloqueio em combate.
 - **Tirar:** arrastar a peça de volta à grade, ou **duplo clique na vaga**. Se a grade estiver **sem posição livre**, a troca ou a retirada é **recusada com "Inventário cheio"**; nada se perde nem cai no chão.
 - **Barra de atalhos (5.2):** a **arma equipada vive na vaga Arma**, não na grade. O atalho aponta para o **id do item** como hoje: apertar a tecla **equipa** (move da grade à vaga, devolvendo a anterior) e apertar de novo **desequipa**; o atalho mostra uma **moldura de "equipado"** e a soma das pilhas inclui a vaga. **Roupa não vai ao atalho** (só consumível, arma e ferramenta). Arma quebrada na vaga: atalho em vermelho.
@@ -580,7 +748,7 @@ Simulação: `teto_sim.py spawn|teto|xp|saber`. **Regras do dono:** (1) dinos na
 - **Co-op:** vagas por jogador; `equipar(iid, vaga)` e `desequipar(vaga)` validados no servidor (item existe, `slot` confere, cooldown); a redução é **calculada no servidor**; save guarda `{vaga: iid}` e a versão do save sobe.
 - **Sprite do jogador: não muda por peça (decidido, V70).** A tela mostra o equipado; o personagem fica igual. Custo evitado [premissa: 4 direções x 4 quadros de andar]: 15 peças x 16 = **240 sprites**; mesmo só por material (3 trajes) seriam 48. Fica para depois do playtest, se o dono pedir.
 
-**O que entra agora (M1, Bastão como única arma e nenhuma roupa):** o **modelo de vagas completo (6)** e a **tela com as vagas ao lado da grade, só a Arma visível e ativa**; as 5 de roupa **aparecem quando existir item de roupa** (M4, flag de dados `slot_visivel`). Motivo: o modelo de dados genérico custa o mesmo agora ou depois, e refazer depois mexe em save e rede. **Custo [estimativa minha, premissa; `SHIKAMARU` confirma]:** **M1 7 h** = modelo de vagas, validação de servidor e save 3 h; painel (arrastar, duplo clique, silhueta, só Arma) 3 h; ligar a barra de atalhos à vaga 1 h. **M4 9 h** = redução somada, peso e desgaste por golpe em cada peça 3 h; reparo por peça e "Reparar tudo equipado" 3 h; 15 itens em dados e as 5 vagas visíveis 2 h; save e co-op 1 h. **Total 16 h**, contra +8 h do Traje antigo (que só valia depois do playtest). **Menor recorte do M1: só a vaga Arma (5 h), mantendo o modelo de dados genérico.** `YATORA`: 15 ícones de peça e 6 silhuetas de vaga; sem sprites de corpo.
+**O que entra agora (M1, Bastão como única arma e nenhuma roupa):** o **modelo de vagas completo (6)** e a **tela com as vagas ao lado da grade, só a Arma visível e ativa**; as 5 de roupa **aparecem quando existir item de roupa** (M4, flag de dados `slot_visivel`). Motivo: o modelo de dados genérico custa o mesmo agora ou depois, e refazer depois mexe em save e rede. **Escopo:** **M1:** modelo de vagas, validação de servidor e save; painel (arrastar, duplo clique, silhueta, só Arma); ligar a barra de atalhos à vaga. **M4:** redução somada, peso e desgaste por golpe em cada peça; reparo por peça e "Reparar tudo equipado"; 15 itens em dados e as 5 vagas visíveis; save e co-op. (O Traje antigo só valia depois do playtest.) **Menor recorte do M1: só a vaga Arma, mantendo o modelo de dados genérico.** `YATORA`: 15 ícones de peça e 6 silhuetas de vaga; sem sprites de corpo.
 
 ### 5.21 Mochila: item equipável que expande os slots (decisão do dono, 06/11; ITEM FUTURO, sem números definitivos)
 
@@ -588,7 +756,7 @@ Simulação: `teto_sim.py spawn|teto|xp|saber`. **Regras do dono:** (1) dinos na
 
 **Menor mudança recomendada (todos os números são [premissa a testar]; ficam em configuração de servidor):**
 - **Slots base `inventario_slots_base` = 24; a Mochila dá `mochila_slots` = +16; total 40**, que é a **grade que já existe**: a tela não muda, só escurece as posições além do limite (com contador "21/24"). Itens de **equipamento nas vagas (5.20) não ocupam slot.**
-- **Conta (`slots_sim.py demanda`, pilha de 20, equipamento 1 slot):** M1 10 slots; v0.2 meio 21; v0.2 pico 26; 1.0 31. Base 24 cobre o M1 e o meio da v0.2, aperta no pico e na 1.0 (é a escolha que queremos); 40 cobre tudo. O Peso (50 kg) segue limitando a massa, e os cenários carregam mais madeira do que o jogador aguenta, então a demanda real é menor: **o que falta é jogar** (se 24 é apertado ou folgado).
+- **Conta (`slots_sim.py demanda`, pilha de 20, equipamento 1 slot):** M1 10 slots; v0.2 meio 21; v0.2 pico 26; 1.0 32 (pilhas por item, 5.9d). Base 24 cobre o M1 e o meio da v0.2, aperta no pico e na 1.0 (é a escolha que queremos); 40 cobre tudo. O Peso (50 kg) segue limitando a massa, e os cenários carregam mais madeira do que o jogador aguenta, então a demanda real é menor: **o que falta é jogar** (se 24 é apertado ou folgado).
 - **Slot cheio:** o que não cabe segue a regra do Peso (5.6): o **excesso fica na sacolinha** ao lado; nada some. Equipar e desequipar que precisem de slot livre recusam com "Inventário cheio" (5.20).
 - **Tirar a Mochila cheia: recusa, sem perda.** Só se pode desequipar se os itens que estão nos slots **acima da base** couberem nos slots livres da base; senão aviso "Esvazie a mochila". Alternativas descartadas: despejar na sacolinha (permite perder itens por um clique) e esconder os itens (some conteúdo, ruim em co-op e em save).
 - **Save e servidor:** o limite vale no servidor; **save acima do limite só trava** (não perde item, não aceita novo até voltar abaixo), a mesma regra dos tetos de nível (5.16). Os baús, o cocho, a Forja e o alforje do dino **não mudam**.
@@ -597,7 +765,7 @@ Simulação: `teto_sim.py spawn|teto|xp|saber`. **Regras do dono:** (1) dinos na
 - **É uma 7ª vaga de equipamento: sim, "Mochila" (costas)**, recomendo. Sem redução de dano, só `slots_extra`. Aparece na coluna de vagas (5.20) **quando existir o item** (`slot_visivel`). Só uma Mochila por vez e **um só tier** (sem Mochila grande por enquanto).
 - **Receita [provisória]:** couro + fibra (**o couro ganha um uso, hoje ele não tem nenhum na v0.2**), estação Mãos, **Saber 2 (T2)**, **marco M4** (junto das peças de couro e do Arco, 5.20). **Totais provisórios:** v0.2 **não muda** (21 receitas, 22 Saber, com Saco e Cama); **1.0 56 receitas e 77 Saber** (completa no L65; sem Saco e Cama eram 54 e 75, L63).
 
-**Marco e custo [estimativa minha, premissa; `SHIKAMARU` confirma]: M4, fora da v0.2.** Motivo: na v0.2 o limite de slots só cria atrito sem um jeito de aliviar (a Mochila vem depois), e a v0.2 já tem a maior parte do trabalho de inventário (Peso, validade, vagas de 5.20). **Custo 9 h:** limite de slots no servidor, excesso na sacolinha e save acima do limite 4 h; 7ª vaga, item, equipar e recusa de tirar cheia 2 h; tela com posições escurecidas e contador 2 h; item e receita em dados 1 h. `YATORA`: 1 ícone (e **sem sprite de corpo**, mesma regra da roupa, V70). **Se o dono quiser a Mochila antes (couro útil na v0.2):** custa os mesmos 9 h na v0.2 e o limite de 24 passa a valer já no meio da v0.2 (21 de 24); **não recomendo**.
+**Marco: M4, fora da v0.2.** Motivo: na v0.2 o limite de slots só cria atrito sem um jeito de aliviar (a Mochila vem depois), e a v0.2 já tem a maior parte do trabalho de inventário (Peso, validade, vagas de 5.20). **Escopo:** limite de slots no servidor, excesso na sacolinha e save acima do limite; 7ª vaga, item, equipar e recusa de tirar cheia; tela com posições escurecidas e contador; item e receita em dados. `YATORA`: 1 ícone (e **sem sprite de corpo**, mesma regra da roupa, V70). **Se o dono quiser a Mochila antes (couro útil na v0.2):** entra na v0.2 com o mesmo escopo e o limite de 24 passa a valer já no meio da v0.2 (21 de 24); **não recomendo**.
 
 **Precisa jogar:** se 24 slots de base incomodam sem ajudar a decisão ou se viram só gerenciamento; se a recusa de tirar a Mochila cheia frustra; se +16 é pouco ou muito.
 
@@ -610,15 +778,49 @@ Decisões do dono: a espécie usa o **nome real** (apelido próximo só se for e
 | Papel | Antigo (provisório) | Espécie (nome no jogo) | Conduta | Domar |
 |---|---|---|---|---|
 | Herbívoro do tutorial | Barrigudo | **Paquicéfalo** (*Pachycephalosaurus*) | **Passivo** (6.7): pasta, ignora você, revida com cabeçada se atacado | Fator de refeições 1,5 (5.14); Ração Verde; aceita baga crua |
-| Carnívoro em bando | Rabo-de-faca (via Deinonychus) | **Utahraptor** | **Agressivo**: ataca ao avistar a 8 tiles, bando de 1 a 2 | Fator de refeições 1,5 (5.14); torpor 120; vida base 80; Ração Rubra; aceita carne crua |
+| Carnívoro em bando | Rabo-de-faca (via Deinonychus) | **Utahraptor** | **Agressivo**: ataca ao avistar (elipse de 8 tiles na horizontal e 5 na vertical, 4.2), bando de 1 a 2 | Fator de refeições 1,5 (5.14); torpor 120; vida base 80; Ração Rubra; aceita carne crua |
 | Grande territorial | Montanhão | **Triceratops** | **Semi-agressivo**: ignora até 4 tiles ou ferimento; aí investe | Fator de refeições 1,7 e bocado x3 (5.14); Ração Verde |
-| Herbívoro de manada com alarme (M2) | novo | **Parassaurolofo** (*Parasaurolophus*) | **Medroso**: deixa chegar, mas ao ser atacado dá o alarme e o grupo de 3 a 5 foge (alarme a 12 tiles) | Fator de refeições 1,1 (5.14); torpor 140, queda 1,3; vida base 200; Ração Verde; aceita baga crua |
-| Fuga (5ª, cortável) | Pernalta | **Gallimimus** | **Covarde**: foge a 85 px/s a partir de 8 tiles; grupo de 3 a 5 | Dificuldade 1,25; Ração Verde; aceita baga crua |
-| **Presa 1, a mais comum (início do M2)** | novo | **Dodo** (*Raphus cucullatus*, ave que não voa) | **Curioso**: vem até 3 tiles e ronda; se atacado, foge sem revidar | **Não domável** (presa); vida 24, **sem torpor**; L3 a 10; 2 carne + 1 couro; XP 3 |
-| **Presa 2, escavador (M4, com o Oviraptor)** | novo | **Listro** (*Lystrosaurus*) | **Covarde**: foge a 85 px/s e some em toca | **Não domável**; vida 36, sem torpor; L8 a 16; 3 carne + 2 couro; XP 4 |
+| Herbívoro de manada com alarme (M2) | novo | **Parassaurolofo** (*Parasaurolophus*) | **Covarde**: deixa chegar, mas ao ser atacado dá o alarme e o grupo de 3 a 5 foge (alarme a 12 tiles) | Fator de refeições 1,1 (5.14); torpor 140, queda 1,3; vida base 200; Ração Verde; aceita baga crua |
+| Fuga (5ª, cortável) | Pernalta | **Gallimimus** | **Covarde**: não foge ao avistar; ao ser atacado dá o susto e foge a 85 px/s (fuga própria da espécie); grupo de 3 a 5 | Dificuldade 1,25; Ração Verde; aceita baga crua |
+| **Presa 1, a mais comum (início do M2)** | novo | **Dodo** (*Raphus cucullatus*, ave que não voa) | **Covarde** (decisão do dono, 06/11): pasta, não reage ao ver o jogador; jamais revida e foge se atacado ou se um do grupo (3 a 5) é atacado a até 8 tiles | **Domável** (6.1b): vida 24, torpor 50, queda 0,8/s, fator 0,7, baga; L3 a 10; 2 carne + 1 couro (se abatido); XP 3 |
+| **Presa 2, escavador (M4, com o Oviraptor)** | novo | **Listro** (*Lystrosaurus*) | **Covarde**: ao ser atacado foge a 85 px/s (fuga própria da espécie) e some em toca | **Domável** (6.1b, M4): vida 36, torpor 48, queda 0,9/s, fator 0,8, baga; L8 a 16; 3 carne + 2 couro (se abatido); XP 4 |
 
-**Dodo e Listro (revisto 06/11, dono):** presas pequenas e **abundantes**, mais comuns que todas as outras (Dodo 12 por zona, Listro 8, respawn 10 min). **Papéis sem repetir:** o Dodo é o **Curioso** (vem até você, é o primeiro alvo da Lança); o Listro é o **Covarde** (foge, exige perseguir, rende mais). **Recomendo na v0.2 as duas como presa simples, sem domar**: sem Ração, sem Eficiência, sem torpor, sem batismo: **só vida, Conduta, carcaça e sprite** (**+10 h e 2 sprites**, contra ~16 h de uma espécie domável). **Decidido (06/11): o Listro sai da v0.2 e entra no M4, junto com o Oviraptor. Total: 5 espécies na v0.2** (4 domáveis + o Dodo) e **7 na 1.0**. **Dodo** é ave que não voa: **sai do bloqueio dos voadores**. **Só o Dodo na v0.2:** 12 por zona, respawn 10 min = **72 Dodos/h = 144 carne/h**; demanda de 2 Utahraptors e do jogador ~24 Dodos/h (33%), de 5 Utahraptors ~46 (64%): **cobre**.
+**Dodo e Listro (revisto 06/11, dono):** presas pequenas e **abundantes**, mais comuns que todas as outras (Dodo 12 por zona, Listro 8, respawn 10 min). **Papéis (decisão do dono, 06/11): Dodo e Listro são Covardes** (e o Parassaurolofo também): jamais revidam e fogem ao serem atacados, ou quando outro do grupo é atacado perto. O Dodo continua o primeiro alvo da Lança, mas o jogador é quem chega até ele (não vem mais ao jogador). O **Curioso** fica só com o Oviraptor, no M4. **Domáveis (decisão do dono, 06/11: o Dodo é domável, e a regra de mundo 4.1 vale para o Listro):** ganham perfil de doma (6.1b) e **mais um sprite de dormindo cada** [premissa]; a caça com Lança segue valendo. **Decidido (06/11): o Listro sai da v0.2 e entra no M4, junto com o Oviraptor. Total: 5 espécies na v0.2** (todas domáveis) e **7 na 1.0**. **Dodo** é ave que não voa: **sai do bloqueio dos voadores**. **Só o Dodo na v0.2:** 12 por zona, respawn 10 min = **72 Dodos/h = 144 carne/h**; demanda de 2 Utahraptors e do jogador ~24 Dodos/h (33%), de 5 Utahraptors ~46 (64%): **cobre**.
 
+
+### 6.1b Doma do Dodo e do Listro: Covarde que foge com o grupo (decisão do dono, 06/11)
+
+Simulação: `covarde_sim.py dodo`, `tempo_sim.py tabela|torpor|eficiencia|hora`, `conduta_sim.py`. Números [calculado] sobre premissas de dado [premissa]; sensação [jogar].
+
+**Método.** (1) **Aproximar andando**: o Covarde vê a 6 tiles e deixa chegar (6.7). (2) **Nocaute com 2 golpes de Bastão em 0,7 s**: o 2º golpe cai **dentro do susto de 0,8 s**, o alvo nem anda. Torpor máx. do Dodo 50 no L10 (43 no L3): 2 golpes = 60 menos a queda de 3,5 = 56,5, cobre até L10 (50); o Listro tem 48 (54 no L16) para o mesmo fim. (3) O ataque faz o **grupo fugir** (3 a 5, 75 px/s, 10 s ou 16 tiles, alarme a 8): isso **não atrapalha**, o alvo já está no chão, e quando o grupo volta a pastar a 8 tiles **não reage** a quem alimenta (Covarde só reage a ataque). (4) **Alimentar é interação, não ataque**: não dispara alarme. (5) **Reforço de torpor**: **Cochilo** (2 a 3 s; não conta como ataque, o grupo não foge de novo) ou 1 golpe de Bastão (o grupo foge de novo, sem custo para o alvo). **Soco** serve como plano B: 6 a 7 golpes (3,0 a 3,6 s), o alvo foge 9 a 10 tiles antes de cair, o sprint alcança. **A Lança não doma** (dano 12, torpor 0: 2 golpes matam os 24 de vida): a arma escolhida decide entre caçar e domar. O Dodo **jamais revida**: erro custa só a fuga, não vida do jogador.
+
+**Comida e tempo** (dreno por tempo 0,3; Dodo fator 0,7; Verde, rejeita Rubra):
+
+| Nível | Baga: refeições / tempo | Ração A | Reforço de torpor (baga) |
+|---|---|---|---|
+| L3 | 6 / **36 s** | 3 / 12 s | 16: 1 golpe ou 2 a 3 s de Cochilo |
+| L6 | 7 / **42 s** | 4 / 16 s | 23: 1 golpe ou 3 s |
+| L10 | 7 / **42 s** | 4 / 16 s | 19: 1 golpe ou 2 s |
+
+Eficiência no L6 (dreno 0,3): baga 64 (nível 6 vira 8), Ração B 90, A 93.
+
+Comida ideal: **baga crua** (já pega na coleta; 6 a 7 bagas = 18 a 21 s de coleta); Ração A só vale se sobrar (poupa 24 a 26 s). Com a Ração A o extra de torpor é 0. **Listro** (M4, mesmo método, 2 golpes de Bastão em L8 a L16): fator 0,8, baga, 9 refeições no L12 (54 s), reforço de 44 torpor = 2 golpes ou 6 s de Cochilo [premissa].
+
+**Utilidade do domado.** **Carregar** (Peso 12 / 15,6 / 19,2 kg em L10 / 20 / 30; Paquicéfalo 40, 3,3x mais): o menor carregador, bolso extra. **Colher** (M4, cortável): coleta passiva de baga/fibra como os herbívoros. **Não Defender** (jamais revida) e **não montável**. **Fugitivo**: Passivo fica parado; Neutro (padrão) e Agressivo fogem ao ver agressão a ele ou a aliado (6.11b). Vida 24 é frágil: o Dodo domado morre fácil, o que dá ao jogador motivo para protegê-lo (curral, Cama). **Listro domado** (M4): Carregar 15 kg e Colher tubérculo (cortável) [premissa].
+
+**Primeira doma: o Dodo (decisão do dono, 06/11, V78)**
+
+| Na v0.2 | Dodo L3 a L5 | Paquicéfalo L5 a L8 |
+|---|---|---|
+| Nocaute | 2 golpes de Bastão, 0,7 s | 4 golpes, 2,1 s |
+| Revide | nenhum | cabeçada se atacado |
+| Bagas / dormindo | 6 (18 s) / 36 s | 13 a 15 (39 a 45 s) / 78 a 90 s |
+| Reforços | 1 golpe ou 2 a 3 s de Cochilo | 2 a 3 golpes |
+| Janela de risco (Utahraptor) | 36 s | 90 s (2,5x) |
+| Recompensa | Carregar 12 kg | Carregar 40 kg |
+| Onde | Mata-baixa (início do M2) | Campina (M1) |
+
+**Decidido: na v0.2 o Dodo é a primeira doma**, porque o jogador já caçou Dodos com a Lança nos minutos 1 a 8 (conhece o bicho e o grupo que foge) e o tutorial vira "mesma presa, outra arma: 2 golpes de Bastão". O **Paquicéfalo passa a segunda doma** (minuto 12 a 20), a primeira que carrega de verdade. **No M1 nada muda** (o Dodo só existe a partir do início do M2; o Paquicéfalo é a única doma). **O que perde:** a vigília de 36 s tensiona pouco (a hipótese H1 se testa com Paquicéfalo e Utahraptor) e a recompensa de 12 kg é fraca [jogar].
 
 Marco: **M1** Paquicéfalo e Utahraptor; **início do M2** **Dodo** (decisão do dono, 06/11); **M2** Triceratops, Parassaurolofo e (Listro no **M4**); Gallimimus M2 Should, **cortável**. Com as quatro primeiras o elenco fecha exatamente o que o plano prevê (2 no M1, mais 2 em CRI-06); com o Gallimimus são 5, **acima** do que o plano permite (3 a 4). Para o M4 (CRI-10, 4 a 5 espécies a mais): **Oviraptor** (Curioso, onívoro, estreia do perfil Mista). **Deinonychus** e **Lystrosaurus** voltam ao catálogo como futuros. Dados em `racao.md`, seção 3. A conduta de cada espécie está em 6.7. Nomes de Ração e ingredientes seguem originais (a família Ração e seus ingredientes são nossos).
 
@@ -629,8 +831,8 @@ Marco: **M1** Paquicéfalo e Utahraptor; **início do M2** **Dodo** (decisão do
 | Espécie | Porte, dieta, comportamento (plausível) | Onde o jogo se afasta |
 |---|---|---|
 | Paquicéfalo | Bípede de ~4,5 m, algumas centenas de kg, crânio em domo muito espesso; dieta incerta (plantas e talvez frutos e pequenos animais); uso do domo em disputas é hipótese discutida | Revide por cabeçada tratado como fato; aceita baga crua (frutos: plausível); vida e dificuldade são de jogo, não de massa |
-| Utahraptor | O maior dos raptores: ~5 a 6 m, da ordem de 500 kg (muito maior que o Deinonychus, ~70 a 100 kg), garra em foice, carnívoro; restos de vários indivíduos num mesmo sítio sugerem grupo, mas caça em bando é hipótese; provável de penas | Papel, vida e mordida de jogo são níveis, não massa (vida base 80, igual à do Paquicéfalo de massa parecida); bando de 1 a 2 e perseguição a 90 px/s não vêm de medição; **arte deve mostrar penas e porte médio (32 a 40 px)** |
-| Parassaurolofo (M2) | ~9 a 10 m, de 2,5 a 3,5 t, herbívoro, crista tubular oca; a crista como câmara de ressonância e chamado de grupo é hipótese defendida; hadrossauros costumam ser gregários | Tratamos a crista como alarme de grupo (a hipótese como fato); "Medroso" é escolha de jogo, não comportamento medido |
+| Utahraptor | O maior dos raptores: ~5 a 6 m, da ordem de 500 kg (muito maior que o Deinonychus, ~70 a 100 kg), garra em foice, carnívoro; restos de vários indivíduos num mesmo sítio sugerem grupo, mas caça em bando é hipótese; provável de penas | Papel, vida e mordida de jogo são níveis, não massa (vida base 80, igual à do Paquicéfalo de massa parecida); bando de 1 a 2 e perseguição a 90 px/s não vêm de medição; **arte deve mostrar penas e porte Médio (32 px, 4.2)** |
+| Parassaurolofo (M2) | ~9 a 10 m, de 2,5 a 3,5 t, herbívoro, crista tubular oca; a crista como câmara de ressonância e chamado de grupo é hipótese defendida; hadrossauros costumam ser gregários | Tratamos a crista como alarme de grupo (a hipótese como fato); "Covarde" é escolha de jogo, não comportamento medido |
 | Triceratops | ~8 a 9 m, de 6 a 12 t, herbívoro, três chifres e gola; marcas de ferida em chifres sugerem combate | Territorialidade e "aviso e investida" são do jogo; nenhum dino de 6 t é domável em 100 s na vida real |
 | Gallimimus | ~6 m, centenas de kg, pernas longas, bico sem dentes, onívoro ou herbívoro; sinais de grupos | Fuga de 85 px/s é muito abaixo da velocidade estimada, reduzida de propósito para ser alcançável (calculado em 6.7) |
 | Oviraptor (M4) | Pequeno de ~2 m, bico, onívoro; curiosidade é do jogo | Curioso é invenção de design |
@@ -656,7 +858,7 @@ Nocautear com o Bastão-de-sono (30 de torpor por golpe, 0,7 s; 4 golpes num Paq
 
 | Ofício | Quem | Marco | Corte |
 |---|---|---|---|
-| Carregar (alforje com **Peso** `base x (1+0,03(L-10))`: Paquicéfalo 40 / 52 / 64 kg em L10 / 20 / 30; Parassaurolofo 100 / 130 / 160) | herbívoro | M2 | Essencial |
+| Carregar (alforje com **Peso** `base x (1+0,03(L-10))`: Paquicéfalo 40 / 52 / 64 kg em L10 / 20 / 30; Parassaurolofo 100 / 130 / 160; **Dodo 12 / 15,6 / 19,2**) | herbívoro | M2 | Essencial |
 | Defender (dano de defesa escala com o nível; também protege dormindo na domesticação) | carnívoro | M2 | Essencial |
 | Colher (coleta passiva de baga/fibra) | herbívoro | M4 | Cortável |
 | Aviso (chamado da crista antes do invasor chegar, a 12 tiles) | Parassaurolofo | M2 Should | Cortável |
@@ -681,23 +883,23 @@ Marco: M2 para tudo acima (sem nível/Eficiência no M1). **Essencial** na 0.2: 
 
 **Nomes, para não confundir.** **Conduta** é o comportamento do dino **selvagem**, definido por espécie, que vale até ele dormir ou ser domado. **Temperamento** é o traço persistente do dino **domesticado** (seção 3). A Conduta acaba na domesticação; o Temperamento a herda como traço (tabela abaixo).
 
-**Seis tipos (decisão do dono).** Números em tiles de 16 px e px/s; jogador anda a 70 e corre a 120 por 4 s de stamina [calculado, seção 5]. Todos [premissa] a validar. **Revisto 06/11:** Curioso (Dodo) e Covarde (Listro) passam a existir antes do M4; o Oviraptor, no M4, reusa o Curioso.
+**Seis tipos (decisão do dono).** Números em tiles de 16 px e px/s; jogador anda a 70 e corre a 120 por 4 s de stamina [calculado, seção 5]. Todos [premissa] a validar. **Revisto 06/11:** Dodo e Parassaurolofo são Covardes na v0.2 (e o Listro no M4); o Curioso fica só com o Oviraptor (M4) e o Medroso é futuro, sem marco.
 
 | Tipo | Percepção | Gatilho | Reação | Velocidade | Termina e volta ao normal |
 |---|---|---|---|---|---|
-| **Covarde** | 8 tiles | Jogador (ou dino agressivo) a 8 tiles ou menos; também se atacado | Foge sem revidar | Fuga **85** | Para de fugir ao chegar a 14 tiles do ameaçador ou após 8 s; fica 5 s em alerta; normal quando o jogador está a mais de 12 tiles por 5 s |
-| **Medroso** | 6 tiles (vê, mas deixa chegar) | Só ser atacado | Susto de 0,8 s parado e depois foge sem revidar | Fuga **75** | 10 s ou 16 tiles; normal com o jogador a mais de 10 tiles por 8 s |
+| **Medroso** (**pós-MVP, sem marco**; nenhuma espécie da 0.2 o usa) | 8 tiles | Jogador (ou dino agressivo) a 8 tiles ou menos: **foge ao avistar e jamais revida** | Foge sem revidar | Fuga **85** | Para de fugir ao chegar a 14 tiles do ameaçador ou após 8 s; fica 5 s em alerta; normal quando o jogador está a mais de 12 tiles por 5 s |
+| **Covarde** | 6 tiles (vê, mas deixa chegar) | Só ser atacado, ou **um membro do grupo ser atacado a até `alarme_raio_tiles`** (padrão 8; Parassaurolofo 12): **jamais revida e foge** | Susto de 0,8 s parado e depois foge sem revidar | Fuga **75** (a espécie pode ter a sua: Gallimimus e Listro 85) | 10 s ou 16 tiles; normal com o jogador a mais de 10 tiles por 8 s |
 | **Curioso** | 7 tiles | Vê o jogador | Aproxima-se até 3 tiles em até 6 s, fica 4 s rondando, afasta-se até 10 tiles; recarga de 30 s. Se atacado: susto de 0,5 s e foge sem revidar | Aproximação 40, fuga **75** | Janela de proximidade de até 10 s; normal após a recarga |
 | **Passivo** | 5 tiles (só olha) | Ser atacado | Ignora até então; depois **revida** o atacante | Base da espécie | Encerra após 8 s sem receber dano ou com o atacante a mais de 12 tiles por 5 s |
 | **Semi-agressivo** | 8 tiles | Jogador a **4 tiles** ou menos, ou ser atacado | Aviso (postura e rosnado) quando o jogador entra em 6 tiles, 1,5 s antes; depois ataca | Perseguição **90** | Desiste com o alvo a mais de 20 tiles, 5 s sem visão ou 15 s de perseguição; alerta de 5 s e normal após 6 s com o jogador a mais de 10 tiles |
-| **Agressivo** | 8 tiles | Avista jogador ou dino não aparentado (herbívoros e dinos domados do jogador) | Ataca ao avistar | Perseguição **90** | Desiste com alvo a mais de 20 tiles, 5 s sem linha de visão ou 15 s de perseguição; alerta de 5 s e normal |
+| **Agressivo** | 8 tiles (horizontal) e 5 (vertical), 4.2 | Avista jogador ou dino não aparentado (herbívoros e dinos domados do jogador) | Ataca ao avistar | Perseguição **90** | Desiste com alvo a mais de 20 tiles, 5 s sem linha de visão ou 15 s de perseguição; alerta de 5 s e normal |
 
 Regras comuns:
 
-- **Grupo.** Atacar um membro **chama os outros** a 8 tiles, com atraso de 0,5 s: Covarde, Medroso e Curioso do grupo fogem; Passivo do grupo revida; Semi-agressivo e Agressivo do grupo atacam. Tamanhos [premissa]: Paquicéfalo 1 a 3, Utahraptor 1 a 2, Parassaurolofo 3 a 5 (alarme a 12 tiles), Gallimimus 3 a 5, Triceratops solitário.
+- **Grupo.** Atacar um membro **chama os outros** a 8 tiles, com atraso de 0,5 s: Covarde e Curioso do grupo fogem; Passivo do grupo revida; Semi-agressivo e Agressivo do grupo atacam. Tamanhos [premissa]: Paquicéfalo 1 a 3, Utahraptor 1 a 2, Parassaurolofo 3 a 5 (alarme a 12 tiles), Dodo 3 a 5 (alarme a 8), Gallimimus 3 a 5, Triceratops solitário. **Dado da espécie** (definição da espécie, a criar; **não** `ResourceNodeDef`, que é nó de recurso): `conduta`, `fugitivo`, `fuga_px_s`, `alarme_raio_tiles`.
 - **Abaixo de 25% de vida (6.6).** Todos os tipos fogem na velocidade da fuga do tipo (Passivo, Semi-agressivo e Agressivo na velocidade base), sem revidar. Passivo e Semi-agressivo voltam ao normal 10 s depois com o atacante a mais de 10 tiles; o Agressivo também volta, mas em alerta por 5 s. Vida regenera 1% por segundo fora de combate [premissa].
 - **Nocaute.** As faixas de torpor (6.6) valem para todos os tipos: velocidade x0,85 na faixa 2 e x0,65 na faixa 3. Dormindo, **toda Conduta para** (sem fuga, sem revide). Ao acordar o dino volta ao alerta por 5 s, sem agressão imediata.
-- **Quem corre, doma?** Simulação 1D de perseguição em linha reta (`conduta_sim.py`, docs/design) [calculado]: o **Covarde** a 85 px/s é nocauteado em ~5 s e 4 golpes por quem corre os 4 s de sprint a partir de 8 tiles. Vale `v_fuga <= 120 - (raio x 16 - 24)/4 = 94 px/s` para o sprint alcançar; a 100 px/s ou mais é impossível só na corrida. Sem stamina de sprint não alcança nunca. Medroso (susto de 0,8 s) e Curioso (susto de 0,5 s) são nocauteados em 2,1 e 2,6 s, pois o susto deixa os golpes 2 a 4 caírem antes de correr. A lentidão por torpor (x0,85 e x0,65) não foi decisiva na simulação em linha reta; ela passa a importar com obstáculo e mudança de direção [jogar]. Sem o susto, o Medroso a 75 px/s seria quase intocável com o bastão.
+- **Quem corre, doma?** Simulação 1D de perseguição em linha reta (`conduta_sim.py`, docs/design) [calculado]: o **Covarde** a 85 px/s é nocauteado em ~5 s e 4 golpes por quem corre os 4 s de sprint a partir de 8 tiles. Vale `v_fuga <= 120 - (raio x 16 - 24)/4 = 94 px/s` para o sprint alcançar; a 100 px/s ou mais é impossível só na corrida. Sem stamina de sprint não alcança nunca. Covarde (susto de 0,8 s) e Curioso (susto de 0,5 s) são nocauteados em 2,1 e 2,6 s, pois o susto deixa os golpes 2 a 4 caírem antes de correr. A lentidão por torpor (x0,85 e x0,65) não foi decisiva na simulação em linha reta; ela passa a importar com obstáculo e mudança de direção [jogar]. Sem o susto, o Covarde a 75 px/s seria quase intocável com o bastão.
 - **Carnívoro e presa dormindo.** Vale a regra de `racao.md` 11.2 (ronco de 8 tiles). Por tipo: **Agressivo** ataca dormindo no raio de ronco; **Semi-agressivo** só dormindo a 4 tiles ou menos (o território dele); os demais **nunca**. Todo ataque ao dormindo segue as perdas de Eficiência de `racao.md` 11.1.
 - **Base.** Agressivo e Semi-agressivo não atravessam parede, porta fechada nem curral: o Agressivo, sem caminho por 2 s, **ataca a peça de bloqueio mais próxima**; o Semi-agressivo só se provocado (8.1).
 
@@ -706,7 +908,7 @@ Regras comuns:
 | Conduta selvagem | Temperamento do domado |
 |---|---|
 | Passivo | Calmo: obedece sempre acima de Afeto 10 |
-| Covarde, Medroso | Arisco: foge de luta em vez de defender até Afeto 40 |
+| Covarde | Arisco: foge de luta em vez de defender até Afeto 40 |
 | Curioso | Explorador: segue a 3 tiles e abre caminho; defende mal |
 | Semi-agressivo | Territorial: defende a base melhor (dano de defesa +20% [premissa]) |
 | Agressivo | Hostil a estranhos até Afeto 40 (6.3) |
@@ -720,11 +922,11 @@ Regras comuns:
 | Semi-agressivo | Triceratops | M2 | Essencial (3ª espécie) |
 | Covarde | Gallimimus (4ª) | M2 | **Cortável** (4ª espécie é Should) |
 | Curioso | Oviraptor | M4 | Fora da 0.2 |
-| Medroso | Parassaurolofo | **M2 (antecipado do M4)** | Essencial (4ª espécie) |
+| Covarde | Parassaurolofo | **M2 (antecipado do M4)** | Essencial (4ª espécie) |
 
-**Quantos tipos a v0.2 mostra (atualizado 05/11):** **4 tipos com 4 espécies**: Passivo (Paquicéfalo), Agressivo (Utahraptor), Semi-agressivo (Triceratops) e **Medroso (Parassaurolofo, antecipado do M4)**. Com o Gallimimus (Covarde, cortável) são **5 tipos com 5 espécies**, acima das 3 a 4 do plano (CRI-03: 2 em M1; CRI-06: 3 e 4 em M2). Só o **Curioso** (Oviraptor) fica no M4 (CRI-10). Os seis tipos exigem seis espécies. **Opção barata** (decisão do dono): variante por indivíduo no Paquicéfalo da Mata-baixa (pesos `Passivo 60% / Medroso 25% / Curioso 15%` [premissa]) mostraria o Curioso sem espécie nova; a Campina fica 100% Passivo no tutorial. Custo: um campo `pesos_conduta` por bioma.
+**Quantos tipos a v0.2 mostra (atualizado 05/11):** **4 tipos com 5 espécies**: Passivo (Paquicéfalo), Agressivo (Utahraptor), Semi-agressivo (Triceratops) e **Covarde (Parassaurolofo, antecipado do M4, e Dodo)**. Com o Gallimimus (Covarde, cortável) são **5 tipos com 5 espécies**, acima das 3 a 4 do plano (CRI-03: 2 em M1; CRI-06: 3 e 4 em M2). Só o **Curioso** (Oviraptor) fica no M4 (CRI-10). Os seis tipos exigem seis espécies. **Opção barata** (decisão do dono): variante por indivíduo no Paquicéfalo da Mata-baixa (pesos `Passivo 60% / Covarde 25% / Curioso 15%` [premissa]) mostraria o Curioso sem espécie nova; a Campina fica 100% Passivo no tutorial. Custo: um campo `pesos_conduta` por bioma.
 
-**Avaliação: Parassaurolofo como Medroso.** *Encaixe:* o Medroso só reage quando atacado e o alarme de grupo é a regra "atacar um membro chama os outros"; um herbívoro de manada com crista sonora conta exatamente essa história. Para o Parassaurolofo o raio do alarme é **12 tiles** em vez de 8, só por dado (`chama_grupo.raio_tiles`). *Conta* (`conduta_sim.py`, [calculado]): com torpor 140 o Medroso a 75 px/s e susto de 0,8 s é nocauteado em **3,5 s com 6 golpes** (4 golpes e 2,1 s com torpor 100); não exige sprint. Ao atacar um da manada de 3 a 5, os demais fogem juntos, e só o alvo precisa ser perseguido. *Custo de antecipar o Medroso do M4 para o M2:* uma linha de dados no `ConductaDef` e o estado "susto" de 0,8 s (que a máquina de estados genérica já prevê); a fuga é a mesma primitiva já usada pelo Covarde e pela fuga de 25% de vida; mais animações (pose de susto, tremor, corrida, chamado) e testes por tipo [sem estimativa; é dado + arte]. Se o Gallimimus for cortado, a primitiva de fuga continua necessária pelos 25% de vida. *Alternativas:* Covarde (duplicaria o Gallimimus e exigiria a perseguição em corrida, pior para uma espécie de 3 t), Passivo (duplicaria o Paquicéfalo), Curioso (não casa com o alarme). **Recomendo manter o Medroso.** Ofício "Aviso" (o chamado da crista antes do invasor, a 12 tiles) passa a M2 Should, cortável.
+**Avaliação: Parassaurolofo como Covarde.** *Encaixe:* o Covarde só reage quando atacado e o alarme de grupo é a regra "atacar um membro chama os outros"; um herbívoro de manada com crista sonora conta exatamente essa história. Para o Parassaurolofo o raio do alarme é **12 tiles** em vez de 8, só por dado (`chama_grupo.raio_tiles`). *Conta* (`conduta_sim.py`, [calculado]): com torpor 140 o Covarde a 75 px/s e susto de 0,8 s é nocauteado em **3,5 s com 6 golpes** (4 golpes e 2,1 s com torpor 100); não exige sprint. Ao atacar um da manada de 3 a 5, os demais fogem juntos, e só o alvo precisa ser perseguido. *Custo de antecipar o Covarde do M4 para o M2:* uma linha de dados no `ConductaDef` e o estado "susto" de 0,8 s (que a máquina de estados genérica já prevê); a fuga é a mesma primitiva já usada pelo Covarde e pela fuga de 25% de vida; mais animações (pose de susto, tremor, corrida, chamado) e testes por tipo [sem estimativa; é dado + arte]. Se o Gallimimus for cortado, a primitiva de fuga continua necessária pelos 25% de vida. *Alternativas:* Covarde (duplicaria o Gallimimus e exigiria a perseguição em corrida, pior para uma espécie de 3 t), Passivo (duplicaria o Paquicéfalo), Curioso (não casa com o alarme). **Recomendo manter o Covarde.** Ofício "Aviso" (o chamado da crista antes do invasor, a 12 tiles) passa a M2 Should, cortável.
 
 **Estrutura sugerida para o `SORA` (dados, sem estados soltos no código).**
 
@@ -733,13 +935,13 @@ Regras comuns:
 - Servidor decide tudo; replicar o id do estado (3 bits) e o alvo. Percepção por checagem de raio a cada 0,5 s [premissa de custo: dino x jogador, cabe até o M3; chunk e interesse no M4].
 - Testes headless por tipo: cada linha da tabela vira um caso (gatilho, duração, volta ao normal), mais o caso de grupo e o de 25% de vida.
 
-**Animação e áudio para o `YATORA`.** Por tipo: **Covarde** alerta com cabeça erguida, corrida de fuga, respiração ofegante; **Medroso** pose de susto parado, tremor, corrida; **Curioso** aproximação com cabeça inclinada, farejar, recuo; **Passivo** pastar, levantar a cabeça, empurrão de revide; **Semi-agressivo** postura de aviso (crista ou cauda erguida) e rosnado de 1,5 s, investida; **Agressivo** espreita, investida, ataque, farejar presa dormindo. Comuns: bocejo, cambaleio, mancar abaixo de 25% de vida, dormir. Ícones sobre a cabeça: "!" (hostil), "?" (curioso), gota (medo). Sons: grito de alerta que dispara o grupo, rosnado de aviso, rosnado de investida.
+**Animação e áudio para o `YATORA`.** Por tipo: **Covarde** alerta com cabeça erguida, corrida de fuga, respiração ofegante; **Covarde** pose de susto parado, tremor, corrida; **Curioso** aproximação com cabeça inclinada, farejar, recuo; **Passivo** pastar, levantar a cabeça, empurrão de revide; **Semi-agressivo** postura de aviso (crista ou cauda erguida) e rosnado de 1,5 s, investida; **Agressivo** espreita, investida, ataque, farejar presa dormindo. Comuns: bocejo, cambaleio, mancar abaixo de 25% de vida, dormir. Ícones sobre a cabeça: "!" (hostil), "?" (curioso), gota (medo). Sons: grito de alerta que dispara o grupo, rosnado de aviso, rosnado de investida.
 
 **Conflitos com o plano (novos):** ver itens 13 a 17 da seção 17.
 
 ### 6.8 Morte do dino
 
-Dino sendo domado com vida 0 **morre** e a domesticação falha (racao.md 11.3). Dino domado com vida 0 fica **ferido** (com morte permanente de servidor, deixa carcaça e sacolinha do alforje: 5.6) e some por 5 min [premissa] para a base (não morte permanente na 0.2). Morte permanente é opção de servidor (seção 13). Estado Dead existe no plano (SOB-02). M2, Essencial na forma branda.
+Dino sendo domado com vida 0 **morre** e a domesticação falha (racao.md 11.3). Dino domado com vida 0 fica **ferido** (com morte permanente de servidor, deixa carcaça e sacolinha do alforje: 5.6) e some por 5 min [premissa] para a base (não morte permanente na 0.2). Morte permanente é opção de servidor (seção 13). Estado Dead existe no plano (SOB-02). M2, Essencial na forma branda. **M4b (decisão do dono):** o dino domado a 0 de vida deixa um **corpo com os itens do alforje por 10 min** (dado `corpo_minutos`; o ferido some 5 min e volta sem itens, que seguem no corpo por mais 5); na 0.2 vale o texto acima (alforje no lugar, 5.1).
 
 ### 6.9 Nome do dino [decisão do dono]
 
@@ -747,14 +949,14 @@ Ao concluir a domesticação abre um campo para **batizar**; **pular mantém o n
 
 ### 6.10 Ajuste D17 (proposta da SHIRO): Listro e Clareira-brasa
 
-- **Listro como Covarde, não Medroso.** O Parassaurolofo já é o Medroso. Com o Gallimimus cortado, o **Covarde** fica livre: o Listro (pequeno, escavador, foge ao ver o jogador a 85 px/s e some em toca) ocupa o tipo. No M4 a Conduta volta a **5 tipos** (Passivo, Agressivo, Semi-agressivo, Medroso, Covarde) mais o Curioso do Oviraptor = 6 com 6 espécies, sem repetir. Gallimimus sai do catálogo do MVP (fica como futuro).
+- **Listro como Covarde (decisão do dono, 06/11: o Medroso é conduta futura).** O Parassaurolofo já é o Covarde; o Listro (pequeno, escavador) usa o mesmo tipo, com fuga própria de 85 px/s depois de atacado e sumindo em toca (dado `fuga_px_s` por espécie). No M4 a Conduta tem **5 tipos** na prática (Passivo, Agressivo, Semi-agressivo, Covarde e o Curioso do Oviraptor e do Dodo); o **Medroso** (6.7) fica definido e **sem marco**. Gallimimus fica cortável.
 - **Clareira-brasa sai do M4.** Perdeu a Seiva (trocada pelo Orvalho produzido por dino) e a Ração S (cortada); sobra só "bioma de nível alto", que a **Pedreira** cobre estendendo a faixa de 15 a 35 para 15 a 45. Fica com 3 biomas (Campina, Mata-baixa, Pedreira). **Custo:** MUN-11 e SOB-10 encolhem; o carnívoro territorial passa a viver na Pedreira. **Risco:** perde-se um destino de prestígio; compensa-se pelo ofício Produzir e pelo nível alto.
 
 ### 6.11 Menu de interação do domado, comandos e Postura (decisão do dono, 06/11)
 
 **O que já existe (não duplico):** ordens **Seguir e Ficar (M1)**, **Atacar o alvo e Guardar a base (M2)** e a obediência por Afeto (6.3); ofícios **Carregar** e **Defender** (6.4); a **tela de inventário do dino por E**, só para o selvagem dormindo em doma (5.14); o alforje (5.1). **O que não existe:** um menu para o dino domado (no código de hoje `can_interact` só aceita criatura selvagem inconsciente: conferido, só leitura), o comando "ir a um ponto" e a Postura. A Postura **substitui o Temperamento do domado** (cortável, 6.3).
 
-**Nomes, sem conflito.** **Conduta** é só do **selvagem** (Passivo, Agressivo, Semi-agressivo, Medroso, Curioso, Covarde, 6.7). Para o **domado** há **ordens** (onde ele fica) e **Postura** (como reage). **Passivo e Agressivo ficam reservados à Conduta.** O pedido do dono "passivo, neutro, agressivo" vira **Postura Calma, Guarda e Ataque**.
+**Nomes, sem conflito.** **Conduta** é só do **selvagem** (Passivo, Agressivo, Semi-agressivo, Covarde e Curioso na v0.2; o Medroso é futuro, sem marco; 6.7). Para o **domado** há **ordens** (onde ele fica) e **Postura** (como reage). **Decidido (dono, 06/11): o jogador vê Passivo (pena branca), Neutro (escudo verde, padrão) e Agressivo (raio vermelho)**, com legenda no menu (6.11b); os ids de dado seguem `calma`, `guarda` e `ataque`, e as tabelas abaixo usam esses nomes. No texto, **"modo" é do domado e "Conduta" é do selvagem**: Passivo e Agressivo da Conduta (6.7) são outro conceito, com o mesmo nome por escolha do dono.
 
 **Menu de interação (tecla E, a até 2 tiles de um domado seu):** lista vertical **Montar/Desmontar (6.12), Alforje, Seguir/Ficar, Ir até aqui, Postura**; linha sem condição fica cinza com o motivo ("Afeto baixo"). Selvagem inconsciente e dino dormindo em doma continuam abrindo a tela atual, sem menu. **O menu entra antes da montaria:** as linhas Montar e Ir até aqui só aparecem quando existirem.
 
@@ -766,15 +968,42 @@ Ao concluir a domesticação abre um campo para **batizar**; **pular mantém o n
 |---|---|---|---|
 | **Calma** (o "passivo" do pedido) | segue a ordem | **não ataca nem revida**; selvagem hostil ainda o ataca | nunca ataca |
 | **Guarda** (o "neutro"; **padrão**) | revida quem o ataca e quem ataca o dono ou outro domado do dono, persegue até 8 tiles e volta | só revida | nunca ataca |
-| **Ataque** (o "agressivo") | igual à Guarda | **inicia** combate contra selvagem **hostil** (Conduta Agressivo ou Semi-agressivo) e invasor a 8 tiles; **nunca** contra Passivo, Medroso, Curioso e Covarde (presa é pela ordem Atacar o alvo) | nunca ataca |
+| **Ataque** (o "agressivo") | igual à Guarda | **inicia** combate contra selvagem **hostil** (Conduta Agressivo ou Semi-agressivo) e invasor a 8 tiles; **nunca** contra Passivo, Covarde e Curioso (presa é pela ordem Atacar o alvo) | nunca ataca |
 
-**Regras comuns:** **sem PvP e sem fogo amigo: dano entre domados e contra jogadores é 0**; o domado **nunca ataca selvagem inconsciente** (domar: preserva a Eficiência, `racao.md` 11); **nunca danifica construção** e só passa por **Portão de dino** (8.1). Espécie sem dano (**Parassaurolofo, Medroso**) só tem Calma (dado `posturas_permitidas`: Paquicéfalo, Utahraptor e Triceratops têm as três). **Afeto:** abaixo de 10 ignora comando; de 10 a 25 falha 30% **só** em Seguir, Ir até aqui e Atacar o alvo (comandos dados na hora); **Ficar e a troca de Postura sempre valem** (são configuração).
+**Regras comuns:** **sem PvP e sem fogo amigo: dano entre domados e contra jogadores é 0**; o domado **nunca ataca selvagem inconsciente** (domar: preserva a Eficiência, `racao.md` 11); **nunca danifica construção** e só passa por **Portão de dino** (8.1). Espécie sem dano tem o traço **Fugitivo** (6.11b): Neutro e Agressivo viram "foge" (dado `posturas_permitidas`: Paquicéfalo, Utahraptor e Triceratops lutam nas três; Parassaurolofo e Gallimimus têm as três, mas só o Passivo fica parado). **Afeto:** abaixo de 10 ignora comando; de 10 a 25 falha 30% **só** em Seguir, Ir até aqui e Atacar o alvo (comandos dados na hora); **Ficar e a troca de Postura sempre valem** (são configuração).
 
 **Alcance, grupo, co-op:** menu a 2 tiles; Ir até aqui a 15 tiles; **comando de rebanho (tecla Q, sem chegar perto): Seguir todos, Ficar todos e Postura de todos**, nos domados do dono a até **12 tiles**, exceto o montado e o ferido (Ir até aqui em grupo fica fora). **Permissão `dino_permissao`: `dono` (padrão: só o dono comanda, monta, muda Postura e põe sela) ou `grupo` (qualquer jogador do grupo)**; **o alforje é aberto ao grupo sempre** (cooperativo, como a sacolinha). O servidor valida `comandar_dino(id, ordem, arg)`: alcance, dono, Afeto, estado.
 
 **Relações:** **cocho** (5.12): em Ficar a até 6 tiles do cocho o dino come; Postura não muda isso. **Ofícios:** Carregar exige Seguir (6.3, sem mudança). **Fome 0:** o dino segue obedecendo, com a queda de Afeto de 5.12.
 
-**Marco, custo [estimativa minha, premissa; `SHIKAMARU` confirma]:** menu de interação (Seguir/Ficar e Alforje, com ganchos) **6 h**; Ir até aqui **6 h**; Postura de 3 modos **7 h**; comando de rebanho **3 h**; permissão **2 h** = **24 h**. **Decidido (dono, 06/11) na v0.2 (M2): menu + Seguir/Ficar todos + permissão = 11 h** (o alforje precisa de acesso e hoje o domado não abre nada). **Decidido: depois do playtest, Ir até aqui e Postura** (a v0.2 já tem Atacar o alvo e Guardar a base, que cobrem o uso). **Sprites:** nenhum (a mudança aparece no `FloatingText`: "Calma", "Guarda", "Ataque"); opcional 1 marcador de destino. **Precisa jogar:** se Seguir/Ficar basta sem Postura; se o comando de rebanho é preciso com 2 ou 3 dinos.
+**Marco:** menu de interação (Seguir/Ficar e Alforje, com ganchos); Ir até aqui; Postura de 3 modos; comando de rebanho; permissão. **Decidido (dono, 06/11) na v0.2 (M2): menu + Seguir/Ficar todos + permissão** (o alforje precisa de acesso e hoje o domado não abre nada). **Decidido: depois do playtest, Ir até aqui e Postura** (a v0.2 já tem Atacar o alvo e Guardar a base, que cobrem o uso). **Sprites:** nenhum (a mudança aparece no `FloatingText`: "Calma", "Guarda", "Ataque"); opcional 1 marcador de destino. **Precisa jogar:** se Seguir/Ficar basta sem Postura; se o comando de rebanho é preciso com 2 ou 3 dinos.
+
+### 6.11b Placa sobre o dino domado, modos e estados (regra do dono, 06/11; marco abaixo)
+
+**Placa.** Acima do dino domado, de cima para baixo: **nome** (6.9; mostra até 12 caracteres, o resto vira ponto) com **"Nv N"**; depois a **barra de vida** (a barra mini do pacote, 18x4) e, **lado a lado à direita da barra, os símbolos de 8x8** na ordem modo, Seguindo, Sobrepeso (no máximo 3). O menu de interação (6.11) tem uma **legenda** com os mesmos símbolos e seus nomes.
+
+**Modos** (o mesmo sistema da Postura de 6.11, sem sistema paralelo; troca sempre vale, o padrão é Neutro):
+
+| Modo (símbolo) | id | Efeito |
+|---|---|---|
+| **Passivo** (pena branca) | `calma` | não reage a agressões |
+| **Neutro** (escudo verde), padrão | `guarda` | revida agressão feita por selvagem a ele, ao personagem ou a dino aliado |
+| **Agressivo** (raio vermelho) | `ataque` | ataca selvagem **hostil** (Conduta Agressivo ou Semi-agressivo) dentro do alcance; **não** puxa briga com Passivo, Covarde e Curioso (6.11) [assumido: o dono escreveu "dinos selvagens"; mantenho a restrição de 6.11 para não caçar presa pelo mapa] |
+
+**Estados:** **Seguindo** (símbolo de **alvo**; **[assumido]**: o dono falou em escudo e em alvo para Seguir, e o escudo verde já é o Neutro) e **Sobrepeso** (símbolo de **peso**; só existe com a carga em faixas, 5.1b, **M4b**).
+
+**Fugitivo (covarde e medroso são o mesmo traço no domado).** Na Conduta selvagem (6.7) o **Covarde** só foge ao ser atacado e o **Medroso** (futuro) foge ao avistar o jogador; nenhum revida. O texto do dono para o **domado** é o mesmo para os dois: **não ataca; corre ao presenciar agressão a ele ou a aliados**. Unifico em um traço de espécie, `fugitivo = verdadeiro`, vindo da Conduta Covarde (ou Medroso, quando existir); não é do indivíduo. **Na v0.2:** **Parassaurolofo (Covarde)** e, se a 5ª espécie ficar, **Gallimimus (Covarde)**; Paquicéfalo (Passivo), Utahraptor (Agressivo) e Triceratops (Semi-agressivo) não têm. Dodo (Covarde, domável, 6.1b) tem os três modos e o traço `fugitivo`; o Listro (M4) também. O alarme de grupo vale para o domado também: "aliados" são os dinos do dono, e o raio é o `alarme_raio_tiles` da espécie (Parassaurolofo 12). `fugitivo`, `fuga_px_s` e `alarme_raio_tiles` são **dado da espécie**, não do `ResourceNodeDef` (nó de recurso). **Comportamento:** Passivo, o fugitivo fica (não reage); Neutro e Agressivo, ele foge: reusa a fuga do Covarde (6.7), susto de 0,8 s, 75 px/s (85 no Gallimimus), até 10 s ou 16 tiles do agressor, e volta ao dono (Seguindo) ou ao ponto (Ficar). "Presenciar" = a até 8 tiles (a mesma distância do chamado de grupo, V18).
+
+**Alcance e limite do Agressivo (para não puxar briga pelo mapa)** [proposta]: **começa a luta só contra alvo a até 8 tiles do dino** (como em 6.11) **e dentro de 12 tiles do ponto de referência**, que é o **dono** em Seguir e o **ponto onde ficou** em Ficar (o mesmo raio de 12 do Guardar a base, 6.3). **Persegue até 12 tiles do ponto de referência e desiste** com o alvo além de 14 tiles, após **10 s de perseguição** (o selvagem Agressivo desiste em 15 s) ou **5 s sem linha de visão**; volta ao dono. Um alvo por vez. O Neutro revida e persegue até 8 tiles, como já está. Assim a briga acontece onde o dono está, nunca longe dele.
+
+**Marco** (decisão do dono: regra nova vai para depois do MVP, sem horas): a **placa completa e os símbolos de modo e Seguindo** ficam **depois do MVP, junto da Postura** (que já é depois do playtest, 6.11); o **Sobrepeso**, no **M4b**, com a carga em faixas. **A v0.2 não perde nada:** mantém a barra mini de vida e o `FloatingText` (6.11). **Dependências:** o nome e o nível já existem na v0.2 (6.9 e 6.6, M2), então a placa em si não depende de nada que falte; os **modos** dependem da Postura, os símbolos de **Seguindo** do comando Seguir (M1) e o **Sobrepeso** da 5.1b. O traço Fugitivo precisa da Postura para existir como escolha, mas a fuga ao ser atacado já é a Conduta Covarde da 6.7.
+
+**Ícones 8x8 para o `YATORA`** (contorno de 1 px `#141b1b`, 3 tons por forma, fundo transparente, formas distintas além da cor, para quem não distingue cores; os mesmos servem na legenda do menu, ampliados 2x):
+1. **Passivo:** pena branca.
+2. **Neutro:** escudo verde.
+3. **Agressivo:** raio vermelho.
+4. **Seguindo:** alvo (mira).
+5. **Sobrepeso:** peso (M4b).
 
 ### 6.12 Montaria (decisão do dono, 06/11; DECIDIDO: M4, depois do playtest)
 
@@ -784,7 +1013,7 @@ Já dito antes (não duplico): a Stamina do dino **espera a montaria** (5.1, M4)
 
 | Espécie | Montaria | Motivo |
 |---|---|---|
-| Dodo, Listro (M4), Oviraptor (M4) | **não montável** | presa pequena; Oviraptor a definir no M4 |
+| Dodo, Listro (M4), Oviraptor (M4) | **não montável** | porte pequeno ou diminuto; domáveis para Carregar e Colher (6.1b); Oviraptor a definir no M4 |
 | Paquicéfalo | **não montável** | pequeno; é o dino de Carregar (40 kg) |
 | Utahraptor | **montável sem sela** | rápido, **não carrega** (Peso 0): não há inventário nem defesa a expandir; **não tem vaga de sela** |
 | Parassaurolofo | **montável com sela (sela obrigatória)** | carrega 100 a 130 kg; a sela é a razão de equipar |
@@ -792,7 +1021,7 @@ Já dito antes (não duplico): a Stamina do dino **espera a montaria** (5.1, M4)
 
 **Requisitos de montar:** ser o dono (ou grupo, `dino_permissao`), **Afeto >= 25** (o limiar de "obedece sempre", 6.3), dino **acordado, não ferido, fome > 25** e, nas espécies com sela, **sela equipada e não quebrada**. **Sem exigência de nível** (o nível é de evolução; um segundo portão não acrescenta decisão).
 
-**Controle e velocidade:** WASD move o dino, a câmera o segue, o jogador **sai do mundo** (sem colisão própria). **Velocidade montada = velocidade da espécie x 1,3** (`montaria_velocidade_mult` [premissa]), **sem sprint e sem custo de Stamina** (nem do jogador nem do dino; a Stamina do dino segue reservada). Conta (`montaria_sim.py velocidade`; velocidades de espécie de 6.7 como proxy): Parassaurolofo 97,5 px/s, Utahraptor e Triceratops 117; jogador anda 70 e **corre ~86 sustentado** (120 só em rajada de 4 s). **40 tiles: 9,1 s a pé, 7,5 correndo, 6,6 (Parassaurolofo) ou 5,5 s (Utahraptor e Triceratops) montado: +14% e +37% sobre correr.** **Sem o x1,3 a montaria seria mais lenta que correr** (75 a 90 contra 86); o ganho real é **andar sem gastar Stamina**. **Peso:** o cavaleiro não pesa e o alforje segue acessível montado.
+**Controle e velocidade:** WASD move o dino, a câmera o segue, o jogador **sai do mundo** (sem colisão própria). **Velocidade montada = velocidade da espécie x 1,3** (`montaria_velocidade_mult` [premissa]), **sem sprint e sem custo de Stamina** (nem do jogador nem do dino; a Stamina do dino segue reservada). Conta (`montaria_sim.py velocidade`; velocidades de espécie de 6.7 como proxy): Parassaurolofo 97,5 px/s, Utahraptor e Triceratops 117; jogador anda 70 e **corre ~86 sustentado** (120 só em rajada de 4 s). **40 tiles: 9,1 s a pé, 7,5 correndo, 6,6 (Parassaurolofo) ou 5,5 s (Utahraptor e Triceratops) montado: +14% e +37% sobre correr.** **Sem o x1,3 a montaria seria mais lenta que correr** (75 a 90 contra 86); o ganho real é **andar sem gastar Stamina**. **Peso:** o cavaleiro não pesa e o alforje segue acessível montado. **Carga (5.1b, M4b):** a velocidade montada multiplica pela faixa de carga do alforje; em 100% o dino não anda.
 
 **Ataque e dano:** o botão de ataque faz **o dino atacar** (dano e intervalo da espécie, 0 de torpor); o jogador **não usa arma nem ferramenta montado** (guardadas, sem coleta); **não ataca criatura inconsciente** (domar). `montaria_sim.py duelo`: Utahraptor L20 montado contra um selvagem igual, 7,5 dps contra 7,5 dps, 126 de vida: **17 s e empate**; contra Dodo 3 mordidas (3 s). **Dano ao montado: vai todo ao dino** (com a defesa da sela, 6.13), o **jogador é imune e a armadura dele não vale montado**; `dano_final = max(1, dano x (1 - min(0,5, defesa)))`.
 
@@ -802,7 +1031,7 @@ Já dito antes (não duplico): a Stamina do dino **espera a montaria** (5.1, M4)
 
 **Rede (o mais caro):** a **autoridade do movimento do dino montado passa ao cliente do cavaleiro**; o servidor valida velocidade (<= 1,3x + tolerância), colisão e o ataque (alcance e intervalo); `rider_id` replicado; reconexão desmonta; pedidos `montar(dino_id)` e `desmontar()`. **Sprites: nenhum novo.** O jogador aparece **pequeno sobre o dino, reaproveitando o frame parado dele**, filho do sprite do dino, com **deslocamento por espécie e direção** (3 espécies x 4 direções = 12 valores em dados); sem animação de montar.
 
-**Marco e custo [estimativa minha, premissa; `SHIKAMARU` confirma]:** controle e câmera 8 h; velocidade, colisão e Portão 3 h; montar, desmontar e desmonte à força 4 h; dano ao montado 3 h; ataque montado 5 h; HUD (vida do dino no lugar da do jogador) 2 h; rede 6 h; offsets do jogador 1 h = **32 h**. **Menor recorte: 26 h** (sem ataque montado e só Utahraptor e Parassaurolofo). **Decidido: depois do playtest (M4):** (1) já coincide com "Stamina do dino espera montaria"; (2) a v0.2 tem Peso, validade, vagas e Mochila a provar; (3) o ganho de velocidade só existe com o x1,3 [premissa] e precisa ser sentido; (4) a rede é o maior risco. **Precisa jogar:** se +14% a +37% justificam montar; se o dano ao montado sem armadura do jogador cria um "escudo" fácil.
+**Marco:** controle e câmera; velocidade, colisão e Portão; montar, desmontar e desmonte à força; dano ao montado; ataque montado; HUD (vida do dino no lugar da do jogador); rede; offsets do jogador. **Menor recorte** (sem ataque montado e só Utahraptor e Parassaurolofo). **Decidido: depois do playtest (M4):** (1) já coincide com "Stamina do dino espera montaria"; (2) a v0.2 tem Peso, validade, vagas e Mochila a provar; (3) o ganho de velocidade só existe com o x1,3 [premissa] e precisa ser sentido; (4) a rede é o maior risco. **Precisa jogar:** se +14% a +37% justificam montar; se o dano ao montado sem armadura do jogador cria um "escudo" fácil.
 
 ### 6.13 Sela: inventário e defesa do dino (decisão do dono, 06/11; DECIDIDO: junto da montaria, M4)
 
@@ -830,11 +1059,11 @@ Já dito antes (não duplico): a Stamina do dino **espera a montaria** (5.1, M4)
 
 **Receitas e totais (`receitas_sim.py arvore`):** **três receitas, um nó cada** (fibra Saber 1, couro 2, metal 4): **+3 receitas e +7 Saber.** Com a Mochila provisória (5.21: 1 receita, Saber 2): **1.0 com 59 receitas e 84 Saber, completa no L70** (com Saco e Cama, 12.3; antes 57 e 82, L69; 53 e 73, L61). **v0.2 não muda (21 e 22).** Marco: **junto da montaria (depois do playtest)**; fibra e couro **M4+**, metal **M5**. O couro ganha mais um uso (Mochila e selas).
 
-**Custo [estimativa minha, premissa]:** item e receitas em dados 2 h; vaga de sela no dino e tela (arrastar, retirar com regras) 5 h; defesa e durabilidade por golpe no dino, com dano mínimo 2 h; extra de Peso, trava e recusa 3 h; sacolinha com individual na morte permanente 2 h; save e rede 3 h = **17 h**. **Montaria e sela juntas: 43 h (cheia) ou 36 h (recorte, só dois dinos: 26 + 10 h de sela sem metal)**, **ambas depois do playtest.** `SORA`, lista: `montaria` (nenhuma|livre|sela) em `SpeciesDef`; `sela` como vaga do dino; menu de interação; `dino_permissao`; autoridade do movimento do montado; `rider_id`; defesa do dino com `max(1, ...)`; sacolinha aceitando individual. `YATORA`: 3 ícones de sela e silhueta da vaga; **sem sprite de sela sobre o dino** (recomendo, V73) e 12 deslocamentos do jogador (dado). **Precisa jogar:** se a sela como obrigatória nos dois grandes dá objetivo ou só barreira; se o extra de Peso aparece; se a vaga na tela do dino é achada.
+**Escopo:** item e receitas em dados; vaga de sela no dino e tela (arrastar, retirar com regras); defesa e durabilidade por golpe no dino, com dano mínimo; extra de Peso, trava e recusa; sacolinha com individual na morte permanente; save e rede. **Montaria e sela juntas: versão cheia ou recorte (só dois dinos e sela sem metal)**, **ambas depois do playtest.** `SORA`, lista: `montaria` (nenhuma|livre|sela) em `SpeciesDef`; `sela` como vaga do dino; menu de interação; `dino_permissao`; autoridade do movimento do montado; `rider_id`; defesa do dino com `max(1, ...)`; sacolinha aceitando individual. `YATORA`: 3 ícones de sela e silhueta da vaga; **sem sprite de sela sobre o dino** (recomendo, V73) e 12 deslocamentos do jogador (dado). **Precisa jogar:** se a sela como obrigatória nos dois grandes dá objetivo ou só barreira; se o extra de Peso aparece; se a vaga na tela do dino é achada.
 
 ## 7. Coleta e crafting
 
-- **Coleta:** nós de árvore, pedra, arbusto de baga, fibra, com respawn (MUN-02). Tempos [premissa]: baga 3 s/unidade, madeira 8 s por 3, pedra 10 s por 4.
+- **Coleta:** nós de árvore, pedra, arbusto de baga, fibra, com respawn (MUN-02). **Na ilha (`mapa-ilha.md` 8):** árvore coletável tem aparência própria e é 1 em 4; **arbusto único** (`bush`) rende fibra e a fruta do seu tipo (Baga ou Cochilo) numa colheita e a planta de fibra separada some do mapa; Samambaia, Tubérculo e Sal-de-veio são nós novos; o **filão de ferro** é M4 (metal, `receitas.md` 6). Tempos [premissa]: baga 3 s/unidade, madeira 8 s por 3, pedra 10 s por 4.
 - **Crafting:** `RecipeDef` por dados, **21 receitas na v0.2 (22 Saber; inclui Saco e Cama, 12.3)** (4 conhecidas: Fogueira, Lança de madeira, Machado e Picareta; o Bastão-de-sono já nasce no inventário no M1, sem receita; o resto por Saber, `receitas.md`). **Estações: Mãos (menu P; fibra, madeira e pedra), Bancada comum (metal e engenharia, Ração e reparo), Fogueira (assar) e o **Pilão** (portátil).** Regra de produção em 5.19. Sem timers de espera (espera sem decisão é defeito).
 - **Receitas núcleo** [proposta]: Bastão-de-sono no inventário (M1, sem receita; receita de reposição Saber 1 no M2), **Preparado de sono** (3 frutas + 1 carne podre rendem 3, 4 s, **no Pilão, 5.18**; M2, aceito), Ração C a A (Bancada), fundação, parede, porta, baú (à mão).
 - Tier 1: madeira, pedra, fibra, baga. Tier 2: Tubérculo, Sal, Mel (risco). Tier 3 (M4): Seiva, receitas de dino grande.
@@ -860,7 +1089,7 @@ M2 Essencial. Reparo de **peça** por ação: **cortado** (a peça tem vida e re
 | Cerca (2) e parede (2) | 20 | 60 | imune |
 | Porta e portão de dino (4) | 40 | 120 | imune |
 
-**Dano por espécie [premissa]:** `mordida / cooldown x fator`. Utahraptor L20: 11,2 / 1,5 s x **1,0** = **7,5/s**. Triceratops L28: 34,4 / 2,5 s x **2,0** (chifre e investida) = **27,5/s**. Passivo (Paquicéfalo), Medroso (Parassaurolofo), Covarde, Curioso e dino domado: **0**, nunca atacam peça.
+**Dano por espécie [premissa]:** `mordida / cooldown x fator`. Utahraptor L20: 11,2 / 1,5 s x **1,0** = **7,5/s**. Triceratops L28: 34,4 / 2,5 s x **2,0** (chifre e investida) = **27,5/s**. Passivo (Paquicéfalo), Covarde (Parassaurolofo), Curioso e dino domado: **0**, nunca atacam peça.
 
 **Quando atacam:** **Agressivo** (Utahraptor): com alvo dentro (jogador ou dino dormindo) e **sem caminho livre por 2 s**, bate na peça de bloqueio mais próxima (**substitui "desistem após 5 s"**). **Semi-agressivo** (Triceratops): só **provocado** (golpeado) e com alvo dentro. O **primeiro golpe do jogador provoca**: o carnívoro vai ao jogador, não à peça. Na 0.2 só o Utahraptor ataca estruturas.
 
@@ -882,7 +1111,7 @@ M2 Essencial. Reparo de **peça** por ação: **cortado** (a peça tem vida e re
 
 **Materiais da 0.2: só madeira** (nenhuma receita nova; o Utahraptor solitário é a única ameaça às peças). **Palha** (parede, cerca e porta, 1 Saber, nó de palha) **M4**; **pedra** **M4+** (T3); metal fora.
 
-**Marco e custo [estimativa minha, premissa; `SHIKAMARU` confirma]:** M2. Vida por peça e dano 1,5 h; comportamento do atacante (bloqueio, alvo na peça) 3 h; regeneração e save (só peças com vida abaixo do máximo) 2 h; remoção da peça e atualização do caminho 1,5 h; feedback em 3 estágios 1,5 h; testes 1,5 h = **11 h**. **Menor recorte:** só madeira, só Utahraptor, sem regeneração e sem estágios = **6 h**.
+**Marco:** M2. Vida por peça e dano; comportamento do atacante (bloqueio, alvo na peça); regeneração e save (só peças com vida abaixo do máximo); remoção da peça e atualização do caminho; feedback em 3 estágios; testes. **Menor recorte:** só madeira, só Utahraptor, sem regeneração e sem estágios.
 
 **Ponto de atenção (durabilidade):** a vida da peça **não é durabilidade de item**; o item tem durabilidade própria (5.9) e a peça segue regenerando sozinha.
 
@@ -903,12 +1132,12 @@ M2 Essencial. Reparo de **peça** por ação: **cortado** (a peça tem vida e re
 
 | Recurso | Fonte [premissa] | Ralo | Limite natural |
 |---|---|---|---|
-| Madeira | Árvore: 3 por 8 s, respawn 5 min | Construção, receitas | Respawn |
-| Pedra | Nó: 4 por 10 s, respawn 8 min | Construção, flecha (M4) | Respawn |
+| Madeira | Árvore: 3 por 8 s, respawn **8 min (valor do código; o GDD dizia 5)** | Construção, receitas | Respawn |
+| Pedra | Nó: 4 por 10 s, respawn **10 min (valor do código; o GDD dizia 8)** | Construção, flecha (M4) | Respawn |
 | Fibra | Planta, 3 s/unidade | Flecha (M4), porta | Respawn curto |
 | Baga | Arbusto: 3 por 9 s, respawn 4 min | Fome, Ração, domar | Respawn |
 | Carne | **Carcaça de Dodo, Listro e dinos (5.6), com Lança** | Fome, Ração Rubra | Respawn das presas (10 min) |
-| Fruta-do-sono | Arbusto, respawn 6 a 8 min | Torpor do dino dormindo (5.5) | Respawn, ação 1,5 s |
+| Cochilo | Arbusto, respawn 6 a 8 min | Torpor do dino dormindo (5.5) | Respawn, ação 1,5 s |
 | Carne podre | **Carcaça velha (carniça) e pilha de carne vencida (5.9)** | Preparado de sono | Duas fontes coexistem |
 | Tubérculo, Sal | Nó: respawn 6 a 8 min | Ração B, A, S | Respawn |
 | Mel, Seiva | Nó de risco, respawn 8 a 15 min | Ração S, S+ | Máx. 8 S+/h |
@@ -938,7 +1167,7 @@ M1: Flee, Chase, Attack (CRI-04). M2: invasão da base. M4: ameaças e dificulda
 | Gatilho | Salva? | Observação |
 |---|---|---|
 | Autosave | a cada **300 s** de relógio real (`autosave_segundos`) | o relógio **zera a cada save** de qualquer origem |
-| Deitar na Cama | sim, é o **save manual** | único save manual do jogo; não há botão "salvar" no menu |
+| Deitar na Cama | sim, **só no single-player**; é o **save manual** | único save manual do jogo; não há botão "salvar" no menu; no multiplayer deitar não salva (decisão do dono) |
 | Morte do jogador | sim | salva **o estado de morto** (corpo, itens no corpo, tela de escolha pendente) |
 | Morte de dino domado | sim | vale quando a vida do domado chega a 0 (v0.2: vira "ferido" e some 5 min, 6.8; com morte permanente de servidor, vira carcaça) |
 | Voltar ao menu / sair | sim | também ao fechar a janela |
@@ -949,13 +1178,13 @@ M1: Flee, Chase, Attack (CRI-04). M2: invasão da base. M4: ameaças e dificulda
 - **Consequência assumida:** como o jogo salva sozinho na morte, **não existe "recarregar para desfazer"**. É o objetivo do dono: a morte do dino domado e a do jogador são definitivas no save.
 - **Perda máxima numa queda:** 300 s = 5 min (compatível com o plano: "`kill -9` perde no máximo o intervalo de autosave"). 12 saves/h pelo intervalo, mais os eventos [calculado].
 - **Orçamento [premissa, medir]:** escrita atômica com `.bak` (SAV-01) sem travar o quadro: meta < 100 ms ou em thread; se travar, o autosave espera o jogador sair de combate por até 30 s.
-- **Servidor dedicado (M3):** `autosave_segundos` vale no servidor; deitar na Cama pede o save ao servidor, que salva o mundo inteiro.
+- **Multiplayer e servidor dedicado (M3):** `autosave_segundos` vale no servidor; deitar na Cama **não** salva o mundo, que segue só pelo autosave e pelos eventos do servidor.
 
 ### 12.2 Respawn
 
 **Tela de morte (lista única, ordem fixa [proposta]):** (1) **Camas** do jogador, (2) **Saco**, se houver, (3) as **3 regiões**. Cada linha mostra nome e distância ao corpo. Uma **Cama em espera** fica cinza com o **tempo restante** ("libera em 0:42"), sem opção de clicar; o tempo corre na própria tela. A região **Campina** vem pré-selecionada se não houver Cama pronta; havendo, vem a Cama pronta mais próxima do corpo. **O jogador nunca fica sem opção** (as regiões são sempre válidas).
 
-**Regiões em dados (`respawn_regioes`; retângulos e ponto reserva saem do MUN-03):**
+**Regiões em dados (`respawn_regioes`; retângulos e ponto reserva saem do MUN-03; **valores iniciais da ilha em `mapa-ilha.md` 5**):**
 
 | id | bioma | área sorteável | ponto reserva |
 |---|---|---|---|
@@ -968,11 +1197,11 @@ Clareira-brasa (M4) ganha a sua linha quando existir; **uma linha por bioma** ma
 **Regras do ponto aleatório (sorteio uniforme entre tiles caminháveis da região):**
 1. **Nunca em colisão:** tile caminhável do mapa, fora do `BuildGrid`, de nó de recurso, de carcaça e de água/borda do mapa.
 2. **Distância mínima de dino Agressivo: 16 tiles [proposta]** (o dobro da percepção de 8 tiles do Utahraptor, 6.1); **de Semi-agressivo, 8 tiles [proposta]** (Triceratops só ataca provocado; a margem evita nascer na frente dele). Dino domado não conta.
-3. **Até 30 sorteios** [proposta]; se nenhum servir, usa o **ponto reserva** da região. Conta [`respawn_sim.py ponto`]: região de ~4.900 tiles, R=16: com até 8 agressivos o reserva sai em 0,05% dos respawns; com 16, 6,65% (R=24 já daria 15% com 8: por isso 16).
+3. **Até 30 sorteios** [proposta]; se nenhum servir, usa o **ponto reserva** da região. Conta [`respawn_sim.py ponto`]: região de ~4.900 tiles, R=16 (**superado pela ilha de 256: regiões de 4.000 a 8.300 tiles; a Mata-baixa recusa 55% dos sorteios e o reserva sai em 0%, `mapa_sim.py respawn`**): com até 8 agressivos o reserva sai em 0,05% dos respawns; com 16, 6,65% (R=24 já daria 15% com 8: por isso 16).
 4. **Proteção de 3 s [proposta]** (invulnerável, sem atacar) ao nascer; o agressivo pode estar a 16 tiles, não colado.
 5. **Efeito do respawn:** vida 100%, fome 50%, torpor 0, **inventário vazio** (tudo está no corpo), Saber, receitas e nível intactos [proposta: fome 50% = 250 s para achar comida].
 
-**Custo do "teleporte":** escolher a Pedreira ao morrer leva o jogador a ~29 s de caminhada de qualquer lugar; a penalidade real é largar o inventário no corpo, não a distância [calculado]. Não é falha, mas o jogador pode usar a morte como viagem: custo de largar tudo.
+**Custo do "teleporte":** escolher a Pedreira ao morrer leva o jogador a até ~48 s de caminhada do início (o Sal da Pedreira está a 48 s; o arco inteiro leva 64 s, `mapa-ilha.md` 2); a penalidade real é largar o inventário no corpo, não a distância [calculado]. Não é falha, mas o jogador pode usar a morte como viagem: custo de largar tudo.
 
 ### 12.3 Saco de dormir e Cama
 
@@ -994,7 +1223,7 @@ Conta [`respawn_sim.py custo`]: fibra 3 s/un, madeira 8 s por 3: Saco 8 x 3 = **
 **Conhecidas ou aprendidas [proposta]: ambas aprendidas, Saber 1 cada** (T1, como Baú e Bancada). Motivo: manter as 4 conhecidas que o dono fechou (Fogueira, Lança, Machado, Picareta). O respawn por região já protege o jogador antes de aprender, então o Saco não é urgente. **Impacto na contagem [`receitas_sim.py arvore`]: v0.2 passa de 19 receitas e 20 Saber para 21 e 22** (sobra 2 dos 24 do L20, antes 4); aprender tudo vai do **L17 (175 min) ao L19 (218 min)** a 13 XP/min; **1.0 de 53/73 para 55/75** (completa no **L63**, antes L61), e **com Mochila e selas 59/84 (completa no L70**, antes 57/82, L69). Estações v0.2: Mãos 16, Bancada 4 (Ração x3 + Cama), Pilão 1. Alternativa para o dono: **Saco conhecido** (5 conhecidas): v0.2 21 receitas e 21 Saber, sobra 3, L18.
 
 **Vínculo e uso:**
-- **Deitar** (tecla de interagir, 1 s): salva o mundo (12.1), mostra "Salvo" e marca a Cama como ponto de respawn **do dono**. **Não cura, não passa o tempo, não dá bônus** (sem dia e noite na v0.2). Qualquer jogador pode deitar numa Cama alheia para **salvar**; só o **dono** (quem a colocou) renasce nela. Deitar não tem espera; a espera é só do **respawn**.
+- **Deitar** (tecla de interagir, 1 s): no single-player salva o mundo (12.1) e mostra "Salvo"; no multiplayer não salva. Nos dois marca a Cama como ponto de respawn **do dono**. **Não cura, não passa o tempo, não dá bônus** (sem dia e noite na v0.2). Qualquer jogador pode deitar numa Cama alheia para **salvar**; só o **dono** (quem a colocou) renasce nela. Deitar não tem espera; a espera é só do **respawn**.
 - **Espera de 60 s:** conta do instante em que alguém **renasce** na Cama. É **por Cama**, não por jogador. Medida em **tempo de jogo** (só corre com o mundo rodando; menu de pausa do single-player não conta e servidor desligado não conta) e **salva como `espera_restante_s`** (não como instante), então fechar e abrir o jogo não a zera nem a estende. Conta: a recuperação do corpo leva 120 a 180 s, então a espera só morde em **morte em sequência** (menos de 60 s depois de renascer); impede ressuscitar sem limite ao lado de uma Cama no meio de uma luta.
 
 ### 12.4 Casos de borda
@@ -1005,7 +1234,8 @@ Conta [`respawn_sim.py custo`]: fibra 3 s/un, madeira 8 s por 3: Saco 8 x 3 = **
 | **Cama recolhida pelo dono** | devolve o item inteiro; a espera some; libera 1 do limite de 3. |
 | **Saco usado** | o respawn o consome **só depois** do jogador estar posto no mundo. Sai do save. Se a pessoa fecha o jogo na tela de morte, o Saco **continua** (o consumo vem com a escolha). |
 | **Saco já colocado e dono morre longe** | continua no chão como opção; sem prazo de validade. |
-| **O que se perde ao morrer** | tudo o que carrega **e o que veste/atalhos** cai num corpo; Saber, receitas, nível, pontos e dinos domados **não** se perdem. **Corpo some em 20 min [proposta]** (`corpo_minutos`; `morte_item` mantém corpo/perde/mantém). **Até 3 corpos por jogador [proposta]**; o 4º apaga o mais antigo. Marcador do corpo na borda da tela. |
+| **O que se perde ao morrer** | tudo o que carrega **e o que veste/atalhos** cai num corpo; Saber, receitas, nível, pontos e dinos domados **não** se perdem. **Corpo some em 10 min [decisão do dono, 06/11; era 20 min na proposta]** (`corpo_minutos` = 10; `morte_item` mantém corpo/perde/mantém). **Todos os itens ficam no corpo, coletáveis por até 10 min.** **O relógio só corre com o mundo rodando e vai ao save como `restante_s`** (como a espera da Cama; corre durante a tela de morte). **Até 3 corpos por jogador [proposta, mantido]**; o 4º apaga o mais antigo. Marcador do corpo na borda da tela. **Margem [calculado, `peso_sim.py corpo`]:** buscar o corpo leva ~210 s (Cama 60 s + ~150 s); com 10 min sobram 390 s para 1 corpo, 180 s para 2, e o 3º corpo em sequência **expira** (630 s contra 600): o limite de 3 protege da 4ª morte, não do relógio **[jogar]**. **Co-op (M3) [proposta]:** o corpo é só do dono por 120 s e depois de qualquer jogador do grupo (`corpo_aberto_apos_s`; 0 = aberto, -1 = só o dono); sem PvP. |
+| **Bolsinha de Largar e corpo de dino domado (M4b)** | fora da 0.2. Bolsinha: 5 min, qualquer jogador pega, 8 por jogador e 60 no mundo, sem colisão, relógio só com mundo rodando e salvo (5.1b). Dino domado a 0 de vida: corpo com os itens do alforje por 10 min (6.8); o ferido volta em 5 min sem itens. Tempos em dado: `bolsinha_largada_s` 300, `corpo_minutos` 10. |
 | **Camas por jogador** | **3 colocadas** (limite na hora de colocar, com aviso; recolher libera). Fabricar não tem limite. |
 | **Sem Cama nem Saco** | sempre há as **3 regiões**; Campina pré-selecionada. Sem softlock. |
 | **Nenhum ponto válido na região** | ponto reserva fixo da região (garantido livre). |
@@ -1013,13 +1243,13 @@ Conta [`respawn_sim.py custo`]: fibra 3 s/un, madeira 8 s por 3: Saco 8 x 3 = **
 | **Morte do dino e do jogador no mesmo golpe** | um save só (rajada de 10 s). |
 | **Fechar na tela de morte** | o save guarda "morto, escolha pendente"; ao abrir, a tela de morte volta, com as esperas contando de onde pararam. |
 | **Relógio da espera** | `espera_restante_s` no save; só decresce com o mundo rodando. |
-| **Co-op (M3)** | Cama é do dono; Saco idem; espera por Cama; autosave no servidor. |
+| **Co-op (M3)** | Cama é do dono; Saco idem; espera por Cama; autosave no servidor; deitar não salva. |
 
-### 12.5 Custo e marco [estimativa minha, premissa; `SHIKAMARU` confirma]
+### 12.5 Marco
 
-M2 (Cama e Saco com a construção; o respawn mínimo do M1 fica como está, só a Campina). **SORA:** autosave e gatilhos, indicador, coalescência 3 h (SAV-04); tela de morte com lista, espera e pré-seleção 5 h; sorteio do ponto com regras e reserva 3 h; regiões em dados 1 h (junto do MUN-03); Saco (item, colocar, recolher, consumir) 3 h; Cama (peça, deitar, dono, limite, espera, save, destruição) 6 h; corpo com tempo e limite de 3, marcador 3 h; testes 3 h = **27 h**. **YATORA:** 2 sprites (Saco e Cama) e 2 ícones de receita 3 h. Total **30 h**. Cortável sem quebrar o loop: marcador do corpo (1 h) e o limite de 3 corpos (1 h).
+M2 (Cama e Saco com a construção; o respawn mínimo do M1 fica como está, só a Campina). **SORA:** autosave e gatilhos, indicador, coalescência (SAV-04); tela de morte com lista, espera e pré-seleção; sorteio do ponto com regras e reserva; regiões em dados (junto do MUN-03); Saco (item, colocar, recolher, consumir); Cama (peça, deitar, dono, limite, espera, save, destruição); corpo com tempo (10 min, antes 20: só um número) e limite de 3, marcador; testes. **YATORA:** 2 sprites (Saco e Cama) e 2 ícones de receita. Cortável sem quebrar o loop: marcador do corpo e limite de 3 corpos.
 
-**Precisa jogar:** se 300 s é intervalo bom (travada ao salvar?); se a Cama sem benefício além de salvar e respawn tem valor; se 1 min de espera é perceptível; se 16 tiles de folga ao nascer basta contra o Utahraptor em corrida; se 20 min de corpo e 3 corpos são generosos ou punitivos; se escolher a Pedreira para "viajar" vira hábito.
+**Precisa jogar:** se 300 s é intervalo bom (travada ao salvar?); se a Cama sem benefício além de salvar e respawn tem valor; se 1 min de espera é perceptível; se 16 tiles de folga ao nascer basta contra o Utahraptor em corrida; se 10 min de corpo e 3 corpos são generosos ou punitivos (o 3º corpo em sequência expira no pior caso); se escolher a Pedreira para "viajar" vira hábito.
 
 ## 13. Co-op e regras de servidor
 
@@ -1038,7 +1268,7 @@ Regras configuráveis por servidor (arquivo de dados; todo valor que varia):
 | `autosave_segundos` | 300 | Intervalo do autosave (12.1) |
 | `cama_espera_s` | 60 | Espera da Cama entre respawns (12.3) |
 | `cama_max_por_jogador` | 3 | Camas colocadas por jogador (12.3) |
-| `corpo_minutos` / `corpos_max_por_jogador` | 20 / 3 | Duração e quantidade de corpos (12.4) |
+| `corpo_minutos` / `corpos_max_por_jogador` | 10 / 3 | Duração e quantidade de corpos (12.4) |
 | `respawn_dist_agressivo_tiles` / `_semi_` | 16 / 8 | Distância mínima ao nascer em região (12.2) |
 | `respawn_protecao_s` | 3 | Invulnerável ao renascer |
 | `respawn_fome_pct` | 50 | Fome ao renascer |
@@ -1074,23 +1304,23 @@ Marco: guia de arte M1; kit v0 M2; arte final M5.
 
 ## 15. Onboarding e primeira hora
 
-Tutorial contextual (UIX-05, M2): dicas por evento, sem tela de texto.
+Tutorial contextual (UIX-05, M2): dicas por evento, sem tela de texto. **Dicas da primeira doma (Dodo):** ao empunhar o Bastão perto de um Dodo, "dois golpes seguidos o põem para dormir"; ao nocautear, "o bando foge, mas o dorminhoco fica: dê bagas"; ao pedir reforço, "Cochilo mantém o sono sem assustar o bando".
 
 Revisto em 06/11: **o Bastão-de-sono nasce no inventário no M1, sem receita**; Bancada e Ração C são aprendidas; **o Dodo só existe a partir do início do M2** (esta tabela é a v0.2 inteira). XP: 10 por min até o L5 e 13 depois [premissa]; **abater dá XP: Dodo 3, Listro 4**, coletar e domar dão o resto. `receitas_sim.py` e `durab_sim.py`.
 
 | Minuto | O que acontece [premissa] | Número |
 |---|---|---|
 | 0 a 1 | 2 graveto + 3 madeira à mão, faz a **Lança** (menu P, conhecida) | ~25 s de coleta |
-| 1 a 4 | O **Dodo** (Curioso) se aproxima; 2 golpes de Lança, coleta 2 carne + 1 couro | ciclo ~30 s, 3 XP: **L2 aos 3 min** (30 XP) |
+| 1 a 4 | O **Dodo** (Covarde) pasta; o jogador chega, 2 golpes de Lança (o 2º cai antes de ele fugir), coleta 2 carne + 1 couro; o grupo foge ao 1º golpe | ciclo ~38 s (era ~30 s: +8 s para reencontrar outro grupo), 3 XP: **L2 em ~3,8 min** (30 XP) [premissa] |
 | 4 | **Saber 1: Bancada** (8 madeira + 2 pedra, à mão); com Picareta e Machado conhecidos | Bancada no minuto 5 |
 | 5 a 8 | Mais Dodos; **L3 aos 7,5 min** (75 XP): +2 Saber (3 no total): **Ração C** e 1 de sobra (a receita do Bastão repõe o do inventário) | Saber 3 |
-| 8 a 12 | **Primeira domesticação: Paquicéfalo L5 a L8.** Nocaute: **Bastão do inventário, 4 golpes, 2,1 s** (Soco 15 golpes em 8,4 s só se o Bastão quebrar). **15 bagas (45 s de coleta), 90 s dormindo, 2 a 3 reforços de Bastão** (5.14) | **marco: dino domado em até 12 min** [premissa]; ~3 min de ação |
-| 12 a 20 | Abrigo (Saber 1, L4 aos 13 min), curral (Saber 2); Machado e Picareta já gastam ~1 reparo na hora | 3 a 4 min de coleta |
+| 8 a 12 | **Primeira domesticação (decisão do dono, 6.1b): Dodo L3 a L5**, a presa que o jogador já caçou: Bastão do inventário, **2 golpes em 0,7 s dentro do susto**, o grupo foge e não atrapalha; **6 bagas (18 s de coleta), 36 s dormindo, 1 reforço de Bastão ou 2 a 3 s de Cochilo**. **No M1 (sem Dodo) a primeira doma segue o Paquicéfalo L5 a L8:** 4 golpes em 2,1 s, **15 bagas (45 s de coleta), 90 s dormindo, 2 a 3 reforços de Bastão** (5.14); na v0.2 ele vira a **segunda doma** (minuto 12 a 20, carga de 40 kg). Soco: Dodo 6 a 7 golpes, Paquicéfalo 15 | **marco: dino domado em até 12 min** [premissa]; ~3 min de ação |
+| 12 a 20 | **Segunda doma: Paquicéfalo** (carga de 40 kg); Abrigo (Saber 1, L4 aos 13 min), curral (Saber 2); Machado e Picareta já gastam ~1 reparo na hora | 3 a 4 min de coleta |
 | 20 a 35 | **L5 aos 21 min: 6 Saber (Ração B, Cerca e curral).** Caçar 13 Dodos (6,5 min) = 25 carne para a Ração Rubra C, ou 6 Dodos (3 min) = 11 para B | **Utahraptor domável a partir do M2, ~35 min; 0,6 a 1,8 min de domar** |
 | 35 a 50 | Nocautear o Utahraptor com Bastão (5 golpes); vigília e alimentação (validade da carne: 30 min, margem 3x) | primeiro perigo real |
 | 50 a 60 | Baú, carga, ofício; salvar e sair | ofício carregar |
 
-**Caminho mínimo de domesticar sem os três itens:** o Paquicéfalo aceita **baga crua** e o **Bastão do inventário** o nocauteia: **0 Saber**. Para o Utahraptor: **Bancada (1) + Ração C (1) = 2 Saber, no L3 (7,5 min)**, mais Lança e Dodos para a carne. **Onde se fabrica sem Bancada:** no menu P, à mão, **tudo o que é de fibra, madeira e pedra** (regra 5.19): as 4 conhecidas, Bancada, Bastão, Pilão, Baú, Cocho, Abrigo, Cerca, Portão e Bandagem. **Precisa jogar:** o ritmo de XP por abate e se o Soco de 8,4 s no Paquicéfalo é divertido ou só um muro antes do Bastão.
+**Caminho mínimo de domesticar sem os três itens:** o Dodo (v0.2) e o Paquicéfalo aceitam **baga crua** e o **Bastão do inventário** o nocauteia: **0 Saber**. Para o Utahraptor: **Bancada (1) + Ração C (1) = 2 Saber, no L3 (7,5 min)**, mais Lança e Dodos para a carne. **Onde se fabrica sem Bancada:** no menu P, à mão, **tudo o que é de fibra, madeira e pedra** (regra 5.19): as 4 conhecidas, Bancada, Bastão, Pilão, Baú, Cocho, Abrigo, Cerca, Portão e Bandagem. **Precisa jogar:** o ritmo de XP por abate e se o Soco de 8,4 s no Paquicéfalo é divertido ou só um muro antes do Bastão.
 
 Metas do plano: 3 de 5 testadores completam o fluxo em até 20 min (M1) [premissa do plano]; hipótese H1: a vigília gera tensão, não espera. A primeira hora fecha o loop inteiro uma vez.
 
@@ -1105,37 +1335,38 @@ Metas do plano: 3 de 5 testadores completam o fluxo em até 20 min (M1) [premiss
 | Domar (baga crua) | M1 | Essencial |
 | Ordens seguir/ficar | M1 | Essencial |
 | Morte e respawn mínimos (região Campina) | M1 | Essencial |
-| Autosave 5 min e nos eventos (12.1) | M2 | Essencial (~3 h) |
-| Respawn por região, Saco e Cama (12.2 a 12.4) | M2 | Essencial (~27 h SORA + 3 h YATORA) |
+| Autosave 5 min e nos eventos (12.1) | M2 | Essencial |
+| Respawn por região, Saco e Cama (12.2 a 12.4) | M2 | Essencial |
 | Ração C a A (Bancada) | M2 | Essencial |
 | Nível, Eficiência, nível previsto, painel de 3 barras | M2 | Essencial |
 | Barra de vida (após dano, máx. 3) | M2 | Essencial |
 | Bastão-de-sono (dano 2, torpor 30) | M1 | Essencial |
 | Lança de madeira (dano 12, torpor 0) | M1 | Essencial |
 | Durabilidade, reparo e validade (5.9) | M1 (modelo) e M2 | Essencial |
-| Dodo (presa); Listro no M4 | início do M2 / M4 | Essencial / Should |
+| Dodo (domável); Listro (domável) no M4 | início do M2 / M4 | Essencial / Should |
 | Carnívoro ataca dormindo; curral | M2 | Essencial (M1 só se H1 for testada lá) |
 | Soco e Bastão-de-sono | M1 | Essencial |
-| Flecha de sono (torpor contínuo, teto de 3 efeitos) | M4 | Should (~8 h) |
-| Fruta-do-sono e forçar o dino; sinais no jogador | M2 | Essencial (~7,5 h) |
-| Preparado de sono e Carniça | M2 | Cortável (~2 h) |
+| Flecha de sono (torpor contínuo, teto de 3 efeitos) | M4 | Should |
+| Cochilo e forçar o dino; sinais no jogador | M2 | Essencial |
+| Preparado de sono e Carniça | M2 | Cortável |
 | Sono do jogador, Arco e flechas, espada, carne que apodrece | M4 | Fora da 0.2 |
 | Armas de fogo e pólvora | -- | **Fora do jogo (decidido)** |
-| Carcaça e sacolinha (só carne; couro sem uso) | M2 | Essencial (~9 h); completa ~14 h |
-| Faixas de torpor (visual) e regra de lentidão | M2 | Essencial; **pausa já implementada, sem custo novo** |
+| Carcaça e sacolinha (só carne; couro sem uso) | M2 | Essencial |
+| Faixas de torpor (visual) e regra de lentidão | M2 | Essencial; **pausa já implementada** |
 | Afeto e obediência | M2 | Essencial |
 | Ofícios carregar/defender (Peso) | M2 | Essencial |
 | Barra de atalhos 1 a 9: comida e equipar | M1 | Essencial |
-| Rifle, Dardo, arma de fogo, pólvora, fósforo e sílex | **sem marco** | Adiados (decisão do dono, 06/11) |
+| Rifle, Dardo, arma de fogo, pólvora e fósforo | **sem marco** | Adiados (decisão do dono, 06/11) |
+| Sílex (da pedra comum e do minério; ponta de flecha) | M4 | Volta com o Arco (5.9c) |
 | Dar comida ao dino pela tela dele (E) | M1 | Essencial, **já implementado** |
-| Atributos, XP e pontos do jogador (nível 20, 4 atributos) | M2 | Essencial (decisão do dono, ~17 h) |
+| Atributos, XP e pontos do jogador (nível 20, 4 atributos) | M2 | Essencial (decisão do dono) |
 | XP de companhia e pontos do dino (Vida, Dano; +10 níveis) | M2 | Essencial (idem) |
 | Respec, teto por atributo, XP por ofício | depois | **Fora da 0.2** |
-| Saber e tela de receitas (19 receitas) | M2 | Essencial (~11 h, 9 além do PRO-04) |
-| Dano em construções (madeira, Utahraptor) | M2 | Essencial (~11 h; recorte 6 h) |
-| Stamina em golpes e coleta | M2 | Essencial (~3 h) |
+| Saber e tela de receitas (19 receitas) | M2 | Essencial |
+| Dano em construções (madeira, Utahraptor) | M2 | Essencial |
+| Stamina em golpes e coleta | M2 | Essencial |
 | Palha e pedra como material | M4 | Fora da 0.2 |
-| HUD: vida, fome, XP com nível e aviso, atalhos; ofego | M2 (M1 vida, fome, atalhos) | Essencial (~5 h) |
+| HUD: vida, fome, XP com nível e aviso, atalhos; ofego | M2 (M1 vida, fome, atalhos) | Essencial |
 | Nome do dino | M2 | Essencial barato |
 | Construção básica | M2 | Essencial |
 | Ração S, Mel | -- | **Fora da 0.2 (camada 1)** |
@@ -1144,7 +1375,7 @@ Metas do plano: 3 de 5 testadores completam o fluxo em até 20 min (M1) [premiss
 | Conduta: Passivo e Agressivo (Paquicéfalo, Utahraptor) | M1 | Essencial |
 | Conduta: Semi-agressivo (Triceratops) | M2 | Essencial |
 | Conduta: Covarde (Gallimimus) | M4 (Listro) | **Fora da 0.2 (camada 1)** |
-| Conduta: Medroso (Parassaurolofo) | M2 | Essencial |
+| Conduta: Covarde (Parassaurolofo) | M2 | Essencial |
 | Conduta: Curioso (Oviraptor) | M4 | Fora da 0.2 |
 | Grupo chama grupo | M2 | Essencial para Passivo; resto cortável |
 | Co-op e servidor | M3 | Fora da 0.2 |
@@ -1162,12 +1393,12 @@ Metas do plano: 3 de 5 testadores completam o fluxo em até 20 min (M1) [premiss
 6. **Cozinhar é Could** no plano; a Ração usa a **bancada comum** (decidido 05/11), então não há estação extra além da prevista em PRO-04. Conflito resolvido.
 7. **Golpe em dino inconsciente deixa de ser grátis** (muda comportamento já implementado em `Dino.apply_torpor` e `Player`; racao.md, seção 0).
 8. **Criação de filhote** é novo escopo (M4); não existe no plano.
-9. **Nível, Eficiência e vida do dino** (decisões de 05/11) são sistemas novos no M2 que o plano não lista: CRI-03/CRI-05/CRI-07 aumentam (nível e vida na `SpeciesDef`, Eficiência no domar, UI de 3 barras). Não estimei horas; o plano precisa reestimar (aviso ao `SHIKAMARU`).
+9. **Nível, Eficiência e vida do dino** (decisões de 05/11) são sistemas novos no M2 que o plano não lista: CRI-03/CRI-05/CRI-07 aumentam (nível e vida na `SpeciesDef`, Eficiência no domar, UI de 3 barras). O plano precisa incluir o escopo novo (aviso ao `SHIKAMARU`).
 10. **Combate com dano** (Bastão com dano 2, Lança) altera o ataque atual, que só causa torpor (CRI-01 em andamento).
 11. **Carnívoro atacando o dormindo** é comportamento novo; CRI-04 (M1) prevê só Chase e Attack no jogador.
 12. **Morte do dino**: plano cita estado Dead (SOB-02) sem dizer se permanente; aqui é "ferido" por padrão.
 14. **Nível de personagem e pontos** (5.1): o plano tem "sem nível de personagem" como pilar. Decisão do dono; o design limita o risco (abater não dá XP, teto por atributo, 29 pontos em 30 níveis) mas o plano precisa ser corrigido pelo `SHIKAMARU`.
-15. **Inventário por Peso** troca o inventário em slots do plano (itens de inventário, UI de HUD e ofício carregar); exige tela de atributos e de alforje, sem estimativa minha.
+15. **Inventário por Peso** troca o inventário em slots do plano (itens de inventário, UI de HUD e ofício carregar); exige tela de atributos e de alforje.
 16. **Barra de atalhos** (5.2) não está no plano; M1 pede UI de 9 posições e ação por item.
 17. **Nome do dino** e **save**: o save passa a guardar nível, pontos, XP e nome por dino e jogador (bump de versão).
 22. **Carcaça e sacolinha** (5.6): entidades salvas no mundo e coleta com Peso; não estão no plano; o fim da dúvida do `LEVI` (comida de dino morto) vira regra. Carne podre agora também vem da carniça (carcaça velha).
@@ -1175,14 +1406,14 @@ Metas do plano: 3 de 5 testadores completam o fluxo em até 20 min (M1) [premiss
 19. **V6** (torpor contínuo como manutenção do dormindo) é revisto: fruta e preparado a substituem; a flecha de sono (M4) passa a ser ferramenta de dino acordado.
 20. **Torpor do jogador** (sinais e, no M4, sono) não está no plano; reaproveita o `TorporComponent`.
 21. **Dose da flecha de sono** (antes dose do dardo, 50): 15 imediato + 12/s por 5 s = 75; `racao_sim.py` guarda o 50 antigo só como histórico (sem Dardo no jogo).
-23. **Receitas por Saber** (receitas.md): PRO-04 e PRO-10 do plano não têm moeda nem tela de aprender; o texto "por ter feito" do GDD 9 foi substituído. Estimativa de 9 h além do PRO-04, sem valor oficial.
+23. **Receitas por Saber** (receitas.md): PRO-04 e PRO-10 do plano não têm moeda nem tela de aprender; o texto "por ter feito" do GDD 9 foi substituído.
 24. **HUD** (5.7): barra de XP, aviso de ponto e ofego no lugar da barra de stamina não estão no plano; se o HUD atual tem barra de stamina, ela sai.
 25. **Durabilidade (revisto 06/11):** o GDD cortava; agora existe (5.9). **Muda o inventário do código** (`{id,count}` e barra por tipo): item individual e slot na barra; a camada de salvar sobe de versão.
 26. **Conduta:** "desistem após 5 s sem caminho" vira "ataca a peça de bloqueio" para o Agressivo (8.1); `Dino` ganha comportamento novo.
 27. **Reparo:** o de **peça** continua cortado (regenera, 8.1); o de **item** existe na Bancada (5.9).
 28. **Stamina:** o `Player` atual não gasta Stamina em golpe nem coleta; agora gasta (5.8).
 29. **Lança** (CRI-13 do plano, M4) volta como **Lança de madeira no M1** e contradiz a camada 1 (5.3); o CRI-12 (carnívoro ataca o dormindo) segue como estava.
-30. **Dodo e Listro** passam a 6 espécies na v0.2 (plano prevê 4 a 5) e antecipam as Condutas Curioso e Covarde (6.7) do M4 para o início do M2 (Dodo); o Covarde (Listro) volta ao M4.
+30. **Dodo e Listro** passam a 6 espécies na v0.2 (plano prevê 4 a 5) e antecipam a Conduta Covarde (6.7) do M4 para o início do M2 (Dodo, que também é Covarde por decisão do dono); o Listro volta ao M4 e o Curioso fica só com o Oviraptor.
 31. **Estações:** "uma só estação, a Bancada" (5/11) vira Mãos + Bancada + Fogueira (`receitas.md` 10).
 32. **Receitas conhecidas:** de 6 para 4 (Fogueira, Lança, Machado, Picareta); Bastão, Bancada e Ração C custam Saber; +1 Saber no L3 (24 no L20).
 33. **Utahraptor domado fica no M2** (precisa carcaça, Lança e Dodo); no M1 é só ameaça. **Sem Dodo no M1 não há presa nem carne:** a Lança só serve contra Paquicéfalo e Utahraptor (decisão do dono, 06/11).
@@ -1190,10 +1421,10 @@ Metas do plano: 3 de 5 testadores completam o fluxo em até 20 min (M1) [premiss
 35. **Armadura** (5.11): 3 materiais em **5 peças** (camisa, calça, capacete, bota, luva), dano mínimo 1; vagas de equipamento no inventário (5.20); Escudo e pele saem; **temperatura fora, sem marco**.
 36. **Cocho** (5.12): fica em M2 cortável (Saber 2, 8 madeira); a fome 0 do dino domado passa a ter efeito (Afeto e ofício), onde a tabela 5.1 dizia "nenhum".
 37. **Tecla de atalho e Oferta** (5.13): a tecla só consome pelo jogador; alimentar dino é pela tela do dino (E, já implementada) ou pelo slot de Oferta; o cocho não consta na regra 2 (tratado como inventário do rebanho); domar passivo **adiado para depois do playtest**; o atalho em dino da 5.2 saiu.
-38. **Rifle e Dardo (decisão final do dono, 06/11): adiados sem marco**; a exceção do Rifle de mola e o conflito 41 deixam de existir. A 1.0 só tem arco, besta e boleadeira (5.4). Sem consumo para o sílex, o fósforo e a pólvora.
+38. **Rifle e Dardo (decisão final do dono, 06/11): adiados sem marco**; a exceção do Rifle de mola e o conflito 41 deixam de existir. A 1.0 só tem arco, besta e boleadeira (5.4). Sem consumo para o fósforo e a pólvora; o sílex voltou no M4 (5.9c).
 39. **Tempo de domar** (5.14): o nível pesa mais (0,033 por nível, antes 0,015) e os fatores por espécie mudam; a tabela de 60 s, 105 s e as Dificuldades antigas ficam desatualizadas; recomendo `eficiencia_drena_tempo` 0,15.
 40. **Tetos de nível** (5.16): o teto "captura + 10" e o 75 fixo caem; `pontos_sim.py` (`CAP_EXTRA` removido; `MULT` 2 e `DINO_MAX` 50) já corrigido; o save acima do teto só trava.
-41. **Pólvora, fósforo e sílex:** sem marco e sem consumidor (5.18); o químico de sono do pedido é o Preparado de sono (um só nome). O carvão só serve à Forja.
+41. **Pólvora e fósforo:** sem marco e sem consumidor (5.18); o sílex voltou como ponta de flecha (M4, 5.9c); o químico de sono do pedido é o Preparado de sono (um só nome). O carvão só serve à Forja.
 42. **Regra de produção** (5.19): fibra, madeira e pedra à mão; metal e engenharia na Bancada. A Bancada fica com 3 receitas na v0.2 (Ração) mais o reparo.
 43. **Dodo no início do M2** (dono): o M1 fica sem presa (a Lança só encontra Paquicéfalo e Utahraptor); o XP do M1 vem de coletar, craftar e domar.
 44. **Bastão-de-sono nasce no inventário no M1, sem receita** (a receita de reposição, Saber 1, é do M2). O roteiro do M1 (15) deixa de craftar o Bastão.
@@ -1205,8 +1436,8 @@ Metas do plano: 3 de 5 testadores completam o fluxo em até 20 min (M1) [premiss
 50. **Montaria sem ganho de velocidade** (6.12): com as velocidades fixas da espécie (75 a 90) a montaria seria mais lenta que correr (~86); só vale com o x1,3 [premissa]. **RESOLVIDO (dono, 06/11): montaria só no M4 com o x1,3 [premissa] a validar jogando; dano ao montado todo no dino.**
 51. **Sela só nas espécies "montável com sela"** (correção do dono): Utahraptor monta sem sela e sem vaga; Paquicéfalo não monta. **RESOLVIDO (dono, 06/11).**
 52. **Cama e Saco voltam à v0.2 (12.3):** a Cama saiu em 06/11 (cortes leves) e volta por decisão do dono; v0.2 passa a 21 receitas e 22 Saber (sobra 2 no L20, antes 4); 1.0 com Mochila e selas 59/84 (L70). Plano: Cama no M2, junto da construção.
-53. **Teleporte pela morte (12.2):** escolher a Pedreira ao morrer equivale a ~29 s de caminhada; o custo real é largar o inventário no corpo. Aceito; vira problema só se o playtest mostrar morte como viagem.
-13. **CRI-04 (M1)** prevê "Flee (herbívoro), Chase e Attack (carnívoro)". Seis tipos de Conduta exigem uma máquina de estados orientada a dados; o herbívoro do M1 é **Passivo** (revida), não foge. Cabe ao `SHIKAMARU` reestimar.
+53. **Teleporte pela morte (12.2):** escolher a Pedreira ao morrer equivale a ~48 s de caminhada; o custo real é largar o inventário no corpo. Aceito; vira problema só se o playtest mostrar morte como viagem.
+13. **CRI-04 (M1)** prevê "Flee (herbívoro), Chase e Attack (carnívoro)". Seis tipos de Conduta exigem uma máquina de estados orientada a dados; o herbívoro do M1 é **Passivo** (revida), não foge. Cabe ao `SHIKAMARU` ajustar o escopo.
 14. **Tipos x espécies** (CRI-03, CRI-06): a 0.2 mostra 4 tipos com 4 espécies (cabe no plano); o Gallimimus eleva a 5 espécies e 5 tipos, **acima** dos 3 a 4 do plano; Curioso só no M4 (CRI-10).
 15. **"Isca"** aparece no core loop do plano (seção 2) sem tarefa no backlog. Se o Covarde entrar na 0.2 e a corrida não bastar, a isca vira necessária.
 16. **Grupo chama grupo** e percepção por raio custam replicação e CPU no M3; ainda sem orçamento (NET-10/NET-12, NET-20).
@@ -1227,7 +1458,7 @@ Metas do plano: 3 de 5 testadores completam o fluxo em até 20 min (M1) [premiss
 | V13 | Eficiência 0% doma sem bônus e sem penalidade extra? | Sim **DECIDIDO (05/11).** |
 | V14 | Faixas de nível por bioma, teto 1,5x, nível-base 10 | Aceitar para testar **DECIDIDO (05/11).** |
 | V15 | Bastão 30 de torpor a 0,7 s no lugar dos 3 golpes de 40 atuais? | Sim, para o torpor acordado ser legível **DECIDIDO (05/11).** |
-| V16 | Seis tipos de Conduta: aceitar só 3 a 4 na 0.2 e os outros no M4, ou usar variantes por indivíduo no Paquicéfalo da Mata-baixa? | 3 tipos (4 com o Gallimimus) na 0.2; variantes só se faltar variedade no playtest **DECIDIDO (05/11, aceita a recomendação).** Atualizado depois: o dono incluiu o Parassaurolofo (Medroso) no M2, então a 0.2 mostra **4 tipos (5 com o Gallimimus)**. |
+| V16 | Seis tipos de Conduta: aceitar só 3 a 4 na 0.2 e os outros no M4, ou usar variantes por indivíduo no Paquicéfalo da Mata-baixa? | 3 tipos (4 com o Gallimimus) na 0.2; variantes só se faltar variedade no playtest **DECIDIDO (05/11, aceita a recomendação).** Atualizado depois: o dono incluiu o Parassaurolofo (Covarde) no M2, então a 0.2 mostra **4 tipos (5 com o Gallimimus)**. |
 | V17 | Paquicéfalo (herbívoro do M1) como Passivo, não Covarde? | Sim, tutorial depende de poder bater e domar **DECIDIDO (05/11, aceita a recomendação).** |
 | V18 | Atacar um membro chama o grupo a 8 tiles? | Sim **DECIDIDO (05/11, aceita a recomendação).** |
 | V19 | Níveis dão pontos ao jogador e ao dino (1 ponto = 6% da base)? | **DECIDIDO (06/11, dono)** |
@@ -1235,11 +1466,14 @@ Metas do plano: 3 de 5 testadores completam o fluxo em até 20 min (M1) [premiss
 | V21 | Tetos: jogador 20, dino +10, sem teto por atributo | **DECIDIDO** (versão enxuta, 06/11) |
 | V22 | Respec e perda de XP na morte | Sem respec e sem perda na 0.2 **DECIDIDO** (versão enxuta) |
 | V25 | D17: Listro como Covarde e Clareira-brasa fora do M4 | Recomendo; **DECIDIDO (06/11, dono aceita a recomendação).** |
+| V76 | Conduta selvagem: Covarde (jamais revida; foge ao ser atacado ou quando um do grupo é atacado a até `alarme_raio_tiles`) para Parassaurolofo, Dodo, Gallimimus e Listro; Medroso (foge ao avistar) é conduta futura, sem marco; Curioso só no Oviraptor (M4) | **DECIDIDO (06/11, dono).** Fugitivo, fuga e alarme são dado da espécie |
+| V77 | Artrópodes gigantes das cavernas (Arthropleura, Meganeura, Pulmonoscorpius, Titanomyrma) não são dino: ficam **fora da regra "todo dino é domável"** como fauna-recurso (Lança, carcaça com quitina, sem perfil de doma) | **DECIDIDO (06/11, dono): opção A.** |
+| V78 | Dodo como **primeira doma** na v0.2 (Paquicéfalo vira a segunda; no M1, sem Dodo, nada muda) | **DECIDIDO (06/11, dono).** |
 | V26 | Utahraptor solitário na 0.2 e primeiro golpe provoca (5.3) | Recomendo; **DECIDIDO (06/11, dono aceita a recomendação).** |
 | V27 | Regra de armas: torpor zero em flecha comum, besta, lança e espada; torpor próprio em soco, porrete, flecha de sono e dardo; contínuo em flecha e dardo | **DECIDIDO (06/11, dono)**; valores em 5.4 |
 | V28 | Armas de fogo | **Fora do jogo, sem marco, e a pólvora não entra DECIDIDO (06/11, dono; reafirmado na decisão final).** |
 | V29 | Acúmulo de doses: soma até 3, a 4ª renova a mais antiga; flecha de sono em dormindo -2 E; contínuo não é ataque | Recomendo; **DECIDIDO (06/11, dono aceita a recomendação).** |
-| V30 | Fruta-do-sono e preparado forçam o dino sem custo de Eficiência; preparado = fruta + carne podre | **DECIDIDO (06/11, dono)**; números em 5.5 |
+| V30 | Cochilo e preparado forçam o dino sem custo de Eficiência; preparado = fruta + carne podre | **DECIDIDO (06/11, dono)**; números em 5.5 |
 | V31 | Carne podre: carcaça velha **e** pilha vencida; nó de Carniça cortado | **DECIDIDO (06/11, dono; substitui a recomendação anterior).** |
 | V32 | Jogador come fruta: sinais no M2, sono no M4 | Recomendo; **DECIDIDO (06/11, dono aceita a recomendação).** |
 | V33 | Carcaça com carne e couro, sacolinha no chão | **DECIDIDO (06/11, dono)**; números em 5.6 |
@@ -1250,7 +1484,7 @@ Metas do plano: 3 de 5 testadores completam o fluxo em até 20 min (M1) [premiss
 | V38 | 0.2 com **21 receitas (4 conhecidas, 22 Saber de 24)**, aprender tudo no teto; 1.0 (53 receitas com as peças, 73 Saber, completa no L61) não; sem reinício | **DECIDIDO (06/11, dono aceita a recomendação).** |
 | V39 | Armadura: 3 materiais x 5 peças, soma linear, mistura vale, todas as peças sofrem o golpe, dano mínimo 1; **fibra depois do playtest, fora da v0.2** | **DECIDIDO (dono, 06/11); substitui "1 vaga".** Divisão por peça e "Reparar tudo": recomendo, **PENDENTE** (V69) |
 | V40 | Mobílias com função; fogueira passa a ter função (assar), pilão fora | **DECIDIDO (06/11, dono aceita a recomendação).** |
-| V41 | Pergaminho ensina sem gastar Saber (S e S+ só por pergaminho, M4) | **DECIDIDO (06/11, dono aceita a recomendação).** |
+| V41 | Fóssil ensina sem gastar Saber (S e S+ só por fóssil, M4) | **DECIDIDO (06/11, dono aceita a recomendação).** |
 | V42 | Pontos do dino em Vida, Dano e Peso; Stamina espera montaria | **DECIDIDO (06/11, dono).** |
 | V43 | HUD do jogador: vida, XP, fome, atalhos; sem barra de stamina, sem sede; sem durabilidade (5.7) | **DECIDIDO (06/11, dono).** |
 | V44 | Dano de dino em construções decrescente: palha mais que madeira, pedra 0; metal fora por agora | **DECIDIDO (06/11, dono).** |
@@ -1262,21 +1496,21 @@ Metas do plano: 3 de 5 testadores completam o fluxo em até 20 min (M1) [premiss
 | V50 | Validade (carne 30 min, assada 90, baga 45, fruta 30, preparado 45; Ração não vence; juntar até 2 min; baú igual) | **DECIDIDO (06/11, dono aceita a recomendação).** |
 | V51 | Metal: Forja (**construída na Bancada, decidido 06/11**, e estação dos itens de metal), Barra, Espada no M4, Machado e Picareta de ferro no M5; nada na v0.2; construções de metal fora | Forja na Bancada **DECIDIDO (dono)**; marcos recomendo, **PENDENTE** |
 | V61 | Forja: queima 3 madeira em 1 carvão (30 s) e converte 2 minério + 1 carvão em 1 barra (10 s); 4 vagas, funciona longe, carvão só da Forja ou também Fogueira | Regra **DECIDIDA (dono)**; números e o uso do carvão: **PENDENTE** |
-| V62 | Pilão (à mão, portátil, Saber 1) e Preparado no Pilão: **v0.2 com 21 receitas e 22 Saber com Saco e Cama (V75; eram 19 e 20)**; fósforo, pólvora e sílex **sem marco** | **DECIDIDO (dono, 06/11).** |
-| V63 | Rifle, Dardo, arma de fogo, pólvora, fósforo e sílex | **Adiados sem marco (decisão final do dono, 06/11).** |
+| V62 | Pilão (à mão, portátil, Saber 1) e Preparado no Pilão: **v0.2 com 21 receitas e 22 Saber com Saco e Cama (V75; eram 19 e 20)**; fósforo e pólvora **sem marco** (sílex: M4, 5.9c) | **DECIDIDO (dono, 06/11).** |
+| V63 | Rifle, Dardo, arma de fogo, pólvora e fósforo (sílex revisto: M4, 5.9c) | **Adiados sem marco (decisão final do dono, 06/11).** |
 | V64 | Armas à distância: arco, flecha comum e **flecha de sono** (M4), boleadeira (M4), besta (M5); Preparado como ingrediente da flecha de sono | Recomendo; **PENDENTE** (números em 5.4: flecha de sono 75, Besta 22 de dano a 14 tiles, Boleadeira prende x0,4 por 5 s) |
 | V65 | Regra de produção: fibra, madeira e pedra à mão; metal e engenharia na Bancada; Forja feita na Bancada | **DECIDIDO (dono, 06/11).** Ração na Bancada é recomendação minha |
 | V66 | Aceitas: 2x sobre nível final, servidor só trava, dino 50 no MVP, Triceratops L18 a L24, Dodo no início do M2, carvão só na Forja, Pilão e Preparado na v0.2; cortes leves (sem Bastão reforçado, **sem Cama: revertido, a Cama volta com o Saco no M2, V75**, Saber em lista plana, dano em construções no recorte mínimo) | **DECIDIDO (dono, 06/11).** Corte maior só depois do QA-01a |
 | V67 | Bastão-de-sono no inventário no M1, sem receita | Recomendo e confirmo; **PENDENTE** de aceite explícito |
 | V69 | Divisão por peça (camisa 30%, calça 25%, capacete 20%, bota 15%, luva 10%), mistura livre, "Reparar tudo equipado", Saber por conjunto (não por peça) | Aceito; **DECIDIDO (dono, 06/11)**: Saber por conjunto, não por peça |
 | V70 | Sprite do jogador **não** muda por peça (só UI) | Aceito; **DECIDIDO (dono, 06/11)** |
-| V71 | Mochila: item equipável, 7ª vaga (costas), base 24 + 16 = 40, tirar cheia recusa, excesso na sacolinha, M4, 9 h; couro + fibra, Saber 2 (provisório) | **DECIDIDO (dono aceitou, 06/11)**: item futuro no M4; números seguem provisórios |
-| V72 | Menu de interação do domado, Postura (Calma, Guarda, Ataque), Ir até aqui, comando de rebanho, `dino_permissao` | **DECIDIDO (dono aceitou, 06/11)**: v0.2 só menu + Seguir/Ficar todos + permissão (11 h); Postura (Calma, Guarda, Ataque) e Ir até aqui **depois do playtest** |
+| V71 | Mochila: item equipável, 7ª vaga (costas), base 24 + 16 = 40, tirar cheia recusa, excesso na sacolinha, M4; couro + fibra, Saber 2 (provisório) | **DECIDIDO (dono aceitou, 06/11)**: item futuro no M4; números seguem provisórios |
+| V72 | Menu de interação do domado, Postura (Calma, Guarda, Ataque), Ir até aqui, comando de rebanho, `dino_permissao` | **DECIDIDO (dono aceitou, 06/11)**: v0.2 só menu + Seguir/Ficar todos + permissão; Postura (Calma, Guarda, Ataque) e Ir até aqui **depois do playtest** |
 | V73 | Montaria: Utahraptor sem sela; Parassaurolofo e Triceratops com sela obrigatória; Paquicéfalo e presas não; x1,3 de velocidade; sem sprite novo | **DECIDIDO (dono aceitou, 06/11)**: classes por espécie, montaria no M4, dano ao montado todo no dino; números seguem [premissa] |
 | V74 | Sela (fibra, couro, metal): Peso extra +20/+40/+60%, defesa 8/15/25%, durabilidade 100/150/300, vaga própria no dino | **DECIDIDO (dono aceitou, 06/11)**: sela no M4 junto da montaria (metal M5); valores seguem [premissa] |
 | V75 | Save, respawn, Saco e Cama (12): 1 mundo; autosave 300 s e nos eventos, sem perguntar; região ou Cama ou Saco; Saco 8 fibra Saber 1; Cama 12 fibra + 8 madeira na Bancada, Saber 1, espera 60 s | **DECIDIDO (dono, rodada após 06/11)** o desenho; **PENDENTE** os números marcados [proposta] em 12 |
 | V68 | Triceratops da 1.0: L18 a L24 (menor ajuste) ou até L28 com couro, Arco ou metal | Recomendo L18 a L24; **PENDENTE** |
-| V52 | Dodo presa sem domar; **Listro fora da v0.2, no M4 com o Oviraptor**; 5 espécies na v0.2 | **DECIDIDO (06/11, dono).** |
+| V52 | ~~Dodo presa sem domar~~ **SUPERADO (06/11): todo dino é domável, 4.1 e 6.1b**; **Listro fora da v0.2, no M4 com o Oviraptor**; 5 espécies na v0.2 | **DECIDIDO (06/11, dono).** |
 | V53 | Fome do jogador (queda 0,2/s, valores de comida) e morte por fome em ciclos | **DECIDIDO (06/11, dono aceita a recomendação).** |
 | V54 | Armadura: fibra 10%/2 kg/100, couro 25%/6 kg/150, metal 40%/12 kg/300 | **DECIDIDO (06/11, dono aceita a recomendação).** |
 | V55 | Cocho (alcance 6 tiles, 40 itens, validade corre, só domado) | **DECIDIDO (06/11, dono: números seguem a recomendação).** |
@@ -1347,12 +1581,12 @@ O dino come quando sente fome (intervalo variável por espécie e comida); item 
 - **Marco:** M2. **Recomendação: não adotar para ataques.** Se o playtest mostrar que E zera cedo demais, aplicar a curva só aos golpes do jogador no dormindo e ao tempo, não às mordidas.
 
 ### 20.6 Domesticação sem nocaute (comida na mão)
-- **Regra proposta** para espécies de Conduta Medroso, Curioso e Covarde: o jogador **fica parado** e oferece Ração; o dino cruza 3 estágios de distância (6, 4 e 2 tiles), com uma **confiança** de 0 a 100 que sobe 10 por segundo com o jogador imóvel e cai 25 se correr ou atacar; ao chegar a 2 tiles, come a cada intervalo da Ração. Sem torpor: sem janela de torpor e sem barra de torpor.
+- **Regra proposta** para espécies de Conduta Covarde e Curioso: o jogador **fica parado** e oferece Ração; o dino cruza 3 estágios de distância (6, 4 e 2 tiles), com uma **confiança** de 0 a 100 que sobe 10 por segundo com o jogador imóvel e cai 25 se correr ou atacar; ao chegar a 2 tiles, come a cada intervalo da Ração. Sem torpor: sem janela de torpor e sem barra de torpor.
 - **Eficiência:** começa em 100, perde `0,1/s` (sem sono, desgaste menor), a drenagem da Ração por refeição (igual à tabela de `racao.md`), e 10 por susto (movimento brusco); ataques de carnívoros contam como em `racao.md` 11. Para não premiar mais o caminho seguro: **teto de E em 70** (bônus máximo de +35%, não +50%). Nível 20 vira 27 no melhor caso, não 30.
 - **Conta de tempo:** C em Paquicéfalo: 3 estágios x 10 s + 8 refeições x 5 s = 70 s parado (contra 40 s dormindo), sem nenhum golpe; fome do dino ignorada.
 - **Benefício:** trilha alternativa para os tipos que correm; não exige corrida de 4 s de stamina nem perseguição, coerente com o tom acolhedor; o carnívoro ainda ameaça (o dino acordado foge).
-- **Custo:** alto: modo de interação novo, UI de confiança, três estágios por espécie, estado novo no dino e testes de cena (3 a 4 vezes o custo do painel de domar [premissa; sem estimativa do plano]).
-- **Marco:** M4, com Curioso e Medroso (que também entram no M4). **Recomendação: adotar no M4** apenas para Curioso e Medroso; o Covarde, que corre, continua com nocaute (a conta de 94 px/s mostra que dá para pegá-lo). Cortar da 0.2.
+- **Escopo:** grande: modo de interação novo, UI de confiança, três estágios por espécie, estado novo no dino e testes de cena (bem maior que o painel de domar).
+- **Marco:** M4, com Curioso e Covarde. **Recomendação: adotar no M4** apenas para Curioso e Covarde; o Gallimimus (Covarde, foge a 85 px/s depois de atacado) continua com nocaute (a conta de 94 px/s mostra que dá para pegá-lo). Cortar da 0.2.
 
 ### 20.7 Ingredientes que só seus dinos produzem
 - **Regra proposta:** o dino domado com Afeto 50 ou mais e ofício "Produzir" gera **1 Orvalho-de-casco a cada 10 min jogados**, com acúmulo de até 5 por dino (30 a 50 min de teto), sem produção offline. A Ração S+ passa a pedir **1 por receita** (rende 2) em vez da Seiva-de-brasa.
@@ -1362,8 +1596,8 @@ O dino come quando sente fome (intervalo variável por espécie e comida); item 
 - **Marco:** M4 (S+ já é M4). **Recomendação: adotar, no lugar da Seiva-de-brasa**, e só para S+. Não aplicar a níveis menores: aumentaria a cadeia de produção, que o escopo da 0.2 não comporta.
 
 ### 20.8 Receitas achadas no mundo
-- **Regra proposta:** as receitas das Rações S e S+ ficam em **pergaminhos** em 3 locais do mapa fixo (ruína na Pedreira, gruta na Mata-baixa, clareira); B e A seguem por uso.
-- **Conta:** 3 locais x 3 a 5 min de ida e volta [premissa] = 9 a 15 min de exploração; mapa de 128x128 cabe.
+- **Regra proposta:** as receitas das Rações S e S+ ficam em **fósseis ou marcas nas rochas** em 3 locais do mapa fixo (formação rochosa na Pedreira, gruta na Mata-baixa, clareira; sem ruína, regra 4.1). **Decidido (dono, 06/11): o fóssil é trocado por fóssil ou marca na rocha (impressão natural, nada feito por humano), com a mesma função de ensinar a receita.**
+- **Conta:** 3 locais x 3 a 5 min de ida e volta [premissa] = 9 a 15 min de exploração; o mapa de 256x256 (64 s a pé de ponta a ponta) cabe.
 - **Benefício:** motivo para explorar. Risco: bloqueia a progressão se o jogador não achar; em mapa fixo vira roteiro de wiki e perde o "achar"; mundo gerado (M4) resolve.
 - **Custo:** item e save de receitas conhecidas; conteúdo de mundo (3 pontos).
 - **Marco:** M4 (mundo por seed, MUN-11). **Recomendação: adiar para o M4 e fazer só para S e S+**; na 0.2 manter desbloqueio por ter feito (seção 9), que já está no GDD.
@@ -1391,11 +1625,11 @@ O dino come quando sente fome (intervalo variável por espécie e comida); item 
 | 3 | Regressão sem comida | M2 | **DECIDIDO: adotar** (1%/s) |
 | 4 | Perder estoque ao acordar | M2 | **DECIDIDO: opção de servidor, desligada por padrão** |
 | 5 | Perda decrescente de E | M2 | **DECIDIDO: rejeitada** |
-| 6 | Domesticar sem nocaute | M4 | **DECIDIDO: adotar** (Curioso e Medroso) |
+| 6 | Domesticar sem nocaute | M4 | **DECIDIDO: adotar** (Curioso e Covarde) |
 | 7 | Ingrediente produzido por dino | M4 | **DECIDIDO: adotar** (no lugar da Seiva, só S+) |
 | 8 | Receitas achadas no mundo | M4 | **DECIDIDO: adiada** |
 | 9 | Filhote criado | M4 | **DECIDIDO: adotar** |
 | 10 | Prévia e JSON | M2 | **DECIDIDO: adotar** |
 
-Itens que entram na 0.2: 1, 3 e 10. Os demais ficam para o M4 ou são rejeitados. O que não está provado: valores de 1%/s, 50% e 70% de teto são [premissa]; a sensação de 70 s parado sem torpor e o valor do exploratório de pergaminhos só playtest responde.
+Itens que entram na 0.2: 1, 3 e 10. Os demais ficam para o M4 ou são rejeitados. O que não está provado: valores de 1%/s, 50% e 70% de teto são [premissa]; a sensação de 70 s parado sem torpor e o valor do exploratório de fósseis só playtest responde.
 

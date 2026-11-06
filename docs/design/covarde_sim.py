@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """v0.2 sem dardo, sem Oferta, sem Listro: Parassaurolofo (foge) e Triceratops (investe) com Bastao e Soco. Biblioteca padrao.
-Uso: python3 medroso_sim.py para|tri"""
+Uso: python3 covarde_sim.py para|tri|dodo"""
 import sys, math
 WALK, SPRINT, STAM, DRAIN, REGEN, RESUME = 70.0, 120.0, 100.0, 25.0, 15.0, 20.0
 REACH, DECAY = 24.0, 5.0
@@ -26,7 +26,7 @@ def run(vf, tmax, arma, hesit=0.8, sprint=True, gap0=20.0, flee_tiles=16.0):
             if tor >= tmax: return True, t, hits, fled / 16.0, stam_min
     return False, t, hits, fled / 16.0, stam_min
 def para():
-    print("Parassaurolofo (Medroso): 1o golpe de perto, susto 0,8 s, foge ao fim a 16 tiles")
+    print("Parassaurolofo (Covarde): 1o golpe de perto, susto 0,8 s, foge ao fim a 16 tiles")
     print(f"{'nivel':>5} {'arma':7} {'fuga px/s':>9} {'sprint':>6}  resultado        t(s) golpes fugiu(tiles) Stamina minima")
     for L in (10, 20, 30):
         for arma in ("Bastao", "Soco"):
@@ -46,4 +46,14 @@ def tri():
         for nome, red in (("sem armadura", 0.0), ("couro 25%", .25), ("metal 40%", .40)):
             tot = ataques * max(1.0, dmg * (1 - red)); out.append(f"{nome} {tot:5.1f}")
         print(f"  L{L:<3} torpor {mx:4.0f}: {n:2} golpes, {tfim:4.1f} s, {ataques} ataques de {dmg:4.1f} | " + " | ".join(out) + "  (vida 100)")
-{"para": para, "tri": tri}[sys.argv[1]]()
+def dodo():
+    print("Dodo domavel (Covarde de grupo, torpor 50 no L10, foge a 75 px/s apos susto 0,8 s): nocaute com Bastao e Soco; o grupo foge junto e nao atrapalha o alvo")
+    print(f"{'nivel':>5} {'arma':7} {'sprint':>6}  resultado        t(s) golpes fugiu(tiles)  torpor_max")
+    for nome, base, vf, nivs in (("Dodo", 50, 75, (3, 6, 10)), ("Listro (M4, fuga 85)", 48, 85, (8, 12, 16))):
+        for L in nivs:
+            for arma in ("Bastao", "Soco"):
+                for sp in (True, False):
+                    mx = base * m_tor(L); ok, t, h, fl, sm = run(vf, mx, arma, sprint=sp)
+                    print(f"{nome[:5]:5}{L:>3} {arma:7} {'sim' if sp else 'nao':>6}  {'nocauteou' if ok else 'NAO nocauteou':14} {t:6.1f} {h:6} {fl:8.1f} {mx:10.0f}")
+    print("Bastao: 2 golpes (0,7 s) cabem DENTRO do susto de 0,8 s: o alvo nao chega a andar. Soco: Dodo 6 a 7 golpes (3 a 3,6 s, foge 9 a 10 tiles); Listro 7 a 8 (3,6 a 4,5 s, foge 11 a 13).")
+{"para": para, "tri": tri, "dodo": dodo}[sys.argv[1]]()

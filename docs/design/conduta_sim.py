@@ -25,12 +25,20 @@ def run(vf, gap0, hesit, slow=True, sprint=True, tmax=100.0, pause=True):
             if first is None: first = t
             if tor >= tmax: return True, t, hits
     return False, t, hits
-cases = [("Covarde, Gallimimus (vê a 8 tiles, foge a 85)", 85, 128, 0.0, 100.0),
-         ("Medroso, Parassaurolofo (torpor 140; 1o golpe de perto, foge a 75 após susto 0,8 s)", 75, 20, 0.8, 140.0),
-         ("Medroso, torpor 100 (referência anterior)", 75, 20, 0.8, 100.0),
+cases = [("Covarde, Gallimimus (1o golpe de perto, susto 0,8 s, foge a 85; fuga própria da espécie)", 85, 20, 0.8, 100.0),
+         ("Medroso (FUTURO, sem marco): vê a 8 tiles e foge a 85", 85, 128, 0.0, 100.0),
+         ("Covarde, Parassaurolofo (torpor 140; 1o golpe de perto, foge a 75 após susto 0,8 s)", 75, 20, 0.8, 140.0),
+         ("Covarde, torpor 100 (referência anterior)", 75, 20, 0.8, 100.0),
          ("Curioso, Oviraptor (a 3 tiles, foge a 75 após 0,5 s)", 75, 48, 0.5, 100.0)]
 for name, vf, g0, h, tm in cases:
     print(name)
     for label, kw in (("com faixas de torpor + sprint", {}), ("sem lentidão de torpor", dict(slow=False, pause=False)), ("com faixas, sem sprint", dict(sprint=False))):
         ok, t, hits = run(vf, g0, h, tmax=tm, **kw)
         print(f"   {label:32} -> {'nocauteou' if ok else 'NAO nocauteou':14} t={t:5.1f}s golpes={hits}")
+
+# Dodo (Covarde de grupo, domavel: torpor 50, ver covarde_sim.py dodo; aqui a caca: vida 24): Lança dano 12, recarga 0,9 s, alcance 1,8 tiles; susto 0,8 s, fuga 75 px/s; grupo foge a 8 tiles com atraso 0,5 s
+print("Covarde, Dodo caçado (Lança: 2 golpes de 12 matam 24 de vida; para domar, Bastão: covarde_sim.py dodo)")
+for g in (10, 20, 28):
+    gap2 = g + 75 * (0.9 - 0.8) - 0.0     # o jogador também anda para ele na recarga; pior caso: parado
+    print(f"   1o golpe a {g} px (alcance 28,8): 2o golpe em 0,9 s, dino fugiu {75*(0.9-0.8):.1f} px -> {'acerta' if gap2 <= 28.8 else 'jogador dá 1 passo (70 px/s x 0,1 s = 7 px)'} -> morre (o dino so comeca a andar em 0,8 s e o 2o golpe cai em 0,9 s)")
+print("   vizinhos do grupo a <= 8 tiles fogem 0,5 s depois do 1o golpe: 1 morte por visita ao grupo; reencontro estimado 8 s [premissa]")

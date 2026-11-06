@@ -25,8 +25,8 @@ if len(sys.argv) > 1 and sys.argv[1] == "carne":
     print("Opcao A (spawner de carcaca 'presa abatida', reusa a entidade de carcaca): 1 carcaca a cada 8 min por ponto, 4 carne + 1 couro (Paquicefalo L12)")
     for pts in (1, 2, 3):
         print(f"   {pts} ponto(s): {pts*4*60/8:4.0f} carne/h; 1 domesticacao (10 a 21) = {10/(pts*4*60/8)*60:4.1f} a {21/(pts*4*60/8)*60:4.1f} min de producao; 1 Utahraptor domado (14,4/h) = {14.4/(pts*30):.0%} da oferta")
-    print("   carcaca que passa de 10 min vira carniça: 1 carne podre = 3 preparados -> o no de Carnica deixa de ser necessario (-1 h)")
-    print("Opcao B (animal pequeno que morre com o Bastao): vida <= 10: 5 golpes, 3,5 s; mas e uma especie nova (~13 h) e Conduta Covarde so no M4")
+    print("   carcaca que passa de 10 min vira carniça: 1 carne podre = 3 preparados -> o no de Carnica deixa de ser necessario")
+    print("Opcao B (animal pequeno que morre com o Bastao): vida <= 10: 5 golpes, 3,5 s; mas e uma especie nova e Conduta Covarde so no M4")
     print("Opcao C (Lanca de volta): 18 de dano, Utahraptor L20 (112) = 7 golpes, 5,4 s, 3 mordidas = 34 de dano; contradiz a camada 1")
-    print("Opcao D (no de Carne como Tuberculo): 1 h, sem fantasia; nao cobre carne podre")
+    print("Opcao D (no de Carne como Tuberculo): sem fantasia; nao cobre carne podre")
     print("Opcao E (abater o nocauteado): 4 s de acao por 4 carne; ciclo nocautear+abater+coletar ~15 s = 16 carne/min: carne trivial e mata a populacao selvagem")

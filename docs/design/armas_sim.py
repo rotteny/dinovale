@@ -8,7 +8,7 @@ ARMAS = {  # nome: (dano, torpor imediato, taxa/s, duracao s, cooldown s)
  "Soco": (1, 10, 0, 0, 0.6), "Bastao-de-sono": (2, 30, 0, 0, 0.7),
  "Flecha de sono (M4)": (1, 15, 12, 5, 1.2)}   # Rifle e Dardo: adiados sem marco (06/11)
 ITENS = {  # preparado so e dado ao dino; na tabela do jogador ele aparece so como contraprova
- "Fruta-do-sono": (6, 5), "Preparado de sono": (12, 5)}   # taxa/s, duracao s (so pela boca)
+ "Cochilo": (6, 5), "Preparado de sono": (12, 5)}   # taxa/s, duracao s (so pela boca)
 ESP = {"Paquicefalo L12": 104, "Utahraptor L20": 144, "Parassaurolofo L20": 168, "Triceratops L28": 218}
 
 def simula(T, doses, dec, tmax=60.0, dt=0.05, imm=0.0, fire_every=1.0, fuga=None):
@@ -48,7 +48,7 @@ def arco():
     print("Flecha comum (dano 14, torpor 0, 1,2 s): vida 24 (Dodo) 2 flechas; Utahraptor L20 (126): 9 flechas, 10,8 s (a Lanca faz 11 golpes em 9,9 s)")
     print("Besta (dano 22, torpor 0, 2,0 s de recarga, 14 tiles): Utahraptor L20 6 tiros, 12 s; vale pelo alcance e pelo dano por tiro, nao pela cadencia")
 def fuga():
-    print("Medroso fugindo (Parassaurolofo L20, torpor 168, vel 75 px/s; faixas 50%%: x0,85 e 75%%: x0,65). Jogador anda 70, corre 120 por 4 s; alcance da flecha 160 px; partida a 80 px")
+    print("Covarde fugindo (Parassaurolofo L20, torpor 168, vel 75 px/s; faixas 50%%: x0,85 e 75%%: x0,65). Jogador anda 70, corre 120 por 4 s; alcance da flecha 160 px; partida a 80 px")
     T, dt = 168, 0.05
     for cd in (1.2,):
         tor, t, act, nxt, dist, sp_run, flee_end = 0.0, 0.0, [], 0.0, 80.0, 4.0, 15.0

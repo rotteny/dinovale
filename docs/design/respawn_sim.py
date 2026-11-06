@@ -3,7 +3,7 @@
 Uso: python3 respawn_sim.py ponto|custo|espera"""
 import sys, random, math
 MAPA = 128                      # tiles (GDD 4)
-REGIAO = 70 * 70                # tiles caminhaveis por regiao [premissa: ~1/3 do mapa]
+REGIAO = 70 * 70                # SUPERADO pela ilha (mapa-ilha.md): regioes reais da ilha de 256 tem 4.000 a 8.300 tiles; use `python3 mapa_sim.py 256 respawn`. Mantido so para a conta generica abaixo
 TENT = 30                       # sorteios antes do ponto reserva
 def ponto():
     """Chance de cair no ponto reserva: N agressivos espalhados, raio minimo R."""

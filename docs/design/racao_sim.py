@@ -18,6 +18,8 @@ SP = {
  "Utahraptor":  dict(d=1.5,  mx=120, dec=1.2, baga=False, base="rubra"),
  "Parassaurolofo": dict(d=1.5, mx=140, dec=1.3, baga=True,  base="verde"),
  "Triceratops":  dict(d=2.0,  mx=160, dec=1.5, baga=False, base="verde"),
+ "Dodo":         dict(d=0.7,  mx=50,  dec=0.8, baga=True,  base="verde"),   # Covarde de grupo, domavel (06/11)
+ "Listro":       dict(d=0.8,  mx=48,  dec=0.9, baga=True,  base="verde"),   # M4, domavel
  "Gallimimus":   dict(d=1.25, mx=100, dec=1.2, baga=True,  base="verde"),
 }
 DART = 50.0   # dose total do dardo: 10 imediato + 8/s x 5 s (06/11)

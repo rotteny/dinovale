@@ -10,7 +10,7 @@ def m_tempo(L):  return max(0.85, 1 + 0.015 * (L - L0)) # refeições (tempo e c
 def m_peso(L):   return max(0.7, 1 + 0.03 * (L - L0))   # Peso (capacidade de carga)
 def m_stam(L):   return max(0.7, 1 + 0.02 * (L - L0))   # Stamina do dino: RESERVADA (M4+, montaria); sem uso na 0.2
 # Velocidade: fixa por espécie (sem fórmula). Fome: medidor sem crescimento.
-PESO_BASE = {'Paquicefalo': 40, 'Utahraptor': 0, 'Parassaurolofo': 100, 'Triceratops': 120, 'Gallimimus': 25}  # kg no nível 10
+PESO_BASE = {'Paquicefalo': 40, 'Utahraptor': 0, 'Parassaurolofo': 100, 'Triceratops': 120, 'Gallimimus': 25, 'Dodo': 12, 'Listro': 15}  # kg no nível 10
 PESO_JOGADOR = 50.0  # kg, fixo no MVP (sem nível)
 DRAIN_T = 0.3                   # E por segundo dormindo
 DRAIN_M = {"Baga": 2.0, "C": 1.5, "B": 1.0, "A": 0.5, "S": 0.0, "S+": -2.0}  # E por refeição
@@ -18,7 +18,7 @@ DART_E = 2.0                    # E por dardo (sedação forçada); dardo = dose
 ATK_FLAT = {"jogador": 4.0, "carnivoro": 8.0}  # E fixo por ataque recebido dormindo
 DMG_E = 0.5                     # E por 1% de vida máxima perdida em dano (só dormindo)
 PLAYER_HIT_DMG = 2.0; BITE_BASE = 8.0; BITE_L = 15; BITE_CD = 1.5
-HP = {"Paquicefalo": 80, "Utahraptor": 80, "Parassaurolofo": 200, "Triceratops": 300, "Gallimimus": 70}
+HP = {"Paquicefalo": 80, "Utahraptor": 80, "Parassaurolofo": 200, "Triceratops": 300, "Gallimimus": 70, "Dodo": 24, "Listro": 36}
 HIT = 30.0; CD = 0.7; DECAY_AWAKE = 5.0
 
 def final_level(L, E):          # E em 0..100; arredonda para o mais próximo, meio para cima; teto 1,5x

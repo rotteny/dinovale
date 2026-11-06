@@ -8,6 +8,8 @@ SP = {  # d: refeicoes x; ivf: tempo por refeicao x; mx torpor no nivel 10; dec 
  "Paquicefalo": dict(d=1.5, ivf=1, mx=100, dec=1.0, base="Baga", lv=(5, 10, 20)),
  "Utahraptor": dict(d=1.5, ivf=1, mx=120, dec=1.2, base="Baga", lv=(10, 15, 25)),   # carne crua no grau da baga
  "Parassaurolofo": dict(d=1.1, ivf=1, mx=140, dec=1.3, base="Baga", lv=(10, 20, 30)),
+ "Dodo": dict(d=0.7, ivf=1, mx=50, dec=0.8, base="Baga", lv=(3, 6, 10)),             # Covarde de grupo, domavel; 2 golpes de Bastao
+ "Listro": dict(d=0.8, ivf=1, mx=48, dec=0.9, base="Baga", lv=(8, 12, 16)),            # M4, Covarde, domavel
  "Triceratops": dict(d=1.7, ivf=3, mx=160, dec=1.5, base="C", lv=(20, 28, 40)),     # sem baga: parte da Racao C
 }
 RATE = 1.0   # taxa padrao do servidor (domar_velocidade); tempo = t / RATE
@@ -60,4 +62,8 @@ def hora():
     for L in (5, 8, 12):
         r = tame("Paquicefalo", "Baga", L); ex = max(0, r["need"] - r["mx"]); h = math.ceil(ex / HIT)
         print(f"Paquicefalo L{L}: {r['meals']} bagas, {r['t']:.0f}s dormindo, coleta {r['meals']*3:.0f}s, extra {ex:.0f} torpor = {h} golpes de Bastao ou {math.ceil(ex/10)} de Soco; nocaute inicial 4 golpes (Bastao) ou 15 (Soco)")
+    print("Dodo como 1a doma (alternativa): sem cabecada, nocaute em 2 golpes de Bastao dentro do susto de 0,8 s")
+    for L in (3, 5, 8):
+        r = tame("Dodo", "Baga", L); ex = max(0, r["need"] - r["mx"]); h = math.ceil(ex / HIT)
+        print(f"Dodo L{L}: {r['meals']} bagas, {r['t']:.0f}s dormindo, coleta {r['meals']*3:.0f}s, extra {ex:.0f} torpor = {h} golpe de Bastao ou {math.ceil(ex*0.133)}s de Cochilo; nocaute inicial 2 golpes (Bastao) ou 6 a 7 (Soco)")
 {"tabela": tabela, "torpor": torpor, "eficiencia": eficiencia, "curral": curral, "carne": carne, "hora": hora}[sys.argv[1]]()

@@ -33,7 +33,7 @@ def curral():
     print("Parede de madeira (%d HP): %.1f s; porta (%d): %.1f s" % (vida("parede","madeira"), vida("parede","madeira")/7.5, vida("porta","madeira"), vida("porta","madeira")/7.5))
 def pedra():
     print("Pedra imune: protecao total, mas custa (parede de pedra = 4 Pedra, cerca de pedra = 3 Pedra = 4,5 kg, 6 s de construcao; curral 3x3 = 36 Pedra = 54 kg, 72 s)")
-    print(" Mineracao: 10 s por 4 Pedra -> 36 Pedra = 90 s; carga do jogador 50 kg = 33 Pedra = 8 pecas por viagem")
+    print(" Mineracao: 10 s por 4 Pedra -> 36 Pedra = 90 s; carga do jogador 50 kg = 33 Pedra = 8 pecas por viagem (M4b: a zona livre de 70% leva 23 Pedra, 5 pecas; GDD 5.1b)")
     print(" Domar leva 40 a 105 s: construir 12 pecas de pedra (72 s) em volta do dormindo come a janela; madeira 36 s, palha 18 s")
     print(" Conclusao: a pedra e protecao de BASE (T3, 4 Saber, exige Tijolo); em campo, o decisor e palha (leve, fraca) x madeira (pesada, media)")
 {"tempo": tempo, "curral": curral, "pedra": pedra}[sys.argv[1]]()

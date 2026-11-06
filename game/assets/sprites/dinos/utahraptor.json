@@ -1,0 +1,71 @@
+{
+	"ancora": "base do quadro (pes em y=30, contorno em y=31)",
+	"animacoes": {
+		"attack": {
+			"colunas": [
+				6,
+				7,
+				8
+			],
+			"fps": 10,
+			"loop": false
+		},
+		"dead": {
+			"colunas": [
+				10
+			],
+			"fps": 1,
+			"loop": false
+		},
+		"idle": {
+			"colunas": [
+				0,
+				1
+			],
+			"fps": 2,
+			"loop": true
+		},
+		"sleep": {
+			"colunas": [
+				9
+			],
+			"fps": 1,
+			"loop": false
+		},
+		"walk": {
+			"colunas": [
+				2,
+				3,
+				4,
+				5
+			],
+			"fps": 8,
+			"loop": true
+		}
+	},
+	"arquivo": "utahraptor.png",
+	"colisao_pes": [
+		14,
+		14
+	],
+	"colunas": 11,
+	"direita": "desenhada a parte (nao e espelho cego): a luz continua vindo de cima-esquerda",
+	"especie": "utahraptor",
+	"filhote": "nao incluso (M4)",
+	"golpe": "preparo (cabeca recua), impacto (investida, boca aberta ou chifres a frente), volta.",
+	"layout": "igual nas cinco especies: colunas 0-1 idle, 2-5 walk, 6-8 attack, 9 sleep, 10 dead; linhas down, up, left, right",
+	"linhas": 4,
+	"linhas_direcao": [
+		"down",
+		"up",
+		"left",
+		"right"
+	],
+	"luz": "cima-esquerda",
+	"porte": "Medio",
+	"quadro": [
+		32,
+		32
+	],
+	"sleep_dead": "desenhados de lado (corpo deitado): linhas down e left olham para a esquerda, up e right olham para a direita; dead = de barriga para cima, patas rigidas para o alto, olho em X"
+}

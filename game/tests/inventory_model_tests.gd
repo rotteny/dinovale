@@ -311,11 +311,11 @@ func _test_equipment_ui() -> void:
 	screen.open_with(player.inventory, null, null, "")
 	var text := ""
 	for i in player.inventory.slot_count():
-		text += screen.slot_button(true, i).text + "|"
+		text += screen.slot_text(true, i) + "|"
 	player.inventory.add(STAFF, 1)
 	text = ""
 	for i in player.inventory.slot_count():
-		text += screen.slot_button(true, i).text.replace("\n", " ") + "|"
+		text += screen.slot_text(true, i).replace("\n", " ") + "|"
 	_check(text.contains("Bastão-de-sono 120/120"), "a célula do individual mostra durabilidade x/y")
 	screen.close()
 
@@ -858,7 +858,7 @@ func _test_equipment_screen() -> void:
 	screen.unequip_requested.connect(func(value: String) -> void: unequips.append(value))
 	screen.open_with(player.inventory, null, null, "")
 	_check(screen.equipment_button("weapon") != null and screen.equipment_button("helmet") == null, "a tela mostra só a vaga Arma")
-	_check(screen.equipment_button("weapon").text.contains("Arma"), "vaga vazia mostra a silhueta (nome do tipo)")
+	_check(screen.equipment_text("weapon").contains("Arma"), "vaga vazia mostra a silhueta (nome do tipo)")
 	var staff_index := -1
 	for i in player.inventory.slot_count():
 		if player.inventory.get_slot(i).get("iid", "") == iid:
@@ -881,11 +881,11 @@ func _test_equipment_screen() -> void:
 	_check(equips.size() == 2, "duplo clique em comida não equipa")
 	# Com o item na vaga: a coluna mostra o item, a grade não; duplo clique ou Enter na vaga pede para tirar.
 	player.request_equip(iid)
-	_check(screen.equipment_button("weapon").text.contains("Bastão") and screen.equipment_button("weapon").text.contains("120/120"),
+	_check(screen.equipment_text("weapon").contains("Bastão") and screen.equipment_text("weapon").contains("120/120"),
 			"vaga ocupada mostra o item e a durabilidade")
 	var total := ""
 	for i in player.inventory.slot_count():
-		total += screen.slot_button(true, i).text
+		total += screen.slot_text(true, i)
 	_check(not total.contains("Bastão"), "o equipado sai da grade na tela")
 	screen._on_equipment_gui_input(click, "weapon")
 	screen._on_equipment_gui_input(accept, "weapon")

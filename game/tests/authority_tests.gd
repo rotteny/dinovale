@@ -429,7 +429,9 @@ func _test_hitbox_by_data() -> void:
 			"a caixa nova não vaza para outras criaturas")
 	var player := _player_at(Vector2.ZERO)
 	_check((player.get_node("CollisionShape2D").shape as RectangleShape2D).size == player.rules.hitbox_size
-			and player.rules.hitbox_size == Vector2(10, 10), "caixa do jogador vem do dado")
+			and player.rules.hitbox_size == Vector2(12, 8), "caixa do jogador vem do dado")
+	_check(player.get_node("CollisionShape2D").position == player.rules.hitbox_offset
+			and player.rules.hitbox_offset == Vector2(0, -4), "caixa do jogador apoiada nos pés (offset do dado)")
 
 
 # ----------------------------------------------------------------------------- MUN-01
@@ -458,7 +460,7 @@ func _inside_solid(body: CharacterBody2D, ignore: Array[RID]) -> bool:
 	probe.size = ((body.get_node("CollisionShape2D") as CollisionShape2D).shape as RectangleShape2D).size - Vector2.ONE
 	var query := PhysicsShapeQueryParameters2D.new()
 	query.shape = probe
-	query.transform = body.global_transform
+	query.transform = (body.get_node("CollisionShape2D") as CollisionShape2D).global_transform  # a caixa dos pés, não a origem
 	query.collision_mask = 1
 	query.exclude = ignore + [body.get_rid()]
 	return not body.get_world_2d().direct_space_state.intersect_shape(query, 1).is_empty()
@@ -466,8 +468,9 @@ func _inside_solid(body: CharacterBody2D, ignore: Array[RID]) -> bool:
 
 ## O corpo inteiro (a caixa, não só o centro) está dentro do mapa?
 func _inside_map(body: CharacterBody2D) -> bool:
-	var size := ((body.get_node("CollisionShape2D") as CollisionShape2D).shape as RectangleShape2D).size
-	return Rect2(Vector2.ZERO, MAP_SIZE).grow(0.01).encloses(Rect2(body.global_position - size / 2.0, size))
+	var box := body.get_node("CollisionShape2D") as CollisionShape2D
+	var size := (box.shape as RectangleShape2D).size
+	return Rect2(Vector2.ZERO, MAP_SIZE).grow(0.01).encloses(Rect2(box.global_position - size / 2.0, size))
 
 
 ## Passa `frames` quadros de física e devolve se `body` saiu do mapa ou entrou em sólido em algum deles.
@@ -546,7 +549,9 @@ func _test_map_limits_and_collision() -> void:
 			tried += 1
 			var bad: bool = await _run_player(main, action, 30)
 			_check(not bad, "obstáculo %s, correndo %s: não atravessa nem sai do mapa" % [str(rect.position), action])
-			if rect.grow(8.0).has_point(player.position):
+			var box := player.get_node("CollisionShape2D") as CollisionShape2D
+			var box_size := (box.shape as RectangleShape2D).size
+			if rect.grow(3.0).intersects(Rect2(box.global_position - box_size / 2.0, box_size)):  # parou encostado (folga de 3 px)
 				stopped += 1
 	_check(tried >= 10 and stopped == tried, "o teste exerceu %d combinações e o corpo parou junto do obstáculo em %d" % [tried, stopped])
 	# Corpo contra corpo: o jogador não atravessa o dino.

@@ -549,6 +549,7 @@ func _apply_hitbox() -> void:
 	var shape := RectangleShape2D.new()
 	shape.size = rules.hitbox_size
 	$CollisionShape2D.shape = shape
+	$CollisionShape2D.position = rules.hitbox_offset
 
 
 func _on_area_entered(area: Area2D) -> void:

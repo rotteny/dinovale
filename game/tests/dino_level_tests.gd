@@ -719,24 +719,35 @@ func _test_player_view_frames() -> void:
 	view.player = player
 	_root.add_child(view)
 	_track.call(view)
-	_check(player.visual.hframes == 4 and player.visual.vframes == 7, "sprite do jogador: folha 4x7")
+	_check(player.visual.hframes == 10 and player.visual.vframes == 4, "sprite do jogador: folha 10x4 (quadros 16x32)")
+	var sheet := SpriteSheetDef.from_json_file(PlayerView.SHEET_PATH)
 	view.tick(0.01)
-	_check(player.visual.frame_coords == Vector2i(SpriteFacing.DOWN, 0), "parado de frente")
+	_check(player.visual.frame_coords == Vector2i(0, SpriteFacing.DOWN), "parado de frente: coluna 0 do idle")
+	view.tick(0.5)
+	_check(player.visual.frame_coords == Vector2i(1, SpriteFacing.DOWN), "idle alterna para a coluna 1 (2 fps)")
 	player.velocity = Vector2.RIGHT * 70.0
-	view.tick(0.13)
-	_check(player.visual.frame_coords.x == SpriteFacing.RIGHT and player.visual.frame_coords.y == 1, "andando para a direita, quadro 1")
-	view.tick(0.13)
-	_check(player.visual.frame_coords.y == 2, "ciclo de andar avança")
-	for direction: Vector2 in [Vector2.DOWN, Vector2.UP, Vector2.LEFT]:
+	view.tick(0.01)
+	_check(player.visual.frame_coords == Vector2i(sheet.animations["walk"]["columns"][0], SpriteFacing.RIGHT),
+			"andando para a direita: primeiro quadro do walk, linha da direita")
+	var walk_columns: Array[int] = [player.visual.frame_coords.x]
+	for step in 3:
+		view.tick(0.125)
+		walk_columns.append(player.visual.frame_coords.x)
+	_check(walk_columns == [2, 3, 4, 5], "o ciclo de andar passa pelas 4 colunas, a 8 fps: %s" % [walk_columns])
+	for direction: Vector2 in [Vector2.DOWN, Vector2.UP, Vector2.LEFT, Vector2.RIGHT]:
 		player.velocity = direction * 70.0
 		view.tick(0.01)
-		_check(player.visual.frame_coords.x == SpriteFacing.column_for(direction, 0), "anda em %s" % direction)
+		_check(player.visual.frame_coords.y == SpriteFacing.column_for(direction, 0)
+				and player.visual.frame_coords.x in [2, 3, 4, 5], "anda em %s" % direction)
+	player.velocity = Vector2.LEFT * 70.0
+	view.tick(0.01)
 	player.velocity = Vector2.ZERO
 	view.tick(0.01)
-	_check(player.visual.frame_coords == Vector2i(SpriteFacing.LEFT, 0), "parado mantém a direção")
+	_check(player.visual.frame_coords.y == SpriteFacing.LEFT and player.visual.frame_coords.x in [0, 1],
+			"parado mantém a direção (idle, coluna 0 ou 1)")
 	player.health.take_damage(1000.0)
 	view.tick(0.01)
-	_check(player.visual.frame_coords == Vector2i(0, 6), "morto: linha 6, coluna 0")
+	_check(player.visual.frame_coords == Vector2i(9, SpriteFacing.LEFT), "caído: coluna 9, na direção em que estava")
 
 
 func _test_player_view_attack_sound() -> void:
@@ -758,10 +769,12 @@ func _test_player_view_attack_sound() -> void:
 	_check(player.attack(), "golpe acerta")
 	_check(cues == [PlayerView.CUE_ATTACK] and view.is_attacking(), "o golpe emite o som e anima")
 	view.tick(0.01)
-	_check(player.visual.frame_coords == Vector2i(SpriteFacing.LEFT, 4),
-			"ataque: linha 4, virado para o alvo (esquerda)")
-	view.tick(PlayerView.ATTACK_SECONDS)
-	_check(not view.is_attacking() and player.visual.frame_coords.y == 0, "o ataque termina")
+	_check(player.visual.frame_coords == Vector2i(6, SpriteFacing.LEFT),
+			"golpe: coluna 6 (primeiro quadro do hit), linha da esquerda (virado para o alvo)")
+	view.tick(view.attack_seconds() * 0.5)
+	_check(player.visual.frame_coords.x in [7, 8] and view.is_attacking(), "o golpe avança pelos quadros 7 e 8")
+	view.tick(view.attack_seconds())
+	_check(not view.is_attacking() and player.visual.frame_coords.x in [0, 1], "o golpe termina e volta ao parado")
 	_check(not player.attack() and cues.size() == 1, "golpe em recarga não faz som")
 	var main: Main = MAIN_SCENE.instantiate()
 	_root.add_child(main)

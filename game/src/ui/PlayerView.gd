@@ -6,8 +6,9 @@ extends Node2D
 ## `velocity`, `attacked` e a vida do `Player`; nenhuma regra mora aqui.
 ## Instancie FORA do `Player.tscn`.
 ##
-## Folha `characters/caveman.png` (16x16, 4 colunas x 7 linhas): linhas 0 a 3 andar
-## (a 0 é também o parado), 4 atacar, 6 morto (coluna 0).
+## Folha `sprites/jogador/jogador.png` (quadros de 16x32, 10 colunas x 4 linhas), descrita por
+## `jogador.json`: a linha é a direção (baixo, cima, esquerda, direita) e as colunas são as
+## animações `idle`, `walk`, `hit` (golpe, sem laço) e `fall` (caído). Os pés ficam em y=30 do quadro.
 ##
 ## Dano recebido: número flutuante vermelho e `sound_cue(hurt)`. Fôlego (GDD 5.7): abaixo de
 ## 25% de stamina, sopros (`pant`) cada vez mais rápidos e agudos; ao zerar, um fôlego longo
@@ -28,10 +29,14 @@ const PANT_INTERVAL_SLOW := 0.9
 const PANT_INTERVAL_FAST := 0.3
 const PANT_PITCH_LOW := 0.9
 const PANT_PITCH_HIGH := 1.5
-const ROW_ATTACK := 4
-const ROW_DEAD := 6
-const ATTACK_SECONDS := 0.25
+const SHEET_PATH := "res://assets/sprites/jogador/jogador.json"
+const ANIM_IDLE := "idle"
+const ANIM_WALK := "walk"
+const ANIM_HIT := "hit"
+const ANIM_FALL := "fall"
 const MOVING_SPEED_SQUARED := 1.0
+## Duração do golpe se a folha não tiver `hit`.
+const FALLBACK_ATTACK_SECONDS := 0.25
 
 @export var player: Player
 @export var cue_streams: Dictionary[StringName, AudioStream] = {}
@@ -45,7 +50,12 @@ var _gasp_stream: AudioStream = BreathSound.make(0.7, 0.2)
 var _pant_clock := 0.0
 var _gasp_left := 0.0
 var _time := 0.0
+## Tempo andando sem parar: o ciclo de passos recomeça no primeiro quadro a cada partida.
+var _walk_time := 0.0
 var _attack_left := 0.0
+var _sheet: SpriteSheetDef = SpriteSheetDef.from_json_file(SHEET_PATH)
+## Segundos do golpe em curso (a duração vem da folha: colunas do `hit` / fps).
+var _attack_seconds := maxf(_sheet.duration(ANIM_HIT), FALLBACK_ATTACK_SECONDS)
 var _facing := SpriteFacing.DOWN
 var _popups := Node2D.new()
 
@@ -81,21 +91,38 @@ func tick(delta: float) -> void:
 		return
 	follow()
 	_time += delta
+	_walk_time = _walk_time + delta if player.velocity.length_squared() > MOVING_SPEED_SQUARED else 0.0
 	_attack_left = maxf(_attack_left - delta, 0.0)
 	_tick_breath(delta)
 	var sprite := player.visual
 	if player.health.is_dead():
-		sprite.frame_coords = Vector2i(0, ROW_DEAD)
+		_show_frame(sprite, _sheet.column_at(ANIM_FALL, 0.0))
 		return
 	var moving := player.velocity.length_squared() > MOVING_SPEED_SQUARED
 	if moving:
 		_facing = SpriteFacing.column_for(player.velocity, _facing)
+	var column := 0
 	if _attack_left > 0.0:
-		sprite.frame_coords = Vector2i(_facing, ROW_ATTACK)
+		column = _sheet.column_at(ANIM_HIT, _attack_seconds - _attack_left)
 	elif moving:
-		sprite.frame_coords = Vector2i(_facing, SpriteFacing.walk_row(_time))
+		column = _sheet.column_at(ANIM_WALK, _walk_time)
 	else:
-		sprite.frame_coords = Vector2i(_facing, 0)
+		column = _sheet.column_at(ANIM_IDLE, _time)
+	_show_frame(sprite, column)
+
+
+## Mostra o quadro `column` na linha da direção (mesma ordem de `SpriteFacing`). Folha do JSON inválida ou
+## de outro tamanho que o sprite da cena: fica no primeiro quadro da direção, nunca fora da folha.
+## Troca a folha (testes e folhas de outras skins).
+func use_sheet(sheet: SpriteSheetDef) -> void:
+	_sheet = sheet
+	_attack_seconds = maxf(_sheet.duration(ANIM_HIT), FALLBACK_ATTACK_SECONDS)
+
+
+func _show_frame(sprite: Sprite2D, column: int) -> void:
+	var usable := _sheet.is_valid() and _sheet.columns == sprite.hframes and _sheet.rows == sprite.vframes
+	sprite.frame_coords = Vector2i(
+			clampi(column if usable else 0, 0, sprite.hframes - 1), clampi(_facing, 0, sprite.vframes - 1))
 
 
 func follow() -> void:
@@ -105,6 +132,11 @@ func follow() -> void:
 
 func audio_player() -> AudioStreamPlayer2D:
 	return _audio
+
+
+## Duração do golpe, em segundos (vem da folha).
+func attack_seconds() -> float:
+	return _attack_seconds
 
 
 func is_attacking() -> bool:
@@ -198,7 +230,7 @@ func _setup_cloud() -> void:
 
 
 func _on_attacked() -> void:
-	_attack_left = ATTACK_SECONDS
+	_attack_left = _attack_seconds
 	if player.target != null and is_instance_valid(player.target):
 		_facing = SpriteFacing.column_for(player.target.global_position - player.global_position, _facing)
 	sound_cue.emit(CUE_ATTACK)

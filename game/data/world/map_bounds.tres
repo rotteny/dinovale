@@ -1,0 +1,7 @@
+[gd_resource type="Resource" script_class="MapBounds" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/core/MapBounds.gd" id="1_bounds"]
+
+[resource]
+script = ExtResource("1_bounds")
+rect = Rect2(0, 0, 640, 360)

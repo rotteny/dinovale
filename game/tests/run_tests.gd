@@ -7,18 +7,6 @@ const DinoScene := preload("res://src/entities/dino/Dino.tscn")
 const PlayerScene := preload("res://src/entities/player/Player.tscn")
 const SaveableTable := preload("res://tests/saveable_table.gd")
 
-
-## Erro de runtime em GDScript só aborta a função atual: sem isto, um teste
-## quebrado no meio passaria como verde.
-class ErrorCounter extends Logger:
-	var count := 0
-
-	func _log_error(_function: String, _file: String, _line: int, _code: String,
-			_rationale: String, _editor_notify: bool, _error_type: int,
-			_script_backtrace: Array[ScriptBacktrace]) -> void:
-		count += 1
-
-
 var _checks := 0
 var _failures := 0
 var _nodes: Array[Node] = []
@@ -92,6 +80,8 @@ func _run() -> void:
 	await SaveTests.new(root, _track, _check).run()
 	_free_tracked_nodes()
 	await RespawnResourceTests.new(root, _track, _check).run()
+	_free_tracked_nodes()
+	await ScreenCameraTests.new(root, _track, _check).run()
 	_free_tracked_nodes()
 	await _test_full_taming_integration()
 	_test_saveable_roundtrip_table()
@@ -955,7 +945,7 @@ func _test_full_taming_integration() -> void:
 	player.velocity = player.apply_input(Vector2.RIGHT, false, 0.1) * 0.0
 	_check(player.input_locked, "jogador segue travado com a tela aberta")
 	var button := screen.slot_button(true, 0)
-	_check("Baga" in button.text.split("\n")[0], "slot 0 do jogador mostra a baga")
+	_check("Baga" in screen.slot_text(true, 0).split("\n")[0], "slot 0 do jogador mostra a baga")
 	button.pressed.emit()
 	_check(dino.inventory.count("berry") == 10 and player.inventory.count("berry") == 0, "clique transferiu as bagas")
 	for i in 40:

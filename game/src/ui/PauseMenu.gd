@@ -48,8 +48,7 @@ func _ready() -> void:
 	box.add_child(title)
 	_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_status.custom_minimum_size.x = 220
-	_status.add_theme_font_size_override("font_size", 8)
+	_status.custom_minimum_size.x = 160
 	_status.add_theme_color_override("font_color", UiTheme.INK)
 	_status.visible = false
 	box.add_child(_status)

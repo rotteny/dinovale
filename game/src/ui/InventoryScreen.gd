@@ -24,9 +24,15 @@ signal unequip_requested(slot_id: String)
 ## A tela não muda nada; recusa volta por `show_transfer_refusal`.
 signal transfer_requested(from_player: bool, index: int)
 
+## Medidas para o viewport de 320x180: células quadradas só com o ícone (nome, tecla e durabilidade
+## vão na linha de detalhe sob a grade), 4 colunas por inventário. Painel total ~250x130.
 const COLUMNS := 4
-const SLOT_SIZE := Vector2(84, 32)
+const SLOT_SIZE := Vector2(24, 24)
 const SLOT_FONT_SIZE := 8
+## Folga interna extra além da moldura de madeira do painel (6 px do tema).
+const PANEL_PADDING := 1
+const OUTLINE_SIZE := 1
+const HINT_TEXT := "Clique/Enter: passar  1-9: atalho  Esc: fechar\nDuplo clique/Enter: equipar  Shift+clique: passar equip."
 
 @export var player_inventory: InventoryComponent
 ## Só leitura: marca na célula a tecla de atalho do item.
@@ -54,6 +60,8 @@ var _hover_index := -1
 var _equipment_column := VBoxContainer.new()
 var _equipment_buttons: Dictionary = {}
 var _notice := Label.new()
+## Linha de detalhe: texto completo da célula sob o cursor ou com o foco.
+var _detail := Label.new()
 
 
 func _ready() -> void:
@@ -76,9 +84,10 @@ func _ready() -> void:
 	center.add_child(panel)
 	var margin := MarginContainer.new()
 	for side in ["left", "right", "top", "bottom"]:
-		margin.add_theme_constant_override("margin_" + side, 8)
+		margin.add_theme_constant_override("margin_" + side, PANEL_PADDING)
 	panel.add_child(margin)
 	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation", 2)
 	margin.add_child(column)
 
 	_title.text = "Inventário"
@@ -86,7 +95,7 @@ func _ready() -> void:
 	column.add_child(_title)
 
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 16)
+	row.add_theme_constant_override("separation", 8)
 	column.add_child(row)
 	row.add_child(_equipment_column)
 	var player_column := VBoxContainer.new()
@@ -103,14 +112,17 @@ func _ready() -> void:
 		grid.add_theme_constant_override("h_separation", 2)
 		grid.add_theme_constant_override("v_separation", 2)
 
+	_detail.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_detail.custom_minimum_size.y = 10.0
+	column.add_child(_detail)
 	_notice.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_notice.custom_minimum_size.y = 10.0
 	column.add_child(_notice)
 	var hint := Label.new()
-	hint.text = "Clique ou Enter: transferir   1-9 ou botão direito: atalho   Esc/I/E: fechar\n" \
-			+ "Equipamento: duplo clique ou Enter equipa (na vaga, tira)   Shift+clique: transferir equipamento"
+	hint.text = HINT_TEXT
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(hint)
-	for label: Label in [_title, player_title, _other_title, hint, _notice]:
+	for label: Label in [_title, player_title, _other_title, hint, _notice, _detail]:
 		label.add_theme_color_override("font_color", UiTheme.INK)
 
 
@@ -148,6 +160,7 @@ func open_with(own: InventoryComponent, other: InventoryComponent, source: Inter
 		source.availability_changed.connect(_on_availability_changed)
 		source.tree_exiting.connect(close)
 	_notice.text = ""
+	_detail.text = ""
 	_refresh()
 	is_open = true
 	visible = true
@@ -187,6 +200,24 @@ func close() -> void:
 func slot_button(from_player: bool, index: int) -> Button:
 	var buttons := _player_buttons if from_player else _other_buttons
 	return buttons[index] if index >= 0 and index < buttons.size() else null
+
+
+## Texto completo da célula ("Nome\n[tecla] x3" ou "Nome\n[tecla] 12/20"; "" se vazia). A célula só
+## desenha o ícone; este é o texto da linha de detalhe e da dica.
+func slot_text(from_player: bool, index: int) -> String:
+	var button := slot_button(from_player, index)
+	return str(button.get_meta(&"text", "")) if button != null else ""
+
+
+## Texto completo da vaga de equipamento ("(Arma)" se vazia, "Nome\n120/120" se ocupada).
+func equipment_text(slot_id: String) -> String:
+	var button := equipment_button(slot_id)
+	return str(button.get_meta(&"text", "")) if button != null else ""
+
+
+## Texto da linha de detalhe (célula sob o cursor ou com o foco).
+func detail_text() -> String:
+	return _detail.text
 
 
 ## Índice do slot do jogador sob o cursor ou com o foco; -1 se nenhum.
@@ -262,24 +293,71 @@ func _build_buttons(grid: GridContainer, buttons: Array[Button], inventory: Inve
 	if inventory == null:
 		return
 	for i in inventory.slot_count():
-		var button := Button.new()
-		button.custom_minimum_size = SLOT_SIZE
-		button.clip_text = true
-		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		button.add_theme_font_size_override("font_size", SLOT_FONT_SIZE)
+		var button := _new_cell()
 		button.pressed.connect(_on_slot_pressed.bind(from_player, i))
+		button.focus_entered.connect(_show_detail.bind(button))
+		button.mouse_entered.connect(_show_detail.bind(button))
+		button.mouse_exited.connect(_restore_detail)
 		if from_player:
 			button.mouse_entered.connect(func() -> void: _hover_index = i)
 			button.mouse_exited.connect(func() -> void: _hover_index = -1 if _hover_index == i else _hover_index)
 			button.gui_input.connect(_on_slot_gui_input.bind(i))
 		var swatch := ColorRect.new()
-		swatch.size = Vector2(6, 6)
-		swatch.position = Vector2(3, 3)
+		swatch.size = Vector2(8, 8)
+		swatch.position = Vector2(8, 8)
 		swatch.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		swatch.name = "Swatch"
 		button.add_child(swatch)
+		button.add_child(_corner_label("Key", Control.PRESET_TOP_LEFT))
+		button.add_child(_corner_label("Count", Control.PRESET_BOTTOM_RIGHT))
 		grid.add_child(button)
 		buttons.append(button)
+
+
+## Célula quadrada: só ícone (mais as etiquetas de canto), o texto vai para a linha de detalhe.
+func _new_cell() -> Button:
+	var button := Button.new()
+	button.custom_minimum_size = SLOT_SIZE
+	button.clip_text = true
+	button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	button.expand_icon = false
+	button.add_theme_font_size_override("font_size", SLOT_FONT_SIZE)
+	return button
+
+
+## Etiqueta de canto da célula (tecla do atalho no alto à esquerda, quantidade embaixo à direita), com o
+## tamanho do próprio texto.
+func _corner_label(label_name: String, preset: Control.LayoutPreset) -> Label:
+	var label := Label.new()
+	label.name = label_name
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	label.add_theme_font_size_override("font_size", SLOT_FONT_SIZE)
+	label.add_theme_color_override("font_color", Color.WHITE)
+	label.add_theme_color_override("font_outline_color", Color.BLACK)
+	label.add_theme_constant_override("outline_size", OUTLINE_SIZE)
+	label.set_anchors_preset(preset)
+	if preset == Control.PRESET_BOTTOM_RIGHT:
+		label.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+		label.grow_vertical = Control.GROW_DIRECTION_BEGIN
+		label.offset_right = -1.0
+		label.offset_bottom = 1.0
+	else:
+		label.offset_left = 1.0
+		label.offset_top = -1.0
+	return label
+
+
+## O mouse saiu de uma célula: a linha volta ao texto da célula com foco (teclado), ou fica vazia.
+func _restore_detail() -> void:
+	var focused := get_viewport().gui_get_focus_owner() if is_inside_tree() else null
+	if focused is Button and focused.has_meta(&"text") and is_ancestor_of(focused):
+		_show_detail(focused as Button)
+	else:
+		_detail.text = ""
+
+
+func _show_detail(button: Button) -> void:
+	_detail.text = str(button.get_meta(&"text", "")).replace("\n", "  ")
 
 
 func _refresh() -> void:
@@ -302,11 +380,10 @@ func _build_equipment() -> void:
 	title.add_theme_color_override("font_color", UiTheme.INK)
 	_equipment_column.add_child(title)
 	for def in equipment.layout.shown_slots():
-		var button := Button.new()
-		button.custom_minimum_size = SLOT_SIZE
-		button.clip_text = true
-		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		button.add_theme_font_size_override("font_size", SLOT_FONT_SIZE)
+		var button := _new_cell()
+		button.focus_entered.connect(_show_detail.bind(button))
+		button.mouse_entered.connect(_show_detail.bind(button))
+		button.mouse_exited.connect(_restore_detail)
 		button.gui_input.connect(_on_equipment_gui_input.bind(def.id))
 		_equipment_column.add_child(button)
 		_equipment_buttons[def.id] = button
@@ -319,11 +396,15 @@ func _refresh_equipment() -> void:
 		var button: Button = _equipment_buttons[slot_id]
 		var item := equipment.item_in(slot_id)
 		if item.is_empty():
-			button.text = "(%s)" % equipment.layout.slot_def(slot_id).display_name
+			var silhouette := "(%s)" % equipment.layout.slot_def(slot_id).display_name
+			button.set_meta(&"text", silhouette)
+			button.text = equipment.layout.slot_def(slot_id).display_name  # a silhueta cabe na célula
 			button.icon = null
 			button.modulate.a = 0.55
 		else:
-			button.text = "%s\n%d/%d" % [Items.display_name(item["id"]), item["durab"], item["durab_max"]]
+			var full := "%s\n%d/%d" % [Items.display_name(item["id"]), item["durab"], item["durab_max"]]
+			button.set_meta(&"text", full)
+			button.text = ""
 			button.icon = ItemIcons.icon_of(item["id"])
 			button.modulate.a = 1.0
 
@@ -351,21 +432,29 @@ func _refresh_buttons(buttons: Array[Button], inventory: InventoryComponent) -> 
 	for i in buttons.size():
 		var slot := inventory.get_slot(i)
 		var swatch: ColorRect = buttons[i].get_node("Swatch")
+		var key_label: Label = buttons[i].get_node("Key")
+		var count_label: Label = buttons[i].get_node("Count")
 		if slot.is_empty():
-			buttons[i].text = ""
+			buttons[i].set_meta(&"text", "")
 			buttons[i].icon = null
 			swatch.visible = false
+			key_label.text = ""
+			count_label.text = ""
 		else:
 			var key := -1
 			if hotbar != null and buttons == _player_buttons:
 				key = hotbar.slot_of_iid(slot["iid"]) if slot.has("iid") else hotbar.slot_of(slot["id"])
 			var tag := "[%d] " % (key + 1) if key >= 0 else ""
 			var detail := "%d/%d" % [slot["durab"], slot["durab_max"]] if slot.has("iid") else "x%d" % slot["count"]
-			buttons[i].text = "%s\n%s%s" % [Items.display_name(slot["id"]), tag, detail]
+			buttons[i].set_meta(&"text", "%s\n%s%s" % [Items.display_name(slot["id"]), tag, detail])
 			var icon := ItemIcons.icon_of(slot["id"])
 			buttons[i].icon = icon
 			swatch.color = Items.color_of(slot["id"])
 			swatch.visible = icon == null
+			key_label.text = str(key + 1) if key >= 0 else ""
+			count_label.text = str(slot["count"]) if not slot.has("iid") and int(slot["count"]) > 1 else ""
+		if buttons[i].has_focus() or buttons[i].is_hovered():
+			_show_detail(buttons[i])
 
 
 func _on_slot_gui_input(event: InputEvent, index: int) -> void:

@@ -5,7 +5,12 @@ extends HBoxContainer
 ## pilhas). Sem estoque o atalho fica apagado mas atribuído. Só apresentação: lê o
 ## `HotbarComponent` e o inventário do jogador; quem usa a tecla é o `Player`.
 
-const SLOT_SIZE := Vector2(26, 26)
+## Célula do tamanho do ícone do pacote (16x16): nove atalhos ocupam 152x16 px dos 320x180.
+const SLOT_SIZE := Vector2(16, 16)
+const SLOT_GAP := 1
+const SLOT_FILL := Color(0.0, 0.0, 0.0, 0.45)
+const SLOT_BORDER := Color(0.0, 0.0, 0.0, 0.8)
+const OUTLINE_SIZE := 1
 const EMPTY_ALPHA := 0.35
 const FONT_SIZE := 8
 ## Destaque do item em mãos: fundo e borda amarelos claros (distinto do apagado, que só some).
@@ -21,7 +26,8 @@ var _counts: Array[Label] = []
 
 
 func _ready() -> void:
-	add_theme_constant_override("separation", 2)
+	theme = slot_theme()
+	add_theme_constant_override("separation", SLOT_GAP)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	for i in HotbarComponent.SLOT_COUNT:
 		var slot := Button.new()
@@ -31,13 +37,16 @@ func _ready() -> void:
 		slot.toggle_mode = true
 		slot.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		slot.expand_icon = false
-		var key := _corner_label(str(i + 1), Control.PRESET_TOP_LEFT, Vector2(3, 0))
-		var count := _corner_label("", Control.PRESET_TOP_LEFT, Vector2.ZERO)
+		slot.clip_contents = true
+		var key := _corner_label(str(i + 1))
+		key.offset_left = 1.0
+		key.offset_top = -1.0
+		var count := _corner_label("")
 		count.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
 		count.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 		count.grow_vertical = Control.GROW_DIRECTION_BEGIN
-		count.offset_right = -2.0
-		count.offset_bottom = 3.0
+		count.offset_right = -1.0
+		count.offset_bottom = 1.0
 		slot.add_child(key)
 		slot.add_child(count)
 		add_child(slot)
@@ -95,6 +104,22 @@ func highlight_color(index: int) -> Color:
 	return (_slots[index].get_theme_stylebox("normal") as StyleBoxFlat).bg_color
 
 
+## Tema das células: fundo escuro translúcido de 1 px, sem a moldura de madeira do tema da UI (que come
+## 3 px de cada lado de uma célula de 16). É um tema do container, então as células não levam
+## override próprio: só a que está em mãos ganha o destaque.
+static func slot_theme() -> Theme:
+	var slot_theme := Theme.new()
+	for state in ["normal", "hover", "pressed", "hover_pressed", "disabled", "focus"]:
+		var box := StyleBoxFlat.new()
+		box.bg_color = SLOT_FILL if state != "focus" else Color(0, 0, 0, 0)
+		box.set_border_width_all(1)
+		box.border_color = SLOT_BORDER
+		box.set_content_margin_all(0)
+		slot_theme.set_stylebox(state, "Button", box)
+	slot_theme.set_constant("h_separation", "Button", 0)
+	return slot_theme
+
+
 func _mark_equipped(index: int, equipped: bool) -> void:
 	var slot := _slots[index]
 	slot.button_pressed = equipped
@@ -114,14 +139,14 @@ func is_dimmed(index: int) -> bool:
 	return index >= 0 and index < _slots.size() and _slots[index].modulate.a < 1.0
 
 
-func _corner_label(text: String, preset: Control.LayoutPreset, offset: Vector2) -> Label:
+## Etiqueta de canto: ancorada no canto, com o tamanho do próprio texto (nada de `MINSIZE` antes de o
+## rótulo entrar na árvore, que mediria com a fonte padrão da engine).
+func _corner_label(text: String) -> Label:
 	var label := Label.new()
 	label.text = text
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	label.add_theme_font_size_override("font_size", FONT_SIZE)
 	label.add_theme_color_override("font_color", Color.WHITE)
 	label.add_theme_color_override("font_outline_color", Color.BLACK)
-	label.add_theme_constant_override("outline_size", 3)
-	label.set_anchors_and_offsets_preset(preset, Control.PRESET_MODE_MINSIZE)
-	label.position += offset
+	label.add_theme_constant_override("outline_size", OUTLINE_SIZE)
 	return label

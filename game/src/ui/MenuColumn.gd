@@ -9,6 +9,8 @@ signal activated(id: String)
 
 const MARKER := "> "
 const DISABLED_ALPHA := 0.5
+## Linha do menu para o viewport de 320x180 (o tema dá ao botão ao menos 16 px de altura).
+const ROW_SIZE := Vector2(112, 14)
 
 var navigation := MenuNavigation.new()
 var _ids: Array[String] = []
@@ -29,14 +31,14 @@ func setup(items: Array[Dictionary]) -> void:
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 2)
 		var marker := Label.new()
-		marker.custom_minimum_size.x = 14
+		marker.custom_minimum_size.x = 9
 		marker.add_theme_color_override("font_color", UiTheme.INK)
 		var button := Button.new()
 		button.text = str(items[i]["label"])
 		button.disabled = not bool(items[i].get("enabled", true))
 		button.focus_mode = Control.FOCUS_NONE
 		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		button.custom_minimum_size = Vector2(150, 18)
+		button.custom_minimum_size = Vector2(ROW_SIZE.x, ROW_SIZE.y)
 		button.mouse_entered.connect(_on_hover.bind(i))
 		button.pressed.connect(_on_pressed.bind(i))
 		row.add_child(marker)

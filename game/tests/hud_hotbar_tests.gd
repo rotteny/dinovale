@@ -251,11 +251,11 @@ func _test_inventory_assigns_hotbar() -> void:
 	var requests: Array = []
 	screen.hotbar_assign_requested.connect(func(slot: int, item_id: String, iid: String) -> void: requests.append([slot, item_id, iid]))
 	screen.open_with(player.inventory, null, null, "")
-	var cell := screen.slot_button(true, 0).text
+	var cell := screen.slot_text(true, 0)
 	_check(cell.begins_with("Baga") and cell.contains("[1] "), "a célula mostra a tecla do atalho")
 	_check(player.hotbar.changed.is_connected(screen._refresh), "aberta, a tela escuta hotbar.changed")
 	player.hotbar.assign(4, Items.BERRY)
-	_check(screen.slot_button(true, 0).text.contains("[5] "), "e redesenha a tecla quando a barra muda")
+	_check(screen.slot_text(true, 0).contains("[5] "), "e redesenha a tecla quando a barra muda")
 	player.hotbar.assign(0, Items.BERRY)
 	screen.assign_to_hotbar(1, 6)
 	_check(requests == [[6, Items.MEAT, ""]], "pedido de atribuição por teclado leva o tipo do item do slot")

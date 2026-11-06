@@ -1,4 +1,4 @@
-[gd_scene load_steps=24 format=3]
+[gd_scene load_steps=26 format=3]
 
 [ext_resource type="PackedScene" path="res://src/entities/dino/Dino.tscn" id="1_dino"]
 
@@ -19,6 +19,8 @@
 [ext_resource type="Script" path="res://src/ui/DinoView.gd" id="7_view"]
 [ext_resource type="PackedScene" path="res://src/world/Terrain.tscn" id="8_terrain"]
 [ext_resource type="Script" path="res://src/ui/PlayerView.gd" id="9_pview"]
+[ext_resource type="Script" path="res://src/ui/PlayerCamera.gd" id="22_camera"]
+[ext_resource type="Script" path="res://src/ui/FogFrame.gd" id="23_fog"]
 [ext_resource type="AudioStream" path="res://assets/third_party/ninja-adventure/sounds/hit/hit1.wav" id="10_hit"]
 [ext_resource type="AudioStream" path="res://assets/third_party/ninja-adventure/sounds/pickup/powerup1.wav" id="11_tamed"]
 [ext_resource type="AudioStream" path="res://assets/third_party/ninja-adventure/sounds/swing/whoosh.wav" id="12_attack"]
@@ -153,7 +155,20 @@ cue_streams = Dictionary[StringName, AudioStream]({
 [node name="Player" parent="." instance=ExtResource("2_player")]
 position = Vector2(200, 180)
 
+[node name="PlayerCamera" type="Camera2D" parent="." node_paths=PackedStringArray("player")]
+position = Vector2(200, 164)
+script = ExtResource("22_camera")
+player = NodePath("../Player")
+
 [node name="UI" type="CanvasLayer" parent="."]
+
+[node name="FogFrame" type="ColorRect" parent="UI"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+script = ExtResource("23_fog")
 
 [node name="PlayerHud" type="Control" parent="UI" node_paths=PackedStringArray("player")]
 layout_mode = 3

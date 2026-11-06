@@ -28,7 +28,10 @@ const BACK := "back"
 const GAME_SCENE := "res://src/world/Main.tscn"
 const GAME_TITLE := "Dino Vale"
 const SOON := "Em breve"
-const SCROLL_STEP := 24
+const SCROLL_STEP := 16
+## Tamanhos para o viewport de 320x180.
+const TITLE_FONT_SIZE := 16
+const CREDITS_SIZE := Vector2(260, 108)
 const BACKGROUND := preload("res://src/world/Terrain.tscn")
 
 ## Desligue nos testes para só observar os sinais.
@@ -74,15 +77,15 @@ func _ready() -> void:
 	center.add_child(panel)
 	var margin := MarginContainer.new()
 	for side in ["left", "right", "top", "bottom"]:
-		margin.add_theme_constant_override("margin_" + side, 10)
+		margin.add_theme_constant_override("margin_" + side, 1)
 	panel.add_child(margin)
 	var stack := VBoxContainer.new()
-	stack.add_theme_constant_override("separation", 6)
+	stack.add_theme_constant_override("separation", 3)
 	margin.add_child(stack)
 	var title := Label.new()
 	title.text = GAME_TITLE
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 28)
+	title.add_theme_font_size_override("font_size", TITLE_FONT_SIZE)
 	title.add_theme_color_override("font_color", UiTheme.INK)
 	stack.add_child(title)
 	stack.add_child(_menu_box)
@@ -95,6 +98,8 @@ func _ready() -> void:
 	_build_settings()
 	_build_credits()
 	_notice.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_notice.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_notice.custom_minimum_size.x = 220
 	_notice.add_theme_color_override("font_color", UiTheme.INK)
 	stack.add_child(_notice)
 	_show("menu")
@@ -103,14 +108,18 @@ func _ready() -> void:
 
 ## Fundo: o terreno do jogo (arte Ninja Adventure) escurecido, só desenho (sem física nem lógica).
 func _build_background() -> void:
+	# Camada própria atrás da UI: a folhagem do terreno tem `z_index` 5 e cobriria o painel do menu.
+	var layer := CanvasLayer.new()
+	layer.layer = -1
+	add_child(layer)
 	var terrain := BACKGROUND.instantiate()
 	terrain.process_mode = Node.PROCESS_MODE_DISABLED
-	add_child(terrain)
+	layer.add_child(terrain)
 	var dim := ColorRect.new()
 	dim.color = Color(0, 0, 0, 0.4)
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(dim)
+	layer.add_child(dim)
 
 
 func _build_menu() -> void:
@@ -130,8 +139,7 @@ func _build_single() -> void:
 	_single_menu.activated.connect(_on_single_activated)
 	_confirm_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_confirm_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_confirm_label.custom_minimum_size.x = 190
-	_confirm_label.add_theme_font_size_override("font_size", 8)
+	_confirm_label.custom_minimum_size.x = 170
 	_confirm_label.add_theme_color_override("font_color", UiTheme.INK)
 	_confirm_box.add_child(_confirm_label)
 	_confirm_box.add_child(_confirm_menu)
@@ -168,7 +176,6 @@ func _build_settings() -> void:
 	_settings_menu.activated.connect(_on_settings_activated)
 	var hint := Label.new()
 	hint.text = "Esquerda e direita ajustam o volume"
-	hint.add_theme_font_size_override("font_size", 8)
 	hint.add_theme_color_override("font_color", UiTheme.INK)
 	_settings_box.add_child(hint)
 	_refresh_settings()
@@ -177,16 +184,14 @@ func _build_settings() -> void:
 func _build_credits() -> void:
 	_credits_label.text = CreditsText.load_text()
 	_credits_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_credits_label.custom_minimum_size.x = 380
-	_credits_label.add_theme_font_size_override("font_size", 8)
+	_credits_label.custom_minimum_size.x = CREDITS_SIZE.x - 14.0
 	_credits_label.add_theme_color_override("font_color", UiTheme.INK)
-	_credits_scroll.custom_minimum_size = Vector2(390, 200)
+	_credits_scroll.custom_minimum_size = CREDITS_SIZE
 	_credits_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	_credits_scroll.add_child(_credits_label)
 	_credits_box.add_child(_credits_scroll)
 	var hint := Label.new()
 	hint.text = "Setas e PgUp/PgDn rolam   Esc ou Enter: voltar"
-	hint.add_theme_font_size_override("font_size", 8)
 	hint.add_theme_color_override("font_color", UiTheme.INK)
 	_credits_box.add_child(hint)
 

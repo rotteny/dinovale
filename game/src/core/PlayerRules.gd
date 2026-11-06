@@ -17,7 +17,11 @@ extends Resource
 ## Abaixo desta fração do máximo de stamina o jogador está ofegante (GDD 5.7).
 @export_range(0.01, 1.0) var winded_ratio: float = 0.25
 ## Caixa de colisão do corpo do jogador, em pixels (largura, altura). O corpo a lê ao nascer.
-@export var hitbox_size: Vector2 = Vector2(10.0, 10.0)
+## Só os pés colidem (GDD 4.2): 12x8, o `colisao_pes` do `jogador.json`; cabeça e tronco passam por
+## cima de quem está atrás, pela ordem de profundidade.
+@export var hitbox_size: Vector2 = Vector2(12.0, 8.0)
+## Centro da caixa em relação à origem do corpo (os pés, onde a caixa fica apoiada): metade da altura, para cima.
+@export var hitbox_offset: Vector2 = Vector2(0.0, -4.0)
 ## Saciedade devolvida por 1 unidade, por id de item. Item ausente não é comida.
 ## Baga 25 é premissa do GDD 5.1; carne e samambaia são placeholders até o balanceamento.
 @export var hunger_restore: Dictionary[String, float] = {}

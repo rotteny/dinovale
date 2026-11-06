@@ -8,7 +8,7 @@ extends Node
 ## - `request(reason)` agenda; vários pedidos antes do fim do quadro viram UM save só
 ##   (o de maior prioridade dá o motivo). Morte a menos de `min_seconds_between_saves` do último save
 ##   espera o prazo e vira um save só, com o estado de então: nunca é descartada. `save_now(reason)`
-##   grava na hora, sem prazo e levando junto o que estiver agendado (menu, sair, Salvar, Cama).
+##   grava na hora, sem prazo e levando junto o que estiver agendado (menu, sair, Cama).
 ## - Nunca grava dentro de outra gravação, e o estado é tirado de uma vez só, no fim do quadro:
 ##   morte e autosave no mesmo instante não gravam estado pela metade.
 ## - Falha de escrita não interrompe o jogo nem apaga o arquivo anterior: `saved(..., false, msg)`.
@@ -28,6 +28,8 @@ var dino: Dino
 var field: ResourceField
 ## Contador de respawns do mundo, semente do sorteio de ponto (quem renasce atualiza).
 var respawn_count: int = 0
+## Autoridade do mundo (opcional): dela vem o próximo `entity_id` livre, que o save leva.
+var authority: WorldAuthority
 var manager: SaveManager
 var frozen: bool = false
 ## Texto do último save (sucesso ou falha).
@@ -114,7 +116,8 @@ func _flush() -> bool:
 	var started := Time.get_ticks_usec()
 	var live_dino: Dino = dino if is_instance_valid(dino) else null
 	var envelope := WorldSnapshot.capture(player, live_dino, _game_version(),
-			Time.get_datetime_string_from_system(true), field, respawn_count)
+			Time.get_datetime_string_from_system(true), field, respawn_count,
+			authority.next_entity_id() if authority != null else 0)
 	var ok := manager.write(envelope)
 	last_duration_usec = Time.get_ticks_usec() - started
 	_saving = false

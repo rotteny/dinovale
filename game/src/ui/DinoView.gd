@@ -23,6 +23,7 @@ const CUE_YAWN := &"yawn"
 const CUE_TAMED := &"tamed"
 
 const FLASH_SECONDS := 0.1
+const ORDER_COLOR := Color(0.75, 0.95, 0.6)
 const FLASH_COLOR := Color(4.0, 4.0, 4.0)
 const SLEEP_COLOR := Color(0.65, 0.65, 0.85)
 const TEXT_SECONDS := 0.9
@@ -72,6 +73,7 @@ func _ready() -> void:
 	dino.health.damaged.connect(_on_damaged)
 	dino.torpor.band_changed.connect(_on_band_changed)
 	dino.taming.level_finalized.connect(_on_tamed)
+	dino.state_machine.order_changed.connect(_on_order_changed)
 	follow()
 
 
@@ -187,6 +189,11 @@ func _on_damaged(amount: float) -> void:
 	_flash_left = FLASH_SECONDS
 	_spawn_popup(FloatingText.damage_text(amount), Color(1.0, 0.45, 0.4))
 	_cue(CUE_HIT)
+
+
+## A ordem do domado mudou: o texto sobe da criatura (sem sprite novo; GDD 6.11).
+func _on_order_changed(order: Enums.DinoOrder) -> void:
+	_spawn_popup("Seguir" if order == Enums.DinoOrder.FOLLOW else "Ficar", ORDER_COLOR)
 
 
 func _on_band_changed(_band: int) -> void:

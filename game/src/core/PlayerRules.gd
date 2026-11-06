@@ -16,6 +16,8 @@ extends Resource
 @export var equip_cooldown: float = 0.3
 ## Abaixo desta fração do máximo de stamina o jogador está ofegante (GDD 5.7).
 @export_range(0.01, 1.0) var winded_ratio: float = 0.25
+## Caixa de colisão do corpo do jogador, em pixels (largura, altura). O corpo a lê ao nascer.
+@export var hitbox_size: Vector2 = Vector2(10.0, 10.0)
 ## Saciedade devolvida por 1 unidade, por id de item. Item ausente não é comida.
 ## Baga 25 é premissa do GDD 5.1; carne e samambaia são placeholders até o balanceamento.
 @export var hunger_restore: Dictionary[String, float] = {}

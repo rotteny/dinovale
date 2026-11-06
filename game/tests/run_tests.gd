@@ -32,8 +32,8 @@ func _initialize() -> void:
 
 func _run() -> void:
 	# Nenhum teste grava em user://saves: tudo vai para uma pasta descartável.
-	GameSession.save_root = SaveTests.ROOT
-	SaveTests.remove_tree("user://test_saves")
+	GameSession.save_root = SaveTests.root_dir
+	SaveTests.remove_tree(SaveTests.base_dir)
 	_test_health()
 	_test_health_scene_override()
 	_test_torpor_knockout_and_wake()
@@ -86,18 +86,34 @@ func _run() -> void:
 	HudHotbarTests.new(root, _track, _check).run()
 	InventoryModelTests.new(root, _track, _check).run()
 	EquipmentFlowTests.new(root, _track, _check).run()
+	_free_tracked_nodes()
 	await MenuTests.new(root, _track, _check).run()
+	_free_tracked_nodes()
 	await SaveTests.new(root, _track, _check).run()
+	_free_tracked_nodes()
 	await RespawnResourceTests.new(root, _track, _check).run()
+	_free_tracked_nodes()
 	await _test_full_taming_integration()
 	_test_saveable_roundtrip_table()
+	# Por último: é o mais longo (a física anda em tempo real) e os dinos soltos dos testes anteriores
+	# passeiam enquanto ele espera quadros; antes do `_test_full_taming_integration` eles invadiriam a mira.
+	_free_tracked_nodes()
+	await AuthorityTests.new(root, _track, _check).run()
+	_free_tracked_nodes()
+	await NetFlowTests.new(root, _track, _check).run()
 	GameSession.save_root = GameSession.DEFAULT_SAVE_ROOT
-	SaveTests.remove_tree("user://test_saves")
+	SaveTests.remove_tree(SaveTests.base_dir)
+	_free_tracked_nodes()
+	print("%d verificações, %d falhas, %d erros de script" % [_checks, _failures, _errors.count])
+	quit(1 if _failures > 0 or _errors.count > 0 else 0)
+
+
+## Libera os nós que os testes deixaram na árvore (cada mundo na raiz custa física a cada quadro).
+func _free_tracked_nodes() -> void:
 	for node in _nodes:
 		if is_instance_valid(node):
 			node.free()
-	print("%d verificações, %d falhas, %d erros de script" % [_checks, _failures, _errors.count])
-	quit(1 if _failures > 0 or _errors.count > 0 else 0)
+	_nodes.clear()
 
 
 func _check(condition: bool, label: String) -> void:
@@ -269,6 +285,7 @@ func _spawn_player() -> Player:
 	var player: Player = PlayerScene.instantiate()
 	root.add_child(player)
 	_nodes.append(player)
+	root.add_child(TestWorld.arm(player, [], _track))  # o jogador age pela autoridade, como no jogo
 	return player
 
 
@@ -701,6 +718,7 @@ func _test_attack_rules() -> void:
 	var player := _spawn_player()
 	var dino := _spawn_dino()
 	dino.set_physics_process(false)
+	TestWorld.arm(player, [dino], _track)
 	_check(not player.attack(), "sem alvo não ataca")
 	player.target = dino.interactable
 	player._in_range.append(dino.interactable)
@@ -947,6 +965,9 @@ func _test_full_taming_integration() -> void:
 			break
 	_check(dino.state_machine.current_id == Enums.DinoStateId.TAMED, "dino chegou a TAMED")
 	_check(is_equal_approx(dino.taming.taming_progress, 100.0), "progresso em 100%")
+	# Pelo caminho da autoridade: quem depositou a comida ideal é o candidato e, ao fim, o dono.
+	_check(dino.owner_player_id == Player.LOCAL_PLAYER_ID and dino.feeder_player_id == Player.LOCAL_PLAYER_ID,
+			"domesticou pela Main: o jogador que alimentou é o dono")
 	_check(dino.level == 28, "nível final 28 (20 com Eficiência 79%%: %d)" % dino.level)
 	_check(not screen.is_open and not player.input_locked, "domesticar fechou a tela e liberou o jogador")
 	var bars: DinoStatusBars = main.get_node("DinoStatusBars")

@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="DinoOrderRules" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/core/DinoOrderRules.gd" id="1_rules"]
+
+[resource]
+script = ExtResource("1_rules")
+tile_size = 16
+follow_distance_tiles = 3.0
+arrive_distance_tiles = 2.5
+follow_speed_multiplier = 1.8

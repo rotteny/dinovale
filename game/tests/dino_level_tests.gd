@@ -64,6 +64,7 @@ func _spawn_player() -> Player:
 	var player: Player = PlayerScene.instantiate()
 	_root.add_child(player)
 	_track.call(player)
+	_root.add_child(TestWorld.arm(player, [], _track))  # o jogador age pela autoridade, como no jogo
 	return player
 
 
@@ -336,6 +337,7 @@ func _test_player_weapon_attack() -> void:
 	var dino := _spawn_dino()
 	dino.set_physics_process(false)
 	dino.torpor.set_physics_process(false)
+	TestWorld.arm(player, [dino], _track)
 	player.target = dino.interactable
 	player._in_range.append(dino.interactable)
 	_check(player.current_weapon().id == "punch", "mãos livres: Soco")
@@ -363,6 +365,7 @@ func _test_player_weapon_attack() -> void:
 	var full := _spawn_dino()
 	full.set_physics_process(false)
 	full.torpor.set_physics_process(false)
+	TestWorld.arm(player2, [full], _track)
 	player2.target = full.interactable
 	player2._in_range.append(full.interactable)
 	player2.request_use_item(3)
@@ -742,6 +745,7 @@ func _test_player_view_attack_sound() -> void:
 	dino.set_physics_process(false)
 	dino.torpor.set_physics_process(false)
 	dino.global_position = player.global_position + Vector2(-20.0, 0.0)
+	TestWorld.arm(player, [dino], _track)
 	player.target = dino.interactable
 	player._in_range.append(dino.interactable)
 	var view := PlayerView.new()

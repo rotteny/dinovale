@@ -1,18 +1,16 @@
 # SPDX-License-Identifier: MIT
 class_name PauseMenu
 extends Control
-## Pausa do jogo (Esc, quando nenhuma tela está aberta): Continuar, Salvar (se quem liga o oferece) e
-## Voltar ao menu. Pausa a árvore enquanto aberta (`process_mode` sempre) e só pede: quem liga decide
-## o que fazer com `save_requested` e `menu_requested`. Esc fecha, igual a Continuar. Não pergunta
+## Pausa do jogo (Esc, quando nenhuma tela está aberta): Continuar e Voltar ao menu (sem Salvar: o jogador não
+## escolhe quando salvar). Pausa a árvore enquanto aberta (`process_mode` sempre) e só pede: quem liga decide
+## o que fazer com `menu_requested`. Esc fecha, igual a Continuar. Não pergunta
 ## nada: Voltar ao menu salva (quem liga) e volta direto; se o salvamento falhar, quem liga mostra o
 ## motivo em `show_status` e a partida continua aberta.
 
 signal resumed
 signal menu_requested
-signal save_requested
 
 const RESUME := "resume"
-const SAVE := "save"
 const MENU := "menu"
 
 ## A tela de inventário: com ela aberta, o Esc é dela (fecha), não abre a pausa.
@@ -22,7 +20,6 @@ var is_open: bool = false
 var _column := MenuColumn.new()
 var _status := Label.new()
 var _menu_available: bool = true
-var _save_available: bool = false
 
 
 func _ready() -> void:
@@ -67,13 +64,7 @@ func set_menu_available(available: bool) -> void:
 	_rebuild()
 
 
-## Liga o item Salvar (o mundo sabe gravar). Sem isto a pausa não o mostra.
-func set_save_available(available: bool) -> void:
-	_save_available = available
-	_rebuild()
-
-
-## Resultado do último pedido de salvar ou de voltar ao menu, mostrado acima da lista ("" esconde).
+## Resultado do último pedido de voltar ao menu, mostrado acima da lista ("" esconde).
 func show_status(text: String) -> void:
 	_status.text = text
 	_status.visible = text != ""
@@ -85,8 +76,6 @@ func status_text() -> String:
 
 func _rebuild() -> void:
 	var items: Array[Dictionary] = [{"id": RESUME, "label": "Continuar"}]
-	if _save_available:
-		items.append({"id": SAVE, "label": "Salvar"})
 	if _menu_available:
 		items.append({"id": MENU, "label": "Voltar ao menu"})
 	_column.setup(items)
@@ -139,7 +128,5 @@ func _input(event: InputEvent) -> void:
 func _on_activated(id: String) -> void:
 	if id == RESUME:
 		close()
-	elif id == SAVE:
-		save_requested.emit()
 	elif id == MENU:
 		menu_requested.emit()

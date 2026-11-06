@@ -4,15 +4,15 @@ extends DinoLevelTests
 ## Apresentação, navegação do menu, configurações (JSON), créditos e pausa. Reaproveita os
 ## auxiliares de `DinoLevelTests`. Eventos de teclado entram como `InputEventAction`, direto no `_input`.
 
-const TEMP := "user://test_settings.json"
-## Saves dos testes: caminho descartável, apagado no fim.
-const SAVE_ROOT := "user://test_saves/menu"
 const TITLE_SCENE: PackedScene = preload("res://src/ui/TitleScreen.tscn")
+static var settings_temp: String = "user://test_settings_%d.json" % OS.get_process_id()
+## Saves dos testes: caminho descartável, apagado no fim.
+static var save_root_dir: String = SaveTests.base_dir + "/menu"
 
 
 func run() -> void:
-	GameSession.save_root = SAVE_ROOT
-	SaveTests.remove_tree(SAVE_ROOT)
+	GameSession.save_root = save_root_dir
+	SaveTests.remove_tree(save_root_dir)
 	_test_navigation()
 	_test_settings_file()
 	_test_credits_text()
@@ -21,9 +21,9 @@ func run() -> void:
 	await _test_title_credits()
 	await _test_pause()
 	await _test_round_trip()
-	GameSession.save_root = SaveTests.ROOT
+	GameSession.save_root = SaveTests.root_dir
 	GameSession.continue_requested = false
-	SaveTests.remove_tree(SAVE_ROOT)
+	SaveTests.remove_tree(save_root_dir)
 
 
 func _key(name: String) -> InputEventAction:
@@ -67,29 +67,29 @@ func _test_navigation() -> void:
 
 
 func _test_settings_file() -> void:
-	DirAccess.remove_absolute(TEMP)
-	var defaults := GameSettings.load_from(TEMP)
+	DirAccess.remove_absolute(settings_temp)
+	var defaults := GameSettings.load_from(settings_temp)
 	_check(defaults.fullscreen and is_equal_approx(defaults.volume, GameSettings.DEFAULT_VOLUME), "sem arquivo: tela cheia e volume padrão")
 	var settings := GameSettings.new()
 	settings.fullscreen = false
 	settings.set_volume(0.35)
-	_check(settings.save_to(TEMP), "grava")
-	var loaded := GameSettings.load_from(TEMP)
+	_check(settings.save_to(settings_temp), "grava")
+	var loaded := GameSettings.load_from(settings_temp)
 	_check(not loaded.fullscreen and is_equal_approx(loaded.volume, 0.35), "roundtrip de tela cheia e volume")
-	_write(TEMP, '{"fullscreen": "talvez", "volume": 7.5}')
-	var hostile := GameSettings.load_from(TEMP)
+	_write(settings_temp, '{"fullscreen": "talvez", "volume": 7.5}')
+	var hostile := GameSettings.load_from(settings_temp)
 	_check(hostile.fullscreen and is_equal_approx(hostile.volume, 1.0), "tipo errado cai no padrão e o volume é limitado a 1")
-	_write(TEMP, '{"volume": "alto"}')
-	_check(is_equal_approx(GameSettings.load_from(TEMP).volume, GameSettings.DEFAULT_VOLUME), "volume que não é número: padrão")
-	_write(TEMP, '{"volume": -3.0}')
-	_check(GameSettings.load_from(TEMP).volume == 0.0, "volume negativo vira 0")
-	_write(TEMP, '{"fullscreen": [1, 2], "volume": {"a": 1}}')
-	var weird := GameSettings.load_from(TEMP)
+	_write(settings_temp, '{"volume": "alto"}')
+	_check(is_equal_approx(GameSettings.load_from(settings_temp).volume, GameSettings.DEFAULT_VOLUME), "volume que não é número: padrão")
+	_write(settings_temp, '{"volume": -3.0}')
+	_check(GameSettings.load_from(settings_temp).volume == 0.0, "volume negativo vira 0")
+	_write(settings_temp, '{"fullscreen": [1, 2], "volume": {"a": 1}}')
+	var weird := GameSettings.load_from(settings_temp)
 	_check(weird.fullscreen and is_equal_approx(weird.volume, GameSettings.DEFAULT_VOLUME), "valores de estrutura errada: padrões")
 	for junk: String in ['{"fullscreen": tr', "[1, 2]", "42", "", "[game]\nvolume=0.2\n", "\u0001\u0002 lixo",
 			'volume=Object(RefCounted,"script":null)', '{"volume": 0.3, "x": ' + "9".repeat(GameSettings.MAX_FILE_BYTES) + "}"]:
-		_write(TEMP, junk)
-		var broken := GameSettings.load_from(TEMP)
+		_write(settings_temp, junk)
+		var broken := GameSettings.load_from(settings_temp)
 		_check(broken.fullscreen and is_equal_approx(broken.volume, GameSettings.DEFAULT_VOLUME),
 				"arquivo ilegível ou grande demais: padrões (%s)" % junk.left(12))
 	var cycle := GameSettings.new()
@@ -115,7 +115,7 @@ func _test_settings_file() -> void:
 	_check(is_equal_approx(AudioServer.get_bus_volume_db(0), GameSettings.volume_to_db(0.5)), "apply muda o volume do barramento")
 	AudioServer.set_bus_volume_db(0, before)
 	AudioServer.set_bus_mute(0, false)
-	DirAccess.remove_absolute(TEMP)
+	DirAccess.remove_absolute(settings_temp)
 
 
 func _write(path: String, text: String) -> void:
@@ -157,14 +157,14 @@ func _test_credits_text() -> void:
 func _title() -> TitleScreen:
 	var scene: TitleScreen = TITLE_SCENE.instantiate()
 	scene.auto_perform = false
-	scene.settings_path = TEMP
+	scene.settings_path = settings_temp
 	_root.add_child(scene)
 	_track.call(scene)
 	return scene
 
 
 func _test_title_menu() -> void:
-	DirAccess.remove_absolute(TEMP)
+	DirAccess.remove_absolute(settings_temp)
 	var title := _title()
 	await _root.get_tree().process_frame
 	var menu := title.menu()
@@ -212,11 +212,11 @@ func _test_title_menu() -> void:
 					shortcuts.append(str(action))
 	_check(shortcuts.is_empty(), "nenhuma ação mapeia F11 nem Alt+Enter: tela cheia só pelo menu de Configurações (%s)" % str(shortcuts))
 	_check(not InputMap.has_action("toggle_fullscreen"), "nem uma ação própria de tela cheia")
-	DirAccess.remove_absolute(TEMP)
+	DirAccess.remove_absolute(settings_temp)
 
 
 func _test_title_settings() -> void:
-	DirAccess.remove_absolute(TEMP)
+	DirAccess.remove_absolute(settings_temp)
 	var title := _title()
 	await _root.get_tree().process_frame
 	title._input(_key("ui_down"))
@@ -226,11 +226,11 @@ func _test_title_settings() -> void:
 	_check(menu.label_of(TitleScreen.FULLSCREEN) == "Tela cheia: Sim" and menu.label_of(TitleScreen.VOLUME) == "Volume geral: 80%",
 			"mostra os valores atuais")
 	title._input(_key("ui_accept"))
-	_check(menu.label_of(TitleScreen.FULLSCREEN) == "Tela cheia: Não" and not GameSettings.load_from(TEMP).fullscreen,
+	_check(menu.label_of(TitleScreen.FULLSCREEN) == "Tela cheia: Não" and not GameSettings.load_from(settings_temp).fullscreen,
 			"Enter alterna a tela cheia e grava")
 	title._input(_key("ui_down"))
 	title._input(_key("ui_left"))
-	_check(menu.label_of(TitleScreen.VOLUME) == "Volume geral: 75%" and is_equal_approx(GameSettings.load_from(TEMP).volume, 0.75),
+	_check(menu.label_of(TitleScreen.VOLUME) == "Volume geral: 75%" and is_equal_approx(GameSettings.load_from(settings_temp).volume, 0.75),
 			"esquerda baixa o volume em 5% e grava")
 	title._input(_key("ui_right"))
 	title._input(_key("ui_right"))
@@ -255,11 +255,11 @@ func _test_title_settings() -> void:
 	var again := _title()
 	await _root.get_tree().process_frame
 	_check(not again.settings.fullscreen and again.settings.volume == 0.0, "as configurações persistem entre aberturas")
-	DirAccess.remove_absolute(TEMP)
+	DirAccess.remove_absolute(settings_temp)
 
 
 func _test_title_credits() -> void:
-	DirAccess.remove_absolute(TEMP)
+	DirAccess.remove_absolute(settings_temp)
 	var title := _title()
 	await _root.get_tree().process_frame
 	for i in 2:
@@ -282,7 +282,7 @@ func _test_title_credits() -> void:
 	_check(scroll.scroll_vertical == 0, "para cima volta ao topo e não passa dele")
 	title._input(_key("ui_cancel"))
 	_check(title.view == "menu", "Esc volta ao menu")
-	DirAccess.remove_absolute(TEMP)
+	DirAccess.remove_absolute(settings_temp)
 
 
 func _test_pause() -> void:
@@ -311,16 +311,10 @@ func _test_pause() -> void:
 	pause._input(_key("ui_accept"))
 	_check(events == ["menu"], "Voltar ao menu pede direto, sem confirmação (o salvamento é de quem liga)")
 	pause.close()
-	_check(pause.column().button_of(PauseMenu.SAVE) == null, "sem save configurado, o item Salvar não existe")
-	pause.set_save_available(true)
-	pause.open()
-	pause._input(_key("ui_down"))
-	var saves: Array[int] = [0]
-	pause.save_requested.connect(func() -> void: saves[0] += 1)
-	pause._input(_key("ui_accept"))
-	_check(pause.column().label_of(PauseMenu.SAVE) == "Salvar" and saves[0] == 1 and pause.is_open, "Salvar pede e a pausa continua aberta")
-	pause.show_status("Jogo salvo.")
-	_check(pause.status_text() == "Jogo salvo.", "o resultado aparece na pausa")
+	_check(pause.column().get_child_count() == 2 and pause.column().button_of("save") == null
+			and not pause.has_signal("save_requested"), "a pausa não oferece Salvar: só Continuar e Voltar ao menu")
+	pause.show_status("Não foi possível salvar.")
+	_check(pause.status_text() == "Não foi possível salvar.", "o resultado aparece na pausa")
 	pause.close()
 	pause.open()
 	_check(pause.status_text() == "", "reabrir limpa o resultado")
@@ -354,7 +348,7 @@ func _test_round_trip() -> void:
 	var tree := _root.get_tree()
 	var title: TitleScreen = TITLE_SCENE.instantiate()
 	title.auto_perform = true
-	title.settings_path = TEMP
+	title.settings_path = settings_temp
 	_root.add_child(title)
 	await tree.process_frame
 	title._input(_key("ui_accept"))  # Um jogador é o primeiro item
@@ -372,14 +366,13 @@ func _test_round_trip() -> void:
 	game.pause._unhandled_input(_key("ui_cancel"))
 	_check(game.pause.is_open and tree.paused, "Esc na Main abre a pausa")
 	game.pause._input(_key("ui_down"))
-	game.pause._input(_key("ui_down"))
 	game.pause._input(_key("ui_accept"))  # Voltar ao menu: salva e volta direto
 	for _i in 3:
 		await tree.process_frame
 	var back := tree.current_scene as TitleScreen
 	_check(back != null and not tree.paused and not is_instance_valid(game),
 			"Voltar ao menu salva e volta à apresentação, despausado, e a Main sai")
-	_check(SaveManager.new(SAVE_ROOT).probe().status == SaveManager.Status.OK, "o save foi gravado no caminho de teste ao voltar ao menu")
+	_check(SaveManager.new(save_root_dir).probe().status == SaveManager.Status.OK, "o save foi gravado no caminho de teste ao voltar ao menu")
 	_check(back != null and back.view == "menu" and back.menu().selected_id() != TitleScreen.MULTIPLAYER
 			and back.menu().button_of(TitleScreen.SINGLE_PLAYER) != null, "a apresentação reaparece no menu principal")
 	if back != null:

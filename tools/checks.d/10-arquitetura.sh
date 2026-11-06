@@ -24,7 +24,7 @@ readonly SAVEABLE_TABLE="$GAME_DIR/tests/saveable_table.gd"
 readonly SIMULATION_DIRS='src/(core|components|entities)/'
 readonly SAFE_COMPONENT_BASES=" Node RefCounted Object Resource "
 readonly NON_REPLAYABLE_SIGNALS='died|knocked_out|food_consumed|starved'
-readonly MUTATORS='transfer|transfer_slot|add|remove|take_damage|apply_torpor|mark_tamed'
+readonly MUTATORS='transfer|transfer_slot|add|remove|take_damage|apply_torpor|mark_tamed|strike|set_order|perform_use_item|perform_equipment|perform_gather'
 
 INDEX="$(mktemp)"
 trap 'rm -f "$INDEX"' EXIT
@@ -132,7 +132,7 @@ rule_no_unsafe_deserialization() {
       "só JSON; load() só com literal res:// (nunca user://); ConfigFile proibido (o formato executa código; configuração em JSON)"
 }
 
-# Créditos (CC-BY exige atribuição): o preset de exportação versionado tem de incluir CREDITS.md,
+# Créditos (CC-BY exige atribuição): TODO preset de exportação versionado tem de incluir CREDITS.md,
 # que o Godot não exporta sozinho (não é recurso). Sem segredo nem caminho local no arquivo.
 rule_export_includes_credits() {
   local preset="$GAME_DIR/export_presets.cfg"
@@ -141,8 +141,18 @@ rule_export_includes_credits() {
   if [[ ! -f "$preset" ]]; then
     report "$rule" "game/export_presets.cfg não existe (versione o preset)"
   else
-    grep -qP '^include_filter="[^"]*assets/CREDITS\.md' "$preset" \
-      || report "$rule" "include_filter do preset sem assets/CREDITS.md"
+    local presets_without_credits
+    presets_without_credits="$(awk '
+      function close_preset() { if (name != "" && !credits) print name }
+      /^\[preset\.[0-9]+\]/ { close_preset(); name = $0; credits = 0; next }
+      /^\[/ { next }
+      /^include_filter="[^"]*assets\/CREDITS\.md/ { credits = 1 }
+      END { close_preset(); if (NR && name == "") print "(nenhum preset)" }' "$preset")"
+    [[ -n "$presets_without_credits" ]] || grep -q '^\[preset\.' "$preset" \
+      || presets_without_credits="(nenhum preset)"
+    while IFS= read -r preset_name; do
+      [[ -n "$preset_name" ]] && report "$rule" "include_filter sem assets/CREDITS.md em $preset_name"
+    done <<<"$presets_without_credits"
     grep -nP '/home/|/Users/|[A-Za-z]:\\|^(script_encryption_key|keystore\S*|.*password\S*|.*_key)\s*=\s*"[^"]' "$preset" \
       | { while IFS= read -r hit; do report "$rule" "segredo ou caminho local no preset: ${hit%%=*}"; done; } || true
   fi
@@ -179,8 +189,7 @@ rule_input_only_in_controller_and_ui() {
 rule_ui_does_not_call_mutators() {
   index_grep 'src/ui/' "\.($MUTATORS)\("  \
     | judge "UI sem mutadores" \
-      "a UI pede por request_*; não chama transfer/add/remove/take_damage direto" \
-      "src/ui/InventoryScreen.gd=remover em NET-01 (passa a chamar request_transfer_slot)"
+      "a UI pede por request_*; não chama transfer/add/remove/take_damage direto"
 }
 
 # R-C: sem RNG global; RNG local só com seed derivada.

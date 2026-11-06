@@ -243,6 +243,7 @@ func _test_player_equipment() -> void:
 	var fighter := _player()
 	var target := _spawn_dino()
 	target.set_physics_process(false)
+	TestWorld.arm(fighter, [target], _track)
 	fighter.target = target.interactable
 	fighter._in_range.append(target.interactable)
 	_check(fighter.attack() and is_equal_approx(target.health.current_health, 99.0) and is_equal_approx(target.torpor.current_torpor, 10.0),
@@ -345,6 +346,8 @@ func _test_creature_refuses_equipment() -> void:
 	screen.hotbar = player.hotbar
 	_root.add_child(screen)
 	_track.call(screen)
+	dino.torpor.add_torpor(1000.0)  # só a criatura inconsciente abre a tela compartilhada
+	TestWorld.wire_screen(screen, TestWorld.arm(player, [dino], _track), player, dino)
 	screen.open_with(player.inventory, dino.inventory, null, "Criatura")
 	screen.slot_button(true, slot_index).pressed.emit()
 	_check(screen.notice_text().contains("Bastão") and screen.notice_text().contains("criatura") and player.inventory.has_iid(iid),

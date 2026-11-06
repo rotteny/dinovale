@@ -10,3 +10,4 @@ base_damage = 4.0
 base_torpor = 100.0
 base_meals = 5
 difficulty = 1.0
+hitbox_size = Vector2(24, 16)

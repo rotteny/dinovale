@@ -26,8 +26,6 @@ enum Status {
 ## Por que o jogo salvou (gatilhos decididos pelo dono). Quem escolhe quando é o `SaveScheduler`; aqui
 ## fica só o vocabulário. Menor valor = mais prioritário quando gatilhos seguidos viram um save só.
 enum Reason {
-	## Botão Salvar da pausa.
-	MANUAL,
 	## Deitar na cama (a Cama não existe ainda: só o ponto de entrada).
 	BED,
 	PLAYER_DEATH,

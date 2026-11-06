@@ -9,7 +9,7 @@ extends RefCounted
 ## `map_id`) já comporta mais, e aplicar vários é trabalho de quando o mundo os instanciar.
 
 const MAP_ID := "main"
-const LOCAL_PLAYER_ID := "local"
+const LOCAL_PLAYER_ID := Player.LOCAL_PLAYER_ID
 const PLAYER_ENTITY_ID := 1
 const DINO_ENTITY_ID := 2
 const TYPE_DINO := "dino"
@@ -23,9 +23,9 @@ const LIFE_DEAD_PENDING_CHOICE := "dead_pending_choice"
 ## Estado atual para gravar. Criatura morta ou já descartada não entra: é o que a cena faria
 ## (ela some quando morre), e restaurar uma morta só a removeria de novo.
 static func capture(player: Player, dino: Dino, game_version: String, saved_at: String,
-		field: ResourceField = null, respawn_count: int = 0) -> Dictionary:
+		field: ResourceField = null, respawn_count: int = 0, next_entity_id: int = 0) -> Dictionary:
 	var players: Array = [{
-		"player_id": LOCAL_PLAYER_ID,
+		"player_id": player.player_id,
 		"entity_id": PLAYER_ENTITY_ID,
 		"life": LIFE_DEAD_PENDING_CHOICE if player.health.is_dead() else LIFE_ALIVE,
 		"state": player.to_dict(),
@@ -35,7 +35,7 @@ static func capture(player: Player, dino: Dino, game_version: String, saved_at: 
 		entities.append({"id": DINO_ENTITY_ID, "type": TYPE_DINO, "state": dino.to_dict()})
 	var world := {
 		"map_id": MAP_ID,
-		"next_entity_id": DINO_ENTITY_ID + 1,
+		"next_entity_id": maxi(next_entity_id, DINO_ENTITY_ID + 1),  # o contador real: id nunca é reutilizado
 		"resource_nodes": field.to_list() if field != null else [],
 		"respawn_count": respawn_count,
 	}
@@ -78,11 +78,34 @@ static func restore(data: Dictionary, player: Player, dino: Dino, field: Resourc
 	if is_instance_valid(dino) and saved_dino != null and not dino.from_dict(saved_dino):
 		player.from_dict(before_player)  # volta ao que era: a carga é tudo ou nada
 		return false
+	if is_instance_valid(dino) and saved_dino != null:
+		_ensure_owner(dino, data)
 	if field != null:
 		field.restore_list(SafeRead.list(SafeRead.dict(data.get("world")).get("resource_nodes")))
 	if is_instance_valid(dino) and saved_dino == null:
 		dino.queue_free()
 	return true
+
+
+## Próximo `entity_id` livre gravado no mundo (0 se ausente ou inválido).
+static func next_entity_id_of(data: Dictionary) -> int:
+	return SafeRead.integer(SafeRead.dict(data.get("world")).get("next_entity_id"), 0, 0, 1 << 30)
+
+
+## Domado sem dono válido (vazio, ou um `player_id` que não está no save) vira do primeiro jogador do save:
+## nunca fica domado sem dono, preso sem aceitar ordem.
+static func _ensure_owner(dino: Dino, data: Dictionary) -> void:
+	if not dino.state_machine.is_tamed:
+		return
+	var ids: Array[String] = []
+	for entry: Variant in SafeRead.list(data.get("players")):
+		if typeof(entry) == TYPE_DICTIONARY:
+			var id := SafeRead.text((entry as Dictionary).get("player_id"), "")
+			if id != "":
+				ids.append(id)
+	if not ids.is_empty() and not ids.has(dino.owner_player_id):
+		dino.owner_player_id = ids[0]
+		dino.refresh_command_state()
 
 
 ## `state` da primeira entrada de `list_key` cujo `key` vale `value`; null se não houver.

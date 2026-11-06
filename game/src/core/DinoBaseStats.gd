@@ -12,3 +12,5 @@ extends Resource
 ## Refeições para domesticar no nível base, com dificuldade 1,0.
 @export var base_meals: int = 5
 @export var difficulty: float = 1.0
+## Caixa de colisão do corpo, em pixels (largura, altura). O corpo a lê ao nascer.
+@export var hitbox_size: Vector2 = Vector2(24.0, 16.0)

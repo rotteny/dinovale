@@ -3,11 +3,13 @@ class_name SaveTests
 extends DinoLevelTests
 ## SAV-01, UIX-03 e SOB-04: arquivo de save (envelope, escrita atômica, `.bak`, versão, arquivo ruim),
 ## fixture v1, roundtrip do mundo, gatilhos do `SaveScheduler`, Continuar/Novo jogo e fome do jogador.
-## Todo save de teste vai para `ROOT` (user://test_saves), apagado no fim da suíte.
+## Todo save de teste vai para `root_dir` (user://test_saves_PID), apagado no fim da suíte.
 
-const ROOT := "user://test_saves/run"
 const FIXTURE_V1 := "res://tests/fixtures/saves/v1.json"
 const R := SaveManager.Reason
+## Pasta-base por processo: dois processos de teste ao mesmo tempo não apagam os arquivos um do outro.
+static var base_dir: String = "user://test_saves_%d" % OS.get_process_id()
+static var root_dir: String = base_dir + "/run"
 
 var _seq: int = 0
 
@@ -57,7 +59,7 @@ func run() -> void:
 
 func _manager() -> SaveManager:
 	_seq += 1
-	return SaveManager.new(ROOT, "t%d" % _seq)
+	return SaveManager.new(root_dir, "t%d" % _seq)
 
 
 func _envelope(label: String = "a") -> Dictionary:
@@ -83,6 +85,7 @@ func _fresh_pair() -> Array:
 	_root.add_child(dino)
 	_track.call(player)
 	_track.call(dino)
+	TestWorld.arm(player, [dino], _track)
 	for node: Node in [player, dino, player.hunger, player.stamina, dino.torpor, dino.taming, dino.state_machine]:
 		node.set_physics_process(false)
 	return [player, dino]
@@ -150,12 +153,12 @@ func _test_world_id() -> void:
 	_check(not SaveManager.is_valid_world_id("../x") and not SaveManager.is_valid_world_id("") and not SaveManager.is_valid_world_id("A")
 			and not SaveManager.is_valid_world_id("a/b") and not SaveManager.is_valid_world_id("x".repeat(65)),
 			"id de mundo com caminho ou fora do padrão é inválido")
-	var sneaky := SaveManager.new(ROOT, "../fora")
-	_check(sneaky.main_path() == ROOT + "/main/world.json", "id inválido cai no mundo padrão (sem sair da pasta)")
+	var sneaky := SaveManager.new(root_dir, "../fora")
+	_check(sneaky.main_path() == root_dir + "/main/world.json", "id inválido cai no mundo padrão (sem sair da pasta)")
 
 
 func _test_fixture_v1() -> void:
-	var manager := SaveManager.new(ROOT)
+	var manager := SaveManager.new(root_dir)
 	var outcome := manager.read_file(FIXTURE_V1)
 	var raw: Variant = JSON.parse_string(FileAccess.get_file_as_string(FIXTURE_V1))
 	_check(outcome.status == SaveManager.Status.OK and (raw as Dictionary).get("format_version") == 1
@@ -236,7 +239,7 @@ func _test_hostile_files() -> void:
 	binary.store_buffer(PackedByteArray([123, 0, 255, 0, 125]))
 	binary.close()
 	_check(manager.read_file(path).status == SaveManager.Status.CORRUPT, "binário com NUL: recusado")
-	_check(manager.read_file(ROOT + "/nao_existe.json").status == SaveManager.Status.NONE, "ausente é NONE")
+	_check(manager.read_file(root_dir + "/nao_existe.json").status == SaveManager.Status.NONE, "ausente é NONE")
 
 
 func _test_future_version() -> void:
@@ -338,7 +341,7 @@ func _scheduler(interval: float, world: String, physics: bool = false) -> SaveSc
 	scheduler.rules.autosave_interval_seconds = interval
 	scheduler.player = pair[0]
 	scheduler.dino = pair[1]
-	scheduler.manager = SaveManager.new(ROOT, world)
+	scheduler.manager = SaveManager.new(root_dir, world)
 	_root.add_child(scheduler)
 	_track.call(scheduler)
 	scheduler.set_physics_process(physics)  # depois de entrar: o _ready liga sozinho
@@ -362,7 +365,7 @@ func _test_autosave_interval() -> void:
 	scheduler.tick(5.0)
 	await tree.process_frame
 	_check(scheduler.saves_done == 2, "o intervalo recomeça depois de cada save")
-	_check(scheduler.save_now(R.MANUAL) and scheduler.elapsed() == 0.0, "um save manual também zera a contagem")
+	_check(scheduler.save_now(R.BED) and scheduler.elapsed() == 0.0, "um save da Cama também zera a contagem")
 
 
 func _test_pause_does_not_count() -> void:
@@ -406,11 +409,11 @@ func _test_coalescing() -> void:
 	scheduler.frozen = true
 	scheduler.request(R.AUTOSAVE)
 	scheduler.request(R.PLAYER_DEATH)
-	_check(not scheduler.save_now(R.MANUAL) and not scheduler.save_now(R.EXIT_MENU), "congelado: nenhum gatilho grava")
+	_check(not scheduler.save_now(R.BED) and not scheduler.save_now(R.EXIT_MENU), "congelado: nenhum gatilho grava")
 	await tree.process_frame
 	_check(scheduler.saves_done == 2, "congelado: nada foi gravado")
 	scheduler.frozen = false
-	_check(scheduler.save_now(R.MANUAL), "descongelado, grava de novo")
+	_check(scheduler.save_now(R.BED), "descongelado, grava de novo")
 	# Rajada (GDD 12.1): morte a menos de 10 s do último save espera o prazo e vira um save só, sem se perder.
 	var done := scheduler.saves_done
 	var pair_player: Player = scheduler.player
@@ -435,13 +438,10 @@ func _test_coalescing() -> void:
 
 func _test_triggers_on_main() -> void:
 	var tree := _root.get_tree()
-	# Salvar da pausa
+	# A pausa não oferece Salvar (o jogador não escolhe quando salvar)
 	var main := _main("trig_pause")
-	var button := main.pause.column().button_of(PauseMenu.SAVE)
-	_check(button != null, "a pausa tem Salvar")
-	button.pressed.emit()
-	_check(main.save_manager.probe().status == SaveManager.Status.OK and main.pause.status_text() == "Jogo salvo.",
-			"Salvar da pausa grava e avisa na própria pausa")
+	_check(main.pause.column().get_child_count() == 2 and main.pause.column().button_of("save") == null
+			and main.pause.column().label_of(PauseMenu.RESUME) == "Continuar", "a pausa do jogo só tem Continuar e Voltar ao menu")
 	# Cama (só o ponto de entrada)
 	var bed := _main("trig_bed")
 	var bed_reasons: Array[int] = []
@@ -470,7 +470,7 @@ func _test_triggers_on_main() -> void:
 	_check(resumed.pending_death_choice and resumed.player.health.is_dead() and resumed.death_screen.is_open,
 			"Continuar com save de morto abre a tela de morte")
 	var alive_save := _main("trig_alive")
-	alive_save.save_game()
+	alive_save.save_game(R.BED)
 	GameSession.continue_requested = true
 	_check(not _main("trig_alive").pending_death_choice, "save de jogador vivo não sinaliza nada")
 	# Dino selvagem morre: sem save
@@ -504,7 +504,7 @@ func _test_triggers_on_main() -> void:
 func _test_write_failure_is_not_fatal() -> void:
 	var tree := _root.get_tree()
 	var main := _main("fail")
-	_check(main.save_game(), "save inicial")
+	_check(main.save_game(R.BED), "save inicial")
 	var before := _read_raw(main.save_manager.main_path())
 	DirAccess.make_dir_recursive_absolute(main.save_manager.temp_path())
 	main.scheduler.request(R.AUTOSAVE)
@@ -519,7 +519,7 @@ func _test_write_failure_is_not_fatal() -> void:
 	_check(main._quit_failed_once and main.hud.notice_label().text.contains("Feche de novo"),
 			"fechar a janela com a escrita falhando avisa e mantém a janela")
 	DirAccess.remove_absolute(main.save_manager.temp_path())
-	_check(main.save_game() and main.scheduler.last_message == "Jogo salvo.", "passada a falha, salvar volta a funcionar")
+	_check(main.save_game(R.BED) and main.scheduler.last_message == "Jogo salvo.", "passada a falha, salvar volta a funcionar")
 	_check(not main._quit_failed_once, "um save que deu certo zera o 'fechar de novo'")
 
 
@@ -531,9 +531,9 @@ func _test_continue_in_main() -> void:
 	first.player.inventory.remove("berry", 3)
 	first.dino.health.take_damage(12.0)
 	first.dino.inventory.add("fern", 2)
-	_check(first.save_game(), "salva o primeiro jogo")
+	_check(first.save_game(R.BED), "salva o primeiro jogo")
 	first.player.hunger.current_hunger = 30.0
-	_check(first.save_game(), "segundo save (o primeiro vira .bak)")
+	_check(first.save_game(R.BED), "segundo save (o primeiro vira .bak)")
 	GameSession.continue_requested = true
 	var second := _main("cont")
 	await tree.process_frame
@@ -578,20 +578,20 @@ func _test_continue_failure() -> void:
 	var cases := [["bad", "{lixo", "Nenhum save utilizável"], ["future", JSON.stringify({"format_version": 99}), "mais nova"],
 			["refused", refused, "Nenhum save utilizável"]]
 	for case in cases:
-		var manager := SaveManager.new(ROOT, case[0])
+		var manager := SaveManager.new(root_dir, case[0])
 		_write_raw(manager.main_path(), case[1])
 		GameSession.continue_requested = true
 		var main := _main(case[0], 20, true)
 		var notice := GameSession.take_notice()
 		_check(main.scheduler.frozen and notice.contains(case[2]), "%s: Continuar que falha pede voltar ao título com o motivo" % case[0])
-		_check(not main.save_game() and not main.scheduler.save_now(R.QUIT), "%s: nada grava" % case[0])
+		_check(not main.save_game(R.BED) and not main.scheduler.save_now(R.QUIT), "%s: nada grava" % case[0])
 		main.scheduler.request(R.AUTOSAVE)
 		main.player.health.take_damage(10000.0)
 		await _root.get_tree().process_frame
 		_check(_read_raw(manager.main_path()) == case[1] and _dir_files(manager) == ["world.json"],
 				"%s: o arquivo recusado sobrevive idêntico e nada novo foi gravado" % case[0])
 	GameSession.notice = "O jogo recusou o save."
-	var title := _title(ROOT + "/title_notice")
+	var title := _title(root_dir + "/title_notice")
 	await _root.get_tree().process_frame
 	_check(title.notice_text() == "O jogo recusou o save." and GameSession.notice == "", "o título mostra o motivo uma vez")
 
@@ -660,7 +660,7 @@ func _action(name: String) -> InputEventAction:
 func _title(save_root: String) -> TitleScreen:
 	var title: TitleScreen = load("res://src/ui/TitleScreen.tscn").instantiate()
 	title.auto_perform = false
-	title.settings_path = ROOT + "/title_settings.json"
+	title.settings_path = root_dir + "/title_settings.json"
 	title.save_root = save_root
 	_root.add_child(title)
 	_track.call(title)
@@ -669,7 +669,7 @@ func _title(save_root: String) -> TitleScreen:
 
 func _test_title_single_player() -> void:
 	var tree := _root.get_tree()
-	var root := ROOT + "/title"
+	var root := root_dir + "/title"
 	remove_tree(root)
 	var title := _title(root)
 	await tree.process_frame
@@ -694,7 +694,6 @@ func _test_title_single_player() -> void:
 	_check(chosen2 == [TitleScreen.CONTINUE], "Continuar pede para continuar")
 	chosen2.clear()
 	title2._input(_action("ui_down"))
-	var opened := Time.get_ticks_msec()
 	title2._input(_action("ui_accept"))
 	_check(title2.view == "confirm" and chosen2.is_empty() and title2.confirm_text() == TitleScreen.NEW_GAME_WARNING
 			and title2.confirm_menu().selected_id() == TitleScreen.CANCEL, "Novo jogo com save pede confirmação, com Cancelar selecionado")
@@ -702,12 +701,10 @@ func _test_title_single_player() -> void:
 	title2._input(_action("ui_accept"))
 	_check(chosen2.is_empty() and title2.view == "confirm", "o segundo clique de um duplo clique cai na guarda e é ignorado")
 	_check(title2.confirm_guard_msec == 500, "a guarda é de 500 ms (maior que a janela de duplo clique de alguns sistemas)")
-	while Time.get_ticks_msec() - opened < 350:  # relógio real, o mesmo da guarda
-		await tree.process_frame
+	title2._confirm_since = Time.get_ticks_msec() - 350
 	title2._input(_action("ui_accept"))
 	_check(chosen2.is_empty() and title2.view == "confirm", "aos 350 ms a guarda ainda vale")
-	while Time.get_ticks_msec() - opened < 560:
-		await tree.process_frame
+	title2._confirm_since = Time.get_ticks_msec() - 560
 	title2._input(_action("ui_accept"))
 	_check(chosen2 == [TitleScreen.NEW_GAME], "passada a guarda, Começar do zero vale")
 	chosen2.clear()
@@ -781,7 +778,7 @@ func _test_save_timing() -> void:
 	var total := 0
 	var count := 30
 	for _i in count:
-		main.save_game()
+		main.save_game(R.BED)
 		worst = maxi(worst, main.scheduler.last_duration_usec)
 		total += main.scheduler.last_duration_usec
 	var size := _read_raw(main.save_manager.main_path()).length()
@@ -847,6 +844,6 @@ func _test_failure_notice_and_queue_bounded() -> void:
 	main.scheduler.tick(11.0)
 	_check(main.scheduler.saves_done == 1, "o disco voltou: a retentativa grava")
 	DirAccess.make_dir_recursive_absolute(main.save_manager.temp_path())
-	main.scheduler.save_now(R.MANUAL)
+	main.scheduler.save_now(R.BED)
 	_check(notice.visible, "depois de um sucesso, a próxima sequência de falhas avisa de novo")
 	DirAccess.remove_absolute(main.save_manager.temp_path())

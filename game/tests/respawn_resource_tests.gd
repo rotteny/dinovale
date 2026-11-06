@@ -2,7 +2,7 @@
 class_name RespawnResourceTests
 extends SaveTests
 ## SOB-01 (morte e respawn mínimos), a troca do revive provisório do save e MUN-02 (nós de recurso).
-## Reaproveita `_main` e os auxiliares de `SaveTests`; todo save vai para `SaveTests.ROOT`.
+## Reaproveita `_main` e os auxiliares de `SaveTests`; todo save vai para `SaveTests.root_dir`.
 
 const FIXTURE_V2 := "res://tests/fixtures/saves/v2.json"
 const RULES: RespawnRules = preload("res://data/balance/respawn_rules.tres")
@@ -332,7 +332,7 @@ func _test_nodes_in_save() -> void:
 	main.player.target = bush.interactable
 	main.player.request_gather()
 	bush.component.tick(60.0)
-	main.save_game()
+	main.save_game(SaveManager.Reason.BED)
 	GameSession.continue_requested = true
 	var again := _main("nodes_save", 20, true)
 	var restored := again.resources.node_by_id("berry_2")
@@ -354,9 +354,10 @@ func _test_nodes_in_save() -> void:
 
 
 func _test_fixture_v2() -> void:
-	var manager := SaveManager.new(ROOT)
+	var manager := SaveManager.new(root_dir)
 	var outcome := manager.read_file(FIXTURE_V2)
-	_check(outcome.status == SaveManager.Status.OK and outcome.data.get("format_version") == 2, "fixture v2 carrega")
+	_check(outcome.status == SaveManager.Status.OK and outcome.data.get("format_version") == SaveMigrations.CURRENT_VERSION,
+			"fixture v2 carrega e é migrada para a versão atual")
 	var main := _main("fixture_v2", 20, true)
 	var pair := [main.player, main.dino]
 	_check(WorldSnapshot.restore(outcome.data, pair[0], pair[1], main.resources), "fixture v2 é aplicada ao mundo")
@@ -432,7 +433,7 @@ func _test_targeting() -> void:
 	areas = [bush.interactable, other.interactable, dino.interactable]
 	_area_range(player, areas)
 	var opened: Array[Node] = []
-	player.interacted.connect(func(area: InteractableArea) -> void: opened.append(area.entity))
+	main.authority.interaction_granted.connect(func(_actor: int, target_id: int) -> void: opened.append(main.authority.entity(target_id)))
 	_check(player.target == dino.interactable and player.try_interact() and opened == [dino], "E no dino dormindo ignora arbustos esgotados")
 	# Renascer limpa alvo e alcance.
 	player.health.take_damage(10000.0)
@@ -495,7 +496,7 @@ func _test_respawn_save_timing() -> void:
 	_check(main.scheduler.saves_done == 2 and _read_raw(main.save_manager.main_path()).contains('"alive"'), "passado o prazo, grava o vivo")
 	# Morte e respawn dentro do prazo do save anterior: só o save de vivo existe.
 	var burst := _main("timing_burst")
-	burst.save_game()
+	burst.save_game(SaveManager.Reason.BED)
 	burst.player.health.take_damage(10000.0)
 	burst.request_respawn("campina")
 	await tree.process_frame

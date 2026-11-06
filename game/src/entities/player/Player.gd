@@ -6,13 +6,13 @@ extends CharacterBody2D
 ## movimento (`apply_input`) recebe a direção pronta e é testável sem input real.
 ##
 ## Interação: o detector (Area2D) enxerga as `InteractableArea` no alcance e o
-## `target` é a mais próxima. `try_interact` e `attack` são as ações em si, chamáveis
-## sem teclado. `input_locked` (ligado pela tela de inventário) congela o jogador.
+## `target` é a mais próxima, só uma sugestão de mira. `try_interact` e `attack` são a intenção do
+## jogador, chamáveis sem teclado: ela vira `WorldAuthority.request_*` com ids (ADR-001), que valida
+## alcance, recarga e posse. `strike` e os `perform_*` são o efeito, aplicado só pela autoridade. Sem
+## `authority` o jogador não age sobre o mundo. `input_locked` (ligado pela tela de inventário) congela o jogador.
 
 ## Alvo mudou (ou null). Serve ao prompt e ao painel da criatura.
 signal target_changed(target: InteractableArea)
-## O jogador interagiu com um alvo disponível; quem abre a tela é o mundo.
-signal interacted(target: InteractableArea)
 signal input_lock_changed(locked: bool)
 ## O golpe acertou uma criatura (a apresentação anima e toca o som).
 signal attacked
@@ -37,7 +37,15 @@ const GATHER_DEPLETED := "depleted"
 const GATHER_FULL := "full"
 const GATHER_BLOCKED := "blocked"
 const GATHER_TOO_FAR := "too_far"
+## A autoridade negou o pedido antes de a regra rodar (ator morto, argumento inválido, sem autoridade).
+const DENIED := "denied"
+## `player_id` do personagem local (ADR-003): o dono do dino aponta para ele, não para o nó.
+const LOCAL_PLAYER_ID := "local"
 
+## Ponto de passagem das ações (ADR-001); a `Main` o liga. Sem ele, interagir e atacar não fazem nada.
+@export var authority: WorldAuthority
+## Identidade do personagem (ADR-003): vai no save e é o que o dino domado guarda como dono.
+@export var player_id: String = LOCAL_PLAYER_ID
 @export var walk_speed: float = 70.0
 @export var sprint_speed: float = 120.0
 ## Números do jogador (fome, recarga de comida e de troca, ofego) vindos dos dados.
@@ -66,6 +74,8 @@ var _eat_timer: float = 0.0
 var _equip_timer: float = 0.0
 var _gather_timer: float = 0.0
 var _last_equipped: String = ""
+## Motivo da última recusa de uma regra (`perform_*`); "" quando o pedido valeu. Só devolve texto ao chamador.
+var _last_refusal: String = ""
 
 ## Sprite: só a apresentação (`PlayerView`) escolhe o quadro.
 @onready var visual: Sprite2D = $Visual
@@ -79,6 +89,7 @@ var _last_equipped: String = ""
 
 
 func _ready() -> void:
+	_apply_hitbox()
 	hunger.decay_per_second = rules.hunger_decay_per_second
 	stamina.rules = rules
 	hunger.starved.connect(health.take_damage)
@@ -178,36 +189,73 @@ func _nearest_dino() -> Dino:
 	return best
 
 
-## Interage com o alvo se a regra da entidade permitir. Retorna true se interagiu.
+## Intenção "interagir com o alvo": pede à autoridade (ou, num domado seu, troca a ordem Seguir/Ficar).
+## Retorna true se a autoridade aceitou. Quem abre a tela ou colhe ouve `interaction_granted`.
 func try_interact() -> bool:
-	if input_locked or health.is_dead() or target == null or not target.can_interact():
+	if input_locked or health.is_dead() or target == null or authority == null:
 		return false
-	interacted.emit(target)
-	return true
+	var actor_id := authority.id_of(self)
+	var target_id := authority.id_of(target.entity)
+	var dino := target.entity as Dino
+	if dino != null and dino.can_command():
+		var next := Enums.DinoOrder.STAY if dino.state_machine.order == Enums.DinoOrder.FOLLOW else Enums.DinoOrder.FOLLOW
+		return authority.request_command(actor_id, target_id, Enums.DinoOrder.find_key(next)) == Enums.ActionResult.OK
+	return authority.request_interact(actor_id, target_id) == Enums.ActionResult.OK
 
 
-## Golpe da arma equipada na criatura selvagem ao alcance (dano e torpor). Retorna true se acertou.
+## Intenção "golpear a criatura mais próxima ao alcance": a autoridade valida alcance, recarga e
+## alvo, e chama `strike`. Retorna true se acertou.
 func attack() -> bool:
-	if input_locked or health.is_dead() or _attack_timer > 0.0:
+	if input_locked or health.is_dead() or authority == null:
 		return false
 	var dino := _nearest_dino()
+	if dino == null:
+		return false
+	return authority.request_attack(authority.id_of(self), authority.id_of(dino)) == Enums.ActionResult.OK
+
+
+## Pronto para golpear? (a recarga é do jogador; a autoridade a consulta)
+func can_strike() -> bool:
+	return _attack_timer <= 0.0
+
+
+## Efeito do golpe da arma em mãos: dano e torpor vêm da arma, nunca do pedido. Só a autoridade chama.
+## Recarga e `attacked` só valem se algo foi aplicado.
+func strike(dino: Dino) -> bool:
 	var weapon := current_weapon()
-	if dino == null or not dino.receive_hit(weapon.damage, weapon.torpor, TamingRules.ATTACKER_PLAYER):
+	if not dino.receive_hit(weapon.damage, weapon.torpor, TamingRules.ATTACKER_PLAYER):
 		return false
 	_attack_timer = weapon.cooldown
 	attacked.emit()
 	return true
 
 
-## Intenção "colher o nó de recurso em alcance": o jogador só pede, as regras decidem aqui. Devolve ""
-## se coletou ou o motivo da recusa (`GATHER_*`, ou "cooldown", silenciosa). Recusa por falta de
-## espaço NÃO gasta o nó. A recarga é o tempo de ação do tipo de nó (`gather_seconds`).
+## Intenção "colher o nó de recurso na mira": só o pede à autoridade, com o id do alvo. Devolve "" se
+## coletou ou o motivo da recusa (`GATHER_*`, ou "cooldown", silenciosa).
 func request_gather() -> String:
-	if input_locked or health.is_dead():
+	if input_locked or authority == null:
 		return GATHER_BLOCKED
-	if _gather_timer > 0.0:
-		return COOLDOWN
 	var node := target.entity as ResourceNode if target != null else null
+	var result := authority.request_gather(authority.id_of(self), authority.id_of(node))
+	match result:
+		Enums.ActionResult.OK:
+			return ""
+		Enums.ActionResult.UNKNOWN_TARGET, Enums.ActionResult.INVALID_TARGET:
+			return GATHER_NO_TARGET
+		Enums.ActionResult.OUT_OF_RANGE:
+			return GATHER_TOO_FAR
+		Enums.ActionResult.UNKNOWN_ACTOR, Enums.ActionResult.ACTOR_DEAD:
+			return GATHER_BLOCKED
+	return _last_refusal
+
+
+## Efeito da coleta (só a autoridade chama, depois de validar ator, alvo e alcance). Devolve "" se coletou
+## ou o motivo da recusa. Recusa por falta de espaço NÃO gasta o nó. A recarga é o tempo de ação do tipo de nó.
+func perform_gather(node: ResourceNode) -> String:
+	_last_refusal = ""
+	if _gather_timer > 0.0:
+		_last_refusal = COOLDOWN
+		return COOLDOWN
 	var reason := _gather_refusal(node)
 	if reason != "":
 		return _refuse_gather(reason)
@@ -218,20 +266,19 @@ func request_gather() -> String:
 	return ""
 
 
-## Motivo de o nó não poder ser colhido agora ("" = pode): alvo, esgotado, alcance e espaço inteiro.
+## Motivo de o nó não poder ser colhido agora ("" = pode): alvo, esgotado e espaço inteiro. O alcance é da autoridade.
 func _gather_refusal(node: ResourceNode) -> String:
 	if node == null:
 		return GATHER_NO_TARGET
 	if not node.is_available():
 		return GATHER_DEPLETED
-	if global_position.distance_to(node.global_position) > node.def.reach:
-		return GATHER_TOO_FAR
 	if inventory.room_for(node.def.item_id) < node.def.yield_amount:
 		return GATHER_FULL
 	return ""
 
 
 func _refuse_gather(reason: String) -> String:
+	_last_refusal = reason
 	gather_refused.emit(reason)
 	return reason
 
@@ -261,30 +308,36 @@ func current_weapon() -> WeaponDef:
 	return weapon if weapon != null else unarmed
 
 
-## Intenção "usar o atalho `slot`" (0 a 8): quem lê a tecla só pede, e as regras decidem
-## aqui. Comida: o jogador SEMPRE a consome (come 1 e recupera fome), mesmo com uma criatura
-## dormindo ao alcance (decisão do dono); não gasta se a fome está cheia; a criatura recebe
-## comida só pela tela do inventário dela. Equipamento (atalho por `iid`): SELECIONA; apertar
-## a tecla do que já está em mãos desequipa (mãos livres, Soco). Só arma troca o equipado;
-## comer não mexe nele. Sem estoque, sem efeito.
-## Retorna true se algo foi consumido ou trocado. Vira `request_use_item(actor_id, slot)` no
-## NET-01 (ADR-001).
+## Intenção "usar o atalho `slot`" (0 a 8): quem lê a tecla só pede, e a autoridade (`request_use_item`
+## com o id do ator) valida e chama `perform_use_item`. Comida: o jogador SEMPRE a consome (come 1 e
+## recupera fome), mesmo com uma criatura dormindo ao alcance (decisão do dono); não gasta se a fome está
+## cheia; a criatura recebe comida só pela tela do inventário dela. Equipamento (atalho por `iid`):
+## SELECIONA; apertar a tecla do que já está em mãos desequipa (mãos livres, Soco). Só arma troca o
+## equipado; comer não mexe nele. Sem estoque, sem efeito.
+## Retorna true se algo foi consumido ou trocado.
 func request_use_item(slot: int) -> bool:
-	if input_locked or health.is_dead():
+	if input_locked or health.is_dead() or authority == null:
 		return false
+	return authority.request_use_item(authority.id_of(self), slot) == Enums.ActionResult.OK
+
+
+## Efeito do atalho (só a autoridade chama, com o ator vivo e `slot` válido).
+func perform_use_item(slot: int) -> Enums.ActionResult:
 	var iid := hotbar.iid_at(slot)
 	if iid != "":
-		return _equip_timer <= 0.0 and _toggle_equipped(iid)
+		if _equip_timer > 0.0:
+			return Enums.ActionResult.COOLDOWN
+		return Enums.ActionResult.OK if _toggle_equipped(iid) else Enums.ActionResult.REFUSED
 	if _eat_timer > 0.0:
-		return false
+		return Enums.ActionResult.COOLDOWN
 	var item_id := hotbar.item_at(slot)
 	var restore := rules.hunger_restore_of(item_id)
 	if restore <= 0.0 or hunger.current_hunger >= hunger.max_hunger or inventory.remove(item_id, 1) < 1:
-		return false
+		return Enums.ActionResult.REFUSED
 	hunger.eat(restore)
 	ate.emit(item_id)
 	_eat_timer = rules.food_cooldown
-	return true
+	return Enums.ActionResult.OK
 
 
 ## Item pelo `iid`, na grade ou em uma vaga de equipamento; `{}` se não existe.
@@ -293,13 +346,27 @@ func find_item(iid: String) -> Dictionary:
 	return item if not item.is_empty() else equipment.find_iid(iid)
 
 
-## Pedido de equipar o item `iid` da grade (vaga "" = a do item). Recarga de 0,3 s. Devolve "" se
-## equipou ou o motivo da recusa (`EquipmentComponent.REFUSED_*`, ou "cooldown"); recusa avisa por
-## `equip_refused`, exceto a recarga, que é silenciosa.
+## Pedido de equipar o item `iid` da grade (vaga "" = a do item): passa pela autoridade. Devolve "" se
+## equipou ou o motivo da recusa (`EquipmentComponent.REFUSED_*`, "cooldown" ou "denied").
 func request_equip(iid: String, slot_id: String = "") -> String:
-	var reason := _after_equip_request(equipment.equip(iid, slot_id) if _can_equip_now() else COOLDOWN)
-	if reason == "":
+	if authority == null:
+		return DENIED
+	_last_refusal = DENIED
+	var result := authority.request_equip(authority.id_of(self), iid, slot_id)
+	return "" if result == Enums.ActionResult.OK else _last_refusal
+
+
+## Efeito de equipar ou desequipar (só a autoridade chama, e `_toggle_equipped`): `iid` vazio tira da vaga
+## `slot_id` o que estiver nela; senão equipa o item `iid` (`slot_id` "" = a vaga do item). Recarga de 0,3 s.
+## Devolve "" ou o motivo; recusa avisa por `equip_refused`, exceto a recarga, que é silenciosa.
+func perform_equipment(iid: String, slot_id: String = "") -> String:
+	var reason := COOLDOWN
+	if _can_equip_now():
+		reason = equipment.equip(iid, slot_id) if iid != "" else equipment.unequip(slot_id)
+	reason = _after_equip_request(reason)
+	if reason == "" and iid != "":
 		_ensure_hotbar_slot(iid)
+	_last_refusal = reason
 	return reason
 
 
@@ -312,18 +379,17 @@ func _ensure_hotbar_slot(iid: String) -> void:
 	hotbar.assign_iid(hotbar.first_free(), iid, item["id"])
 
 
-## Pedido de tirar o item da vaga para a grade (grade sem posição livre: recusa "full").
+## Pedido de tirar o item da vaga para a grade (grade sem posição livre: recusa "full"), pela autoridade.
 func request_unequip(slot_id: String) -> String:
-	return _after_equip_request(equipment.unequip(slot_id) if _can_equip_now() else COOLDOWN)
+	if authority == null:
+		return DENIED
+	_last_refusal = DENIED
+	var result := authority.request_unequip(authority.id_of(self), slot_id)
+	return "" if result == Enums.ActionResult.OK else _last_refusal
 
 
 func _can_equip_now() -> bool:
-	return not input_locked_for_equip() and _equip_timer <= 0.0
-
-
-## A tela de inventário trava o corpo (`input_locked`), mas é por ela que se equipa: só a morte impede.
-func input_locked_for_equip() -> bool:
-	return health.is_dead()
+	return not health.is_dead() and _equip_timer <= 0.0  # a tela trava o corpo (`input_locked`), mas é por ela que se equipa
 
 
 func _after_equip_request(reason: String) -> String:
@@ -339,7 +405,7 @@ func _toggle_equipped(iid: String) -> bool:
 	var item := find_item(iid)
 	if item.is_empty() or Items.slot_of(item["id"]) != EquipmentLayout.WEAPON:
 		return false
-	var reason := request_unequip(EquipmentLayout.WEAPON) if equipment.has_iid(iid) else request_equip(iid)
+	var reason := perform_equipment("", EquipmentLayout.WEAPON) if equipment.has_iid(iid) else perform_equipment(iid)
 	return reason == ""
 
 
@@ -476,6 +542,13 @@ func _grant_starting_equipment() -> void:
 		var iid := _newest_iid(item_id)
 		if iid != "" and hotbar.slot_of_iid(iid) < 0 and hotbar.first_free() >= 0:
 			hotbar.assign_iid(hotbar.first_free(), iid, item_id)
+
+
+## Caixa de colisão vinda dos dados (`PlayerRules.hitbox_size`), nunca da cena.
+func _apply_hitbox() -> void:
+	var shape := RectangleShape2D.new()
+	shape.size = rules.hitbox_size
+	$CollisionShape2D.shape = shape
 
 
 func _on_area_entered(area: Area2D) -> void:

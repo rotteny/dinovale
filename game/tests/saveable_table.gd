@@ -123,6 +123,7 @@ func _taming_case() -> Array:
 func _state_machine_case() -> Array:
 	var original := _sleeping_dino()
 	original.state_machine.mark_tamed()
+	original.state_machine.set_order(Enums.DinoOrder.FOLLOW)
 	return [original.state_machine, (_spawn(DinoScene) as Dino).state_machine]
 
 
@@ -132,6 +133,7 @@ func _dino_case() -> Array:
 	original.level = 15
 	original.health.take_damage(25.0)
 	original.torpor.add_torpor(100.0)
+	original.feeder_player_id = "amigo"
 	return [original, _spawn(DinoScene)]
 
 
@@ -152,6 +154,7 @@ func _player_case() -> Array:
 	original.health.grant_protection(2.5)
 	original.inventory.remove("berry", 3)
 	original.hotbar.assign(8, "meat")
+	TestWorld.arm(original, [], _track)
 	original.request_use_item(3)
 	return [original, _spawn(PlayerScene)]
 

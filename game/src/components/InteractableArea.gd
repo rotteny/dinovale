@@ -18,6 +18,8 @@ const PHYSICS_LAYER := 2
 @export var prompt: String = "interagir"
 
 var availability: Callable = Callable()
+## Ação secundária (a ordem do domado): faz o prompt aparecer mesmo sem `can_interact`.
+var prompt_availability: Callable = Callable()
 
 var _last_available: bool = true
 
@@ -31,6 +33,11 @@ func _init() -> void:
 
 func can_interact() -> bool:
 	return not availability.is_valid() or bool(availability.call())
+
+
+## O prompt deve aparecer? A interação principal, ou a ação secundária da entidade.
+func can_prompt() -> bool:
+	return can_interact() or (prompt_availability.is_valid() and bool(prompt_availability.call()))
 
 
 ## Reavalia a regra e emite `availability_changed` só se mudou.

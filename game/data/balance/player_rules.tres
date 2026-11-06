@@ -14,3 +14,4 @@ hunger_restore = Dictionary[String, float]({
 "fern": 15.0,
 "meat": 40.0
 })
+hitbox_size = Vector2(10, 10)

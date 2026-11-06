@@ -9,6 +9,7 @@
 [ext_resource type="Script" path="res://src/ui/PauseMenu.gd" id="13_pause"]
 [ext_resource type="Script" path="res://src/ui/DeathScreen.gd" id="14_death"]
 [ext_resource type="Script" path="res://src/world/ResourceField.gd" id="15_field"]
+[ext_resource type="Script" path="res://src/world/WorldAuthority.gd" id="21_authority"]
 [ext_resource type="PackedScene" path="res://src/entities/resource/ResourceNode.tscn" id="16_node"]
 [ext_resource type="Resource" path="res://data/resources/tree.tres" id="17_tree"]
 [ext_resource type="Resource" path="res://data/resources/rock.tres" id="18_rock"]
@@ -36,17 +37,21 @@ normal = Vector2(1, 0)
 normal = Vector2(-1, 0)
 distance = -640.0
 
-[node name="Main" type="Node2D" node_paths=PackedStringArray("player", "screen", "dino", "pause", "hud", "death_screen", "resources")]
+[node name="Main" type="Node2D" node_paths=PackedStringArray("player", "screen", "dino", "authority", "pause", "hud", "death_screen", "resources")]
 y_sort_enabled = true
 script = ExtResource("3_main")
 player = NodePath("Player")
 screen = NodePath("UI/InventoryScreen")
 dino = NodePath("Dino")
+authority = NodePath("WorldAuthority")
 pause = NodePath("UI/PauseMenu")
 hud = NodePath("UI/PlayerHud")
 death_screen = NodePath("UI/DeathScreen")
 resources = NodePath("Resources")
 menu_scene = "res://src/ui/TitleScreen.tscn"
+
+[node name="WorldAuthority" type="Node" parent="."]
+script = ExtResource("21_authority")
 
 [node name="Terrain" parent="." instance=ExtResource("8_terrain")]
 

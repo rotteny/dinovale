@@ -11,10 +11,11 @@ extends CharacterBody2D
 ## domesticar, o `TamingComponent` entrega o nível final e o dino o assume.
 
 signal level_changed(level: int)
-
 ## Limite de sanidade para uma coordenada vinda de save.
 const COORD_LIMIT := 1.0e6
 const LEVEL_SANITY := 1000000
+## Tamanho máximo de um `player_id` vindo de save (maior que isso não é id: é lixo).
+const MAX_PLAYER_ID_LENGTH := 64
 
 @export var move_speed: float = 40.0
 @export var stats: DinoBaseStats = preload("res://data/dino/placeholder_dino.tres")
@@ -29,6 +30,17 @@ const LEVEL_SANITY := 1000000
 ## Dano do ataque do dino, derivado do nível (sem uso até existir carnívoro).
 var attack_damage: float = 0.0
 
+## Dono (`player_id` do personagem, ADR-003; "" = sem dono): aponta para o personagem, que existe com o
+## dono offline. Vira o último a depositar a comida ideal quando a domesticação termina (ADR-001,
+## "Taming"). Vai no save como `owner_player_id`.
+var owner_player_id: String = ""
+## Quem depositou a comida ideal por último (`request_transfer_slot`), por `player_id`. Vai no save, porque a
+## domesticação pode ser salva no meio.
+var feeder_player_id: String = ""
+## Resolve um `player_id` no corpo do jogador no mundo (ou null se não está). A autoridade o preenche ao
+## registrar a criatura; sem ele a ordem Seguir não encontra o dono e o dino fica parado.
+var player_locator: Callable = Callable()
+
 var _restoring: bool = false
 
 @onready var health: HealthComponent = $HealthComponent
@@ -42,6 +54,7 @@ var _restoring: bool = false
 
 
 func _ready() -> void:
+	_apply_hitbox()
 	health.died.connect(queue_free)
 	# Fase da pausa: valor definido na cena vale. Senão, deriva do ponto de nascimento.
 	# Limite conhecido: dois dinos que nascem no mesmo ponto compartilham a fase. Troca para
@@ -51,13 +64,52 @@ func _ready() -> void:
 	taming.level_finalized.connect(_on_level_finalized)
 	_apply_level()
 	interactable.availability = can_interact
+	interactable.prompt_availability = can_command
 	state_machine.state_changed.connect(_on_state_changed)
+	state_machine.order_changed.connect(_on_order_changed)
+	_refresh_prompt()
 	interactable.refresh()
 
 
 func _physics_process(_delta: float) -> void:
-	velocity = state_machine.desired_direction * move_speed * torpor.movement_multiplier()
+	observe_owner()
+	velocity = state_machine.desired_direction * move_speed * state_machine.speed_multiplier \
+			* torpor.movement_multiplier()
 	move_and_slide()
+
+
+## Informa à máquina onde o dono está (a máquina não vê o mundo). Dono fora do mundo ou MORTO conta como
+## ausente: o dino fica onde está, a ordem se mantém e ele volta a seguir quando o dono renascer.
+## Público para testar sem quadros.
+func observe_owner() -> void:
+	var owner_body: Node2D = null
+	if owner_player_id != "" and player_locator.is_valid():
+		owner_body = player_locator.call(owner_player_id) as Node2D
+	var present := owner_body != null and not _is_dead_body(owner_body)
+	state_machine.observe(global_position, owner_body.global_position if present else Vector2.ZERO, present)
+
+
+## Reavalia o prompt depois de o dono mudar fora do fluxo normal (ex.: dono corrigido ao carregar).
+func refresh_command_state() -> void:
+	_refresh_prompt()
+	interactable.refresh()
+
+
+func _is_dead_body(body: Node2D) -> bool:
+	var owner_health := body.get("health") as HealthComponent
+	return owner_health != null and owner_health.is_dead()
+
+
+## Caixa de colisão vinda dos dados (`DinoBaseStats.hitbox_size`), nunca da cena.
+func _apply_hitbox() -> void:
+	var shape := RectangleShape2D.new()
+	shape.size = stats.hitbox_size
+	$CollisionShape2D.shape = shape
+
+
+## Tem dono e já é domesticado: a tecla de interação manda seguir ou ficar em vez de abrir a tela.
+func can_command() -> bool:
+	return state_machine.is_tamed and owner_player_id != "" and not health.is_dead()
 
 
 ## Regra de interação: só dá para abrir o inventário de uma criatura selvagem inconsciente.
@@ -119,10 +171,25 @@ func _apply_level() -> void:
 
 func _on_level_finalized(final_level: int) -> void:
 	level = final_level
+	owner_player_id = feeder_player_id
+	_refresh_prompt()
 
 
 func _on_state_changed(_previous: Enums.DinoStateId, _current: Enums.DinoStateId) -> void:
+	_refresh_prompt()
 	interactable.refresh()
+
+
+func _on_order_changed(_order: Enums.DinoOrder) -> void:
+	_refresh_prompt()
+
+
+## Texto do prompt: o do domado diz a ordem que a tecla vai dar; o do selvagem fica o padrão.
+func _refresh_prompt() -> void:
+	if can_command():
+		interactable.prompt = "mandar ficar" if state_machine.order == Enums.DinoOrder.FOLLOW else "mandar seguir"
+	else:
+		interactable.prompt = "interagir"
 
 
 func to_dict() -> Dictionary:
@@ -134,7 +201,15 @@ func to_dict() -> Dictionary:
 		"inventory": inventory.to_dict(),
 		"taming": taming.to_dict(),
 		"state_machine": state_machine.to_dict(),
+		"owner_player_id": owner_player_id,
+		"feeder_player_id": feeder_player_id,
 	}
+
+
+## `player_id` vindo de save: texto de tamanho razoável, ou "" (sem dono).
+func _saved_player_id(value: Variant) -> String:
+	var text := SafeRead.text(value, "")
+	return text if text.length() <= MAX_PLAYER_ID_LENGTH else ""
 
 
 ## Chame depois de adicionar à árvore. A ordem importa: inventário, torpor e domesticação antes da máquina.
@@ -163,6 +238,9 @@ func from_dict(data: Dictionary) -> bool:
 	torpor.from_dict(SafeRead.dict(data.get("torpor")))
 	taming.from_dict(SafeRead.dict(data.get("taming")))
 	state_machine.from_dict(SafeRead.dict(data.get("state_machine")))
+	owner_player_id = _saved_player_id(data.get("owner_player_id")) if state_machine.is_tamed else ""
+	feeder_player_id = _saved_player_id(data.get("feeder_player_id"))
+	_refresh_prompt()
 	taming.reconcile()
 	# Os máximos vêm do nível, não do save: dado salvo não é confiável.
 	_apply_level()

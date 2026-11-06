@@ -4,12 +4,14 @@ extends Node2D
 ## Cena principal: liga o mundo à UI. Quando o jogador interage com uma criatura,
 ## abre o inventário compartilhado; enquanto a tela está aberta o jogador não anda.
 ## Também liga o save: "Continuar" (pedido em `GameSession`) restaura o último jogo; o `SaveScheduler`
-## salva no intervalo, na morte do jogador e na de um dino domado; a pausa tem Salvar; voltar ao menu e
-## fechar a janela salvam direto. O jogo nunca pergunta antes de salvar.
+## salva no intervalo, na morte do jogador e na de um dino domado e ao escolher o respawn; voltar ao menu e
+## fechar a janela salvam direto. A pausa não oferece Salvar: o jogador não escolhe quando salvar. O jogo nunca pergunta antes de salvar.
 
 @export var player: Player
 @export var screen: InventoryScreen
 @export var dino: Dino
+## Autoridade do mundo (ADR-001): toda ação do jogador passa por ela, também no single-player.
+@export var authority: WorldAuthority
 ## Pausa (Esc quando nenhuma tela está aberta). Opcional: um servidor ou teste pode não ter UI.
 @export var pause: PauseMenu
 ## Cena da apresentação, para "Voltar ao menu"; vazio = a pausa só tem Continuar.
@@ -32,6 +34,8 @@ var pending_death_choice: bool = false
 var save_manager: SaveManager
 var scheduler: SaveScheduler
 
+## `entity_id` da criatura cuja tela compartilhada está aberta (0 = nenhuma).
+var _screen_target_id: int = 0
 var _quit_failed_once: bool = false
 var _last_failure_notice: String = ""
 ## O Continuar falhou: esta partida não existe de verdade (a cena volta ao título) e não grava nada.
@@ -52,13 +56,17 @@ func _ready() -> void:
 	screen.hotbar_assign_requested.connect(_on_hotbar_assign_requested)
 	screen.opened.connect(func() -> void: player.input_locked = true)
 	screen.closed.connect(func() -> void: player.input_locked = false)
-	player.interacted.connect(_on_player_interacted)
+	_register_entities()
+	screen.transfer_requested.connect(_on_transfer_requested)
+	authority.interaction_granted.connect(_on_interaction_granted)
+	authority.action_denied.connect(_on_action_denied)
 	save_manager = SaveManager.new(GameSession.save_root, world_id)
 	scheduler = SaveScheduler.new()
 	scheduler.player = player
 	scheduler.dino = dino
 	scheduler.manager = save_manager
 	scheduler.field = resources
+	scheduler.authority = authority
 	scheduler.saved.connect(_on_saved)
 	add_child(scheduler)
 	player.health.died.connect(_on_player_died)
@@ -70,16 +78,28 @@ func _ready() -> void:
 	dino.health.died.connect(_on_dino_died)
 	if pause != null:
 		pause.set_menu_available(menu_scene != "")
-		pause.set_save_available(true)
-		pause.save_requested.connect(_on_save_requested)
 		pause.menu_requested.connect(_on_menu_requested)
 	if GameSession.take_continue():
 		_continue_saved_game()
 
 
-## Gravar agora (Salvar da pausa; a Cama usa `SaveManager.Reason.BED`). Falhou: o motivo fica em
+## O jogador e a criatura da cena entram no registro com os ids do save; os nós de recurso, com o próximo livre.
+func _register_entities() -> void:
+	player.authority = authority
+	# Registro que falha (id em uso) deixa o jogo sem aquela entidade para a autoridade: erro alto, não calado.
+	if authority.register(player, WorldSnapshot.PLAYER_ENTITY_ID) != WorldSnapshot.PLAYER_ENTITY_ID:
+		push_error("Main: o id do jogador já está em uso no registro.")
+	if authority.register(dino, WorldSnapshot.DINO_ENTITY_ID) != WorldSnapshot.DINO_ENTITY_ID:
+		push_error("Main: o id da criatura já está em uso no registro.")
+	if resources != null:
+		for node in resources.nodes():
+			if authority.register(node) == 0:
+				push_error("Main: nó de recurso sem id no registro.")
+
+
+## Gravar agora (menu, sair e testes; a Cama usa `SaveManager.Reason.BED`). Falhou: o motivo fica em
 ## `scheduler.last_message` e o save anterior continua.
-func save_game(reason: SaveManager.Reason = SaveManager.Reason.MANUAL) -> bool:
+func save_game(reason: SaveManager.Reason) -> bool:
 	return scheduler.save_now(reason)
 
 
@@ -89,6 +109,7 @@ func _continue_saved_game() -> void:
 	if outcome.status == SaveManager.Status.OK:
 		_respawn_count = WorldSnapshot.respawn_count_of(outcome.data)
 		scheduler.respawn_count = _respawn_count
+		authority.ensure_next_id(WorldSnapshot.next_entity_id_of(outcome.data))
 		if WorldSnapshot.was_dead_pending_choice(outcome.data):
 			_enter_death()  # carregar um morto reabre a escolha; não desfaz a morte
 		_notify(outcome.message)
@@ -200,12 +221,6 @@ func _on_saved(reason: SaveManager.Reason, ok: bool, message: String) -> void:
 		hud.show_saving()
 
 
-func _on_save_requested() -> void:
-	save_game()
-	if pause != null:
-		pause.show_status(scheduler.last_message)
-
-
 ## Voltar ao menu salva e volta direto. Se a escrita falhar, a partida não fecha: o aviso aparece
 ## na pausa e o save anterior continua.
 func _on_menu_requested() -> void:
@@ -242,10 +257,29 @@ func _on_hotbar_assign_requested(slot: int, item_id: String, iid: String) -> voi
 		player.hotbar.assign(slot, item_id)
 
 
-func _on_player_interacted(target: InteractableArea) -> void:
-	if target.entity is ResourceNode:
-		player.request_gather()
+func _on_interaction_granted(actor_id: int, target_id: int) -> void:
+	var target := authority.entity(target_id)
+	if target is ResourceNode:
+		authority.request_gather(actor_id, target_id)  # o alvo é o que a interação concedeu, não a mira local
 		return
-	var target_dino := target.entity as Dino
+	var target_dino := target as Dino
 	if target_dino != null:
-		screen.open_with(player.inventory, target_dino.inventory, target, "Criatura")
+		_screen_target_id = target_id
+		screen.open_with(player.inventory, target_dino.inventory, target_dino.interactable, "Criatura")
+
+
+## A tela pede mover o slot; a autoridade valida e executa (alcance, estado da criatura, espaço).
+func _on_transfer_requested(from_player: bool, index: int) -> void:
+	var player_id := authority.id_of(player)
+	var from_id := player_id if from_player else _screen_target_id
+	var to_id := _screen_target_id if from_player else player_id
+	authority.request_transfer_slot(player_id, from_id, index, to_id)
+
+
+func _on_action_denied(_actor_id: int, action: String, result: Enums.ActionResult) -> void:
+	if action == WorldAuthority.ACTION_TRANSFER:
+		screen.show_transfer_refusal(result)
+	elif action == WorldAuthority.ACTION_GATHER and result == Enums.ActionResult.OUT_OF_RANGE:
+		_on_gather_refused(Player.GATHER_TOO_FAR)
+	elif action == WorldAuthority.ACTION_COMMAND and result == Enums.ActionResult.NOT_OWNER:
+		_notify("Esse dino não é seu.", 1.5)

@@ -6,8 +6,9 @@ extends Control
 ## Atalhos: com o cursor (ou o foco) sobre um item do jogador, as teclas 1 a 9 o atribuem à
 ## barra de atalhos; o botão direito o atribui à primeira posição livre (ou o tira, se já
 ## estiver). O pedido sai por `hotbar_assign_requested` (quem liga muda o `HotbarComponent`).
-## Fecha com Esc, I, Tab ou E. Só apresentação: a transferência é a do `InventoryComponent`
-## e a regra de "quando pode abrir" fica na entidade (`InteractableArea.availability_changed`).
+## Fecha com Esc, I, Tab ou E. Só apresentação: a transferência é pedida por `transfer_requested`
+## (a `Main` a leva à autoridade, que valida e executa) e a regra de "quando pode abrir" fica na
+## entidade (`InteractableArea.availability_changed`).
 
 signal opened
 signal closed
@@ -19,6 +20,9 @@ signal hotbar_assign_requested(slot: int, item_id: String, iid: String)
 ## Quem liga (a `Main`) pede ao `Player`, que valida; a tela não muda nada.
 signal equip_requested(iid: String)
 signal unequip_requested(slot_id: String)
+## Pede para mover o slot `index` para o outro lado (`from_player`: do jogador para a criatura).
+## A tela não muda nada; recusa volta por `show_transfer_refusal`.
+signal transfer_requested(from_player: bool, index: int)
 
 const COLUMNS := 4
 const SLOT_SIZE := Vector2(84, 32)
@@ -35,6 +39,9 @@ var is_open: bool = false
 var locked: bool = false
 
 var _other: InventoryComponent = null
+## O último pedido de transferência, para dizer por que foi recusado.
+var _asked_slot: Dictionary = {}
+var _asked_destination: InventoryComponent = null
 var _source: InteractableArea = null
 var _title := Label.new()
 var _player_grid := GridContainer.new()
@@ -388,10 +395,27 @@ func _transfer(from_player: bool, index: int, forced: bool) -> void:
 	if not forced and slot.has("iid") and Items.slot_of(slot["id"]) != "" and destination.accepts_individual:
 		_notice.text = "Duplo clique equipa; Shift+clique transfere o equipamento."
 		return
-	if source.transfer_slot(index, destination) == 0 and not slot.is_empty():
-		_notice.text = _refusal_text(slot, destination)
-	else:
-		_notice.text = ""
+	_notice.text = ""
+	_asked_slot = slot
+	_asked_destination = destination
+	transfer_requested.emit(from_player, index)
+
+
+## A autoridade negou o último pedido de transferência: mostra o motivo certo para o `result`. Recusa
+## de regra (`REFUSED`: não vai para a criatura, sem espaço) usa o item pedido.
+func show_transfer_refusal(result: Enums.ActionResult = Enums.ActionResult.REFUSED) -> void:
+	match result:
+		Enums.ActionResult.OUT_OF_RANGE:
+			_notice.text = "Longe demais."
+		Enums.ActionResult.NOT_OWNER:
+			_notice.text = "Essa criatura é de outro."
+		Enums.ActionResult.WRONG_STATE, Enums.ActionResult.INVALID_TARGET, Enums.ActionResult.UNKNOWN_TARGET:
+			_notice.text = "A criatura não aceita isso agora."
+		Enums.ActionResult.REFUSED:
+			if not _asked_slot.is_empty() and _asked_destination != null:
+				_notice.text = _refusal_text(_asked_slot, _asked_destination)
+		_:
+			_notice.text = "Não deu."
 
 
 ## Por que o item não foi: equipamento recusado pelo destino, ou sem espaço.

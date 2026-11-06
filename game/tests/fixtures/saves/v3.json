@@ -1,0 +1,179 @@
+{
+	"entities": [
+		{
+			"id": 2,
+			"state": {
+				"feeder_player_id": "local",
+				"health": {
+					"current": 159.0,
+					"max": 172.0
+				},
+				"inventory": {
+					"next_iid": 1,
+					"slots": [
+						{},
+						{},
+						{},
+						{},
+						{},
+						{},
+						{},
+						{}
+					],
+					"version": 2
+				},
+				"level": 28,
+				"owner_player_id": "local",
+				"position": {
+					"x": 320.0,
+					"y": 180.0
+				},
+				"state_machine": {
+					"is_tamed": true,
+					"order": "FOLLOW",
+					"state": "TAMED"
+				},
+				"taming": {
+					"efficiency": 87.8279069767442,
+					"meal_timer": 0.0,
+					"progress": 0.0
+				},
+				"torpor": {
+					"band": 0,
+					"current": 0.0,
+					"is_unconscious": false,
+					"max": 136.0,
+					"pause_clock": 0.0,
+					"pause_phase": 0.0
+				}
+			},
+			"type": "dino"
+		}
+	],
+	"format_version": 3,
+	"game_version": "0.1.0",
+	"players": [
+		{
+			"entity_id": 1,
+			"life": "alive",
+			"player_id": "local",
+			"state": {
+				"equipment": {
+					"slots": {
+						"weapon": {
+							"durab": 120,
+							"durab_max": 120,
+							"id": "sleep_staff",
+							"iid": "p1"
+						}
+					},
+					"version": 1
+				},
+				"health": {
+					"current": 70.0,
+					"max": 100.0
+				},
+				"hotbar": {
+					"slots": [
+						{
+							"id": "berry"
+						},
+						{
+							"id": "meat"
+						},
+						{
+							"id": "fern"
+						},
+						{
+							"id": "sleep_staff",
+							"iid": "p1"
+						},
+						{},
+						{},
+						{},
+						{},
+						{}
+					],
+					"version": 2
+				},
+				"hunger": {
+					"current": 40.0,
+					"max": 100.0,
+					"starvation_timer": 0.0
+				},
+				"inventory": {
+					"next_iid": 2,
+					"slots": [
+						{
+							"count": 7,
+							"expira_em": 0.0,
+							"id": "berry"
+						},
+						{
+							"count": 4,
+							"expira_em": 0.0,
+							"id": "meat"
+						},
+						{
+							"count": 3,
+							"expira_em": 0.0,
+							"id": "fern"
+						},
+						{},
+						{},
+						{},
+						{},
+						{},
+						{},
+						{},
+						{},
+						{}
+					],
+					"version": 2
+				},
+				"position": {
+					"x": 120.5,
+					"y": 88.0
+				},
+				"stamina": {
+					"current": 100.0,
+					"is_exhausted": false,
+					"max": 100.0
+				},
+				"version": 2
+			}
+		}
+	],
+	"saved_at": "2026-11-05T12:00:00Z",
+	"world": {
+		"map_id": "main",
+		"next_entity_id": 3,
+		"resource_nodes": [
+			{
+				"def": "berry_bush",
+				"depleted": true,
+				"id": "berry_1",
+				"respawn_left": 100.0
+			},
+			{
+				"def": "tree",
+				"depleted": false,
+				"id": "tree_1",
+				"respawn_left": 0.0
+			},
+			{
+				"def": "tree",
+				"depleted": true,
+				"id": "id_que_nao_existe",
+				"respawn_left": 5.0
+			},
+			{
+				"def": "tree",
+				"depleted": true,
+				"id": "rock_1",
+				"respawn_left": 5.0
+			}
+		],
+		"respawn_count": 3
+	}
+}

@@ -133,6 +133,10 @@ func _test_shared_screen_double_click() -> void:
 	_track.call(screen)
 	var equips: Array = []
 	screen.equip_requested.connect(func(value: String) -> void: equips.append(value))
+	# Sem criatura nem autoridade no teste: o baú de teste faz o papel do anfitrião que move o slot.
+	screen.transfer_requested.connect(func(from_player: bool, slot: int) -> void:
+		var source := player.inventory if from_player else chest
+		source.transfer_slot(slot, chest if from_player else player.inventory))
 	screen.open_with(player.inventory, chest, null, "Baú")
 	var index := -1
 	for i in player.inventory.slot_count():

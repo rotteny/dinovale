@@ -154,6 +154,8 @@ func _process(delta: float) -> void:
 func tick(delta: float) -> void:
 	_saving_left = maxf(_saving_left - delta, 0.0)
 	_saving.visible = _saving_left > 0.0
+	if _watched != null:  # o prompt do domado muda com a ordem, e a área não emite sinal por isso
+		_refresh_prompt()
 
 
 ## Indicador discreto de 1 s no canto: o jogo salvou (nunca bloqueia nem pergunta).
@@ -221,7 +223,7 @@ func _on_lock_changed(_locked: bool) -> void:
 
 func _refresh_prompt() -> void:
 	var can_show := _watched != null and is_instance_valid(_watched) \
-			and _watched.can_interact() and not player.input_locked
+			and _watched.can_prompt() and not player.input_locked
 	_prompt.visible = can_show
 	if can_show:
 		_prompt.text = "E para %s" % _watched.prompt

@@ -7,13 +7,13 @@
 script = ExtResource("2_region")
 id = "campina"
 display_name = "Campina"
-area = Rect2(32, 32, 576, 296)
-fallback_point = Vector2(160, 300)
+area = Rect2(0, 2560, 4096, 1536)
+fallback_point = Vector2(1992, 3208)
 
 [resource]
 script = ExtResource("1_rules")
 regions = Array[ExtResource("2_region")]([SubResource("Resource_campina")])
-default_fallback_point = Vector2(160, 300)
+default_fallback_point = Vector2(1992, 3208)
 accept_delay = 0.6
 tile_size = 16
 max_attempts = 30

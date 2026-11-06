@@ -6,7 +6,7 @@ Autora: `SHIRO`, 06/11/2026 (refeito com a ilha irregular e grande). Complementa
 
 ## 1. Nome da ilha (decisão do dono, 06/11)
 
-**Lunata** (latim para "em forma de lua"). **Pendente: o dono confere a disponibilidade do nome (domínio, repositório) antes de publicar.** Os lugares usam "Lunata".
+**Lunata** (latim para "em forma de lua"). **Nome decidido pelo dono (06/11).** Os lugares usam "Lunata".
 
 ## 2. Tamanho, forma e peso (o que mudou: a ilha é grande e irregular)
 
@@ -66,7 +66,7 @@ Esboço do mapa de 256 (1 caractere = 4 tiles de largura x 8 de altura; norte em
                                 ~~~~~~~~~~        ~~
 ```
 
-Faixas de bioma (retângulos para `respawn_regioes`; o desenho de tiles mistura as bordas): **Pedreira y<64, Mata-baixa 64 a 159, Campina y>=160** (terra: 4.608, 8.108 e 8.667 tiles; sorteável 3.991, 7.876 e 8.145).
+Faixas de bioma (retângulos para `respawn_regioes`; o desenho de tiles mistura as bordas): **Pedreira y<64, Mata-baixa 64 a 159, Campina y>=160** (terra: 4.608, 8.108 e 8.667 tiles; sorteável 3.991, 7.876 e 8.145). Com a borda irregular de ruído, a terra medida no `lunata.json` é Pedreira 3.661, Mata-baixa 7.610 e Campina 8.012 tiles; as contagens de nós da seção 8 são as reais do arquivo.
 
 ## 3. Mar, câmera e névoa
 
@@ -98,7 +98,7 @@ Formação rochosa = obstáculo com colisão que molda visão e fuga. Saem no MU
 
 **Início [proposta]:** Campina sul, praia da Enseada-Quieta, (140,196).
 
-**Respawn (`respawn_regioes`):** retângulos acima. Pontos reserva iniciais [proposta, ajustar no MUN-03]: Campina (124,200), no núcleo; Mata-baixa (98,132), a 33 tiles da toca mais próxima; Pedreira (120,25), a 27 de um Triceratops. [calculado, 3.000 simulações, 6 tocas com bando de 1 a 2, ronda de 10, 30 sorteios, distâncias do 12.2] um sorteio é recusado em 2% (Campina), 55% (Mata-baixa) e 41% (Pedreira); **o ponto reserva sai em 0,00% dos casos nas três** (a ilha grande dilui as tocas: as regiões têm 4.000 a 8.300 tiles, o 12.2 calculava ~4.900).
+**Respawn (`respawn_regioes`):** retângulos acima. Pontos reserva iniciais [proposta, ajustar no MUN-03]: Campina (124,200), na Campina e a mais de 8 tiles de qualquer paquicéfalo (o exportador reserva essa folga); Mata-baixa (98,132), a 33 tiles da toca mais próxima; Pedreira (120,25), a 27 de um Triceratops. [calculado, 3.000 simulações, 6 tocas com bando de 1 a 2, ronda de 10, 30 sorteios, distâncias do 12.2] um sorteio é recusado em 2% (Campina), 55% (Mata-baixa) e 41% (Pedreira); **o ponto reserva sai em 0,00% dos casos nas três** (a ilha grande dilui as tocas: as regiões têm 4.000 a 8.300 tiles, o 12.2 calculava ~4.900).
 
 **Dinos (elenco fechado da 0.2, sem espécie nova) [proposta]:** **360, 1 a cada ~59 tiles de terra, ~3,8 no campo de visão de 320x180** (a 186 seriam 1,9).
 
@@ -139,17 +139,17 @@ O dono quer um refúgio; o H1 do plano exige o Utahraptor atacando o dino dormin
 
 **Valores do código** (`game/data/resources/*.tres`): árvore 3 madeira em 8 s, volta em **480 s**; pedra 4 em 10 s, **600 s**; baga 3 em 9 s, 240 s. O GDD 10 dizia 5 e 8 min: adotei os do código. As contagens são as da ilha de 128 multiplicadas pela terra de cada bioma (Campina x4,33, Mata x4,10, Pedreira x3,47).
 
-| Nó (id) | Rende por colheita | Total na ilha (B) |
+| Nó (id) | Rende por colheita | Total na ilha (B, contagem real do `lunata.json`) |
 |---|---|---|
-| Árvore coletável (`tree`) | 3 madeira, 8 s, volta em 480 s | **270** (1 a cada 81 tiles de terra) |
-| **Arbusto de baga** (`bush`, variante `baga`) | 3 Baga **+ 2 Fibra**, 12 s, volta em 240 s | 94 |
-| **Arbusto-do-sono** (`bush`, variante `sono`) | 3 Cochilo **+ 2 Fibra**, 16 s, volta em 420 s | 41 |
-| Pedra (`rock`), **só com Picareta** | 4 pedra, 10 s, volta em 600 s | 163 (Pedreira 104) |
+| Árvore coletável (`tree`) | 3 madeira, 8 s, volta em 480 s | **264** (1 a cada 73 tiles de terra) |
+| **Arbusto de baga** (`bush`, variante `baga`) | 3 Baga **+ 2 Fibra**, 12 s, volta em 240 s | 91 |
+| **Arbusto-do-sono** (`bush`, variante `sono`) | 3 Cochilo **+ 2 Fibra**, 16 s, volta em 420 s | 40 |
+| Pedra (`rock`), **só com Picareta** | 4 pedra, 10 s, volta em 600 s | 159 (Pedreira 102) |
 | **Pedra avulsa** (`loose_stone`) | 1 pedra, 1 s, **à mão, sem dano**; volta em 300 s (núcleo) ou 600 s | 24 |
 | Samambaia (`fern`, novo) | 3, 12 s, 240 s | 76 |
 | Tubérculo (`tuber`, novo) | 2, 16 s, 420 s | 51 |
 | Sal-de-veio (`salt_vein`, novo) | 2, 20 s, 480 s | 28 (Pedreira) |
-| **Pedra de minério / filão de ferro** (`iron_seam`, **M4**) | 2 minério por colheita de 14 s, mais 1 pedra e 1 sílex; volta em 900 s; a Picareta rende 4 minério por colheita (GDD 5.9c) | 28 (Pedreira, flanco leste) |
+| **Pedra de minério / filão de ferro** (`iron_seam`, **M4**) | 2 minério por colheita de 14 s, mais 1 pedra e 1 sílex; volta em 900 s; a Picareta rende 4 minério por colheita (GDD 5.9c) | 27 (Pedreira, flanco leste) |
 
 **Árvores:** a coletável tem silhueta própria (tronco claro com talho, copa em tufos) e realce a 2 tiles; a de cenário é copa densa e escura, sem interação; **1 coletável : 3 de cenário** (Pedreira 1:2, secas): 270 coletáveis + ~750 de cenário. Coletáveis em bosquetes de 2 a 4; 10 no núcleo; nenhuma sobre o início.
 
@@ -196,4 +196,4 @@ Contra o relatório da ilha de 128, a de 256 acrescenta população, zona ativa,
 
 **Calculado:** forma, áreas e trajetos; peso em memória (premissa de bytes); população e raios de ativação; núcleo, âncora e lente de 23%; respawn; curral; kit; começo do jogo; pedras avulsas.
 **Jogar / medir:** 25 µs por dino (INF-09); 1 min de arco é longo ou curto; 62 tiles de refúgio; 23% de ronda; respawn previsível na Mata; fuga contra água funda; 1 em 4 árvores se lê; cenário sem casa deixa o mundo vazio; x0,375 de madeira no Soco cansa.
-**Dono:** sem decisão aberta neste documento. Fechadas em 06/11: ilha Lunata (disponibilidade do nome a conferir), tamanho 256, Cochilo, refúgio A, Triceratops Grande, percepção em elipse e sinais do Utahraptor, fósseis no lugar dos fósseis, água rasa sem lentidão, mais faixas de tamanho depois do MVP.
+**Dono:** sem decisão aberta neste documento. Fechadas em 06/11: ilha Lunata (nome decidido), tamanho 256, Cochilo, refúgio A, Triceratops Grande, percepção em elipse e sinais do Utahraptor, fósseis no lugar dos fósseis, água rasa sem lentidão, mais faixas de tamanho depois do MVP.

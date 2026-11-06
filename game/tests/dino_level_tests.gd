@@ -767,7 +767,8 @@ func _test_player_view_attack_sound() -> void:
 	view.sound_cue.connect(func(c: StringName) -> void: cues.append(c))
 	_check(view.audio_player().stream == null and view.cue_streams.is_empty(), "sem stream por padrão")
 	_check(player.attack(), "golpe acerta")
-	_check(cues == [PlayerView.CUE_ATTACK] and view.is_attacking(), "o golpe emite o som e anima")
+	_check(cues == [PlayerView.CUE_HURT, PlayerView.CUE_ATTACK] and view.is_attacking(),
+			"o golpe emite o som e anima (o Soco também dói em quem o dá: som de dor antes do de ataque)")
 	view.tick(0.01)
 	_check(player.visual.frame_coords == Vector2i(6, SpriteFacing.LEFT),
 			"golpe: coluna 6 (primeiro quadro do hit), linha da esquerda (virado para o alvo)")
@@ -775,7 +776,7 @@ func _test_player_view_attack_sound() -> void:
 	_check(player.visual.frame_coords.x in [7, 8] and view.is_attacking(), "o golpe avança pelos quadros 7 e 8")
 	view.tick(view.attack_seconds())
 	_check(not view.is_attacking() and player.visual.frame_coords.x in [0, 1], "o golpe termina e volta ao parado")
-	_check(not player.attack() and cues.size() == 1, "golpe em recarga não faz som")
+	_check(not player.attack() and cues.size() == 2, "golpe em recarga não faz som")
 	var main: Main = MAIN_SCENE.instantiate()
 	_root.add_child(main)
 	_track.call(main)
@@ -789,40 +790,22 @@ func _test_terrain_scene() -> void:
 	_root.add_child(main)
 	_track.call(main)
 	var terrain: Node = main.get_node("Terrain")
-	var ground: TileMapLayer = terrain.get_node("Ground")
-	var trees: TileMapLayer = terrain.get_node("Trees")
-	var foliage: TileMapLayer = terrain.get_node("Foliage")
-	var decor: TileMapLayer = terrain.get_node("Decor")
-	_check(ground.get_used_cells().size() == 40 * 23, "chão cobre os 40x23 tiles")
-	var path_cells := 0
-	for cell in ground.get_used_cells():
-		if ground.get_cell_atlas_coords(cell) != Vector2i(0, 12) and ground.get_cell_atlas_coords(cell).y >= 7 \
-				and ground.get_cell_atlas_coords(cell).y <= 10:
-			path_cells += 1
-	_check(path_cells > 60, "o caminho de terra existe (%d tiles)" % path_cells)
-	_check(trees.get_used_cells().size() == 6 and foliage.get_used_cells().size() > 10 and decor.get_used_cells().size() > 40,
-			"árvores, folhagem de borda e miudezas")
-	_check(foliage.z_index > main.player.z_index and ground.z_index < 0, "folhagem à frente do jogador, chão atrás")
-	_check(main.y_sort_enabled and terrain.y_sort_enabled and trees.y_sort_enabled, "profundidade pela posição em y")
-	var bounds: StaticBody2D = main.get_node("Bounds")
-	_check(bounds.get_child_count() == 4, "a área segue fechada pelas 4 bordas de antes")
-	# Colisão nova: só o tronco das árvores e a base da casa.
-	var tile_data := trees.get_cell_tile_data(trees.get_used_cells()[0])
-	_check(tile_data.get_collision_polygons_count(0) == 1, "a árvore bloqueia só no tronco")
-	_check(foliage.get_cell_tile_data(foliage.get_used_cells()[0]).get_collision_polygons_count(0) == 0, "folhagem não bloqueia")
-	_check(decor.get_cell_tile_data(decor.get_used_cells()[0]).get_collision_polygons_count(0) == 0, "miudezas não bloqueiam")
-	var walls: StaticBody2D = terrain.get_node("House/Walls")
-	_check(walls.get_child_count() == 1 and terrain.get_node("Chest") is Sprite2D
-			and terrain.get_node("Chest").get_child_count() == 0, "casa com uma parede; baú só decorativo")
-	# O jogador e o dino começam em chão livre: nenhuma árvore sobre eles.
+	var ground0: TileMapLayer = terrain.get_node("Ground0")
+	var scenery: TileMapLayer = terrain.get_node("Scenery")
+	var map := main.map
+	_check(map.is_valid() and map.size == 256, "a Main carrega a ilha de 256x256")
+	_check(ground0.get_used_cells().size() > 30000, "a camada 0 do chão cobre a ilha e o mar (%d tiles)" % ground0.get_used_cells().size())
+	_check(ground0.z_index < 0 and scenery.y_sort_enabled, "chão atrás de tudo; cenário ordenado pela posição em y")
+	_check(main.y_sort_enabled and terrain.y_sort_enabled, "profundidade pela posição em y")
+	_check(main.get_node_or_null("Bounds") == null and terrain.get_node_or_null("House") == null
+			and terrain.get_node_or_null("Chest") == null, "sem casa, baú nem paredes fixas na Main")
+	_check(scenery.get_used_cells().size() == map.scenery["tree_decor"].size() + map.scenery["formation_a"].size()
+			+ map.scenery["formation_b"].size() + map.scenery["formation_c"].size(), "uma célula de cenário por item do mapa")
+	_check(scenery.get_cell_tile_data(scenery.get_used_cells()[0]).get_collision_polygons_count(0) == 1, "o cenário bloqueia só nos pés")
+	# O jogador e o dino começam em terra firme, em chão livre.
 	for point: Vector2 in [main.player.position, main.dino.position]:
-		var cell := trees.local_to_map(point)
-		var blocked := false
-		for dx in range(-1, 2):
-			for dy in range(-1, 2):
-				var other := trees.get_cell_tile_data(cell + Vector2i(dx, dy))
-				blocked = blocked or other != null
-		_check(not blocked, "ponto de partida %s livre de árvores" % point)
+		_check(map.is_land(map.cell_of(point)) and scenery.get_cell_source_id(scenery.local_to_map(point)) == -1,
+				"ponto de partida %s em terra, sem cenário em cima" % point)
 
 
 func _test_world_sounds_and_filter() -> void:
@@ -865,3 +848,10 @@ func _test_ui_theme_and_icons() -> void:
 	_check(screen.slot_button(true, 0).icon == ItemIcons.icon_of("berry"), "slot da baga mostra o ícone")
 	_check(screen.slot_button(true, 5).icon == null, "slot vazio sem ícone")
 	screen.close()
+
+## Libera os mundos (`Main`) que o teste anterior deixou na árvore. Cada `Main` vivo custa física a cada quadro e o
+## custo cresce com quantos existem (12 mundos: 2 s por quadro); entre um teste e outro nenhum deles é mais necessário.
+func _release_worlds() -> void:
+	for child in _root.get_children():
+		if child is Main:
+			child.free()

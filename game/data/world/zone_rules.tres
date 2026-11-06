@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="ZoneRules" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/core/ZoneRules.gd" id="1_rules"]
+
+[resource]
+script = ExtResource("1_rules")
+active_radius_tiles = 16.0
+far_radius_tiles = 40.0
+max_active = 32
+reevaluate_seconds = 0.25
+far_step_seconds = 2.0
+far_step_tiles = 2.0
+tile_size = 16

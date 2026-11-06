@@ -37,6 +37,8 @@ const GATHER_DEPLETED := "depleted"
 const GATHER_FULL := "full"
 const GATHER_BLOCKED := "blocked"
 const GATHER_TOO_FAR := "too_far"
+## Tocou um nó que exige ferramenta sem ela: o toque machuca a mão e não coleta nada.
+const GATHER_NEEDS_TOOL := "needs_tool"
 ## A autoridade negou o pedido antes de a regra rodar (ator morto, argumento inválido, sem autoridade).
 const DENIED := "denied"
 ## `player_id` do personagem local (ADR-003): o dono do dino aponta para ele, não para o nó.
@@ -220,14 +222,27 @@ func can_strike() -> bool:
 
 
 ## Efeito do golpe da arma em mãos: dano e torpor vêm da arma, nunca do pedido. Só a autoridade chama.
-## Recarga e `attacked` só valem se algo foi aplicado.
+## Recarga e `attacked` só valem se algo foi aplicado. O Soco também machuca quem o dá (`self_damage` da
+## arma, GDD 5.9b), parando no piso de vida das regras.
 func strike(dino: Dino) -> bool:
 	var weapon := current_weapon()
 	if not dino.receive_hit(weapon.damage, weapon.torpor, TamingRules.ATTACKER_PLAYER):
 		return false
 	_attack_timer = weapon.cooldown
+	_hurt_hands(weapon.self_damage)
 	attacked.emit()
 	return true
+
+
+## Dano que o jogador causa a si mesmo com as mãos (Soco em dino, colheita de árvore e de carcaça, toque em
+## pedra). NUNCA leva a vida abaixo de `rules.hand_damage_floor`: o Soco não mata (sem morte boba nem softlock).
+func _hurt_hands(amount: float) -> void:
+	health.take_damage_down_to(amount, rules.hand_damage_floor)
+
+
+## A ferramenta `item_id` está em mãos (na vaga da arma)? Id vazio nunca está.
+func _has_tool(item_id: String) -> bool:
+	return item_id != "" and str(equipment.item_in(EquipmentLayout.WEAPON).get("id", "")) == item_id
 
 
 ## Intenção "colher o nó de recurso na mira": só o pede à autoridade, com o id do alvo. Devolve "" se
@@ -251,6 +266,8 @@ func request_gather() -> String:
 
 ## Efeito da coleta (só a autoridade chama, depois de validar ator, alvo e alcance). Devolve "" se coletou
 ## ou o motivo da recusa. Recusa por falta de espaço NÃO gasta o nó. A recarga é o tempo de ação do tipo de nó.
+## Sem a ferramenta do nó, a colheita é a do Soco (dano a si mesmo por colheita, `hand_self_damage`); nó que
+## EXIGE ferramenta (a pedra) só leva um toque: machuca a mão, não coleta e devolve `GATHER_NEEDS_TOOL`.
 func perform_gather(node: ResourceNode) -> String:
 	_last_refusal = ""
 	if _gather_timer > 0.0:
@@ -259,21 +276,52 @@ func perform_gather(node: ResourceNode) -> String:
 	var reason := _gather_refusal(node)
 	if reason != "":
 		return _refuse_gather(reason)
-	var amount := node.harvest()
-	inventory.add(node.def.item_id, amount)
-	_gather_timer = node.def.gather_seconds
-	gathered.emit(node.def.item_id, amount)
+	var def := node.def
+	var with_tool := _has_tool(def.tool_item_id)
+	# A ferramenta vem antes do espaço: a pedra sem Picareta machuca a mão mesmo com o inventário cheio.
+	if def.tool_required and not with_tool:
+		_hurt_hands(def.touch_self_damage)
+		_gather_timer = def.touch_seconds
+		return _refuse_gather(GATHER_NEEDS_TOOL)
+	var delivered := _deliver(node.component.pending_yields())
+	if delivered.is_empty():
+		return _refuse_gather(GATHER_FULL)  # nada coube: o nó fica como estava, sem custo
+	var left := node.component.pending_yields()
+	for item_id: String in delivered:
+		left[item_id] = int(left[item_id]) - int(delivered[item_id])
+		if left[item_id] <= 0:
+			left.erase(item_id)
+	if left.is_empty():
+		node.harvest()
+		if not with_tool:
+			_hurt_hands(def.hand_self_damage)  # o custo é por colheita COMPLETA, não por tentativa parcial
+	else:
+		node.component.leave(left)  # o que sobra fica no nó (sem esgotar, sem custo ainda)
+	_gather_timer = def.gather_seconds
+	for item_id: String in delivered:
+		gathered.emit(item_id, delivered[item_id])
 	return ""
 
 
-## Motivo de o nó não poder ser colhido agora ("" = pode): alvo, esgotado e espaço inteiro. O alcance é da autoridade.
+## Põe no inventário o que couber de `wanted` (item -> unidades), na ordem do dicionário, contando as vagas em
+## conjunto (cada item que entra ocupa vaga para o próximo). Devolve só o que entrou.
+func _deliver(wanted: Dictionary) -> Dictionary:
+	var delivered: Dictionary = {}
+	for item_id: String in wanted:
+		var amount := mini(int(wanted[item_id]), inventory.room_for(item_id))
+		if amount > 0:
+			inventory.add(item_id, amount)
+			delivered[item_id] = amount
+	return delivered
+
+
+## Motivo de o nó não poder ser colhido agora ("" = pode): alvo e esgotado. O espaço é decidido ao entregar
+## (entrega o que couber); o alcance é da autoridade.
 func _gather_refusal(node: ResourceNode) -> String:
 	if node == null:
 		return GATHER_NO_TARGET
 	if not node.is_available():
 		return GATHER_DEPLETED
-	if inventory.room_for(node.def.item_id) < node.def.yield_amount:
-		return GATHER_FULL
 	return ""
 
 

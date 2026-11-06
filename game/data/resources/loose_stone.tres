@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="ResourceNodeDef" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://src/core/ResourceNodeDef.gd" id="1_def"]
+[ext_resource type="Texture2D" path="res://assets/sprites/recursos/pebble_a.png" id="2_full"]
+[ext_resource type="Texture2D" path="res://assets/sprites/recursos/pebble_b.png" id="3_empty"]
+
+[resource]
+script = ExtResource("1_def")
+id = "loose_stone"
+display_name = "Pedra avulsa"
+item_id = "stone"
+yield_amount = 1
+gather_seconds = 1.0
+reach = 32.0
+respawn_seconds = 600.0
+prompt = "pegar pedra"
+color = Color(0.6, 0.6, 0.65, 1)
+tool_required = false
+hand_self_damage = 0.0
+touch_self_damage = 0.0
+texture = ExtResource("2_full")
+texture_depleted = ExtResource("3_empty")
+foot_size = Vector2(0, 0)
+blocks_when_full = false
+blocks_when_depleted = false

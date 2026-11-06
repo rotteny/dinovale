@@ -18,14 +18,22 @@ func run() -> void:
 	_test_sheet_definition()
 	_test_player_body_by_data()
 	await _test_camera_follows_and_stops_at_edges()
+	_release_worlds()
 	await _test_fog_frame()
+	_release_worlds()
 	await _test_hud_coverage()
+	_release_worlds()
 	await _test_screens_fit()
+	_release_worlds()
 	await _test_title_long_notice()
+	_release_worlds()
 	await _test_continue_first_frame()
+	_release_worlds()
 	await _test_camera_pixel_snap()
+	_release_worlds()
 	_test_hostile_sheet()
 	await _test_inventory_cells_and_detail()
+	_release_worlds()
 
 
 func _test_project_screen_settings() -> void:
@@ -44,11 +52,11 @@ func _test_project_screen_settings() -> void:
 
 func _test_map_bounds_rules() -> void:
 	var bounds: MapBounds = load("res://data/world/map_bounds.tres")
-	_check(bounds != null and bounds.rect == Rect2(0, 0, 640, 360) and bounds.fits_view(VIEW), "limite do mapa vem do dado")
-	_check(bounds.clamp_center(Vector2(320, 180), VIEW) == Vector2(320, 180), "no meio: o centro é o alvo")
+	_check(bounds != null and bounds.rect == Rect2(0, 0, 4096, 4096) and bounds.fits_view(VIEW), "limite do mapa vem do dado")
+	_check(bounds.clamp_center(Vector2(2048, 2048), VIEW) == Vector2(2048, 2048), "no meio: o centro é o alvo")
 	_check(bounds.clamp_center(Vector2(5, 5), VIEW) == Vector2(160, 90), "canto de cima à esquerda: para a meia tela da borda")
-	_check(bounds.clamp_center(Vector2(700, 400), VIEW) == Vector2(480, 270), "canto de baixo à direita: para a meia tela da borda")
-	_check(bounds.clamp_center(Vector2(100, 180), VIEW) == Vector2(160, 180), "só um eixo preso: o outro segue o alvo")
+	_check(bounds.clamp_center(Vector2(4200, 4200), VIEW) == Vector2(3936, 4006), "canto de baixo à direita: para a meia tela da borda")
+	_check(bounds.clamp_center(Vector2(100, 2048), VIEW) == Vector2(160, 2048), "só um eixo preso: o outro segue o alvo")
 	var tiny := MapBounds.new()
 	tiny.rect = Rect2(0, 0, 100, 50)
 	_check(not tiny.fits_view(VIEW) and tiny.clamp_center(Vector2(0, 0), VIEW) == Vector2(50, 25), "mapa menor que a tela: centra o mapa")
@@ -101,11 +109,11 @@ func _test_camera_follows_and_stops_at_edges() -> void:
 	var main := _test_main_for_camera()
 	var camera := main.get_node("PlayerCamera") as PlayerCamera
 	_check(camera != null and camera.is_current() and not camera.position_smoothing_enabled, "câmera atual, sem suavização que borre o pixel")
-	_check(camera.limit_left == 0 and camera.limit_top == 0 and camera.limit_right == 640 and camera.limit_bottom == 360,
+	_check(camera.limit_left == 0 and camera.limit_top == 0 and camera.limit_right == 4096 and camera.limit_bottom == 4096,
 			"limites da câmera vêm do dado do mapa")
 	main.player.set_physics_process(false)
 	await _root.get_tree().process_frame
-	for point: Vector2 in [Vector2(320, 200), Vector2(321, 200), Vector2(333, 213), Vector2(300, 150)]:
+	for point: Vector2 in [Vector2(2048, 2048), Vector2(2049, 2048), Vector2(2061, 2061), Vector2(2028, 1998)]:
 		main.player.global_position = point
 		await _root.get_tree().process_frame
 		var expected := point + camera.focus_offset
@@ -113,12 +121,12 @@ func _test_camera_follows_and_stops_at_edges() -> void:
 		_check(camera.global_position == camera.global_position.round(), "posição da câmera em pixel inteiro")
 	# Bordas: a câmera para; o personagem segue andando.
 	var cases := {
-		Vector2(10, 200): Vector2(160, 184),
-		Vector2(635, 200): Vector2(480, 184),
-		Vector2(320, 10): Vector2(320, 90),
-		Vector2(320, 358): Vector2(320, 270),
+		Vector2(10, 2048): Vector2(160, 2048) + camera.focus_offset * Vector2(0, 1),
+		Vector2(4091, 2048): Vector2(3936, 2048) + camera.focus_offset * Vector2(0, 1),
+		Vector2(2048, 10): Vector2(2048, 90) + camera.focus_offset * Vector2(1, 0),
+		Vector2(2048, 4086): Vector2(2048, 4006) + camera.focus_offset * Vector2(1, 0),
 		Vector2(5, 5): Vector2(160, 90),
-		Vector2(639, 359): Vector2(480, 270),
+		Vector2(4095, 4095): Vector2(3936, 4006),
 	}
 	for point: Vector2 in cases:
 		main.player.global_position = point
@@ -126,12 +134,12 @@ func _test_camera_follows_and_stops_at_edges() -> void:
 		_check(camera.shown_center().is_equal_approx(cases[point]),
 				"câmera no limite do mapa com o personagem em %s: %s" % [point, camera.shown_center()])
 	# Nada fora do mapa aparece em nenhum caso.
-	var bounds := Rect2(0, 0, 640, 360)
+	var bounds := Rect2(0, 0, 4096, 4096)
 	main.player.global_position = Vector2(2, 2)
 	await _root.get_tree().process_frame
 	_check(bounds.encloses(Rect2(camera.shown_center() - VIEW / 2.0, VIEW)), "a janela da câmera nunca passa da borda do mapa")
 	# Com o personagem andando de verdade, a câmera anda junto (mesma distância).
-	main.player.global_position = Vector2(300, 200)
+	main.player.global_position = Vector2(2048, 2048)
 	await _root.get_tree().process_frame
 	var before := camera.shown_center()
 	main.player.global_position += Vector2(24, -16)
@@ -289,7 +297,7 @@ func _test_continue_first_frame() -> void:
 	_root.add_child(first)
 	_track.call(first)
 	await _root.get_tree().process_frame
-	first.player.global_position = Vector2(500, 300)
+	first.player.global_position = Vector2(2300, 3150)
 	first.save_game(SaveManager.Reason.EXIT_MENU)
 	first.scheduler.frozen = true
 	first.free()
@@ -302,7 +310,7 @@ func _test_continue_first_frame() -> void:
 	second.scheduler.frozen = true
 	var camera := second.get_node("PlayerCamera") as PlayerCamera
 	var wanted := (second.player.global_position + camera.focus_offset).round()
-	_check(second.player.global_position.distance_to(Vector2(500, 300)) < 1.0, "Continuar restaurou o jogador em (500, 300)")
+	_check(second.player.global_position.distance_to(Vector2(2300, 3150)) < 1.0, "Continuar restaurou o jogador em (2300, 3150)")
 	var expected := camera.bounds.clamp_center(wanted, VIEW)
 	_check(camera.global_position == wanted, "Continuar: logo após o _ready da Main a câmera já está no jogador (%s, esperado %s)"
 			% [camera.global_position, wanted])

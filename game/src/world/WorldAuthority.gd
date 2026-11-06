@@ -225,6 +225,8 @@ func _gather_result(reason: String) -> Enums.ActionResult:
 			return Enums.ActionResult.COOLDOWN
 		Player.GATHER_DEPLETED:
 			return Enums.ActionResult.WRONG_STATE
+		Player.GATHER_NEEDS_TOOL:
+			return Enums.ActionResult.OK  # o toque aconteceu (a mão doeu); só não coletou: a recusa vai no sinal do jogador
 	return Enums.ActionResult.REFUSED
 
 

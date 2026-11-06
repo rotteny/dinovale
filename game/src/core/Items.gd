@@ -12,6 +12,8 @@ const SLEEP_STAFF := "sleep_staff"
 const WOOD := "wood"
 const STONE := "stone"
 const FIBER := "fiber"
+## Fruta do arbusto-do-sono (Cochilo): item de 0,1 kg que nunca vale como refeição (GDD 5.5). Sem consumidor ainda.
+const SLEEP_FRUIT := "sleep_fruit"
 
 ## Arma de cada item de arma (o id da arma é o id do item).
 const WEAPONS: Dictionary[String, WeaponDef] = {
@@ -93,6 +95,7 @@ static func _catalog() -> Dictionary:
 			ItemDef.new(WOOD, "Madeira", 20, Color(0.55, 0.38, 0.2)),
 			ItemDef.new(STONE, "Pedra", 20, Color(0.6, 0.6, 0.65)),
 			ItemDef.new(FIBER, "Fibra", 40, Color(0.75, 0.7, 0.4)),
+			ItemDef.new(SLEEP_FRUIT, "Cochilo", 20, Color(0.75, 0.8, 0.95)),
 		]:
 			_defs[def.id] = def
 		# Durabilidade do Bastão: 120 (GDD 5.9). Só o campo; nada gasta ainda.

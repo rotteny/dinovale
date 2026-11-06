@@ -22,6 +22,8 @@ extends Resource
 @export var hitbox_size: Vector2 = Vector2(12.0, 8.0)
 ## Centro da caixa em relação à origem do corpo (os pés, onde a caixa fica apoiada): metade da altura, para cima.
 @export var hitbox_offset: Vector2 = Vector2(0.0, -4.0)
+## Vida abaixo da qual o dano que o jogador causa a si mesmo (Soco, GDD 5.9b) não passa: o Soco não mata.
+@export_range(0.0, 100.0) var hand_damage_floor: float = 10.0
 ## Saciedade devolvida por 1 unidade, por id de item. Item ausente não é comida.
 ## Baga 25 é premissa do GDD 5.1; carne e samambaia são placeholders até o balanceamento.
 @export var hunger_restore: Dictionary[String, float] = {}

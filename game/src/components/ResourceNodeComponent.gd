@@ -12,6 +12,15 @@ signal changed
 
 var depleted: bool = false
 var respawn_left: float = 0.0
+## Tempo de volta próprio deste nó (a pedra avulsa do núcleo volta mais cedo). 0 = o do tipo.
+var respawn_override: float = 0.0
+## O que sobrou no nó numa colheita parcial (item -> unidades): o inventário não coube tudo e "o que sobra
+## fica no arbusto" (mapa-ilha.md 8). Vazio = nó inteiro. Nó parcial segue disponível e vai ao save.
+var leftover: Dictionary = {}
+
+
+func _ready() -> void:
+	set_physics_process(depleted)  # só o esgotado conta tempo: com centenas de nós cheios, nenhum custo por quadro
 
 
 func _physics_process(delta: float) -> void:
@@ -26,11 +35,37 @@ func tick(delta: float) -> void:
 	if respawn_left <= 0.0:
 		depleted = false
 		respawn_left = 0.0
+		set_physics_process(false)
 		changed.emit()
+
+
+## Segundos até um nó esgotado voltar: o do próprio nó ou, sem ele, o do tipo.
+func respawn_total() -> float:
+	if respawn_override > 0.0:
+		return respawn_override
+	return def.respawn_seconds if def != null else 0.0
 
 
 func is_available() -> bool:
 	return def != null and not depleted
+
+
+func is_partial() -> bool:
+	return not leftover.is_empty()
+
+
+## O que a próxima colheita entrega: o que sobrou, ou tudo se o nó está inteiro.
+func pending_yields() -> Dictionary:
+	if def == null or depleted:
+		return {}
+	return leftover.duplicate() if is_partial() else def.total_yields()
+
+
+## Colheita parcial: o que não coube continua no nó, que não esgota nem começa a contar tempo.
+func leave(remaining: Dictionary) -> void:
+	if not is_available():
+		return
+	leftover = remaining.duplicate()
 
 
 ## Colhe o nó: devolve as unidades entregues (0 se já estava esgotado) e começa o tempo de volta.
@@ -38,13 +73,18 @@ func harvest() -> int:
 	if not is_available():
 		return 0
 	depleted = true
-	respawn_left = def.respawn_seconds
+	leftover = {}
+	respawn_left = respawn_total()
+	set_physics_process(true)
 	changed.emit()
 	return def.yield_amount
 
 
 func to_dict() -> Dictionary:
-	return {"def": def.id if def != null else "", "depleted": depleted, "respawn_left": respawn_left}
+	var data := {"def": def.id if def != null else "", "depleted": depleted, "respawn_left": respawn_left}
+	if is_partial():
+		data["leftover"] = leftover.duplicate()
+	return data
 
 
 ## Restaura sem entregar nada. Dado de outro tipo de nó (o mundo mudou) é ignorado: o nó fica como está.
@@ -52,5 +92,21 @@ func from_dict(data: Dictionary) -> void:
 	if def == null or SafeRead.text(data.get("def"), "") != def.id:
 		return
 	depleted = SafeRead.flag(data.get("depleted"), false)
-	respawn_left = SafeRead.number(data.get("respawn_left"), 0.0, 0.0, def.respawn_seconds) if depleted else 0.0
+	respawn_left = SafeRead.number(data.get("respawn_left"), 0.0, 0.0, respawn_total()) if depleted else 0.0
+	leftover = _read_leftover(data.get("leftover")) if not depleted else {}
+	set_physics_process(depleted)
 	changed.emit()
+
+
+## Só itens que a colheita do tipo entrega e no máximo a quantidade dela (dado de fora não é confiável).
+func _read_leftover(raw: Variant) -> Dictionary:
+	var kept: Dictionary = {}
+	var all := def.total_yields()
+	var source := SafeRead.dict(raw)
+	for item_id: Variant in source:
+		var key := str(item_id)
+		if all.has(key):
+			var amount := clampi(SafeRead.integer(source[item_id], 0, 0, 1 << 20), 0, all[key])
+			if amount > 0:
+				kept[key] = amount
+	return kept

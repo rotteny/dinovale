@@ -10,7 +10,7 @@ extends RefCounted
 const MAX_DEPTH := 32
 
 ## Versão do FORMATO do envelope (não é a versão do jogo). Só sobe quando o formato muda.
-const CURRENT_VERSION := 3
+const CURRENT_VERSION := 4
 
 
 ## O dado não aninha além de `MAX_DEPTH`? (Copiar um dado mais fundo estoura a recursão da engine.)
@@ -30,7 +30,7 @@ static func is_shallow(value: Variant, depth: int = 0) -> bool:
 
 ## Tabela de saltos: chave N = função que leva da versão N para N+1.
 static func steps() -> Dictionary:
-	return {1: v1_to_v2, 2: v2_to_v3}
+	return {1: v1_to_v2, 2: v2_to_v3, 3: v3_to_v4}
 
 
 ## v2 guarda no `world` o estado dos nós de recurso (MUN-02) e o contador de respawns (SOB-01). Um
@@ -74,6 +74,26 @@ static func v2_to_v3(data: Dictionary) -> Dictionary:
 				(machine as Dictionary)["order"] = "STAY"
 		if (tamed or _taming_started(state)) and not state.has("feeder_player_id"):
 			state["feeder_player_id"] = player_id
+	return next
+
+
+## v4: o mapa deixa de ser o retângulo de 640x360 e passa a ser a ilha Lunata (`world.map_id` "lunata",
+## `world.map_revision`), ESTÁTICO e fora do save. `world.resource_nodes` leva só os nós esgotados ou parciais
+## (o resto nasce cheio) e `world.wild` leva o delta dos selvagens. Um save v3 é do mapa antigo: os ids dos nós
+## não existem mais, então a migração ZERA `resource_nodes` e põe `wild` vazio; a revisão 0 nunca bate com a do
+## mapa, e quem carrega não aplica nós nem selvagens de outra revisão. As coordenadas também não valem na ilha:
+## `world.legacy_coordinates` faz quem carrega mandar o jogador (e a criatura, se ficar fora) ao ponto seguro.
+## A migração é pura e não conhece o mapa. Jogador, inventário, dino e domesticação passam intactos.
+static func v3_to_v4(data: Dictionary) -> Dictionary:
+	var next := data.duplicate(true)
+	if typeof(next.get("world")) != TYPE_DICTIONARY:
+		return next  # `world` que não é dicionário continua inválido: a validação do envelope recusa
+	var world: Dictionary = next["world"]
+	world["map_id"] = "lunata"
+	world["map_revision"] = 0
+	world["resource_nodes"] = []
+	world["wild"] = []
+	world["legacy_coordinates"] = true
 	return next
 
 

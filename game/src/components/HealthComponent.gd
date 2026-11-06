@@ -67,6 +67,16 @@ func take_damage(amount: float) -> void:
 		died.emit()
 
 
+## Tira vida, mas nunca abaixo de `floor_hp` (dano a si mesmo que não mata). Devolve quanto tirou de fato.
+func take_damage_down_to(amount: float, floor_hp: float) -> float:
+	var wanted := minf(maxf(amount, 0.0), maxf(current_health - floor_hp, 0.0))
+	if wanted <= 0.0:
+		return 0.0
+	var before := current_health
+	take_damage(wanted)
+	return before - current_health
+
+
 func heal(amount: float) -> void:
 	if amount <= 0.0 or is_dead():
 		return

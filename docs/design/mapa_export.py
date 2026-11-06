@@ -1,0 +1,414 @@
+#!/usr/bin/env python3
+"""Exporta a ilha Lunata (docs/design/mapa-ilha.md) para o dado versionado do jogo.
+
+A FORMA vem de `mapa_sim.py` (diferenca de dois discos + ruido fractal, semente fixa). Este script
+junta o que o jogo precisa e o simulador so contava: o terreno por tile, o inicio, os marcos, a
+posicao dos nos de recurso e do cenario (1 coletavel : 3 de cenario) e os pontos de nascimento.
+O jogo NAO gera o mapa ao rodar: le `game/data/world/lunata.json`, que sai daqui.
+Biblioteca padrao apenas. Mesma semente, mesmo arquivo (byte a byte).
+
+Uso (da raiz do repositorio):
+    python3 docs/design/mapa_export.py            # grava game/data/world/lunata.json
+    python3 docs/design/mapa_export.py --check    # falha se o arquivo gravado difere do que sairia daqui
+"""
+import json
+import functools
+import math
+import os
+import random
+import sys
+from collections import deque
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import mapa_sim as m  # noqa: E402
+
+OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "game", "data", "world", "lunata.json")
+FORMAT = 1
+REVISION = 1
+TILE = 16
+# Indices 0 a 5 sao os terrenos de `terreno.json`; 6 e a agua funda do anel de 2 tiles junto ao raso (unica com colisao).
+TERRAINS = ["agua_funda", "agua_rasa", "praia", "campina", "mata_baixa", "pedreira", "agua_funda_anel"]
+BIOME_CODE = {"C": 3, "M": 4, "P": 5}
+# Retangulo dos pes (largura, altura) em px, centrado em (0, -altura/2) acima da origem. Igual ao dado do jogo.
+FEET = {"tree": (12, 8), "rock": (24, 12), "bush": (10, 6), "formation_a": (52, 14), "formation_b": (84, 12),
+        "formation_c": (48, 12), "tree_decor": (12, 8)}
+START_CLEAR = 8        # tiles sem arvore nem rocha em volta do inicio
+SPACING = {"tree": 3.0, "tree_decor": 3.0, "rock": 3.0, "bush": 2.0, "formation": 4.0}
+
+
+def feet_rect(kind, x, y):
+    w, h = FEET[kind]
+    cx, cy = x * TILE + 8, y * TILE + 8
+    return (cx - w / 2, cy - h, cx + w / 2, cy)
+
+
+class Placer:
+    def __init__(self, rng):
+        self.rng = rng
+        self.items = []      # (kind, x, y)
+        self.grid = {}       # (x//8, y//8) -> [(kind, x, y)]
+        self.blocked = set()
+
+    def free(self, kind, x, y, gap):
+        for dx in (-1, 0, 1):
+            for dy in (-1, 0, 1):
+                for (_, ox, oy) in self.grid.get((x // 8 + dx, y // 8 + dy), ()):
+                    if math.hypot(ox - x, oy - y) < gap:
+                        return False
+        return True
+
+    def add(self, kind, x, y):
+        self.items.append((kind, x, y))
+        self.grid.setdefault((x // 8, y // 8), []).append((kind, x, y))
+        if kind in FEET:
+            x0, y0, x1, y1 = feet_rect(kind, x, y)
+            for cx in range(int(x0 // TILE), int((x1 - 0.01) // TILE) + 1):
+                for cy in range(int(y0 // TILE), int((y1 - 0.01) // TILE) + 1):
+                    self.blocked.add((cx, cy))
+
+
+def land_tiles(band, dmin=3):
+    return [(x, y) for y in range(m.S) for x in range(m.S)
+            if (x, y) in m.MAIN and m.DSEA[y][x] >= dmin and biome_of(x, y) == band]
+
+
+@functools.lru_cache(maxsize=None)
+def biome_of(x, y):
+    """Bioma do tile: as faixas por Y do `mapa-ilha.md` com a divisa recortada por ruido, para virar formacao
+    natural e nao um corte reto. A divisa soma a onda longa do `mapa_sim` (+-7 tiles) e quatro ondas de 28, 16, 9 e 5 tiles
+    (+-8, 6, 4 e 2,5), que fazem recortes e linguas de bioma de 8 a 12 tiles. Tudo por semente.
+    Regra de transicao do `terreno.png`: Mata-baixa nao encosta na praia (so onde ha ao menos 1 tile de Campina
+    entre as duas), entao a Mata so existe a 5 ou mais tiles do mar e a faixa de ate 4 vira Campina (sobra Campina entre a Mata e a praia, mesmo na diagonal)."""
+    shift = 7.0 * m.ruido(x, y, m.SEED + 31)
+    for k, (wave, amp) in enumerate(((28.0, 8.0), (16.0, 6.0), (9.0, 4.0), (5.0, 2.5))):
+        shift += amp * (2 * m._vn(x / wave + 0.37 * k, y / wave + 0.61 * k, m.SEED + 53 + 7 * k) - 1)
+    band = m.faixa(min(m.S - 1, max(0, int(round(y + shift)))))
+    if band == "M" and m.DSEA[y][x] < 5:
+        return "C"
+    return band
+
+
+def build_terrain():
+    rows = []
+    for y in range(m.S):
+        row = []
+        for x in range(m.S):
+            if m.LAND[y][x]:
+                row.append("2" if m.DSEA[y][x] <= 2 else str(BIOME_CODE[biome_of(x, y)]))
+            else:
+                row.append("1" if m.DLAND[y][x] <= 3 else ("6" if m.DLAND[y][x] <= 5 else "0"))
+        rows.append("".join(row))
+    return rows
+
+
+def trail_points(start, far):
+    """Caminho do inicio ate a ponta mais distante (retrocedendo pelas distancias do dijkstra)."""
+    d = m.dijkstra(start)
+    path, cur = [far], far
+    while cur != start:
+        best = None
+        for dx in (-1, 0, 1):
+            for dy in (-1, 0, 1):
+                nxt = (cur[0] + dx, cur[1] + dy)
+                if nxt in d and (best is None or d[nxt] < d[best]):
+                    best = nxt
+        if best is None or d[best] >= d[cur]:
+            break
+        cur = best
+        path.append(cur)
+    path.reverse()
+    return path
+
+
+def place_everything(site, rng):
+    placer = Placer(rng)
+    start = site["inicio"]
+    esc, _ = m.contagens()
+
+    def far_from_start(x, y, r=START_CLEAR):
+        return math.hypot(x - start[0], y - start[1]) >= r
+
+    def grow(kind, band, count, decor_kind, decor_per, cluster, spread, bucket, spacing_key):
+        pool = land_tiles(band)
+        placed = 0
+        guard = 0
+        while placed < count and guard < count * 400:
+            guard += 1
+            cx, cy = rng.choice(pool)
+            n = min(count - placed, rng.randint(*cluster))
+            for _ in range(n):
+                for _try in range(30):
+                    x = cx + rng.randint(-spread, spread)
+                    y = cy + rng.randint(-spread, spread)
+                    if not (0 <= x < m.S and 0 <= y < m.S) or (x, y) not in m.MAIN or m.DSEA[y][x] < 3:
+                        continue
+                    if biome_of(x, y) != band or not far_from_start(x, y) or not placer.free(kind, x, y, SPACING[spacing_key]):
+                        continue
+                    placer.add(kind, x, y)
+                    bucket.append((x, y))
+                    placed += 1
+                    # cenario em volta: mesma semente, mesmo bosquete
+                    for _d in range(decor_per if decor_kind else 0):
+                        for _t in range(80):
+                            ux, uy = x + rng.randint(-spread - 4, spread + 4), y + rng.randint(-spread - 4, spread + 4)
+                            if not (0 <= ux < m.S and 0 <= uy < m.S) or (ux, uy) not in m.MAIN or m.DSEA[uy][ux] < 3:
+                                continue
+                            if biome_of(ux, uy) != band or not far_from_start(ux, uy) or not placer.free(decor_kind, ux, uy, SPACING["tree_decor"]):
+                                continue
+                            placer.add(decor_kind, ux, uy)
+                            decor.append((ux, uy))
+                            break
+                    break
+        return placed
+
+    nodes = {"tree": [], "bush_baga": [], "bush_sono": [], "rock": [], "loose_stone": [], "iron_seam": []}
+    decor = []
+    # Arvores: 1 coletavel : 3 de cenario (Pedreira 1 : 2), em bosquetes de 2 a 4.
+    for band, name in (("C", "C"), ("M", "M"), ("P", "P")):
+        n_tree = round({"C": 22, "M": 36, "P": 8}[band] * esc[band])
+        per = 2 if band == "P" else 3
+        grow("tree", band, n_tree, "tree_decor", per, (2, 4), 4, nodes["tree"], "tree")
+    # Arbustos: baga na Campina e Mata, sono (Cochilo) so na Mata.
+    for band, n128 in (("C", 14), ("M", 8)):
+        grow("bush", band, round(n128 * esc[band]), None, 0, (1, 3), 3, nodes["bush_baga"], "bush")
+    grow("bush", "M", round(10 * esc["M"]), None, 0, (1, 3), 3, nodes["bush_sono"], "bush")
+    # Rochas de pedra (so Picareta): Pedreira concentra.
+    for band, n128 in (("C", 6), ("M", 8), ("P", 30)):
+        grow("rock", band, round(n128 * esc[band]), None, 0, (1, 3), 2, nodes["rock"], "rock")
+    # Filoes de ferro (M4: o jogo nao os instancia na v0.2): flanco leste da Pedreira.
+    east = [(x, y) for (x, y) in land_tiles("P") if x >= 150]
+    tries = 0
+    while len(nodes["iron_seam"]) < round(8 * esc["P"]) and tries < 5000:
+        tries += 1
+        x, y = rng.choice(east)
+        if placer.free("rock", x, y, SPACING["rock"]):
+            placer.add("rock", x, y)
+            nodes["iron_seam"].append((x, y))
+    # Formacoes rochosas aleatorias (obstaculos que moldam a visao e a fuga).
+    forms = []
+    for band, n in (("P", 30), ("M", 12), ("C", 8)):
+        pool = land_tiles(band, 4)
+        done, guard = 0, 0
+        while done < n and guard < 4000:
+            guard += 1
+            x, y = rng.choice(pool)
+            kind = rng.choice(["formation_a", "formation_b", "formation_c"])
+            if far_from_start(x, y, 12) and placer.free("formation", x, y, SPACING["formation"]):
+                placer.add(kind, x, y)
+                forms.append((kind, x, y))
+                done += 1
+    # Pedras avulsas: 10 no nucleo (volta em 300 s) e na trilha ate a ponta (volta em 600 s).
+    far = max(m.dijkstra(start).items(), key=lambda kv: kv[1])[0]
+    loose_core, loose_trail = [], []
+    core = [(x, y) for y in range(m.S) for x in range(m.S) if (x, y) in m.MAIN and m.DSEA[y][x] >= 3
+            and 5 <= math.hypot(x - start[0], y - start[1]) <= 16 and placer.free("rock", x, y, 2.0)]
+    rng.shuffle(core)
+    for x, y in core:
+        if len(loose_core) == 10:
+            break
+        if all(math.hypot(x - a, y - b) >= 3 for a, b in loose_core):
+            loose_core.append((x, y))
+            placer.add("loose", x, y)
+    path = trail_points(start, far)
+    wanted = [path[i] for i in range(24, len(path), 24)]
+    entry = [p for p in path if biome_of(p[0], p[1]) == "P"]
+    wanted += [entry[i] for i in (0, 3, 6, 9)] if len(entry) > 9 else entry[:4]
+    for (px, py) in wanted:
+        for r in range(0, 7):
+            spots = [(px + dx, py + dy) for dx in range(-r, r + 1) for dy in range(-r, r + 1)
+                     if (px + dx, py + dy) in m.MAIN and m.DSEA[py + dy][px + dx] >= 3
+                     and placer.free("rock", px + dx, py + dy, 2.0)]
+            if spots:
+                x, y = spots[0]
+                loose_trail.append((x, y))
+                placer.add("loose", x, y)
+                break
+    extra = 12
+    while len(loose_trail) < 14 and extra < len(path):   # completa as 14 da trilha se algum ponto nao coube
+        px, py = path[extra]
+        extra += 24
+        spots = [(px + dx, py + dy) for dx in range(-3, 4) for dy in range(-3, 4)
+                 if (px + dx, py + dy) in m.MAIN and m.DSEA[py + dy][px + dx] >= 3 and placer.free("rock", px + dx, py + dy, 2.0)]
+        if spots:
+            loose_trail.append(spots[0])
+            placer.add("loose", *spots[0])
+    nodes["loose_stone"] = loose_core + loose_trail
+    return placer, nodes, decor, forms, loose_core, loose_trail, path
+
+
+def landmark_formations(site, placer, rng):
+    """Marcos de pedra (mapa-ilha.md 4): arco, pilar, portal (vao de 4) e o rochedo do cabo."""
+    out = []
+    ax, ay = site["arco"]
+    out.append(("formation_b", ax, ay, "arco"))
+    lx, ly = site["aviso"]
+    out.append(("formation_a", lx, ly, "aviso"))
+    # Cabo-Salgado: terra firme mais ao norte.
+    cabo = min(((x, y) for (x, y) in m.MAIN if m.DSEA[y][x] >= 3), key=lambda p: (p[1], p[0]))
+    out.append(("formation_a", cabo[0], cabo[1], "cabo"))
+    # Portal-de-Pedra: aglomerado irregular de formacoes naturais no pescoco sul (sem linha, sem muro): pecas de
+    # tamanhos variados, deslocadas em x, com falhas, e uma passagem de 4 tiles perto do meio.
+    xp, ymid = site["portal"]
+    ys = [y for y in range(int(0.625 * m.S), m.S) if (xp, y) in m.MAIN and m.DSEA[y][xp] >= 1]
+    gap0 = ymid - 2 + rng.choice((-1, 0, 1))
+    gap1 = gap0 + 4
+    taken = {(ix, iy) for (_, ix, iy) in placer.items} | {(mx, my) for (_, mx, my, _) in out}  # uma celula por item
+    recent = []
+    skipped = False
+    y = ys[0]
+    while y <= ys[-1]:
+        if gap0 <= y < gap1:
+            y = gap1
+            continue
+        if not skipped and rng.random() < 0.22:
+            skipped = True
+            y += 1
+            continue
+        skipped = False
+        dx = rng.choice([d for d in (-3, -2, -1, 0, 1, 2, 3) if d not in recent[-2:]])
+        recent.append(dx)
+        kind = rng.choices(["formation_c", "formation_b", "formation_a"], weights=[5, 2, 3])[0]
+        if (xp + dx, y) in m.MAIN and (xp + dx, y) not in taken:
+            out.append((kind, xp + dx, y, "portal"))
+        y += rng.choice((2, 2, 3))
+    return out, cabo
+
+
+def reachable_ratio(placer, start):
+    walk = lambda x, y: 0 <= x < m.S and 0 <= y < m.S and m.caminhavel(x, y) and (x, y) not in placer.blocked
+    seen = {start}
+    q = deque([start])
+    while q:
+        x, y = q.popleft()
+        for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            n = (x + dx, y + dy)
+            if n not in seen and walk(*n):
+                seen.add(n)
+                q.append(n)
+    total = sum(1 for (x, y) in m.MAIN if m.LAND[y][x] and m.DSEA[y][x] >= 2 and (x, y) not in placer.blocked)
+    ok = sum(1 for (x, y) in seen if (x, y) in m.MAIN and m.DSEA[y][x] >= 2)
+    return ok / total, seen
+
+
+# Ponto reserva do respawn na Campina (mapa-ilha.md 12): celula do mapa; o jogo usa o centro dela em pixels.
+RESERVE_CAMPINA = (124, 200)
+
+
+def spawns(site, rng, placer):
+    """Paquicefalos (108): nucleo 20 (o do tutorial primeiro), Campina 40, Limiar 12, Mata-baixa 36; grupos de 1 a 3."""
+    start = site["inicio"]
+    out = []
+
+    used = set()
+
+    def ok(x, y):
+        # celula livre, ainda sem paquicefalo e fora de 8 tiles do ponto reserva (a regra do respawn)
+        return (x, y) in m.MAIN and m.DSEA[y][x] >= 3 and (x, y) not in placer.blocked and (x, y) not in used \
+            and math.hypot(x - RESERVE_CAMPINA[0], y - RESERVE_CAMPINA[1]) > 8
+
+    def group(count, picker):
+        left = count
+        while left > 0:
+            cx, cy = picker()
+            n = min(left, rng.randint(1, 3))
+            for _ in range(n):
+                for _t in range(20):
+                    x, y = cx + rng.randint(-2, 2), cy + rng.randint(-2, 2)
+                    if 0 <= x < m.S and 0 <= y < m.S and ok(x, y):
+                        out.append((x, y))
+                        used.add((x, y))
+                        left -= 1
+                        break
+                else:
+                    left -= 1
+
+    tut = site["paq_tutorial"]
+    out.append(tut)
+    used.add(tut)
+    nuc = [(x, y) for y in range(m.S) for x in range(m.S) if ok(x, y) and 6 <= math.hypot(x - start[0], y - start[1]) <= 16]
+    group(19, lambda: rng.choice(nuc))
+    camp = [(x, y) for (x, y) in land_tiles("C") if math.hypot(x - start[0], y - start[1]) > 16 and (x, y) not in placer.blocked]
+    group(40, lambda: rng.choice(camp))
+    lim = site["paq_limiar"]
+    group(12, lambda: (lim[0] + rng.randint(-3, 3), lim[1] + rng.randint(-3, 3)))
+    mata = [(x, y) for (x, y) in land_tiles("M") if (x, y) not in placer.blocked]
+    group(36, lambda: rng.choice(mata))
+    return out
+
+
+def export():
+    m.preparar(256)
+    rng = random.Random(m.SEED * 7919 + 13)
+    site = m.sitios()
+    start = site["inicio"]
+    placer, nodes, decor, forms, loose_core, loose_trail, path = place_everything(site, rng)
+    marks, cabo = landmark_formations(site, placer, rng)
+    for kind, x, y, _ in marks:
+        placer.add(kind, x, y)
+    ratio, seen = reachable_ratio(placer, start)
+    sp = spawns(site, rng, placer)
+    scenery = {"tree_decor": sorted(decor), "formation_a": [], "formation_b": [], "formation_c": []}
+    for kind, x, y in forms:
+        scenery[kind].append((x, y))
+    for kind, x, y, _ in marks:
+        scenery[kind].append((x, y))
+    for k in ("formation_a", "formation_b", "formation_c"):
+        scenery[k] = sorted(set(scenery[k]))
+    data = {
+        "format": FORMAT,
+        "revision": REVISION,
+        "id": "lunata",
+        "name": "Lunata",
+        "source": "docs/design/mapa_sim.py (forma) e docs/design/mapa_export.py (nos e cenario); semente %d" % m.SEED,
+        "tile": TILE,
+        "size": m.S,
+        "seed": m.SEED,
+        "terrains": TERRAINS,
+        "rows": build_terrain(),
+        "start": list(start),
+        "landmarks": {
+            "arco_da_enseada": list(site["arco"]),
+            "pedra_do_aviso": list(site["aviso"]),
+            "portal_de_pedra": list(site["portal"]),
+            "cabo_salgado": list(cabo),
+            "paquicefalo_tutorial": list(site["paq_tutorial"]),
+            "paquicefalo_limiar": list(site["paq_limiar"]),
+        },
+        "portal_pieces": [[k, x, y] for (k, x, y, tag) in marks if tag == "portal"],
+        "dens": {k: list(v) for k, v in sorted(site["tocas"].items())},
+        "nodes": {k: [list(p) for p in sorted(v)] for k, v in nodes.items()},
+        "loose_stone_respawn": {"core": 300, "trail": 600, "core_count": len(loose_core)},
+        "scenery": {k: [list(p) for p in v] for k, v in scenery.items()},
+        "spawns": {"paquicefalo": [list(p) for p in sp]},
+    }
+    return data, ratio
+
+
+def dump(data):
+    # Linhas do terreno uma por linha; o resto compacto. Estavel: chaves na ordem de insercao.
+    head = {k: v for k, v in data.items() if k != "rows"}
+    text = json.dumps(head, ensure_ascii=False, separators=(",", ":"))
+    rows = ",\n".join(json.dumps(r) for r in data["rows"])
+    return text[:-1] + ',"rows":[\n' + rows + "\n]}\n"
+
+
+def main():
+    data, ratio = export()
+    text = dump(data)
+    path = os.path.normpath(OUT)
+    if "--check" in sys.argv:
+        with open(path, encoding="utf-8") as f:
+            same = f.read() == text
+        print("lunata.json %s" % ("igual ao que sai do script" if same else "DIFERE do script"))
+        sys.exit(0 if same else 1)
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(text)
+    n = data["nodes"]
+    print("gravado %s (%d bytes)" % (path, len(text.encode())))
+    print("nos:", {k: len(v) for k, v in n.items()}, "| cenario:", {k: len(v) for k, v in data["scenery"].items()},
+          "| paquicefalos:", len(data["spawns"]["paquicefalo"]))
+    print("terra firme alcancavel a pe, com obstaculos: %.2f%%" % (ratio * 100))
+
+
+if __name__ == "__main__":
+    main()

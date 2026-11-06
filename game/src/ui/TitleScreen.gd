@@ -106,7 +106,7 @@ func _ready() -> void:
 	_notice.text = GameSession.take_notice()  # ex.: o Continuar falhou e a Main voltou para cá
 
 
-## Fundo: o terreno do jogo (arte Ninja Adventure) escurecido, só desenho (sem física nem lógica).
+## Fundo: o terreno do jogo (a ilha, no ponto de início) escurecido, só desenho (sem física nem lógica).
 func _build_background() -> void:
 	# Camada própria atrás da UI: a folhagem do terreno tem `z_index` 5 e cobriria o painel do menu.
 	var layer := CanvasLayer.new()
@@ -115,6 +115,10 @@ func _build_background() -> void:
 	var terrain := BACKGROUND.instantiate()
 	terrain.process_mode = Node.PROCESS_MODE_DISABLED
 	layer.add_child(terrain)
+	# A ilha é grande: o fundo mostra o trecho do início, no centro da tela de 320x180.
+	var island := IslandMap.default_map()
+	if island.is_valid():
+		terrain.position = (Vector2(160, 90) - island.start_point()).round()
 	var dim := ColorRect.new()
 	dim.color = Color(0, 0, 0, 0.4)
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)

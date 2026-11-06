@@ -7,6 +7,10 @@ extends Node2D
 ## salva no intervalo, na morte do jogador e na de um dino domado e ao escolher o respawn; voltar ao menu e
 ## fechar a janela salvam direto. A pausa não oferece Salvar: o jogador não escolhe quando salvar. O jogo nunca pergunta antes de salvar.
 
+## Aviso ao carregar um save de outra revisão do mapa (recursos e selvagens do mapa nascem de novo).
+const MAP_CHANGED_NOTICE := "O mapa mudou desde este save: recursos e selvagens voltaram ao início. " \
+		+ "Domados e a doma em andamento foram mantidos."
+
 @export var player: Player
 @export var screen: InventoryScreen
 @export var dino: Dino
@@ -27,6 +31,11 @@ extends Node2D
 ## Nós de recurso do mundo (opcional); o estado deles vai no save.
 @export var resources: ResourceField
 @export var respawn_rules: RespawnRules = preload("res://data/balance/respawn_rules.tres")
+## Quais nós, cenário e níveis a ilha usa (dado). O mapa em si é `IslandMap` (estático, fora do save).
+@export var world_rules: WorldRules = preload("res://data/world/world_rules.tres")
+
+## A ilha Lunata: onde está cada coisa. Só leitura; o jogo não a gera nem a salva.
+var map: IslandMap
 
 ## O jogador morreu e ainda não escolheu onde renascer (GDD 12.4). Vale para a morte em jogo e para o
 ## save carregado de um jogador morto: nos dois a tela de morte está aberta e só a escolha tira daqui.
@@ -34,10 +43,17 @@ var pending_death_choice: bool = false
 var save_manager: SaveManager
 var scheduler: SaveScheduler
 
+## Zona ativa dos dinos (MUN-05) e o grupo onde os selvagens do mapa moram.
+var zone: DinoZone
+var wild: WildPopulation
+
 ## `entity_id` da criatura cuja tela compartilhada está aberta (0 = nenhuma).
 var _screen_target_id: int = 0
 var _quit_failed_once: bool = false
 var _last_failure_notice: String = ""
+var _wild_views: Dictionary = {}  # Dino -> [DinoView, DinoStatusBars] dos selvagens ativos
+var _gather_notice: String = ""
+var _gather_notice_frame: int = -1
 ## O Continuar falhou: esta partida não existe de verdade (a cena volta ao título) e não grava nada.
 var _load_failed: bool = false
 ## Quantos respawns o mundo já fez: semente do sorteio de ponto (vai no save).
@@ -45,6 +61,8 @@ var _respawn_count: int = 0
 
 
 func _ready() -> void:
+	map = IslandMap.default_map()
+	_place_on_island()
 	dino.level = dino_level
 	get_tree().auto_accept_quit = false  # o fechar da janela passa pelo save (_notification)
 	screen.player_inventory = player.inventory
@@ -66,6 +84,7 @@ func _ready() -> void:
 	scheduler.dino = dino
 	scheduler.manager = save_manager
 	scheduler.field = resources
+	scheduler.wild = wild
 	scheduler.authority = authority
 	scheduler.saved.connect(_on_saved)
 	add_child(scheduler)
@@ -83,6 +102,44 @@ func _ready() -> void:
 		_continue_saved_game()
 
 
+## Início do jogador e a criatura do tutorial no ponto do mapa, e os nós de recurso nascem do dado do mapa.
+## Mapa inválido (arquivo ruim) deixa a cena como está: o erro fica no log, o jogo não aborta.
+func _place_on_island() -> void:
+	if not map.is_valid():
+		push_error("Main: o mapa %s não carregou." % IslandMap.DEFAULT_PATH)
+		return
+	player.position = map.start_point()
+	dino.position = map.center_of(map.landmarks.get("paquicefalo_tutorial", map.start_cell))
+	if resources != null:
+		resources.populate(map, world_rules)
+	_build_zone()
+
+
+## A zona ativa e os selvagens do mapa (a criatura da cena é o do tutorial e entra na zona também). Nível do
+## selvagem pelo bioma onde nasce (faixa em `WorldRules.level_bands`), sorteado com semente do mapa: o mesmo
+## mapa dá os mesmos dinos. O save leva só o delta deles (`WildPopulation`): quem mudou ou morreu; o resto
+## nasce de novo no mesmo lugar.
+func _build_zone() -> void:
+	zone = DinoZone.new()
+	zone.name = "DinoZone"
+	zone.map = map
+	zone.foci = [player]
+	add_child(zone)
+	wild = WildPopulation.new()
+	wild.name = "Wild"
+	wild.y_sort_enabled = true
+	add_child(wild)
+	zone.register(dino, false)
+	var tutorial_cell: Vector2i = map.landmarks.get("paquicefalo_tutorial", Vector2i(-1, -1))
+	# o do tutorial é um dos `wild_population_max`
+	for creature in wild.populate(map, world_rules, tutorial_cell, world_rules.wild_population_max - 1):
+		zone.register(creature, false)
+	zone.mode_applied.connect(_on_zone_mode_applied)
+	wild.authority = authority
+	wild.creature_died.connect(_on_wild_died)
+	zone.reclassify()
+
+
 ## O jogador e a criatura da cena entram no registro com os ids do save; os nós de recurso, com o próximo livre.
 func _register_entities() -> void:
 	player.authority = authority
@@ -95,6 +152,10 @@ func _register_entities() -> void:
 		for node in resources.nodes():
 			if authority.register(node) == 0:
 				push_error("Main: nó de recurso sem id no registro.")
+	if wild != null:
+		for creature in wild.get_children():
+			if authority.register(creature) == 0:
+				push_error("Main: selvagem sem id no registro.")
 
 
 ## Gravar agora (menu, sair e testes; a Cama usa `SaveManager.Reason.BED`). Falhou: o motivo fica em
@@ -105,14 +166,21 @@ func save_game(reason: SaveManager.Reason) -> bool:
 
 func _continue_saved_game() -> void:
 	var outcome := save_manager.load_first(
-			func(data: Dictionary) -> bool: return WorldSnapshot.restore(data, player, dino, resources))
+			func(data: Dictionary) -> bool: return WorldSnapshot.restore(data, player, dino, resources, wild))
 	if outcome.status == SaveManager.Status.OK:
 		_respawn_count = WorldSnapshot.respawn_count_of(outcome.data)
 		scheduler.respawn_count = _respawn_count
 		authority.ensure_next_id(WorldSnapshot.next_entity_id_of(outcome.data))
+		_keep_on_island(WorldSnapshot.has_legacy_coordinates(outcome.data))
+		if zone != null:
+			for creature in wild.last_adopted:
+				zone.register(creature, false)  # os domados recriados do save entram na zona
+			zone.reclassify()  # o jogador e os dinos mudaram de lugar
 		if WorldSnapshot.was_dead_pending_choice(outcome.data):
 			_enter_death()  # carregar um morto reabre a escolha; não desfaz a morte
 		_notify(outcome.message)
+		if not WorldSnapshot.same_map_revision(outcome.data):
+			_notify(MAP_CHANGED_NOTICE, 8.0)  # por último: é o aviso que o jogador precisa ler
 		return
 	# Continuar que falha não abre jogo novo nem grava nada: volta ao título com o motivo, e o arquivo
 	# que o jogo recusou fica exatamente como estava.
@@ -121,6 +189,23 @@ func _continue_saved_game() -> void:
 	GameSession.notice = outcome.message if outcome.message != "" else "Nenhum jogo salvo."
 	if menu_scene != "":
 		get_tree().change_scene_to_file.call_deferred(menu_scene)
+
+
+## Depois de carregar: posição fora da ilha (o mapa antigo tinha outro tamanho e outra origem; um save
+## corrompido também) vai ao ponto seguro, e a criatura que ficou fora vem para perto do jogador. Nada se
+## perde: só a posição muda. `legacy` = o save é de um mapa anterior: as coordenadas dele não valem em
+## lugar nenhum, mesmo que caiam em terra por acaso.
+func _keep_on_island(legacy: bool) -> void:
+	if not map.is_valid():
+		return
+	if legacy or not map.is_walkable_at(player.position):
+		player.position = map.safe_point()
+	if is_instance_valid(dino) and not dino.is_queued_for_deletion() and (legacy or not map.is_walkable_at(dino.position)):
+		dino.position = map.nearest_walkable_point(player.position + Vector2(24.0, 0.0), 6, map.safe_point())
+	if wild != null:  # domado recriado do save (o salvo no mar, ou de outro mapa, volta para perto do jogador)
+		for creature in wild.adopted():
+			if legacy or not map.is_walkable_at(creature.position):
+				creature.position = map.nearest_walkable_point(player.position + Vector2(24.0, 0.0), 6, map.safe_point())
 
 
 func _on_player_died() -> void:
@@ -172,6 +257,8 @@ func _is_free_point(point: Vector2) -> bool:
 	query.collision_mask = 1
 	if not get_world_2d().direct_space_state.intersect_shape(query, 1).is_empty():
 		return false
+	if map.is_valid() and not map.is_land(map.cell_of(point)):  # nem no mar nem na água rasa (GDD: proibido nascer ali)
+		return false
 	if resources != null:
 		for node in resources.nodes():
 			if node.global_position.distance_to(point) < respawn_rules.min_distance_from_resource:
@@ -183,16 +270,25 @@ func _wild_positions() -> Array[Vector2]:
 	var positions: Array[Vector2] = []
 	if is_instance_valid(dino) and not dino.is_queued_for_deletion() and not dino.state_machine.is_tamed:
 		positions.append(dino.global_position)
+	if wild != null:
+		for creature in wild.get_children():
+			if is_instance_valid(creature) and not creature.is_queued_for_deletion() and not (creature as Dino).state_machine.is_tamed:
+				positions.append((creature as Dino).global_position)
 	return positions
 
 
+## Uma colheita pode render mais de um item no mesmo quadro (arbusto: fruta e fibra): o aviso junta os dois.
 func _on_player_gathered(item_id: String, amount: int) -> void:
-	_notify("+%d %s" % [amount, Items.display_name(item_id)], 1.5)
+	var part := "+%d %s" % [amount, Items.display_name(item_id)]
+	var frame := Engine.get_process_frames()
+	_gather_notice = _gather_notice + "  " + part if frame == _gather_notice_frame else part
+	_gather_notice_frame = frame
+	_notify(_gather_notice, 1.5)
 
 
 func _on_gather_refused(reason: String) -> void:
 	var texts := {Player.GATHER_DEPLETED: "Já foi colhido.", Player.GATHER_FULL: "Inventário cheio.",
-			Player.GATHER_TOO_FAR: "Longe demais."}
+			Player.GATHER_TOO_FAR: "Longe demais.", Player.GATHER_NEEDS_TOOL: "Só a Picareta quebra pedra."}
 	_notify(str(texts.get(reason, "")), 1.5)
 
 
@@ -203,6 +299,49 @@ func _notify(text: String, seconds: float = PlayerHud.NOTICE_SECONDS) -> void:
 
 ## Só domado: um selvagem que morre não é salvo. A criatura já saiu do mundo (`queue_free` do próprio
 ## dino roda antes, pela ordem das conexões), então o save a deixa de fora e ela não volta ao carregar.
+func _on_wild_died(creature: Dino, tamed: bool) -> void:
+	_detach_wild_views(creature)  # morto não guarda view nem chave
+	if tamed:
+		scheduler.request(SaveManager.Reason.TAMED_DINO_DEATH)
+
+
+## Apresentação dos selvagens só enquanto ativos (teto de 32 + os fixados): view e barras nascem ao entrar na
+## zona ativa e saem ao deixá-la, para o custo em nós seguir o teto e não os 108.
+func _on_zone_mode_applied(creature: Dino, mode: ActivityZone.Mode) -> void:
+	if creature == dino:
+		return
+	if mode == ActivityZone.Mode.ACTIVE:
+		_attach_wild_views(creature)
+	else:
+		_detach_wild_views(creature)
+
+
+func _attach_wild_views(creature: Dino) -> void:
+	for key: Variant in _wild_views.keys():  # nenhuma chave de dino que já saiu do mundo
+		if not is_instance_valid(key) or (key as Dino).is_queued_for_deletion():
+			_detach_wild_views(key)
+	if _wild_views.has(creature) or not is_instance_valid(creature):
+		return
+	var view := DinoView.new()
+	view.dino = creature
+	var template := get_node_or_null("DinoView") as DinoView
+	if template != null:
+		view.cue_streams = template.cue_streams
+		view.volume_db = template.volume_db
+	var bars := DinoStatusBars.new()
+	bars.dino = creature
+	add_child(view)
+	add_child(bars)
+	_wild_views[creature] = [view, bars]
+
+
+func _detach_wild_views(creature: Variant) -> void:
+	for node: Node in _wild_views.get(creature, []):
+		if is_instance_valid(node):
+			node.queue_free()
+	_wild_views.erase(creature)
+
+
 func _on_dino_died() -> void:
 	if dino.state_machine.is_tamed:
 		scheduler.request(SaveManager.Reason.TAMED_DINO_DEATH)

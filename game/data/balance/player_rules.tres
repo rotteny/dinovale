@@ -16,3 +16,4 @@ hunger_restore = Dictionary[String, float]({
 })
 hitbox_size = Vector2(12, 8)
 hitbox_offset = Vector2(0, -4)
+hand_damage_floor = 10.0

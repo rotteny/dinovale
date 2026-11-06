@@ -19,10 +19,15 @@ func run() -> void:
 	_test_migration_feeder_and_restore_owner()
 	_test_player_hitbox_alternative_data()
 	await _test_gather_by_target_id()
+	_release_worlds()
 	await _test_follow_speed_and_walking_owner()
+	_release_worlds()
 	await _test_restored_order_moves_at_follow_speed()
+	_release_worlds()
 	await _test_owner_dead_or_absent()
+	_release_worlds()
 	await _test_main_shows_refusals()
+	_release_worlds()
 
 
 # ----------------------------------------------------------------------------- montagem
@@ -310,7 +315,7 @@ func _test_gather_by_target_id() -> void:
 	var player := main.player
 	player.set_physics_process(false)
 	var authority := main.authority
-	var bush := main.resources.node_by_id("berry_1")
+	var bush := main.resources.node_by_id("bush_baga_1")
 	var wood := main.resources.node_by_id("tree_1")
 	var denied := _denials(authority)
 	player.position = bush.position + Vector2(0, 10)
@@ -321,7 +326,7 @@ func _test_gather_by_target_id() -> void:
 	_check(authority.request_gather(1, authority.id_of(main.dino)) == RESULT.UNKNOWN_TARGET
 			and authority.request_gather(1, 999) == RESULT.UNKNOWN_TARGET,
 			"alvo que não é nó de recurso, ou que não existe: negado")
-	player.tick(10.0)
+	player.tick(20.0)
 	var before := player.to_dict()
 	_check(authority.request_gather(1, authority.id_of(wood)) == RESULT.OUT_OF_RANGE and wood.is_available() and player.to_dict() == before,
 			"nó longe: negado pela distância real, o nó não gasta")

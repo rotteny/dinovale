@@ -1,0 +1,35 @@
+[gd_resource type="Resource" script_class="WorldRules" load_steps=17 format=3]
+
+[ext_resource type="Script" path="res://src/core/WorldRules.gd" id="1_rules"]
+[ext_resource type="Resource" path="res://data/resources/tree.tres" id="2_tree"]
+[ext_resource type="Resource" path="res://data/resources/rock.tres" id="3_rock"]
+[ext_resource type="Resource" path="res://data/resources/iron_seam.tres" id="4_iron"]
+[ext_resource type="Resource" path="res://data/resources/bush_baga.tres" id="5_baga"]
+[ext_resource type="Resource" path="res://data/resources/bush_sono.tres" id="6_sono"]
+[ext_resource type="Resource" path="res://data/resources/loose_stone.tres" id="7_loose"]
+[ext_resource type="Resource" path="res://data/world/scenery/tree_decor.tres" id="8_decor"]
+[ext_resource type="Resource" path="res://data/world/scenery/formation_a.tres" id="9_fa"]
+[ext_resource type="Resource" path="res://data/world/scenery/formation_b.tres" id="10_fb"]
+[ext_resource type="Resource" path="res://data/world/scenery/formation_c.tres" id="11_fc"]
+[ext_resource type="Script" path="res://src/core/ResourceNodeDef.gd" id="12_nodedef"]
+[ext_resource type="Script" path="res://src/core/SceneryDef.gd" id="13_scenerydef"]
+
+[resource]
+script = ExtResource("1_rules")
+node_defs = Dictionary[String, ExtResource("12_nodedef")]({
+"bush_baga": ExtResource("5_baga"),
+"bush_sono": ExtResource("6_sono"),
+"iron_seam": ExtResource("4_iron"),
+"loose_stone": ExtResource("7_loose"),
+"rock": ExtResource("3_rock"),
+"tree": ExtResource("2_tree")
+})
+scenery = Array[ExtResource("13_scenerydef")]([ExtResource("8_decor"), ExtResource("9_fa"), ExtResource("10_fb"), ExtResource("11_fc")])
+disabled_node_kinds = Array[String](["iron_seam"])
+loose_core_respawn_seconds = 300.0
+level_bands = Dictionary[int, Vector2i]({
+3: Vector2i(1, 12),
+4: Vector2i(5, 25),
+5: Vector2i(15, 35)
+})
+wild_population_max = 108

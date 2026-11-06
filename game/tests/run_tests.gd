@@ -81,6 +81,12 @@ func _run() -> void:
 	_free_tracked_nodes()
 	await RespawnResourceTests.new(root, _track, _check).run()
 	_free_tracked_nodes()
+	await WorldTests.new(root, _track, _check).run()
+	_free_tracked_nodes()
+	await WildPersistenceTests.new(root, _track, _check).run()
+	_free_tracked_nodes()
+	await WorldGuardTests.new(root, _track, _check).run()
+	_free_tracked_nodes()
 	await ScreenCameraTests.new(root, _track, _check).run()
 	_free_tracked_nodes()
 	await _test_full_taming_integration()
@@ -914,6 +920,7 @@ func _test_full_taming_integration() -> void:
 	var main: Main = load("res://src/world/Main.tscn").instantiate()
 	root.add_child(main)
 	_nodes.append(main)
+	main.wild.free()  # os selvagens do mapa não entram nesta conta (a mira pegaria o mais perto)
 	var player: Player = main.player
 	var screen: InventoryScreen = main.screen
 	var dino: Dino = main.get_node("Dino")
@@ -924,6 +931,7 @@ func _test_full_taming_integration() -> void:
 	var starting_total := player.inventory.count("berry") + player.inventory.count("meat") \
 			+ player.inventory.count("fern")
 	dino.global_position = player.global_position + Vector2(30, 0)
+	main.zone.reclassify()  # a zona só reavalia de tempos em tempos: o teste moveu o dino de propósito
 	for i in 4:
 		await physics_frame
 	player.tick(0.0)

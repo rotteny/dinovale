@@ -1,0 +1,172 @@
+{
+	"entities": [
+		{
+			"id": 2,
+			"state": {
+				"feeder_player_id": "",
+				"health": {
+					"current": 140.0,
+					"max": 140.0
+				},
+				"inventory": {
+					"next_iid": 1,
+					"slots": [
+						{},
+						{},
+						{},
+						{},
+						{},
+						{},
+						{},
+						{}
+					],
+					"version": 2
+				},
+				"level": 20,
+				"owner_player_id": "",
+				"position": {
+					"x": 1976.0,
+					"y": 3016.0
+				},
+				"state_machine": {
+					"is_tamed": false,
+					"order": "STAY",
+					"state": "IDLE"
+				},
+				"taming": {
+					"efficiency": 100.0,
+					"meal_timer": 0.0,
+					"progress": 0.0
+				},
+				"torpor": {
+					"band": 0,
+					"current": 0.0,
+					"is_unconscious": false,
+					"max": 120.0,
+					"pause_clock": 0.0,
+					"pause_phase": 0.199999999999989
+				}
+			},
+			"type": "dino"
+		}
+	],
+	"format_version": 4,
+	"game_version": "",
+	"players": [
+		{
+			"entity_id": 1,
+			"life": "alive",
+			"player_id": "local",
+			"state": {
+				"equipment": {
+					"slots": {},
+					"version": 1
+				},
+				"health": {
+					"current": 100.0,
+					"max": 100.0
+				},
+				"hotbar": {
+					"slots": [
+						{
+							"id": "berry"
+						},
+						{
+							"id": "meat"
+						},
+						{
+							"id": "fern"
+						},
+						{
+							"id": "sleep_staff",
+							"iid": "p1"
+						},
+						{},
+						{},
+						{},
+						{},
+						{}
+					],
+					"version": 2
+				},
+				"hunger": {
+					"current": 100.0,
+					"max": 100.0,
+					"starvation_timer": 0.0
+				},
+				"inventory": {
+					"next_iid": 2,
+					"slots": [
+						{
+							"count": 10,
+							"expira_em": 0.0,
+							"id": "berry"
+						},
+						{
+							"count": 4,
+							"expira_em": 0.0,
+							"id": "meat"
+						},
+						{
+							"count": 3,
+							"expira_em": 0.0,
+							"id": "fern"
+						},
+						{
+							"durab": 120,
+							"durab_max": 120,
+							"id": "sleep_staff",
+							"iid": "p1"
+						},
+						{},
+						{},
+						{},
+						{},
+						{},
+						{},
+						{},
+						{}
+					],
+					"version": 2
+				},
+				"position": {
+					"x": 2296.0,
+					"y": 3160.0
+				},
+				"stamina": {
+					"current": 100.0,
+					"is_exhausted": false,
+					"max": 100.0
+				},
+				"version": 2
+			}
+		}
+	],
+	"saved_at": "2026-11-06T07:24:48",
+	"world": {
+		"map_id": "lunata",
+		"map_revision": 1,
+		"next_entity_id": 581,
+		"wild": [
+			{
+				"dead": true,
+				"index": 3
+			}
+		],
+		"resource_nodes": [
+			{
+				"def": "loose_stone",
+				"depleted": true,
+				"id": "loose_stone_11",
+				"respawn_left": 500.0
+			},
+			{
+				"def": "tree",
+				"depleted": true,
+				"id": "tree_3",
+				"respawn_left": 230.0
+			}
+		],
+		"respawn_count": 0
+	}
+}

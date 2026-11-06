@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="ResourceNodeDef" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://src/core/ResourceNodeDef.gd" id="1_def"]
+[ext_resource type="Texture2D" path="res://assets/sprites/recursos/rock_ore_32.png" id="2_full"]
+[ext_resource type="Texture2D" path="res://assets/sprites/recursos/rock_ore_empty_32.png" id="3_empty"]
+
+[resource]
+script = ExtResource("1_def")
+id = "iron_seam"
+display_name = "Pedra de minério"
+item_id = "iron_ore"
+yield_amount = 2
+gather_seconds = 14.0
+reach = 32.0
+respawn_seconds = 900.0
+prompt = "quebrar minério"
+color = Color(0.4, 0.7, 0.8, 1)
+tool_item_id = "pickaxe_stone"
+tool_required = true
+hand_self_damage = 0.0
+touch_self_damage = 1.0
+texture = ExtResource("2_full")
+texture_depleted = ExtResource("3_empty")
+foot_size = Vector2(24, 12)
+blocks_when_full = true
+blocks_when_depleted = true

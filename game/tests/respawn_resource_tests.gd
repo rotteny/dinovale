@@ -7,7 +7,7 @@ extends SaveTests
 const FIXTURE_V2 := "res://tests/fixtures/saves/v2.json"
 const RULES: RespawnRules = preload("res://data/balance/respawn_rules.tres")
 const TREE: ResourceNodeDef = preload("res://data/resources/tree.tres")
-const BERRY_BUSH: ResourceNodeDef = preload("res://data/resources/berry_bush.tres")
+const BERRY_BUSH: ResourceNodeDef = preload("res://data/resources/bush_baga.tres")
 
 
 func run() -> void:
@@ -18,19 +18,32 @@ func run() -> void:
 	_test_node_component()
 	_test_node_defs()
 	await _test_death_and_respawn_flow()
+	_release_worlds()
 	await _test_respawn_points_are_free()
+	_release_worlds()
 	await _test_dead_save_is_not_undone()
+	_release_worlds()
 	await _test_respawn_survives_save()
+	_release_worlds()
 	await _test_gather_rules()
+	_release_worlds()
 	await _test_nodes_in_save()
+	_release_worlds()
 	_test_fixture_v2()
 	await _test_death_screen_lists_data()
+	_release_worlds()
 	await _test_targeting()
+	_release_worlds()
 	await _test_inventory_and_death()
+	_release_worlds()
 	await _test_respawn_save_timing()
+	_release_worlds()
 	await _test_regions_and_points()
+	_release_worlds()
 	await _test_death_screen_keyboard()
+	_release_worlds()
 	await _test_two_deaths_reset_delay()
+	_release_worlds()
 
 
 # ----------------------------------------------------------------------------- lógica pura
@@ -95,7 +108,8 @@ func _test_health_protection_and_revive() -> void:
 	var dino := _spawn_dino()
 	dino.health.from_dict({"current": 10.0, "protection": 50.0})
 	dino.health.take_damage(500.0)
-	_check(dino.health.is_dead() and dino.health.protection_left == 0.0, "proteção de save não torna dino imortal (só o jogador a restaura)")
+	_check(dino.health.is_dead() and dino.health.protection_left == 0.0,
+			"proteção de save não torna dino imortal (só o jogador a restaura)")
 	var player := _spawn_player()
 	player.health.grant_protection(2.0)
 	var saved: Dictionary = JSON.parse_string(JSON.stringify(player.to_dict()))
@@ -153,12 +167,21 @@ func _test_node_component() -> void:
 
 func _test_node_defs() -> void:
 	var items := {}
-	for path in ["tree", "rock", "berry_bush", "fiber_plant"]:
+	for path in ["tree", "rock", "bush_baga", "bush_sono", "loose_stone", "carcass_meat"]:
 		var def: ResourceNodeDef = load("res://data/resources/%s.tres" % path)
 		_check(def.id == path and Items.has(def.item_id) and def.yield_amount > 0 and def.respawn_seconds > 0.0, "def %s completa" % path)
+		for extra_id: String in def.extra_yields:
+			_check(Items.has(extra_id), "def %s: o item extra %s existe" % [path, extra_id])
 		items[def.item_id] = true
-	_check(items.has("wood") and items.has("stone") and items.has("berry") and items.has("fiber"), "árvore, pedra, baga e fibra")
-	_check(BERRY_BUSH.respawn_seconds == 240.0 and BERRY_BUSH.yield_amount == 3, "arbusto de baga: 3 por coleta, volta em 4 min (GDD)")
+	_check(items.has("wood") and items.has("stone") and items.has("berry") and items.has("sleep_fruit") and items.has("meat"),
+			"árvore, pedra, baga, Cochilo e carne")
+	_check(not FileAccess.file_exists("res://data/resources/fiber_plant.tres"), "a planta de fibra saiu (a fibra é do arbusto)")
+	_check(BERRY_BUSH.respawn_seconds == 240.0 and BERRY_BUSH.yield_amount == 3 and BERRY_BUSH.extra_yields == {"fiber": 2}
+			and BERRY_BUSH.gather_seconds == 12.0, "arbusto de baga: 3 baga e 2 fibra em 12 s, volta em 4 min (mapa-ilha 8)")
+	var sleep: ResourceNodeDef = load("res://data/resources/bush_sono.tres")
+	_check(sleep.item_id == "sleep_fruit" and sleep.yield_amount == 3 and sleep.extra_yields == {"fiber": 2}
+			and sleep.gather_seconds == 16.0
+			and sleep.respawn_seconds == 420.0, "arbusto-do-sono: 3 Cochilo e 2 fibra em 16 s, volta em 420 s")
 
 
 # ----------------------------------------------------------------------------- morte e respawn
@@ -202,8 +225,12 @@ func _test_respawn_points_are_free() -> void:
 	var main := _main("free_points", 20, true)
 	await tree.physics_frame
 	await tree.physics_frame
-	_check(not main._is_free_point(Vector2(424, 92)), "parede da casa não é ponto livre")
-	_check(not main._is_free_point(main.resources.node_by_id("berry_1").global_position), "em cima de nó de recurso não é ponto livre")
+	_check(not main._is_free_point(main.resources.node_by_id("rock_1").global_position + Vector2(0, -4)),
+			"rocha (colisão dos pés) não é ponto livre")
+	_check(not main._is_free_point(Vector2(64, 64)), "o mar não é ponto livre")
+	_check(main.map.terrain_at(Vector2i(200, 128)) == IslandMap.DEEP and not main._is_free_point(main.map.center_of(Vector2i(200, 128))),
+			"água funda (a enseada) não é ponto livre")
+	_check(not main._is_free_point(main.resources.node_by_id("bush_baga_1").global_position), "em cima de nó de recurso não é ponto livre")
 	_check(main._is_free_point(RULES.region_by_id("campina").fallback_point), "o ponto reserva da Campina é livre")
 	var all_free := true
 	var far := true
@@ -273,7 +300,7 @@ func _test_gather_rules() -> void:
 	var main := _main("gather")
 	await tree.physics_frame
 	var player := main.player
-	var bush := main.resources.node_by_id("berry_1")
+	var bush := main.resources.node_by_id("bush_baga_1")
 	var wood := main.resources.node_by_id("tree_1")
 	_check(player.request_gather() == Player.GATHER_NO_TARGET, "sem alvo: recusa")
 	player.target = bush.interactable
@@ -283,8 +310,8 @@ func _test_gather_rules() -> void:
 	var notices: Array[String] = []
 	player.gathered.connect(func(item_id: String, amount: int) -> void: notices.append("%s%d" % [item_id, amount]))
 	_check(player.try_interact(), "colher é interagir com o alvo")
-	_check(player.inventory.count(Items.BERRY) == before + 3 and not bush.is_available() and notices == ["berry3"],
-			"colheu 3 bagas e esgotou o nó")
+	_check(player.inventory.count(Items.BERRY) == before + 3 and not bush.is_available() and notices == ["berry3", "fiber2"],
+			"colheu 3 bagas e 2 fibras e esgotou o nó")
 	_check(main.hud.notice_label().text.contains("+3 Baga"), "a HUD avisa o ganho")
 	_check(not bush.interactable.can_interact() and not player.try_interact(), "esgotado não é interagível")
 	_check(player.request_gather() == Player.COOLDOWN, "ação de colher tem tempo (recarga)")
@@ -304,7 +331,7 @@ func _test_gather_rules() -> void:
 	_check(player.request_gather() == Player.GATHER_FULL and wood.is_available() and player.inventory.count(Items.WOOD) == wood_before,
 			"inventário cheio: recusa e o nó não gasta")
 	_check(main.hud.notice_label().text.contains("cheio"), "a HUD avisa inventário cheio")
-	# Parcial: cabe 1 de 3. Não gasta o nó e não perde o excedente.
+	# Parcial: cabe 1 de 3. Entrega o que cabe e o resto fica no nó (mapa-ilha.md 8).
 	player.inventory.remove(Items.STONE, player.inventory.count(Items.STONE))
 	player.inventory.remove(Items.STONE, player.inventory.count(Items.STONE))
 	player.inventory.add(Items.WOOD, 19)
@@ -312,8 +339,9 @@ func _test_gather_rules() -> void:
 		player.inventory.add(Items.STONE, 1)
 	_check(player.inventory.room_for(Items.WOOD) == 1, "preparo: cabe exatamente 1 madeira")
 	var partial_before := player.inventory.count(Items.WOOD)
-	_check(player.request_gather() == Player.GATHER_FULL and wood.is_available() and player.inventory.count(Items.WOOD) == partial_before,
-			"espaço parcial (1 de 3): recusa, o nó não gasta e nada se perde")
+	_check(player.request_gather() == "" and wood.is_available() and player.inventory.count(Items.WOOD) == partial_before + 1
+			and wood.component.leftover == {Items.WOOD: wood.def.yield_amount - 1},
+			"espaço parcial (1 de 3): entra 1 e as outras 2 ficam no nó, que não esgota")
 	# Morto não colhe.
 	player.inventory.remove(Items.WOOD, player.inventory.count(Items.WOOD))
 	player.health.take_damage(10000.0)
@@ -327,7 +355,7 @@ func _test_nodes_in_save() -> void:
 	var tree := _root.get_tree()
 	var main := _main("nodes_save")
 	await tree.physics_frame
-	var bush := main.resources.node_by_id("berry_2")
+	var bush := main.resources.node_by_id("bush_baga_2")
 	main.player.position = bush.position + Vector2(0, 10)
 	main.player.target = bush.interactable
 	main.player.request_gather()
@@ -335,10 +363,10 @@ func _test_nodes_in_save() -> void:
 	main.save_game(SaveManager.Reason.BED)
 	GameSession.continue_requested = true
 	var again := _main("nodes_save", 20, true)
-	var restored := again.resources.node_by_id("berry_2")
+	var restored := again.resources.node_by_id("bush_baga_2")
 	_check(not restored.is_available() and is_equal_approx(restored.component.respawn_left, BERRY_BUSH.respawn_seconds - 60.0),
 			"nó colhido continua esgotado depois de salvar e continuar, com o tempo restante")
-	_check(again.resources.node_by_id("berry_1").is_available(), "os outros nós seguem cheios")
+	_check(again.resources.node_by_id("bush_baga_1").is_available(), "os outros nós seguem cheios")
 	again.resources.restore_list([5, "x", {"id": 7}, {"id": "tree_1", "def": "tree", "depleted": true, "respawn_left": 9.0}])
 	_check(not again.resources.node_by_id("tree_1").is_available(), "lista com lixo não aborta e aplica o que serve")
 	var junk: Array = []
@@ -350,7 +378,7 @@ func _test_nodes_in_save() -> void:
 	var ids: Array = []
 	for entry: Dictionary in again.resources.to_list():
 		ids.append(entry["id"])
-	_check(ids.size() == 11 and ids[0] == "berry_1", "to_list leva todos os nós em ordem de id")
+	_check(ids == ["tree_2"], "to_list leva só os esgotados (o mapa é estático); a lista aplicada de novo soltou o resto")
 
 
 func _test_fixture_v2() -> void:
@@ -361,10 +389,9 @@ func _test_fixture_v2() -> void:
 	var main := _main("fixture_v2", 20, true)
 	var pair := [main.player, main.dino]
 	_check(WorldSnapshot.restore(outcome.data, pair[0], pair[1], main.resources), "fixture v2 é aplicada ao mundo")
-	var bush := main.resources.node_by_id("berry_1")
-	_check(not bush.is_available() and bush.component.respawn_left == 100.0 and main.resources.node_by_id("tree_1").is_available(),
-			"fixture v2: nó esgotado com tempo; id desconhecido e tipo trocado são ignorados")
-	_check(main.resources.node_by_id("rock_1").is_available(), "fixture v2: nó com tipo diferente do da cena fica como está")
+	_check(main.resources.to_list().is_empty() and main.resources.node_by_id("tree_1").is_available(),
+			"fixture v2: os ids do mapa antigo (berry_1...) não existem na ilha e são ignorados; nada esgota")
+	_check(main.resources.node_by_id("rock_1").is_available(), "fixture v2: nó com tipo diferente do salvo é ignorado")
 	_check(WorldSnapshot.respawn_count_of(outcome.data) == 3, "fixture v2: contador de respawns")
 
 
@@ -410,8 +437,8 @@ func _test_targeting() -> void:
 	var main := _main("targeting")
 	await tree.physics_frame
 	var player := main.player
-	var bush := main.resources.node_by_id("berry_1")
-	var other := main.resources.node_by_id("berry_2")
+	var bush := main.resources.node_by_id("bush_baga_1")
+	var other := main.resources.node_by_id("bush_baga_2")
 	var dino := main.dino
 	player.position = Vector2(200, 180)
 	dino.position = Vector2(226, 180)
@@ -434,7 +461,8 @@ func _test_targeting() -> void:
 	_area_range(player, areas)
 	var opened: Array[Node] = []
 	main.authority.interaction_granted.connect(func(_actor: int, target_id: int) -> void: opened.append(main.authority.entity(target_id)))
-	_check(player.target == dino.interactable and player.try_interact() and opened == [dino], "E no dino dormindo ignora arbustos esgotados")
+	_check(player.target == dino.interactable and player.try_interact() and opened == [dino],
+			"E no dino dormindo ignora arbustos esgotados")
 	# Renascer limpa alvo e alcance.
 	player.health.take_damage(10000.0)
 	_check(main.request_respawn("campina") == "" and player.target == null, "renascer zera o alvo")
@@ -541,10 +569,13 @@ func _test_regions_and_points() -> void:
 		points[main.player.position] = true
 	_check(points.size() >= 8, "respawns seguidos sorteiam pontos diferentes (%d de 12)" % points.size())
 	# Selvagem conta, domado não.
-	_check(main._wild_positions().size() == 1, "dino selvagem conta para a distância")
+	var others := main.wild.get_child_count()
+	_check(main._wild_positions().size() == 1 + others and main._wild_positions().has(main.wild.get_child(0).global_position),
+			"dino selvagem conta para a distância, o do tutorial e os do mapa")
 	main.dino.torpor.add_torpor(100000.0)
 	main.dino.state_machine.mark_tamed()
-	_check(main._wild_positions().is_empty(), "dino domado não conta")
+	_check(main._wild_positions().size() == others and not main._wild_positions().has(main.dino.global_position),
+			"dino domado não conta")
 
 
 func _test_death_screen_keyboard() -> void:
@@ -602,6 +633,6 @@ func _test_two_deaths_reset_delay() -> void:
 	screen.rules = rules
 	_root.add_child(screen)
 	_track.call(screen)
-	screen.open(Vector2(160, 300))
+	screen.open(rules.default_fallback_point)
 	label = screen.column().label_of("inicio")
 	_check(label.contains("(0 tiles)"), "a distância da região de emergência mede até o ponto reserva (%s)" % label)

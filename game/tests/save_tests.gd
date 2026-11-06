@@ -41,18 +41,30 @@ func run() -> void:
 	_test_life_field_and_dead_state()
 	_test_deep_nesting()
 	await _test_autosave_interval()
+	_release_worlds()
 	await _test_pause_does_not_count()
+	_release_worlds()
 	await _test_coalescing()
+	_release_worlds()
 	await _test_triggers_on_main()
+	_release_worlds()
 	await _test_write_failure_is_not_fatal()
+	_release_worlds()
 	await _test_retry_after_failure()
+	_release_worlds()
 	await _test_failure_notice_and_queue_bounded()
+	_release_worlds()
 	_test_saving_indicator()
 	await _test_continue_in_main()
+	_release_worlds()
 	await _test_continue_failure()
+	_release_worlds()
 	await _test_title_single_player()
+	_release_worlds()
 	await _test_hunger_and_warning()
+	_release_worlds()
 	await _test_save_timing()
+	_release_worlds()
 
 
 # ----------------------------------------------------------------------------- auxiliares
@@ -102,6 +114,10 @@ func _main(world: String, level: int = 20, no_menu: bool = false) -> Main:
 	for node: Node in [main.player, main.player.hunger, main.player.stamina, main.dino, main.dino.torpor, main.dino.taming,
 			main.dino.state_machine, main.scheduler]:
 		node.set_physics_process(false)
+	main.wild.process_mode = Node.PROCESS_MODE_DISABLED  # os selvagens do mapa ficam parados: o teste não é deles
+	main.zone.set_physics_process(false)  # a zona só age onde o teste a chama (`WorldTests`)
+	main.dino.process_mode = Node.PROCESS_MODE_INHERIT
+	main.dino.visible = true
 	return main
 
 
@@ -526,7 +542,7 @@ func _test_write_failure_is_not_fatal() -> void:
 func _test_continue_in_main() -> void:
 	var tree := _root.get_tree()
 	var first := _main("cont", 31)
-	first.player.position = Vector2(77.0, 88.0)
+	first.player.position = Vector2(2300.0, 3150.0)
 	first.player.hunger.current_hunger = 33.0
 	first.player.inventory.remove("berry", 3)
 	first.dino.health.take_damage(12.0)
@@ -538,7 +554,7 @@ func _test_continue_in_main() -> void:
 	var second := _main("cont")
 	await tree.process_frame
 	_check(not GameSession.continue_requested, "o pedido de continuar vale uma vez")
-	_check(second.player.position == Vector2(77.0, 88.0) and is_equal_approx(second.player.hunger.current_hunger, 30.0)
+	_check(second.player.position == Vector2(2300.0, 3150.0) and is_equal_approx(second.player.hunger.current_hunger, 30.0)
 			and second.player.inventory.count("berry") == 7 and second.dino.level == 31 and second.dino.inventory.count("fern") == 2
 			and second.dino.health.current_health == second.dino.health.max_health - 12.0 and not second.scheduler.frozen,
 			"Continuar: jogador, dino e nível voltam ao que foi salvo")

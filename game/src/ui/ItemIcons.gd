@@ -15,6 +15,7 @@ const _ICONS: Dictionary[String, Texture2D] = {
 	Items.WOOD: _BRANCH,
 	Items.STONE: preload("res://assets/third_party/ninja-adventure/items/res_rock.png"),
 	Items.FIBER: _GRASS,
+	Items.SLEEP_FRUIT: preload("res://assets/sprites/recursos/icon_fruit_sleep.png"),
 }
 
 

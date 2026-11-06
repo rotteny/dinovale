@@ -12,7 +12,7 @@ const RESULT := Enums.ActionResult
 const ORDER_RULES: DinoOrderRules = preload("res://data/balance/dino_order_rules.tres")
 const FIXTURE_V2 := "res://tests/fixtures/saves/v2.json"
 const FIXTURE_V3 := "res://tests/fixtures/saves/v3.json"
-const MAP_SIZE := Vector2(640.0, 360.0)
+const MAP_SIZE := Vector2(4096.0, 4096.0)
 static var root_dir: String = SaveTests.base_dir + "/authority"
 
 var _root: Node
@@ -40,7 +40,9 @@ func run() -> void:
 	_test_migration_and_fixture_v3()
 	_test_hitbox_by_data()
 	await _test_map_limits_and_collision()
+	_release_worlds()
 	await _test_follower_stays_inside()
+	_release_worlds()
 
 
 func _check(condition: bool, label: String) -> void:
@@ -374,7 +376,8 @@ func _test_order_save() -> void:
 		var data := saved.duplicate(true)
 		data["state_machine"]["order"] = bad
 		var other := _dino_at(Vector2.ZERO)
-		_check(other.from_dict(data) and other.state_machine.order == Enums.DinoOrder.STAY, "ordem inválida no arquivo (%s): Ficar" % str(bad))
+		_check(other.from_dict(data) and other.state_machine.order == Enums.DinoOrder.STAY,
+				"ordem inválida no arquivo (%s): Ficar" % str(bad))
 	for bad: Variant in [-1, 1.5, 7, null, NAN, [2], {}, "x".repeat(65)]:
 		var data := saved.duplicate(true)
 		data["owner_player_id"] = bad
@@ -384,10 +387,11 @@ func _test_order_save() -> void:
 
 func _test_migration_and_fixture_v3() -> void:
 	var raw: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(FIXTURE_V2))
-	_check(raw["format_version"] == 2 and SaveMigrations.CURRENT_VERSION == 3, "preparo: a fixture v2 segue v2 e o formato atual é o 3")
+	_check(raw["format_version"] == 2 and SaveMigrations.CURRENT_VERSION == 4, "preparo: a fixture v2 segue v2 e o formato atual é o 4")
 	var migrated := SaveMigrations.migrate(raw)
 	var wild_machine: Dictionary = migrated["entities"][0]["state"]["state_machine"]
-	_check(migrated["format_version"] == 3 and not wild_machine.has("order") and not migrated["entities"][0]["state"].has("owner_player_id"),
+	_check(migrated["format_version"] == SaveMigrations.CURRENT_VERSION and not wild_machine.has("order")
+		and not migrated["entities"][0]["state"].has("owner_player_id"),
 			"v2 para v3: selvagem fica como estava")
 	var tamed := raw.duplicate(true)
 	tamed["entities"][0]["state"]["state_machine"]["is_tamed"] = true
@@ -406,12 +410,14 @@ func _test_migration_and_fixture_v3() -> void:
 	# Fixture v3: carrega pelo gerenciador e restaura o domado seguindo.
 	var manager := SaveManager.new(root_dir)
 	var outcome := manager.read_file(FIXTURE_V3)
-	_check(outcome.status == SaveManager.Status.OK and outcome.data.get("format_version") == 3, "fixture v3 carrega sem migrar")
+	_check(outcome.status == SaveManager.Status.OK and outcome.data.get("format_version") == SaveMigrations.CURRENT_VERSION
+		and (outcome.data.get("world", {}) as Dictionary).get("map_id") == "lunata", "fixture v3 carrega e é migrada para a versão atual")
 	var player := _player_at(Vector2.ZERO)
 	var dino := _dino_at(Vector2.ZERO)
 	_check(WorldSnapshot.restore(outcome.data, player, dino), "fixture v3 é aplicada ao mundo")
 	_check(dino.state_machine.is_tamed and dino.state_machine.order == Enums.DinoOrder.FOLLOW and dino.owner_player_id == "local"
-			and dino.state_machine.current_id == Enums.DinoStateId.TAMED and dino.level == 28, "fixture v3: domado, Seguir, dono local, nível 28")
+			and dino.state_machine.current_id == Enums.DinoStateId.TAMED
+			and dino.level == 28, "fixture v3: domado, Seguir, dono local, nível 28")
 
 
 func _test_hitbox_by_data() -> void:
@@ -450,6 +456,10 @@ func _main_with_physics() -> Main:
 	main.scheduler.frozen = true  # o teste de colisão não grava save
 	main.dino.set_physics_process(false)
 	main.dino.state_machine.set_physics_process(false)
+	main.wild.process_mode = Node.PROCESS_MODE_DISABLED  # os selvagens do mapa não passeiam sobre a colisão testada
+	main.zone.set_physics_process(false)  # e a zona não liga nem desliga o dino do teste (ele fica ativo, com colisão)
+	main.dino.process_mode = Node.PROCESS_MODE_INHERIT
+	main.dino.visible = true
 	return main
 
 
@@ -496,26 +506,47 @@ func _run_player(main: Main, action: String, frames: int) -> bool:
 	return bad
 
 
-func _wall_rect(main: Main) -> Rect2:
-	var wall := main.get_node("Terrain/House/Walls").get_child(0) as CollisionShape2D
-	var size := (wall.shape as RectangleShape2D).size
-	return Rect2(wall.global_position - size / 2.0, size)
+## Retângulo dos pés da rocha (a colisão que o corpo encontra).
+func _rock_rect(rock: ResourceNode) -> Rect2:
+	var foot := rock.def.foot_size
+	return Rect2(rock.global_position + Vector2(-foot.x / 2.0, -foot.y), foot)
 
 
-func _tree_rects(main: Main) -> Array[Rect2]:
+## As `count` rochas mais próximas do início, de colisão ligada, em ordem de distância (determinístico).
+func _rock_rects(main: Main, count: int) -> Array[Rect2]:
+	var rocks: Array[ResourceNode] = []
+	for node in main.resources.nodes():
+		if node.def.id == "rock" and node.blocks_movement():
+			rocks.append(node)
+	var start := main.map.start_point()
+	rocks.sort_custom(func(a: ResourceNode, b: ResourceNode) -> bool:
+		return a.position.distance_squared_to(start) < b.position.distance_squared_to(start))
 	var rects: Array[Rect2] = []
-	var trees := main.get_node("Terrain/Trees") as TileMapLayer
-	for cell in trees.get_used_cells():
-		var data := trees.get_cell_tile_data(cell)
-		if data == null or data.get_collision_polygons_count(0) == 0:
-			continue
-		var low := Vector2(INF, INF)
-		var high := Vector2(-INF, -INF)
-		for point in data.get_collision_polygon_points(0, 0):
-			low = low.min(point)
-			high = high.max(point)
-		rects.append(Rect2(trees.map_to_local(cell) + low, high - low))
+	for i in mini(count, rocks.size()):
+		rects.append(_rock_rect(rocks[i]))
 	return rects
+
+
+## Pontos de praia de frente para o mar fundo, um por direção de corrida: `{ação: ponto}`. O ponto fica a 3 tiles
+## da água funda com colisão, com o caminho até ela só de terra e raso.
+func _shore_points(map: IslandMap) -> Dictionary:
+	var dirs := {"move_right": Vector2i(1, 0), "move_left": Vector2i(-1, 0), "move_down": Vector2i(0, 1), "move_up": Vector2i(0, -1)}
+	var found := {}
+	for y in range(8, map.size - 8):
+		for x in range(8, map.size - 8):
+			var cell := Vector2i(x, y)
+			if not map.has_ring_collision(cell):
+				continue
+			for action: String in dirs:
+				if found.has(action):
+					continue
+				var step: Vector2i = dirs[action]
+				var clear := true
+				for k in range(1, 5):
+					clear = clear and map.is_walkable(cell - step * k)
+				if clear and not map.has_ring_collision(cell - step):
+					found[action] = map.center_of(cell - step * 4)
+	return found
 
 
 func _test_map_limits_and_collision() -> void:
@@ -523,16 +554,17 @@ func _test_map_limits_and_collision() -> void:
 	await _root.get_tree().physics_frame
 	var player := main.player
 	var ignore: Array[RID] = [main.dino.get_rid()]
-	# Bordas do mapa: correndo contra cada lado, com a caixa inteira dentro.
-	var edges := {"move_left": Vector2(40, 180), "move_right": Vector2(600, 180), "move_up": Vector2(40, 40), "move_down": Vector2(40, 320)}
-	for action: String in edges:
-		player.position = edges[action]
-		var bad: bool = await _run_player(main, action, 60)
-		_check(not bad, "correndo contra a borda (%s): fica dentro do mapa (%s)" % [action, str(player.position)])
-	# Casa e árvores: de cada lado, nunca entra.
-	var obstacles: Array[Rect2] = [_wall_rect(main)]
-	obstacles.append_array(_tree_rects(main))
-	_check(obstacles.size() >= 7, "o mapa tem a casa e as árvores sólidas (%d obstáculos)" % obstacles.size())
+	# Mar: correndo da praia contra a água funda de cada lado, o corpo para no anel de colisão (nunca entra).
+	var shores := _shore_points(main.map)
+	_check(shores.size() == 4, "a ilha tem costa virada para as 4 direções (%d achadas)" % shores.size())
+	for action: String in shores:
+		player.position = shores[action]
+		var bad: bool = await _run_player(main, action, 90)
+		_check(not bad, "correndo para o mar (%s): não atravessa a água funda (%s)" % [action, str(player.position)])
+		_check(main.map.is_walkable_at(player.position), "correndo para o mar (%s): continua em chão caminhável" % action)
+	# Rochas: de cada lado, nunca entra.
+	var obstacles: Array[Rect2] = _rock_rects(main, 8)
+	_check(obstacles.size() == 8, "o mapa tem rochas sólidas perto do início (%d obstáculos)" % obstacles.size())
 	var approaches := {"move_right": Vector2(-1, 0), "move_left": Vector2(1, 0), "move_down": Vector2(0, -1), "move_up": Vector2(0, 1)}
 	var tried := 0
 	var stopped := 0
@@ -540,7 +572,7 @@ func _test_map_limits_and_collision() -> void:
 		var rect := obstacles[index]
 		for action: String in approaches:
 			if index > 0 and action != "move_right" and action != "move_down":
-				continue  # a casa é atacada dos quatro lados e cada árvore de dois, para o teste ser curto
+				continue  # a primeira rocha é atacada dos quatro lados e as outras de dois, para o teste ser curto
 			var side: Vector2 = approaches[action]
 			player.position = rect.get_center() + side * (rect.size / 2.0 + Vector2(24, 24))
 			player.velocity = Vector2.ZERO
@@ -555,15 +587,16 @@ func _test_map_limits_and_collision() -> void:
 				stopped += 1
 	_check(tried >= 10 and stopped == tried, "o teste exerceu %d combinações e o corpo parou junto do obstáculo em %d" % [tried, stopped])
 	# Corpo contra corpo: o jogador não atravessa o dino.
-	main.dino.position = Vector2(300, 250)
-	player.position = Vector2(270, 250)
+	var open_spot: Vector2 = shores["move_up"] + Vector2(0, 32)
+	main.dino.position = open_spot + Vector2(30, 0)
+	player.position = open_spot
 	await _run_player(main, "move_right", 30)
 	_check(player.position.x < main.dino.position.x, "o jogador não atravessa o dino")
 	# O selvagem empurrando contra cada lado do mapa: o corpo não sai.
 	main.dino.set_physics_process(true)
 	var dino_bad := false
-	var pushes := {Vector2.LEFT: Vector2(20, 180), Vector2.RIGHT: Vector2(620, 180),
-			Vector2.UP: Vector2(300, 20), Vector2.DOWN: Vector2(300, 340)}
+	var pushes := {Vector2.LEFT: shores["move_left"], Vector2.RIGHT: shores["move_right"],
+			Vector2.UP: shores["move_up"], Vector2.DOWN: shores["move_down"]}
 	for direction: Vector2 in pushes:
 		main.dino.position = pushes[direction]
 		for i in 40:
@@ -571,12 +604,12 @@ func _test_map_limits_and_collision() -> void:
 			await _root.get_tree().physics_frame
 			if not _inside_map(main.dino) or _inside_solid(main.dino, [player.get_rid()] as Array[RID]):
 				dino_bad = true
-	_check(not dino_bad, "dino empurrando contra as quatro bordas do mapa: não sai")
+	_check(not dino_bad, "dino empurrando contra o mar fundo nas quatro direções: não atravessa")
 	main.get_parent().queue_free()
 	await _root.get_tree().process_frame
 
 
-## Aceite do CRI-05 com o MUN-01: o domado que segue o dono não atravessa a casa nem sai do mapa.
+## Aceite do CRI-05 com o MUN-01: o domado que segue o dono não atravessa a rocha nem a água funda.
 func _test_follower_stays_inside() -> void:
 	var tree := _root.get_tree()
 	var main := _main_with_physics()
@@ -587,13 +620,14 @@ func _test_follower_stays_inside() -> void:
 	dino.torpor.add_torpor(dino.torpor.max_torpor)
 	dino.state_machine.mark_tamed()
 	dino.owner_player_id = "local"
-	player.position = Vector2(80, 250)
-	dino.position = Vector2(110, 250)
+	var shore: Vector2 = _shore_points(main.map)["move_left"]
+	player.position = shore
+	dino.position = shore + Vector2(30, 0)
 	_check(authority.request_command(1, authority.id_of(dino), "FOLLOW") == Enums.ActionResult.OK, "pela Main: o dono manda Seguir")
 	dino.set_physics_process(true)
 	dino.state_machine.set_physics_process(true)
 	var ignore_player: Array[RID] = [player.get_rid()]
-	# O dono corre para a borda esquerda; o dino vem atrás e para a até 3 tiles.
+	# O dono corre para o mar fundo a oeste; o dino vem atrás e para a até 3 tiles.
 	Input.action_press("sprint")
 	Input.action_press("move_left")
 	var bad: bool = await _watch(dino, 40, ignore_player)
@@ -603,9 +637,9 @@ func _test_follower_stays_inside() -> void:
 	var rules := dino.state_machine.order_rules
 	var gap := dino.position.distance_to(player.position)
 	_check(not bad and gap <= rules.follow_px() + 1.0 and gap > 0.0,
-			"domado seguindo o dono até a borda: no mapa, fora de sólido, a até 3 tiles (%.1f px)" % gap)
-	# O dono passa para o outro lado da casa: o dino empurra na parede e não a atravessa.
-	var wall := _wall_rect(main)
+			"domado seguindo o dono até o mar: em chão, fora de sólido, a até 3 tiles (%.1f px)" % gap)
+	# O dono passa para o outro lado de uma rocha: o dino empurra nela e não a atravessa.
+	var wall := _rock_rects(main, 1)[0]
 	dino.position = Vector2(wall.position.x - 40.0, wall.get_center().y)
 	var crossed := false
 	for i in 120:
@@ -613,15 +647,22 @@ func _test_follower_stays_inside() -> void:
 		await tree.physics_frame
 		if wall.has_point(dino.global_position) or _inside_solid(dino, ignore_player):
 			crossed = true
-	_check(not crossed and dino.position.x < wall.position.x, "dono do outro lado da casa: o dino fica contra a parede, sem atravessá-la")
+	_check(not crossed and dino.position.x < wall.position.x, "dono do outro lado da rocha: o dino fica contra ela, sem atravessá-la")
 	# Ficar: o dono manda parar e se afasta; o dino não se mexe mais.
 	player.position = dino.position + Vector2(-20, 0)
 	_check(authority.request_command(1, authority.id_of(dino), "STAY") == Enums.ActionResult.OK, "pela Main: o dono manda Ficar")
 	await tree.physics_frame
 	var parked := dino.position
-	player.position = Vector2(560, 60)
+	player.position = dino.position + Vector2(600, 0)
 	for i in 60:
 		await tree.physics_frame
 	_check(dino.position.distance_to(parked) < 0.5, "Ficar: com o dono do outro lado do mapa, o dino não sai do lugar")
 	main.get_parent().queue_free()
 	await _root.get_tree().process_frame
+
+
+## Libera os mundos (`Main`) do teste anterior: cada um vivo custa física a cada quadro (ver `DinoLevelTests`).
+func _release_worlds() -> void:
+	for child in _root.get_children():
+		if child is Main:
+			child.free()

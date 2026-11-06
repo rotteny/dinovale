@@ -4,4 +4,4 @@
 
 [resource]
 script = ExtResource("1_bounds")
-rect = Rect2(0, 0, 640, 360)
+rect = Rect2(0, 0, 4096, 4096)

@@ -5,7 +5,7 @@ extends Resource
 ## quando a borda da tela encosta aqui; o mapa novo (etapa B) troca o valor no `.tres`, sem código.
 
 ## Retângulo do mapa: origem e tamanho em pixels.
-@export var rect: Rect2 = Rect2(0.0, 0.0, 640.0, 360.0)
+@export var rect: Rect2 = Rect2(0.0, 0.0, 4096.0, 4096.0)
 
 
 ## Menor retângulo (em pixels) que a câmera pode mostrar: o mapa tem de caber nele ao menos.

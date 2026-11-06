@@ -17,10 +17,15 @@ func run() -> void:
 	_test_settings_file()
 	_test_credits_text()
 	await _test_title_menu()
+	_release_worlds()
 	await _test_title_settings()
+	_release_worlds()
 	await _test_title_credits()
+	_release_worlds()
 	await _test_pause()
+	_release_worlds()
 	await _test_round_trip()
+	_release_worlds()
 	GameSession.save_root = SaveTests.root_dir
 	GameSession.continue_requested = false
 	SaveTests.remove_tree(save_root_dir)

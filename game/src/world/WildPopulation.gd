@@ -31,7 +31,7 @@ var _by_index: Dictionary = {}  # int -> Dino
 var _index_of: Dictionary = {}  # Dino -> int
 var _dead: Dictionary = {}  # int -> true
 var _taken: Dictionary = {}  # int -> true
-var _adopted: Array[Dino] = []
+var _adopted: Array = []  # Dino (pode ter sido liberado: sempre passar por `adopted()`)
 var _ids: Dictionary = {}  # Dino -> id gravado na entidade (0 = qualquer livre)
 
 
@@ -83,8 +83,11 @@ func is_taken(index: int) -> bool:
 
 ## Os recriados de entidade (sem índice no mapa), vivos.
 func adopted() -> Array[Dino]:
-	_adopted = _adopted.filter(func(creature: Dino) -> bool: return _alive(creature))
-	return _adopted.duplicate()
+	_adopted = _adopted.filter(func(creature: Variant) -> bool: return _alive(creature))
+	var alive: Array[Dino] = []
+	for creature: Variant in _adopted:
+		alive.append(creature as Dino)
+	return alive
 
 
 ## Domado ou com dono: vive como entidade no save, não pelo índice.
@@ -147,7 +150,7 @@ func entities() -> Array:
 func restore(list: Variant, saved_entities: Array, same_revision: bool) -> bool:
 	last_restored = []
 	last_adopted = []
-	var entries: Variant = _read_list(list, same_revision)
+	var entries: Variant = _read_list(list)
 	if entries == null:
 		return false
 	var applied: Array = []  # [creature, estado antes]
@@ -156,8 +159,8 @@ func restore(list: Variant, saved_entities: Array, same_revision: bool) -> bool:
 	if same_revision:
 		for entry: Dictionary in (entries as Array):
 			var creature := creature_at(int(entry["index"]))
-			if creature == null or entry.has("dead") or entry.has("tamed"):
-				continue
+			if creature == null or entry.has("dead") or entry.has("tamed") or _state_is_dead(entry["state"]):
+				continue  # morto não passa por `from_dict` (a morte não se desfaz): só é marcado depois de tudo conferido
 			applied.append([creature, creature.to_dict()])
 			if not creature.from_dict(entry["state"]):
 				ok = false
@@ -172,8 +175,9 @@ func restore(list: Variant, saved_entities: Array, same_revision: bool) -> bool:
 			if typeof(saved) != TYPE_DICTIONARY or str((saved as Dictionary).get("type", "")) != TYPE_TAMED:
 				continue
 			count += 1
-			ok = count <= MAX_ENTRIES and _adopt(SafeRead.dict((saved as Dictionary).get("state")), created, \
-					SafeRead.integer((saved as Dictionary).get("id"), 0, 0, 1 << 52))
+			var state := SafeRead.dict((saved as Dictionary).get("state"))
+			ok = count <= MAX_ENTRIES and not state.is_empty() \
+					and _adopt(state, created, SafeRead.integer((saved as Dictionary).get("id"), 0, 0, 1 << 52))
 			if not ok:
 				break
 	if not ok:
@@ -203,8 +207,9 @@ func restore(list: Variant, saved_entities: Array, same_revision: bool) -> bool:
 	return true
 
 
-## Entradas já conferidas, ou null se o dado é malformado. Mesma revisão confere também o índice no mapa.
-func _read_list(list: Variant, same_revision: bool) -> Variant:
+## Entradas já conferidas, ou null se o dado é malformado (forma, tipo e índice inteiro de 0 a 2^20). Índice sem
+## criatura no mapa de hoje (o limite da população baixou) é só ignorado: não é defeito do save.
+func _read_list(list: Variant) -> Variant:
 	if list == null:
 		return []
 	if typeof(list) != TYPE_ARRAY or (list as Array).size() > MAX_ENTRIES:
@@ -212,7 +217,7 @@ func _read_list(list: Variant, same_revision: bool) -> Variant:
 	var seen := {}
 	var entries: Array = []
 	for entry: Variant in list:
-		var clean: Variant = _clean_entry(entry, same_revision)
+		var clean: Variant = _clean_entry(entry)
 		if clean == null or seen.has((clean as Dictionary)["index"]):
 			return null
 		seen[(clean as Dictionary)["index"]] = true
@@ -221,7 +226,7 @@ func _read_list(list: Variant, same_revision: bool) -> Variant:
 
 
 ## Uma entrada do delta com o índice inteiro, ou null se malformada: exatamente um de `dead`, `tamed` (true) ou `state`.
-func _clean_entry(entry: Variant, same_revision: bool) -> Variant:
+func _clean_entry(entry: Variant) -> Variant:
 	if typeof(entry) != TYPE_DICTIONARY:
 		return null
 	var raw: Variant = (entry as Dictionary).get("index")
@@ -233,7 +238,7 @@ func _clean_entry(entry: Variant, same_revision: bool) -> Variant:
 	if (entry as Dictionary).has("state"):
 		kinds += 1 if typeof((entry as Dictionary)["state"]) == TYPE_DICTIONARY else 99
 	var in_range := number >= 0.0 and number == floorf(number) and number <= 1 << 20
-	if kinds != 1 or not in_range or (same_revision and not _by_index.has(int(number))):
+	if kinds != 1 or not in_range:
 		return null
 	var clean := (entry as Dictionary).duplicate()
 	clean["index"] = int(number)
@@ -288,8 +293,8 @@ func _register(created: Array[Dino]) -> void:
 	_ids.clear()
 
 
-func _alive(creature: Dino) -> bool:
-	return is_instance_valid(creature) and not creature.is_queued_for_deletion()
+func _alive(creature: Variant) -> bool:
+	return is_instance_valid(creature) and not (creature as Dino).is_queued_for_deletion()
 
 
 func _on_died(creature: Dino) -> void:

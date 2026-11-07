@@ -324,7 +324,7 @@ func _test_gather_by_target_id() -> void:
 	_check(authority.request_gather(1, authority.id_of(bush)) == RESULT.OK and not bush.is_available() and wood.is_available()
 			and player.inventory.count(Items.BERRY) > berries, "colher usa o id do alvo, não a mira local")
 	_check(authority.request_gather(1, authority.id_of(main.dino)) == RESULT.UNKNOWN_TARGET
-			and authority.request_gather(1, 999) == RESULT.UNKNOWN_TARGET,
+			and authority.request_gather(1, 99999999) == RESULT.UNKNOWN_TARGET,
 			"alvo que não é nó de recurso, ou que não existe: negado")
 	player.tick(20.0)
 	var before := player.to_dict()

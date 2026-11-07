@@ -160,21 +160,19 @@ func apply_input(direction: Vector2, wants_sprint: bool, delta: float) -> Vector
 func update_target() -> void:
 	var best: InteractableArea = null
 	var best_distance := INF
+	var best_is_primary := false
 	for area in _in_range:
-		if not is_instance_valid(area) or _is_spent_resource(area):
+		if not is_instance_valid(area) or not area.can_prompt():
 			continue
+		var primary := area.entity is Dino and area.can_interact()
 		var distance := global_position.distance_squared_to(area.global_position)
-		if distance < best_distance:
+		if (primary and not best_is_primary) or (primary == best_is_primary and distance < best_distance):
 			best_distance = distance
 			best = area
+			best_is_primary = primary
 	if best != target:
 		target = best
 		target_changed.emit(target)
-
-
-## Nó de recurso esgotado não disputa o alvo: o dino ou o nó cheio ao lado continuam alcançáveis.
-func _is_spent_resource(area: InteractableArea) -> bool:
-	return area.entity is ResourceNode and not area.can_interact()
 
 
 ## Criatura mais próxima no alcance (o golpe não depende de qual interagível é o alvo).
@@ -199,7 +197,7 @@ func try_interact() -> bool:
 	var actor_id := authority.id_of(self)
 	var target_id := authority.id_of(target.entity)
 	var dino := target.entity as Dino
-	if dino != null and dino.can_command():
+	if dino != null and dino.can_command():  # a autoridade nega o domado de outro (NOT_OWNER) e a HUD avisa
 		var next := Enums.DinoOrder.STAY if dino.state_machine.order == Enums.DinoOrder.FOLLOW else Enums.DinoOrder.FOLLOW
 		return authority.request_command(actor_id, target_id, Enums.DinoOrder.find_key(next)) == Enums.ActionResult.OK
 	return authority.request_interact(actor_id, target_id) == Enums.ActionResult.OK
@@ -291,16 +289,28 @@ func perform_gather(node: ResourceNode) -> String:
 		left[item_id] = int(left[item_id]) - int(delivered[item_id])
 		if left[item_id] <= 0:
 			left.erase(item_id)
+	var delivered_units := 0
+	for item_id: String in delivered:
+		delivered_units += int(delivered[item_id])
 	if left.is_empty():
 		node.harvest()
-		if not with_tool:
-			_hurt_hands(def.hand_self_damage)  # o custo é por colheita COMPLETA, não por tentativa parcial
 	else:
-		node.component.leave(left)  # o que sobra fica no nó (sem esgotar, sem custo ainda)
-	_gather_timer = def.gather_seconds
+		node.component.leave(left)  # o que sobra fica no nó (sem esgotar)
+	if not with_tool and def.hand_damage_per_item:
+		_hurt_hands(def.hand_self_damage * delivered_units)  # carcaça: 1 por item entregue, parcial ou não
+	elif not with_tool and left.is_empty():
+		_hurt_hands(def.hand_self_damage)  # o custo é por colheita COMPLETA, não por tentativa parcial
+	_gather_timer = def.gather_seconds * (float(delivered_units) / float(maxi(_total_units(def), 1)) if def.hand_damage_per_item else 1.0)
 	for item_id: String in delivered:
 		gathered.emit(item_id, delivered[item_id])
 	return ""
+
+
+func _total_units(def: ResourceNodeDef) -> int:
+	var total := 0
+	for amount: int in def.total_yields().values():
+		total += amount
+	return total
 
 
 ## Põe no inventário o que couber de `wanted` (item -> unidades), na ordem do dicionário, contando as vagas em
@@ -607,3 +617,6 @@ func _on_area_entered(area: Area2D) -> void:
 
 func _on_area_exited(area: Area2D) -> void:
 	_in_range.erase(area)
+	if area == target:
+		target = null
+		target_changed.emit(null)

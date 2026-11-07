@@ -10,7 +10,7 @@ const SLOT_SIZE := Vector2(16, 16)
 const SLOT_GAP := 1
 const SLOT_FILL := Color(0.0, 0.0, 0.0, 0.45)
 const SLOT_BORDER := Color(0.0, 0.0, 0.0, 0.8)
-const OUTLINE_SIZE := 1
+const OUTLINE_SIZE := 2  # a Vale Mini em 8 px não desenha contorno de 1 px (arredonda para 0)
 const EMPTY_ALPHA := 0.35
 const FONT_SIZE := 8
 ## Destaque do item em mãos: fundo e borda amarelos claros (distinto do apagado, que só some).

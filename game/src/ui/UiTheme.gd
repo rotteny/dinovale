@@ -2,21 +2,21 @@
 class_name UiTheme
 extends RefCounted
 ## Tema único da UI, pensado para o viewport de 320x180 (1 px do viewport = 4 px da tela em 720p):
-## fonte padrão da engine em 9 px, sem suavização e com hinting total (borda dura, como o resto
-## da arte), painéis de madeira 9-slice e células do pacote Ninja Adventure (CC0).
-## Cada raiz de UI (HUD, inventário, pausa, morte, título) aplica o mesmo tema.
+## fonte Vale Mini (bitmap de 8 px, derivada da Kenney Mini, CC0), sem suavização, sem hinting e sem
+## posição subpixel (cada glifo cai na grade de pixels), painéis de madeira 9-slice e células do pacote
+## Ninja Adventure (CC0). Cada raiz de UI (HUD, inventário, pausa, morte, título) aplica o mesmo tema.
 
-## Menor tamanho em que a fonte da engine segue legível a 1x sem suavização (em 8 px as letras empastelam).
-const FONT_SIZE := 9
+## A fonte é desenhada em grade de 8 px: só vale 8 ou múltiplo inteiro (16, 24...).
+const FONT_SIZE := 8
+const FONT: FontFile = preload("res://assets/fonts/ValeMini.ttf")
+## Espaço extra entre linhas de `Label` (1 px ou mais: sem ele o acento de uma linha encosta na de cima).
+const LINE_SPACING := 1
 const PANEL_TEXTURE := preload("res://assets/third_party/ninja-adventure/ui/panel_a.png")
 const CELL_TEXTURE := preload("res://assets/third_party/ninja-adventure/ui/inventory_cell.png")
 const FOCUS_TEXTURE := preload("res://assets/third_party/ninja-adventure/ui/focus.png")
 ## Tinta escura do pacote (a cor mais escura da paleta): texto sobre painel e célula.
 const INK := Color("#141b1b")
 ## Margem de fatiamento da textura (os cantos do pacote) e folga interna do conteúdo.
-## Pixels tirados do alto e do pé da altura de linha da fonte (12 px em 8 px de corpo viram 9).
-const LINE_TRIM_TOP := -1
-const LINE_TRIM_BOTTOM := -2
 const PANEL_MARGIN := 6
 const PANEL_PADDING := 6
 const CELL_MARGIN := 3
@@ -29,6 +29,7 @@ static func get_theme() -> Theme:
 		_theme = Theme.new()
 		_theme.default_font_size = FONT_SIZE
 		_theme.default_font = _pixel_font()
+		_theme.set_constant("line_spacing", "Label", LINE_SPACING)
 		_theme.set_stylebox("panel", "PanelContainer", _nine(PANEL_TEXTURE, PANEL_MARGIN, Color.WHITE, PANEL_PADDING))
 		_theme.set_stylebox("normal", "Button", _nine(CELL_TEXTURE, CELL_MARGIN, Color.WHITE))
 		_theme.set_stylebox("hover", "Button", _nine(CELL_TEXTURE, CELL_MARGIN, Color(1.25, 1.25, 1.25)))
@@ -50,17 +51,10 @@ static func _nine(texture: Texture2D, margin: int, tint: Color, padding: int = -
 	return box
 
 
-## Cópia da fonte da engine sem suavização nem posição subpixel (cada glifo cai na grade de pixels) e com
-## a altura de linha enxuta: a da engine, em 8 px, é 12 px, o que incha todo bloco de texto da UI.
+## Cópia da Vale Mini sem suavização, sem hinting e sem posição subpixel.
 static func _pixel_font() -> Font:
-	var font := ThemeDB.fallback_font.duplicate() as FontFile
-	if font == null:
-		return ThemeDB.fallback_font
+	var font := FONT.duplicate() as FontFile
 	font.antialiasing = TextServer.FONT_ANTIALIASING_NONE
-	font.hinting = TextServer.HINTING_NORMAL
-	font.subpixel_positioning = TextServer.SUBPIXEL_POSITIONING_ONE_HALF
-	var tight := FontVariation.new()
-	tight.base_font = font
-	tight.spacing_top = LINE_TRIM_TOP
-	tight.spacing_bottom = LINE_TRIM_BOTTOM
-	return tight
+	font.hinting = TextServer.HINTING_NONE
+	font.subpixel_positioning = TextServer.SUBPIXEL_POSITIONING_DISABLED
+	return font

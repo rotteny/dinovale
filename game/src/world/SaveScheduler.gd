@@ -28,6 +28,7 @@ var dino: Dino
 var field: ResourceField
 ## Selvagens do mapa (opcional): o save leva só o delta deles.
 var wild: WildPopulation
+var carcasses: CarcassField
 ## Contador de respawns do mundo, semente do sorteio de ponto (quem renasce atualiza).
 var respawn_count: int = 0
 ## Autoridade do mundo (opcional): dela vem o próximo `entity_id` livre, que o save leva.
@@ -119,7 +120,7 @@ func _flush() -> bool:
 	var live_dino: Dino = dino if is_instance_valid(dino) else null
 	var envelope := WorldSnapshot.capture(player, live_dino, _game_version(),
 			Time.get_datetime_string_from_system(true), field, respawn_count,
-			authority.next_entity_id() if authority != null else 0, wild)
+			authority.next_entity_id() if authority != null else 0, wild, carcasses)
 	var ok := manager.write(envelope)
 	last_duration_usec = Time.get_ticks_usec() - started
 	_saving = false

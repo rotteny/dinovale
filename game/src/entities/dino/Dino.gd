@@ -187,7 +187,8 @@ func _on_order_changed(_order: Enums.DinoOrder) -> void:
 ## Texto do prompt: o do domado diz a ordem que a tecla vai dar; o do selvagem fica o padrão.
 func _refresh_prompt() -> void:
 	if can_command():
-		interactable.prompt = "mandar ficar" if state_machine.order == Enums.DinoOrder.FOLLOW else "mandar seguir"
+		var verb := "ficar" if state_machine.order == Enums.DinoOrder.FOLLOW else "seguir"
+		interactable.prompt = "mandar %s %s" % [stats.display_name, verb]
 	else:
 		interactable.prompt = "interagir"
 

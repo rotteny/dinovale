@@ -6,11 +6,17 @@ extends Node2D
 ## coletar é pedido do jogador (`Player.request_gather`, pela autoridade). A origem do nó são os PÉS: o
 ## desenho sobe dali e a colisão fica só ali (GDD 4.2).
 
+## Lado do tile do mapa, em pixels (a pegada do nó na consulta de ocupação).
+const TILE_PX := 16.0
+
 ## Id estável no mundo (chave no save). Único entre os nós.
 @export var node_id: String = ""
 @export var def: ResourceNodeDef
 ## Tempo de volta próprio (0 = o do tipo); vai para o componente ao nascer.
 @export var respawn_override: float = 0.0
+
+## Consulta de ocupação do chão (o campo a entrega): o nó só volta se o lugar estiver livre.
+var occupancy: TileOccupancy = null
 
 var _body: StaticBody2D = null
 var _shape: CollisionShape2D = null
@@ -22,6 +28,7 @@ var _shape: CollisionShape2D = null
 func _ready() -> void:
 	component.def = def
 	component.respawn_override = respawn_override
+	component.can_return = _place_is_free
 	interactable.entity = self
 	interactable.prompt = def.prompt if def != null else "colher"
 	interactable.availability = component.is_available
@@ -44,6 +51,11 @@ func harvest() -> int:
 	return component.harvest()
 
 
+## O tile do nó (lado `TILE_PX`, centrado nos pés) está livre de jogador e dinos?
+func _place_is_free() -> bool:
+	return occupancy == null or occupancy.is_free(Rect2(global_position - Vector2(TILE_PX, TILE_PX) * 0.5, Vector2(TILE_PX, TILE_PX)))
+
+
 func _build_body() -> void:
 	if def == null or def.foot_size == Vector2.ZERO:
 		return
@@ -60,8 +72,10 @@ func _build_body() -> void:
 	_refresh_body()
 
 
+## Esgotado some por inteiro (desenho, colisão e alvo): o tile fica livre. A colheita parcial não esgota, então
+## o nó segue ali.
 func _refresh_body() -> void:
+	visible = component.is_available()
 	if _shape == null:
 		return
-	var blocks := def.blocks_when_full if component.is_available() else def.blocks_when_depleted
-	_shape.set_deferred("disabled", not blocks)
+	_shape.set_deferred("disabled", not (component.is_available() and def.blocks_when_full))

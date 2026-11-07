@@ -31,19 +31,19 @@ extends Resource
 @export var tool_required: bool = false
 ## Dano ao jogador por colheita completa feita no Soco (a árvore: 1; GDD 5.9b). Zero: colher sem machucar.
 @export_range(0.0, 20.0) var hand_self_damage: float = 0.0
+## O dano da mão vale POR ITEM entregue (a carcaça: 1 por item; GDD 5.6 e 5.9b), não por colheita completa. O tempo
+## de `gather_seconds` também se reparte por item.
+@export var hand_damage_per_item: bool = false
 ## Dano ao jogador por toque quando a ferramenta obrigatória falta (a pedra: 1). O toque não coleta.
 @export_range(0.0, 20.0) var touch_self_damage: float = 0.0
 ## Recarga do toque sem ferramenta, em segundos.
 @export_range(0.0, 10.0) var touch_seconds: float = 0.6
-## Textura do nó cheio e do esgotado (`res://assets/sprites/recursos/`). A origem do nó são os pés: a imagem
+## Textura do nó (`res://assets/sprites/recursos/`); o esgotado some, não tem desenho. A origem do nó são os pés: a imagem
 ## sobe dali, centrada no x. Sem textura, o nó se desenha por `color`.
 @export var texture: Texture2D
-@export var texture_depleted: Texture2D
 ## Caixa de colisão dos pés, em pixels, apoiada na origem (`Vector2.ZERO` = sem colisão). GDD 4.2: só os pés.
 @export var foot_size: Vector2 = Vector2.ZERO
 @export var blocks_when_full: bool = true
-## O arbusto desfolhado não colide; a árvore vira toco e a rocha esgotada continuam no lugar.
-@export var blocks_when_depleted: bool = false
 
 
 ## Tudo que a colheita entrega (item -> unidades), o principal primeiro.

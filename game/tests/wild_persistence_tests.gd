@@ -28,6 +28,14 @@ func run() -> void:
 	_release_worlds()
 	await _test_restore_refuses_malformed()
 	_release_worlds()
+	await _test_restore_tolerates_and_dead_rollback()
+	_release_worlds()
+	await _test_bak_after_partial_apply()
+	_release_worlds()
+	await _test_recreated_death_and_notices()
+	_release_worlds()
+	await _test_complete_harvest_with_tool()
+	_release_worlds()
 	await _test_views_bookkeeping()
 	_release_worlds()
 	await _test_partial_tree_costs_once()
@@ -190,7 +198,7 @@ func _test_other_revision_keeps_tamed_and_items() -> void:
 
 func _test_malformed_wild_falls_back() -> void:
 	var cases := {
-		"índice fora do mapa": func(data: Dictionary) -> void: data["world"]["wild"][0]["index"] = 5000,
+		"índice negativo": func(data: Dictionary) -> void: data["world"]["wild"][0]["index"] = -3,
 		"índice texto": func(data: Dictionary) -> void: data["world"]["wild"][0]["index"] = "0",
 		"índice fracionado": func(data: Dictionary) -> void: data["world"]["wild"][0]["index"] = 1.5,
 		"wild não é lista": func(data: Dictionary) -> void: data["world"]["wild"] = "x",
@@ -230,8 +238,20 @@ func _test_restore_refuses_malformed() -> void:
 			"preparo: o envelope sem defeito carrega")
 	_release_worlds()
 	var cases := {
-		"índice fora do mapa": func(data: Dictionary) -> void: data["world"]["wild"][0]["index"] = 5000,
+		"índice negativo": func(data: Dictionary) -> void: data["world"]["wild"][0]["index"] = -3,
 		"índice texto": func(data: Dictionary) -> void: data["world"]["wild"][0]["index"] = "0",
+		"índice fracionado": func(data: Dictionary) -> void: data["world"]["wild"][0]["index"] = 1.5,
+		"dead e tamed juntos": func(data: Dictionary) -> void: data["world"]["wild"][0]["dead"] = true,
+		"tamed false": func(data: Dictionary) -> void: data["world"]["wild"][0]["tamed"] = false,
+		"state que não é dicionário": func(data: Dictionary) -> void: data["world"]["wild"].append({"index": 9, "state": 5}),
+		"lista grande demais": func(data: Dictionary) -> void:
+			for i in 1100:
+				data["world"]["wild"].append({"index": 2000 + i, "dead": true}),
+		"entidades demais": func(data: Dictionary) -> void:
+			for i in 1100:
+				data["entities"].append({"id": 5000 + i, "type": "tamed_dino", "state": {"health": {"current": 0.0}}}),
+		"entidade com estado vazio": func(data: Dictionary) -> void:
+			data["entities"].append({"id": 9000, "type": "tamed_dino", "state": {}}),
 		"índice repetido": func(data: Dictionary) -> void: data["world"]["wild"].append(data["world"]["wild"][0].duplicate()),
 		"wild não é lista": func(data: Dictionary) -> void: data["world"]["wild"] = {"a": 1},
 		"entrada que não é dicionário": func(data: Dictionary) -> void: data["world"]["wild"].append(7),
@@ -253,6 +273,42 @@ func _test_restore_refuses_malformed() -> void:
 				and fresh.wild.to_list().is_empty() and fresh.wild.adopted().is_empty() and fresh.wild.creature_at(0) != null,
 				"%s: recusa e não muda nada" % label)
 		_release_worlds()
+
+
+## Índice sem criatura hoje (o limite da população baixou) não é defeito: o save carrega e o índice é ignorado.
+## Estado morto antes de uma entrada recusada não pode matar ninguém. Domado recriado: ordem em minúsculas é argumento inválido.
+func _test_restore_tolerates_and_dead_rollback() -> void:
+	var tree := _root.get_tree()
+	var source := _main("tol_src", 20, true)
+	await tree.physics_frame
+	_tame(source, source.wild.creature_at(0))
+	var good_json := JSON.stringify(WorldSnapshot.capture(source.player, source.dino, "t", "now", source.resources, 0, 10, source.wild))
+	_release_worlds()
+	var fresh := _main("tol_dst", 20, true)
+	await tree.physics_frame
+	var data: Dictionary = JSON.parse_string(good_json)
+	data["world"]["wild"].append({"index": 5000, "state": {"torpor": {}}})
+	data["world"]["wild"].append({"index": 6000, "dead": true})
+	_check(WorldSnapshot.restore(data, fresh.player, fresh.dino, fresh.resources, fresh.wild) and _tamed_wild(fresh) != null,
+			"índice acima do limite da população não impede carregar um save válido")
+	_release_worlds()
+	var again := _main("tol_dead", 20, true)
+	await tree.physics_frame
+	var bad: Dictionary = JSON.parse_string(good_json)
+	bad["world"]["wild"].append({"index": 5, "state": {"health": {"current": 0.0}}})
+	bad["world"]["wild"].append({"index": 6, "state": {"inventory": {"version": 99, "slots": 7}}})
+	_check(not WorldSnapshot.restore(bad, again.player, again.dino, again.resources, again.wild) and again.wild.creature_at(5) != null
+			and not again.wild.is_dead(5), "estado morto antes de uma entrada recusada: ninguém morre, nada é marcado")
+	_release_worlds()
+	# Recriado liberado não quebra `adopted()`.
+	var third := _main("tol_free", 20, true)
+	await tree.physics_frame
+	_check(WorldSnapshot.restore(JSON.parse_string(good_json), third.player, third.dino, third.resources, third.wild),
+			"preparo: carrega o domado")
+	var back := _tamed_wild(third)
+	_check(third.wild.adopted().size() == 1, "preparo: um recriado")
+	back.free()
+	_check(third.wild.adopted().is_empty(), "adopted() com a criatura liberada devolve vazio sem erro")
 
 
 func _test_hostile_values() -> void:
@@ -484,3 +540,109 @@ func _test_rock_tool_before_space() -> void:
 			"pedra no Soco com inventário cheio: 1 de dano e a recusa é de ferramenta")
 	_check(main.hud.notice_label().visible and main.hud.notice_label().text.contains("Picareta"),
 			"a HUD manda usar a Picareta (texto da recusa)")
+
+
+## Entrada válida só no principal e depois uma recusa: a carga recua tudo e o `.bak` (sem essa entrada) é o que vale.
+func _test_bak_after_partial_apply() -> void:
+	var valid := [{}]
+	var after := await _save_edit_continue("wild_bak", func(main: Main) -> void:
+		var sleeper := main.wild.creature_at(5)
+		sleeper.torpor.current_torpor = 7.0
+		valid[0] = sleeper.to_dict()
+		sleeper.torpor.current_torpor = 0.0,
+		func(data: Dictionary) -> void:
+			data["world"]["wild"].append({"index": 5, "state": valid[0]})
+			data["world"]["wild"].append({"index": 6, "state": {"inventory": {"version": 99, "slots": 7}}}))
+	_check(not after._load_failed and after.wild.creature_at(5) != null and after.wild.creature_at(5).torpor.current_torpor == 0.0,
+			"entrada válida só no principal, depois recusa: nada dela aparece, o .bak vale")
+
+
+## Recriado que morre pede o save; a ordem em minúsculas é argumento inválido (INVALID_ARGUMENT), não erro de posse.
+## Save da cópia anterior de outra revisão: um aviso só, com os dois motivos.
+func _test_recreated_death_and_notices() -> void:
+	var tree := _root.get_tree()
+	var after := await _save_and_continue("wild_recreated", func(main: Main) -> void:
+		_tame(main, main.wild.creature_at(0)))
+	var back := _tamed_wild(after)
+	var reasons: Array[SaveManager.Reason] = []
+	after.scheduler.saved.connect(func(reason: SaveManager.Reason, _ok: bool, _msg: String) -> void: reasons.append(reason))
+	after.player.position = back.position + Vector2(10, 0)
+	_check(after.authority.request_command(1, after.authority.id_of(back), "follow") == RESULT.INVALID_ARGUMENT,
+			"ordem em minúsculas: INVALID_ARGUMENT (nome do enum é FOLLOW), não é falha de posse")
+	back.health.take_damage(back.health.max_health * 2.0)
+	await tree.process_frame
+	after.scheduler.tick(5.0)
+	_check(reasons.has(SaveManager.Reason.TAMED_DINO_DEATH), "a morte de um domado recriado pede o save TAMED_DINO_DEATH")
+	_release_worlds()
+	var before := _main("wild_notice", 20, true)
+	await tree.physics_frame
+	before.save_game(SaveManager.Reason.BED)
+	before.save_game(SaveManager.Reason.BED)
+	var path := before.save_manager.main_path()
+	var backup := ""
+	for file in DirAccess.get_files_at(path.get_base_dir()):
+		if file.ends_with(".bak"):
+			backup = path.get_base_dir().path_join(file)
+	_edit_file(backup, func(data: Dictionary) -> void: data["world"]["map_revision"] = IslandMap.default_map().revision + 1)
+	_edit_file(path, func(data: Dictionary) -> void: data["world"]["wild"] = "x")
+	GameSession.continue_requested = true
+	var joined := _main("wild_notice", 20, true)
+	await tree.physics_frame
+	var text := joined.hud.notice_label().text
+	_check(not joined._load_failed and text.contains("mapa mudou") and text.length() > Main.MAP_CHANGED_NOTICE.length(),
+			"cópia anterior de outra revisão: um aviso só, com o motivo da queda no .bak e o do mapa")
+
+
+func _edit_file(path: String, edit: Callable) -> void:
+	var data: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(path))
+	edit.call(data)
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	file.store_string(JSON.stringify(data))
+	file.close()
+
+
+## Colheita completa com a ferramenta do nó não custa vida. A definição é só deste teste (o catálogo não tem ferramenta
+## de coleta): usa o Bastão como "ferramenta" de um nó de teste.
+func _test_complete_harvest_with_tool() -> void:
+	var tree := _root.get_tree()
+	var main := _main("tool_harvest", 20, true)
+	await tree.physics_frame
+	var def := ResourceNodeDef.new()
+	def.id = "teste_com_ferramenta"
+	def.item_id = Items.WOOD
+	def.yield_amount = 2
+	def.tool_item_id = Items.SLEEP_STAFF
+	def.hand_self_damage = 1.0
+	def.gather_seconds = 1.0
+	def.reach = 40.0
+	var player := main.player
+	_empty(player.inventory)
+	player.inventory.capacity = 4
+	player.inventory.add(Items.SLEEP_STAFF, 1)
+	var iid := ""
+	for index in player.inventory.slot_count():
+		if player.inventory.get_slot(index).get("id", "") == Items.SLEEP_STAFF:
+			iid = str(player.inventory.get_slot(index).get("iid", ""))
+	var with_tool := _test_node(main, def, "tool_a")
+	var without := _test_node(main, def, "tool_b")
+	_near(main, without)
+	var hp := player.health.current_health
+	main.authority.request_gather(1, main.authority.id_of(without))
+	_check(player.inventory.count(Items.WOOD) == 2 and is_equal_approx(player.health.current_health, hp - 1.0),
+			"sem a ferramenta, a colheita completa custa 1")
+	_check(player.equipment.equip(iid) == "", "preparo: a ferramenta está em mãos")
+	_near(main, with_tool)
+	hp = player.health.current_health
+	main.authority.request_gather(1, main.authority.id_of(with_tool))
+	_check(player.inventory.count(Items.WOOD) == 4 and player.health.current_health == hp and not with_tool.is_available(),
+			"com a ferramenta, a colheita completa não custa vida")
+
+
+func _test_node(main: Main, def: ResourceNodeDef, node_id: String) -> ResourceNode:
+	var node: ResourceNode = preload("res://src/entities/resource/ResourceNode.tscn").instantiate()
+	node.node_id = node_id
+	node.def = def
+	node.position = main.player.position + Vector2(0, 8 if node_id == "tool_b" else 12)
+	main.resources.add_node(node)
+	main.authority.register(node)
+	return node

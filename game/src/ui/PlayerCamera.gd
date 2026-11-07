@@ -7,7 +7,7 @@ extends Camera2D
 ## posição do `Player`, nunca o altera. Instancie FORA do `Player.tscn`.
 
 ## Ponto do corpo que fica no centro da tela, relativo aos pés (origem do `Player`, a base do quadro
-## de 16x32): o meio do quadro, não os pés.
+## de 32x32, pés em y=30): o meio do corpo, não os pés.
 const BODY_CENTER := Vector2(0.0, -16.0)
 
 @export var player: Player

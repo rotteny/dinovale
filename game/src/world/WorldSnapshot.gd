@@ -24,7 +24,7 @@ const LIFE_DEAD_PENDING_CHOICE := "dead_pending_choice"
 ## (ela some quando morre), e restaurar uma morta só a removeria de novo.
 static func capture(player: Player, dino: Dino, game_version: String, saved_at: String,
 		field: ResourceField = null, respawn_count: int = 0, next_entity_id: int = 0,
-		wild: WildPopulation = null) -> Dictionary:
+		wild: WildPopulation = null, carcasses: CarcassField = null) -> Dictionary:
 	var players: Array = [{
 		"player_id": player.player_id,
 		"entity_id": PLAYER_ENTITY_ID,
@@ -42,6 +42,7 @@ static func capture(player: Player, dino: Dino, game_version: String, saved_at: 
 		"next_entity_id": maxi(next_entity_id, DINO_ENTITY_ID + 1),  # o contador real: id nunca é reutilizado
 		"resource_nodes": field.to_list() if field != null else [],
 		"wild": wild.to_list() if wild != null else [],  # delta dos selvagens: só quem mudou ou morreu
+		"carcasses": carcasses.to_list() if carcasses != null else [],  # mundo: carcaças de dinos mortos
 		"respawn_count": respawn_count,
 	}
 	return SaveManager.make_envelope(world, players, entities, game_version, saved_at)
@@ -82,7 +83,7 @@ static func respawn_count_of(data: Dictionary) -> int:
 ## sido aplicado). Jogador morto continua MORTO (vida 0, sem eventos): quem chama lê
 ## `was_dead_pending_choice` e abre a tela de morte; a escolha de respawn é a única saída.
 static func restore(data: Dictionary, player: Player, dino: Dino, field: ResourceField = null,
-		wild: WildPopulation = null) -> bool:
+		wild: WildPopulation = null, carcasses: CarcassField = null) -> bool:
 	var saved_player: Variant = _find(data, "players", "player_id", LOCAL_PLAYER_ID)
 	if saved_player == null:
 		return false
@@ -112,6 +113,8 @@ static func restore(data: Dictionary, player: Player, dino: Dino, field: Resourc
 			return false
 		for creature in wild.last_restored:
 			_ensure_owner(creature, data)
+	if carcasses != null:  # não depende do mapa: um corpo é uma entidade, não um id do mapa
+		carcasses.restore_list(SafeRead.list(SafeRead.dict(data.get("world")).get("carcasses")))
 	if field != null and same_map:
 		field.restore_list(SafeRead.list(SafeRead.dict(data.get("world")).get("resource_nodes")))
 	if is_instance_valid(dino) and saved_dino == null:

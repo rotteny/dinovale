@@ -8,7 +8,7 @@
 [ext_resource type="Script" path="res://src/components/TamingComponent.gd" id="5_taming"]
 [ext_resource type="Script" path="res://src/components/InventoryComponent.gd" id="6_inventory"]
 [ext_resource type="Script" path="res://src/components/InteractableArea.gd" id="7_interactable"]
-[ext_resource type="Texture2D" path="res://assets/third_party/ninja-adventure/animals/reptile.png" id="8_sprite"]
+[ext_resource type="Texture2D" path="res://assets/sprites/dinos/paquicefalo.png" id="8_sprite"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_interact"]
 radius = 22.0
@@ -25,7 +25,8 @@ shape = SubResource("RectangleShape2D_body")
 
 [node name="Visual" type="Sprite2D" parent="."]
 texture = ExtResource("8_sprite")
-hframes = 4
+offset = Vector2(0, -6)
+hframes = 11
 vframes = 4
 
 [node name="HealthComponent" type="Node" parent="."]

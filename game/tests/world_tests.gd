@@ -348,7 +348,7 @@ func _test_world_rules() -> void:
 			"pedra avulsa do núcleo volta em 300 s, raio de 16 tiles")
 	_check(rules.wild_population_max == 108 and rules.level_band_of(IslandMap.QUARRY) == Vector2i(15, 35),
 			"população e faixa de nível vêm do dado")
-	_check(rules.scenery_by_id("tree_decor") != null and rules.scenery_by_id("nada") == null, "cenário por id")
+	_check(rules.scenery_by_id("formation_a") != null and rules.scenery_by_id("nada") == null, "cenário por id")
 
 
 # ----------------------------------------------------------------------------- mundo montado
@@ -366,9 +366,7 @@ func _test_main_terrain_and_nodes() -> void:
 	_check(field.node_count() == expected and expected > 500, "um nó por posição do mapa, sem minério (%d)" % field.node_count())
 	_check(field.node_by_id("iron_seam_1") == null, "minério não é instanciado na v0.2")
 	_check(field.node_by_id("tree_1") != null and field.node_by_id("fiber_plant_1") == null, "ids <tipo>_<n>; sem planta de fibra")
-	var trees: int = (map.nodes["tree"] as Array).size()
-	var decor: int = (map.scenery["tree_decor"] as Array).size()
-	_check(decor >= 2 * trees and decor <= 4 * trees, "árvores decorativas na faixa de 1:3 das coletáveis (%d para %d)" % [decor, trees])
+	_check(not map.scenery.has("tree_decor"), "toda árvore do mapa é coletável: não há árvore de cenário")
 	var node_sum := 0
 	for node in field.nodes():
 		node_sum += 1
@@ -395,7 +393,7 @@ func _test_main_terrain_and_nodes() -> void:
 	wood.component.harvest()
 	await tree.physics_frame
 	await tree.physics_frame
-	_check(wood.def.blocks_when_full and not wood.def.blocks_when_depleted and not wood.blocks_movement(),
+	_check(wood.def.blocks_when_full and not wood.blocks_movement(),
 			"o toco da árvore colhida não bloqueia")
 	# O mapa estático não está na cena como tiles de nó: o terreno vem do dado.
 	var terrain: Node = main.get_node("Terrain")
@@ -604,12 +602,14 @@ func _test_loose_stones() -> void:
 	_check(authority.request_gather(1, authority.id_of(core)) == RESULT.OK
 		and player.inventory.count(Items.STONE) == stones + core.def.yield_amount
 			and player.health.current_health == hp and not core.is_available(), "pedra avulsa: coleta à mão, sem custo")
+	main.player.position = core.position + Vector2(200, 0)  # o corpo em cima do lugar segura o nó (caixa de colisão)
 	core.component.tick(299.0)
 	_check(not core.is_available(), "antes dos 300 s segue esgotada")
 	core.component.tick(1.0)
 	_check(core.is_available(), "aos 300 s a pedra do núcleo volta")
 	_near(main, trail)
 	authority.request_gather(1, authority.id_of(trail))
+	main.player.position = trail.position + Vector2(200, 0)
 	trail.component.tick(300.0)
 	_check(not trail.is_available(), "a pedra da trilha segue esgotada aos 300 s")
 	trail.component.tick(300.0)
@@ -796,7 +796,8 @@ func _test_save_v4() -> void:
 	_check(outcome.status == SaveManager.Status.OK and outcome.data.get("format_version") == 4 and SaveMigrations.CURRENT_VERSION == 4,
 			"fixture v4 carrega sem migrar")
 	var world: Dictionary = outcome.data.get("world", {})
-	_check(world.get("map_id") == "lunata" and world.get("map_revision") == 1 and not world.has("rows") and not world.has("nodes"),
+	_check(world.get("map_id") == "lunata" and world.get("map_revision") == IslandMap.default_map().revision
+			and not world.has("rows") and not world.has("nodes"),
 			"o save leva o id e a revisão do mapa, nunca o mapa")
 	_check(FileAccess.get_file_as_string(FIXTURE_V4).length() < 8000, "o save é pequeno: o mapa estático fica fora dele")
 	var main := _main("fixture_v4", 20, true)

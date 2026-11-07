@@ -263,7 +263,7 @@ func _test_feeding_makes_the_owner() -> void:
 			"recolher da criatura dormindo também passa pela autoridade")
 	asleep.taming.tick(100.0)
 	_check(asleep.state_machine.is_tamed and asleep.owner_player_id == "local", "domesticou: o último a alimentar é o dono")
-	_check(asleep.can_command() and asleep.interactable.prompt == "mandar seguir" and asleep.interactable.can_prompt()
+	_check(asleep.can_command() and asleep.interactable.prompt == "mandar Paquicéfalo seguir" and asleep.interactable.can_prompt()
 			and not asleep.interactable.can_interact(), "domado seu: prompt de ordem, sem tela")
 	_check(authority.request_transfer_slot(1, 1, 0, asleep_id) == Enums.ActionResult.WRONG_STATE,
 			"domado acordado não recebe alimento pela tela")
@@ -364,7 +364,7 @@ func _test_order_save() -> void:
 			and copy.feeder_player_id == "amigo" and copy.state_machine.is_tamed, "roundtrip: ordem, dono e quem alimentou")
 	_check(events[0] == 0 and copy.state_machine.speed_multiplier == copy.state_machine.order_rules.follow_speed_multiplier,
 			"restaurar não emite evento e já vale a velocidade do Seguir")
-	_check(copy.interactable.prompt == "mandar ficar", "o prompt acompanha a ordem restaurada")
+	_check(copy.interactable.prompt == "mandar Paquicéfalo ficar", "o prompt acompanha a ordem restaurada")
 	# Dado ruim não vira ordem nem dono.
 	var wild_data := _dino_at(Vector2.ZERO).to_dict()
 	wild_data["state_machine"]["order"] = "FOLLOW"

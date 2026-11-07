@@ -1,10 +1,11 @@
 # SPDX-License-Identifier: MIT
 class_name DinoView
 extends Node2D
-## Apresentação do dino sobre o sprite placeholder (`animals/reptile.png`, 16x16,
-## colunas = baixo/cima/esquerda/direita, linhas = quadros de andar): quadro por direção,
-## cambaleio (deslocamento de 1 a 2 px) e pausa pela faixa de torpor, bocejo, sono (sprite
-## deitado a 90 graus e o balão "zz"), flash branco e número flutuante ao levar dano. Só apresentação:
+## Apresentação do dino sobre a folha da espécie (`sprites/dinos/<espécie>.png`, quadros de 32x32, 11 colunas x
+## 4 linhas, descrita por `<espécie>.json`: a linha é a direção, as colunas são as animações `idle`, `walk`,
+## `attack`, `sleep` e `dead`; os pés ficam em y=30 do quadro): quadro por direção, cambaleio (deslocamento de 1 a
+## 2 px) e pausa pela faixa de torpor, bocejo, sono (quadro `sleep`, já deitado na arte, e o balão "zz"), flash
+## branco e número flutuante ao levar dano. Só apresentação:
 ## lê sinais e valores do dino e mexe apenas no `dino.visual`; nenhuma regra mora aqui.
 ## Instancie FORA do `Dino.tscn`. Velocidade, pausas e cooldown por faixa são regra de
 ## simulação (`TorporComponent`), não desta classe.
@@ -18,6 +19,9 @@ extends Node2D
 
 signal sound_cue(cue: StringName)
 
+const ANIM_IDLE := "idle"
+const ANIM_WALK := "walk"
+const ANIM_SLEEP := "sleep"
 const CUE_HIT := &"hit"
 const CUE_YAWN := &"yawn"
 const CUE_TAMED := &"tamed"
@@ -45,6 +49,7 @@ const POPUP_SECONDS := 0.7
 var _audio := AudioStreamPlayer2D.new()
 var _sleep_icon := Sprite2D.new()
 var _facing := SpriteFacing.DOWN
+var _sheet := SpriteSheetDef.new()
 var _popups := Node2D.new()
 var _text := Label.new()
 var _time := 0.0
@@ -70,6 +75,7 @@ func _ready() -> void:
 	add_child(_text)
 	if dino == null:
 		return
+	_sheet = SpriteSheetDef.from_json_file(dino.stats.sheet_path)
 	dino.health.damaged.connect(_on_damaged)
 	dino.torpor.band_changed.connect(_on_band_changed)
 	dino.taming.level_finalized.connect(_on_tamed)
@@ -138,20 +144,30 @@ func _apply_sway(band: int) -> void:
 	dino.visual.position.x = roundf(sin(_time * SWAY_SPEED_BY_BAND[band]) * amplitude)
 
 
-## Quadro do sprite: dormindo, deitado (girado 90 graus) e de frente; acordado, a
-## direção em que anda e o ciclo de andar, ou parado no quadro 0.
+## Quadro do sprite, pela folha do JSON: dormindo, o quadro `sleep` na direção em que estava (a arte já vem deitada);
+## acordado, `walk` se anda e `idle` se está parado. A linha é a direção (mesma ordem de `SpriteFacing`).
 func _apply_pose(awake: bool) -> void:
 	_sleep_icon.visible = not awake
-	if not awake:
-		dino.visual.rotation = PI / 2.0
-		dino.visual.frame_coords = Vector2i(SpriteFacing.DOWN, 0)
-		return
 	dino.visual.rotation = 0.0
-	var moving := dino.velocity.length_squared() > 1.0
+	var moving := awake and dino.velocity.length_squared() > 1.0
 	if moving:
 		_facing = SpriteFacing.column_for(dino.velocity, _facing)
-	var row := SpriteFacing.walk_row(_time) if moving else 0
-	dino.visual.frame_coords = Vector2i(_facing, row)
+	var column := 0
+	if not awake:
+		column = _sheet.column_at(ANIM_SLEEP, 0.0)
+	elif moving:
+		column = _sheet.column_at(ANIM_WALK, _time)
+	else:
+		column = _sheet.column_at(ANIM_IDLE, _time)
+	_show_frame(column)
+
+
+## Folha do JSON de outro tamanho que o sprite da cena: fica no primeiro quadro da direção, nunca fora da folha.
+func _show_frame(column: int) -> void:
+	var sprite := dino.visual
+	var usable := _sheet.is_valid() and _sheet.columns == sprite.hframes and _sheet.rows == sprite.vframes
+	sprite.frame_coords = Vector2i(
+			clampi(column if usable else 0, 0, sprite.hframes - 1), clampi(_facing, 0, sprite.vframes - 1))
 
 
 func _apply_yawn(band: int, delta: float) -> void:
@@ -201,7 +217,9 @@ func _on_band_changed(_band: int) -> void:
 
 
 func _on_tamed(final_level: int) -> void:
-	_spawn_popup("Nv %d" % final_level, Color(1.0, 0.9, 0.4))
+	# O domado do jogador já mostra o nível na placa (DinoMarker); o número flutuante seria texto duplicado.
+	if dino.owner_player_id != Player.LOCAL_PLAYER_ID:
+		_spawn_popup("Nv %d" % final_level, Color(1.0, 0.9, 0.4))
 	_cue(CUE_TAMED)
 
 

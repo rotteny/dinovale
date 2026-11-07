@@ -33,7 +33,6 @@ func _init() -> void:
 	DirAccess.make_dir_recursive_absolute(OUT)
 	save(tree_collect(), "tree_collect")
 	save(tree_collect_stump(), "tree_collect_stump")
-	save(tree_decor(), "tree_decor")
 	var b := bush_base()
 	save(bush_with(b, "food"), "bush_food")
 	save(bush_with(b, "sleep"), "bush_sleep")
@@ -195,49 +194,7 @@ func tree_collect_stump() -> Image:
 # ---------------------------------------------------------------- arvore decorativa
 ## 48x48: copa larga, redonda e escura (verde-azulado), tronco curto e grosso
 ## escondido, flores lilas. Sem entalhe, sem cor clara: nao coletavel.
-func tree_decor() -> Image:
-	var i := img(48, 48)
-	var tr := img(48, 48)
-	m_rect(tr, 19, 36, 10, 11)
-	m_rect(tr, 17, 44, 14, 3)
-	paint(i, tr, 22, 41, 6, 8, ["w_md", "w_dk", "w_xx", "w_xx"], [-0.2, 0.35, 0.8])
-	var lumps := [
-		[24.0, 24.0, 21.0, 11.0], # base larga
-		[12.0, 22.0, 11.0, 12.0],
-		[36.0, 22.0, 11.0, 12.0],
-		[24.0, 14.0, 15.0, 12.0],
-		[16.0, 11.0, 9.0, 8.0],
-		[32.0, 11.0, 9.0, 8.0],
-	]
-	var m := img(48, 48)
-	for l in lumps:
-		m_ell(m, l[0], l[1], l[2], l[3])
-	# fundo da copa: verde medio, faixa escura so embaixo
-	paint(i, m, 24.0, 20.0, 99.0, 18.0, ["g_md", "g_md", "g_dk", "g_dk"], [0.2, 0.62, 9.0])
-	# tufos de folhagem: so o arco de baixo escuro (tracejado) e um brilho no canto de cima-esquerda
-	var clumps := [[14, 14, 6], [26, 9, 6], [36, 15, 6], [20, 21, 6], [31, 23, 6], [9, 25, 5], [41, 25, 5], [22, 30, 6], [34, 31, 5], [13, 31, 5]]
-	for c in clumps:
-		var cm := img(48, 48)
-		m_ell(cm, c[0], c[1], c[2], c[2] * 0.85)
-		for y in 48:
-			for x in 48:
-				if solid(cm, x, y) and solid(m, x, y):
-					var below := not solid(cm, x, y + 1)
-					var right := not solid(cm, x + 1, y)
-					var up := not solid(cm, x, y - 1)
-					var left := not solid(cm, x - 1, y)
-					if below and (x + y) % 3 != 0:
-						put(i, x, y, "g_dk")
-					elif up and left:
-						put(i, x, y, "g_hi")
-	# toques de luz e folhas
-	pts(i, [[20, 24], [21, 25], [30, 27], [31, 28], [14, 28], [38, 24], [26, 32], [27, 32]], "g_dk")
-	pts(i, [[17, 18], [31, 17], [24, 27], [37, 29], [11, 25]], "bloom")
-	outline(i)
-	return i
 
-# ---------------------------------------------------------------- arbusto
-## Base: monte baixo com laminas finas e retas saindo do topo (cara de planta fibrosa).
 func bush_base() -> Image:
 	var i := img(16, 16)
 	var m := img(16, 16)

@@ -6,7 +6,7 @@ extends Node2D
 ## `velocity`, `attacked` e a vida do `Player`; nenhuma regra mora aqui.
 ## Instancie FORA do `Player.tscn`.
 ##
-## Folha `sprites/jogador/jogador.png` (quadros de 16x32, 10 colunas x 4 linhas), descrita por
+## Folha `sprites/jogador/jogador.png` (quadros de 32x32, 10 colunas x 4 linhas), descrita por
 ## `jogador.json`: a linha é a direção (baixo, cima, esquerda, direita) e as colunas são as
 ## animações `idle`, `walk`, `hit` (golpe, sem laço) e `fall` (caído). Os pés ficam em y=30 do quadro.
 ##

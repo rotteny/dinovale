@@ -12,6 +12,7 @@
 [ext_resource type="Script" path="res://src/world/WorldAuthority.gd" id="21_authority"]
 [ext_resource type="Script" path="res://src/ui/DinoStatusBars.gd" id="6_bars"]
 [ext_resource type="Script" path="res://src/ui/DinoView.gd" id="7_view"]
+[ext_resource type="Script" path="res://src/ui/DinoMarker.gd" id="99_marker"]
 [ext_resource type="PackedScene" path="res://src/world/Terrain.tscn" id="8_terrain"]
 [ext_resource type="Script" path="res://src/ui/PlayerView.gd" id="9_pview"]
 [ext_resource type="Script" path="res://src/ui/PlayerCamera.gd" id="22_camera"]
@@ -47,6 +48,10 @@ position = Vector2(320, 180)
 
 [node name="DinoStatusBars" type="Node2D" parent="." node_paths=PackedStringArray("dino")]
 script = ExtResource("6_bars")
+dino = NodePath("../Dino")
+
+[node name="DinoMarker" type="Node2D" parent="." node_paths=PackedStringArray("dino")]
+script = ExtResource("99_marker")
 dino = NodePath("../Dino")
 
 [node name="DinoView" type="Node2D" parent="." node_paths=PackedStringArray("dino")]

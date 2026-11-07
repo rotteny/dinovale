@@ -1,7 +1,7 @@
 ## Gerador do cenario na escala nova: arvores 48x80, rochas de 32 px, formacoes rochosas.
 ## Arte propria, CC BY 4.0, sem IA e sem recorte de terceiros. Da raiz do repositorio:
 ##   godot --headless --script docs/design/arte/gerar_cenario.gd
-## Saida: game/assets/sprites/recursos/  tree_collect_80.png (48x80, coletavel), tree_decor_80.png (48x80, decorativa),
+## Saida: game/assets/sprites/recursos/  tree_collect_80.png (48x80, coletavel; toda arvore do mapa e coletavel),
 ##                                        rock_stone_32.png, rock_ore_32.png (32x32) e os *_empty_32.png (esgotado)
 ##        game/assets/sprites/cenario/    formacao_a.png (64x80), formacao_b.png (96x48), formacao_c.png (64x48).
 ## Sem construcao humana. Ancora: base do quadro (arvore: tronco em x 18..29 ao pe; colisao 12x8 no pe do tronco).
@@ -14,7 +14,6 @@ const OUTC := "game/assets/sprites/cenario/"
 
 func _init() -> void:
 	L.save_png_checked(tree_collect(), OREC + "tree_collect_80.png")
-	L.save_png_checked(tree_decor(), OREC + "tree_decor_80.png")
 	L.save_png_checked(rock_stone(), OREC + "rock_stone_32.png")
 	L.save_png_checked(rock_stone_empty(), OREC + "rock_stone_empty_32.png")
 	L.save_png_checked(rock_ore(), OREC + "rock_ore_32.png")
@@ -66,41 +65,7 @@ func tree_collect() -> Image:
 
 # ---------------------------------------------------------------- arvore decorativa 48x80
 ## Copa larga, redonda e escura (verde-azulado), tronco grosso, flores lilas. Sem entalhe, sem tom claro.
-func tree_decor() -> Image:
-	var i: Image = L.img(48, 80)
-	trunk(i, 19, 28, 50, 78, 70, ["w_md", "w_dk", "w_xx", "w_xx"])
-	var lumps := [
-		[24.0, 40.0, 22.0, 15.0],
-		[12.0, 34.0, 11.0, 14.0], [36.0, 34.0, 11.0, 14.0],
-		[24.0, 25.0, 17.0, 16.0],
-		[15.0, 17.0, 10.0, 11.0], [33.0, 17.0, 10.0, 11.0],
-		[24.0, 11.0, 12.0, 9.0],
-	]
-	var m: Image = L.img(48, 80)
-	for l in lumps:
-		L.m_ell(m, l[0], l[1], l[2], l[3])
-	L.paint(i, m, 24.0, 30.0, 99.0, 24.0, ["g_md", "g_md", "g_dk", "g_dk"], [0.2, 0.62, 9.0])
-	var clumps := [[14, 16, 7], [26, 9, 7], [36, 18, 7], [21, 24, 7], [32, 30, 7], [9, 33, 6], [41, 36, 6], [22, 40, 7], [34, 46, 6], [13, 45, 6], [24, 54, 6], [8, 22, 5]]
-	for c in clumps:
-		var cm: Image = L.img(48, 80)
-		L.m_ell(cm, c[0], c[1], c[2], c[2] * 0.85)
-		for y in 80:
-			for x in 48:
-				if L.solid(cm, x, y) and L.solid(m, x, y):
-					var below: bool = not L.solid(cm, x, y + 1)
-					var up: bool = not L.solid(cm, x, y - 1)
-					var left: bool = not L.solid(cm, x - 1, y)
-					if below and (x + y) % 3 != 0:
-						L.put(i, x, y, "g_dk")
-					elif up and left:
-						L.put(i, x, y, "g_hi")
-	L.pts(i, [[20, 28], [21, 29], [30, 33], [31, 34], [14, 36], [38, 30], [26, 44], [27, 44], [16, 22], [34, 24]], "g_dk")
-	L.pts(i, [[17, 20], [31, 21], [24, 34], [37, 38], [11, 32], [26, 14], [19, 44]], "bloom")
-	L.outline(i)
-	return i
 
-# ---------------------------------------------------------------- rochas 32x32
-## Pedra: monte largo e baixo, cinza quente, rachaduras e brilho no canto.
 func rock_stone() -> Image:
 	var i: Image = L.img(32, 32)
 	var m: Image = L.img(32, 32)

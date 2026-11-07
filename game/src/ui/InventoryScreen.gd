@@ -31,7 +31,7 @@ const SLOT_SIZE := Vector2(24, 24)
 const SLOT_FONT_SIZE := 8
 ## Folga interna extra além da moldura de madeira do painel (6 px do tema).
 const PANEL_PADDING := 1
-const OUTLINE_SIZE := 1
+const OUTLINE_SIZE := 2  # a Vale Mini em 8 px não desenha contorno de 1 px (arredonda para 0)
 const HINT_TEXT := "Clique/Enter: passar  1-9: atalho  Esc: fechar\nDuplo clique/Enter: equipar  Shift+clique: passar equip."
 
 @export var player_inventory: InventoryComponent

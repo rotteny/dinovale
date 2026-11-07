@@ -1,13 +1,21 @@
-[gd_resource type="Resource" script_class="DinoBaseStats" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="DinoBaseStats" load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://src/core/DinoBaseStats.gd" id="1_stats"]
+[ext_resource type="Texture2D" path="res://assets/sprites/dinos/paquicefalo.png" id="2_dead"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_dead"]
+atlas = ExtResource("2_dead")
+region = Rect2(320, 0, 32, 32)
 
 [resource]
 script = ExtResource("1_stats")
 id = "placeholder_dino"
+display_name = "Paquicéfalo"
 base_health = 100.0
 base_damage = 4.0
 base_torpor = 100.0
 base_meals = 5
 difficulty = 1.0
+carcass_meat = 4
+carcass_texture = SubResource("AtlasTexture_dead")
 hitbox_size = Vector2(24, 16)

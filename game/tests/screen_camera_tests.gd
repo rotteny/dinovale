@@ -2,7 +2,7 @@
 class_name ScreenCameraTests
 extends DinoLevelTests
 ## Etapa A da integração (viewport 320x180): escala inteira, câmera centrada que só para no limite do
-## mapa, névoa de borda, HUD compacta, telas que cabem em 320x180, jogador de 16x32 (folha, pés e
+## mapa, névoa de borda, HUD compacta, telas que cabem em 320x180, jogador de 32x32 (folha, pés e
 ## hitbox em dado). Reaproveita os auxiliares de `DinoLevelTests`.
 
 const TITLE_SCENE := preload("res://src/ui/TitleScreen.tscn")
@@ -64,8 +64,8 @@ func _test_map_bounds_rules() -> void:
 
 func _test_sheet_definition() -> void:
 	var sheet := SpriteSheetDef.from_json_file(PlayerView.SHEET_PATH)
-	_check(sheet.is_valid() and sheet.frame_size == Vector2i(16, 32) and sheet.columns == 10 and sheet.rows == 4,
-			"jogador.json: quadro 16x32, 10 colunas, 4 linhas")
+	_check(sheet.is_valid() and sheet.frame_size == Vector2i(32, 32) and sheet.columns == 10 and sheet.rows == 4,
+			"jogador.json: quadro 32x32, 10 colunas, 4 linhas")
 	_check(sheet.direction_rows[SpriteFacing.DOWN] == "down" and sheet.direction_rows[SpriteFacing.UP] == "up"
 			and sheet.direction_rows[SpriteFacing.LEFT] == "left" and sheet.direction_rows[SpriteFacing.RIGHT] == "right",
 			"a ordem das linhas do JSON é a de SpriteFacing (baixo, cima, esquerda, direita)")

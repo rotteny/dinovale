@@ -8,6 +8,9 @@ extends Node
 ## Mudou entre cheio e esgotado (a apresentação e a dica reagem).
 signal changed
 
+## Intervalo entre as tentativas de voltar quando o lugar está ocupado.
+const RETRY_SECONDS := 0.5
+
 @export var def: ResourceNodeDef
 
 var depleted: bool = false
@@ -17,6 +20,11 @@ var respawn_override: float = 0.0
 ## O que sobrou no nó numa colheita parcial (item -> unidades): o inventário não coube tudo e "o que sobra
 ## fica no arbusto" (mapa-ilha.md 8). Vazio = nó inteiro. Nó parcial segue disponível e vai ao save.
 var leftover: Dictionary = {}
+## O lugar está livre para o nó voltar? (sem regra, sempre). Ocupado: o nó fica esgotado, esperando, e tenta de
+## novo a cada `RETRY_SECONDS`; esperar não conta como perdido e o nó segue no save como esgotado.
+var can_return: Callable = Callable()
+
+var _retry_left: float = 0.0
 
 
 func _ready() -> void:
@@ -31,12 +39,25 @@ func _physics_process(delta: float) -> void:
 func tick(delta: float) -> void:
 	if not depleted or def == null:
 		return
-	respawn_left -= delta
-	if respawn_left <= 0.0:
-		depleted = false
+	if respawn_left > 0.0:
+		respawn_left -= delta
+		if respawn_left > 0.0:
+			return
 		respawn_left = 0.0
-		set_physics_process(false)
-		changed.emit()
+	_retry_left -= delta
+	if _retry_left > 0.0:
+		return
+	_retry_left = RETRY_SECONDS
+	if can_return.is_valid() and not bool(can_return.call()):
+		return  # lugar ocupado: espera e tenta de novo
+	depleted = false
+	set_physics_process(false)
+	changed.emit()
+
+
+## Esgotado, com o tempo de volta já cumprido, esperando o lugar ficar livre?
+func is_waiting() -> bool:
+	return depleted and respawn_left <= 0.0
 
 
 ## Segundos até um nó esgotado voltar: o do próprio nó ou, sem ele, o do tipo.
@@ -75,6 +96,7 @@ func harvest() -> int:
 	depleted = true
 	leftover = {}
 	respawn_left = respawn_total()
+	_retry_left = 0.0
 	set_physics_process(true)
 	changed.emit()
 	return def.yield_amount

@@ -19,6 +19,9 @@ const _EPSILON := 1e-9
 ## Refeições para domesticar.
 @export var meals_slope: float = 0.015
 @export var meals_floor: float = 0.85
+## Rendimento da carcaça por nível (GDD 5.6: o mesmo fator do Peso, piso 0,7).
+@export var carcass_slope: float = 0.03
+@export var carcass_floor: float = 0.7
 ## Bônus de nível com 100% de Eficiência (0,5 = +50%).
 @export var taming_bonus: float = 0.5
 ## O nível final nunca passa de `taming_cap x nível selvagem`.
@@ -39,6 +42,11 @@ func torpor_factor(level: int) -> float:
 
 func meals_factor(level: int) -> float:
 	return _factor(level, meals_slope, meals_floor)
+
+
+## Carne da carcaça: `base x (1 + 0,03 (L - 10))`, piso 0,7 da base, arredondada, no mínimo 1.
+func carcass_meat(base_meat: int, level: int) -> int:
+	return maxi(roundi(float(base_meat) * _factor(level, carcass_slope, carcass_floor)), 1)
 
 
 func max_health(base: float, level: int) -> float:

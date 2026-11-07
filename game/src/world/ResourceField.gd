@@ -8,6 +8,9 @@ extends Node2D
 
 const NodeScene: PackedScene = preload("res://src/entities/resource/ResourceNode.tscn")
 
+## Consulta de ocupação do chão: o nó que voltaria sobre alguém espera. Opcional (sem ela, volta sempre).
+var occupancy: TileOccupancy = null
+
 ## Nós por id. Montado no primeiro uso a partir dos filhos.
 var _by_id: Dictionary = {}
 var _indexed: bool = false
@@ -51,6 +54,8 @@ func add_node(node: ResourceNode) -> bool:
 	if node.node_id == "" or _by_id.has(node.node_id):
 		return false
 	_by_id[node.node_id] = node
+	if node.occupancy == null:
+		node.occupancy = occupancy
 	add_child(node)
 	if is_node_ready():
 		_attach_view(node)

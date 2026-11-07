@@ -1,0 +1,58 @@
+{
+	"ancora": "base do quadro (pes em y=30)",
+	"animacoes": {
+		"fall": {
+			"colunas": [
+				9
+			],
+			"fps": 1,
+			"loop": false
+		},
+		"hit": {
+			"colunas": [
+				6,
+				7,
+				8
+			],
+			"fps": 10,
+			"loop": false
+		},
+		"idle": {
+			"colunas": [
+				0,
+				1
+			],
+			"fps": 2,
+			"loop": true
+		},
+		"walk": {
+			"colunas": [
+				2,
+				3,
+				4,
+				5
+			],
+			"fps": 8,
+			"loop": true
+		}
+	},
+	"arquivo": "jogador.png",
+	"caido": "baixo: de costas (cabeca para a camera); cima: de bruços; esquerda/direita: de lado, perfil, joelhos dobrados",
+	"colisao_pes": [
+		12,
+		8
+	],
+	"colunas": 10,
+	"direita": "desenhada a parte (nao e espelho)",
+	"linhas": 4,
+	"linhas_direcao": [
+		"down",
+		"up",
+		"left",
+		"right"
+	],
+	"quadro": [
+		16,
+		32
+	]
+}

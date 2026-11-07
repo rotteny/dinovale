@@ -7,7 +7,6 @@
 [ext_resource type="Resource" path="res://data/resources/bush_baga.tres" id="5_baga"]
 [ext_resource type="Resource" path="res://data/resources/bush_sono.tres" id="6_sono"]
 [ext_resource type="Resource" path="res://data/resources/loose_stone.tres" id="7_loose"]
-[ext_resource type="Resource" path="res://data/world/scenery/tree_decor.tres" id="8_decor"]
 [ext_resource type="Resource" path="res://data/world/scenery/formation_a.tres" id="9_fa"]
 [ext_resource type="Resource" path="res://data/world/scenery/formation_b.tres" id="10_fb"]
 [ext_resource type="Resource" path="res://data/world/scenery/formation_c.tres" id="11_fc"]
@@ -24,7 +23,7 @@ node_defs = Dictionary[String, ExtResource("12_nodedef")]({
 "rock": ExtResource("3_rock"),
 "tree": ExtResource("2_tree")
 })
-scenery = Array[ExtResource("13_scenerydef")]([ExtResource("8_decor"), ExtResource("9_fa"), ExtResource("10_fb"), ExtResource("11_fc")])
+scenery = Array[ExtResource("13_scenerydef")]([ExtResource("9_fa"), ExtResource("10_fb"), ExtResource("11_fc")])
 disabled_node_kinds = Array[String](["iron_seam"])
 loose_core_respawn_seconds = 300.0
 level_bands = Dictionary[int, Vector2i]({

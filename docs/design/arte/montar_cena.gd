@@ -110,9 +110,9 @@ func scene() -> void:
 	var R := "game/assets/sprites/recursos/"
 	var C := "game/assets/sprites/cenario/"
 	objs.append([R + "tree_collect_80.png", 36, 76])
-	objs.append([R + "tree_decor_80.png", 268, 80])
+	objs.append([R + "tree_collect_80.png", 268, 80])
 	objs.append([R + "tree_collect_80.png", 300, 104])
-	objs.append([R + "tree_decor_80.png", 160, 104])
+	objs.append([R + "tree_collect_80.png", 160, 104])
 	objs.append([R + "rock_stone_32.png", 150, 40])
 	objs.append([R + "rock_ore_32.png", 178, 34])
 	objs.append([R + "rock_stone_32.png", 100, 104])

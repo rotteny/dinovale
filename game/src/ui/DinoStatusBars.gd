@@ -127,7 +127,7 @@ func _refresh() -> void:
 	_taming_panel.visible = asleep
 	_taming_bar.visible = wild
 	_efficiency_row.visible = wild
-	_health_bar.visible = _health_timer > 0.0
+	_health_bar.visible = _health_timer > 0.0 and wild  # a do domado fica sempre na placa (`DinoMarker`)
 	visible = asleep or _health_bar.visible
 
 

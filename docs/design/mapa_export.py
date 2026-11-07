@@ -3,7 +3,7 @@
 
 A FORMA vem de `mapa_sim.py` (diferenca de dois discos + ruido fractal, semente fixa). Este script
 junta o que o jogo precisa e o simulador so contava: o terreno por tile, o inicio, os marcos, a
-posicao dos nos de recurso e do cenario (1 coletavel : 3 de cenario) e os pontos de nascimento.
+posicao dos nos de recurso (toda arvore e coletavel; so as formacoes rochosas sao cenario) e os pontos de nascimento.
 O jogo NAO gera o mapa ao rodar: le `game/data/world/lunata.json`, que sai daqui.
 Biblioteca padrao apenas. Mesma semente, mesmo arquivo (byte a byte).
 
@@ -24,16 +24,16 @@ import mapa_sim as m  # noqa: E402
 
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "game", "data", "world", "lunata.json")
 FORMAT = 1
-REVISION = 1
+REVISION = 2  # 2: todas as arvores coletaveis, sem arvore de cenario (os ids dos nos mudaram)
 TILE = 16
 # Indices 0 a 5 sao os terrenos de `terreno.json`; 6 e a agua funda do anel de 2 tiles junto ao raso (unica com colisao).
 TERRAINS = ["agua_funda", "agua_rasa", "praia", "campina", "mata_baixa", "pedreira", "agua_funda_anel"]
 BIOME_CODE = {"C": 3, "M": 4, "P": 5}
 # Retangulo dos pes (largura, altura) em px, centrado em (0, -altura/2) acima da origem. Igual ao dado do jogo.
 FEET = {"tree": (12, 8), "rock": (24, 12), "bush": (10, 6), "formation_a": (52, 14), "formation_b": (84, 12),
-        "formation_c": (48, 12), "tree_decor": (12, 8)}
+        "formation_c": (48, 12)}
 START_CLEAR = 8        # tiles sem arvore nem rocha em volta do inicio
-SPACING = {"tree": 3.0, "tree_decor": 3.0, "rock": 3.0, "bush": 2.0, "formation": 4.0}
+SPACING = {"tree": 3.0, "rock": 3.0, "bush": 2.0, "formation": 4.0}
 
 
 def feet_rect(kind, x, y):
@@ -128,7 +128,7 @@ def place_everything(site, rng):
     def far_from_start(x, y, r=START_CLEAR):
         return math.hypot(x - start[0], y - start[1]) >= r
 
-    def grow(kind, band, count, decor_kind, decor_per, cluster, spread, bucket, spacing_key):
+    def grow(kind, band, count, cluster, spread, bucket, spacing_key):
         pool = land_tiles(band)
         placed = 0
         guard = 0
@@ -147,34 +147,22 @@ def place_everything(site, rng):
                     placer.add(kind, x, y)
                     bucket.append((x, y))
                     placed += 1
-                    # cenario em volta: mesma semente, mesmo bosquete
-                    for _d in range(decor_per if decor_kind else 0):
-                        for _t in range(80):
-                            ux, uy = x + rng.randint(-spread - 4, spread + 4), y + rng.randint(-spread - 4, spread + 4)
-                            if not (0 <= ux < m.S and 0 <= uy < m.S) or (ux, uy) not in m.MAIN or m.DSEA[uy][ux] < 3:
-                                continue
-                            if biome_of(ux, uy) != band or not far_from_start(ux, uy) or not placer.free(decor_kind, ux, uy, SPACING["tree_decor"]):
-                                continue
-                            placer.add(decor_kind, ux, uy)
-                            decor.append((ux, uy))
-                            break
                     break
         return placed
 
     nodes = {"tree": [], "bush_baga": [], "bush_sono": [], "rock": [], "loose_stone": [], "iron_seam": []}
-    decor = []
-    # Arvores: 1 coletavel : 3 de cenario (Pedreira 1 : 2), em bosquetes de 2 a 4.
-    for band, name in (("C", "C"), ("M", "M"), ("P", "P")):
-        n_tree = round({"C": 22, "M": 36, "P": 8}[band] * esc[band])
-        per = 2 if band == "P" else 3
-        grow("tree", band, n_tree, "tree_decor", per, (2, 4), 4, nodes["tree"], "tree")
+    # Arvores: TODAS coletaveis (liberam area para construir). O total por bioma e o de antes (as coletaveis mais as de
+    # cenario de entao); a variedade visual e das variantes da propria arvore (`ResourceNodeView`). Bosquetes de 2 a 4.
+    for band in ("C", "M", "P"):
+        base = round({"C": 22, "M": 36, "P": 8}[band] * esc[band])
+        grow("tree", band, base * (3 if band == "P" else 4), (2, 4), 4, nodes["tree"], "tree")
     # Arbustos: baga na Campina e Mata, sono (Cochilo) so na Mata.
     for band, n128 in (("C", 14), ("M", 8)):
-        grow("bush", band, round(n128 * esc[band]), None, 0, (1, 3), 3, nodes["bush_baga"], "bush")
-    grow("bush", "M", round(10 * esc["M"]), None, 0, (1, 3), 3, nodes["bush_sono"], "bush")
+        grow("bush", band, round(n128 * esc[band]), (1, 3), 3, nodes["bush_baga"], "bush")
+    grow("bush", "M", round(10 * esc["M"]), (1, 3), 3, nodes["bush_sono"], "bush")
     # Rochas de pedra (so Picareta): Pedreira concentra.
     for band, n128 in (("C", 6), ("M", 8), ("P", 30)):
-        grow("rock", band, round(n128 * esc[band]), None, 0, (1, 3), 2, nodes["rock"], "rock")
+        grow("rock", band, round(n128 * esc[band]), (1, 3), 2, nodes["rock"], "rock")
     # Filoes de ferro (M4: o jogo nao os instancia na v0.2): flanco leste da Pedreira.
     east = [(x, y) for (x, y) in land_tiles("P") if x >= 150]
     tries = 0
@@ -233,7 +221,7 @@ def place_everything(site, rng):
             loose_trail.append(spots[0])
             placer.add("loose", *spots[0])
     nodes["loose_stone"] = loose_core + loose_trail
-    return placer, nodes, decor, forms, loose_core, loose_trail, path
+    return placer, nodes, forms, loose_core, loose_trail, path
 
 
 def landmark_formations(site, placer, rng):
@@ -308,7 +296,9 @@ def spawns(site, rng, placer):
 
     def group(count, picker):
         left = count
-        while left > 0:
+        guard = 0
+        while left > 0 and guard < count * 400:
+            guard += 1
             cx, cy = picker()
             n = min(left, rng.randint(1, 3))
             for _ in range(n):
@@ -319,8 +309,6 @@ def spawns(site, rng, placer):
                         used.add((x, y))
                         left -= 1
                         break
-                else:
-                    left -= 1
 
     tut = site["paq_tutorial"]
     out.append(tut)
@@ -341,13 +329,13 @@ def export():
     rng = random.Random(m.SEED * 7919 + 13)
     site = m.sitios()
     start = site["inicio"]
-    placer, nodes, decor, forms, loose_core, loose_trail, path = place_everything(site, rng)
+    placer, nodes, forms, loose_core, loose_trail, path = place_everything(site, rng)
     marks, cabo = landmark_formations(site, placer, rng)
     for kind, x, y, _ in marks:
         placer.add(kind, x, y)
     ratio, seen = reachable_ratio(placer, start)
     sp = spawns(site, rng, placer)
-    scenery = {"tree_decor": sorted(decor), "formation_a": [], "formation_b": [], "formation_c": []}
+    scenery = {"formation_a": [], "formation_b": [], "formation_c": []}
     for kind, x, y in forms:
         scenery[kind].append((x, y))
     for kind, x, y, _ in marks:

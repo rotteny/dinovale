@@ -6,7 +6,7 @@ extends Resource
 
 ## Tipo do mapa (`tree`, `bush_baga`...) -> definição do nó de recurso.
 @export var node_defs: Dictionary[String, ResourceNodeDef] = {}
-## Cenário do mapa (`tree_decor`, `formation_a`...) por id.
+## Cenário do mapa (`formation_a`...) por id.
 @export var scenery: Array[SceneryDef] = []
 ## Nós que o mapa traz e a v0.2 NÃO instancia (o filão de ferro é do M4: GDD 5.9c e `mapa-ilha.md` 8).
 @export var disabled_node_kinds: Array[String] = ["iron_seam"]

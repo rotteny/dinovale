@@ -1,0 +1,9 @@
+Vale Mini (v1.0) - fonte bitmap do Dino Vale
+Origem: Kenney Mini (kenney.nl, CC0 / dominio publico). Derivada com fontTools (o script de build nao esta neste repositorio).
+Nome de familia: "Vale Mini". Grade: 1 pixel = 128 unidades (em 1024) -> usar SOMENTE tamanho 8 px (ou multiplos inteiros: 16, 24...).
+Mudou: minusculas acentuadas (á à â ã ä é è ê ë í ì ï ó ò ô õ ö ú ù û ü ñ ç) agora = corpo da minuscula original
+ (x-height 4 px) + 1 linha vazia + acento pixelado (altura maxima = 7a linha, dentro do ascent de 8 px).
+ í ì ï usam haste curta (4 px) em vez da haste de 5 px que o Kenney usa em i/l. Maiusculas e o resto: inalterados.
+Regenerar: o build.py nao esta versionado; refazer a derivacao com fontTools a partir da Kenney Mini conforme descrito acima.
+Amostra: godot --rendering-driver opengl3 --path proj_vazio --script render.gd -- ValeMini.ttf "<Kenney Mini.ttf>" amostra-vale-mini.png (com XDG_* descartavel)
+Godot: FontFile antialiasing NONE, hinting NONE, subpixel DISABLED, tamanho 8; Label line_spacing >= 1.

@@ -606,8 +606,8 @@ func _test_dino_view_feedback() -> void:
 	# Dormindo: sem cambaleio, tinta de sono.
 	dino.torpor.add_torpor(dino.torpor.max_torpor)
 	view.tick(0.1)
-	_check(is_equal_approx(dino.visual.rotation, PI / 2.0) and dino.visual.modulate == DinoView.SLEEP_COLOR
-			and view.is_sleep_icon_visible(), "dormindo: sprite deitado, escurecido e com o balão zz")
+	_check(dino.visual.rotation == 0.0 and dino.visual.frame_coords.x == 9 and dino.visual.modulate == DinoView.SLEEP_COLOR
+			and view.is_sleep_icon_visible(), "dormindo: quadro de sono (já deitado na arte), escurecido e com o balão zz")
 	# Domar mostra o nível final.
 	dino.state_machine.mark_tamed()
 	dino.taming.level_finalized.emit(25)
@@ -691,22 +691,25 @@ func _test_dino_view_sprite_frames() -> void:
 	dino.set_physics_process(false)
 	dino.torpor.set_physics_process(false)
 	var view := _spawn_view(dino)
-	_check(dino.visual.hframes == 4 and dino.visual.vframes == 4, "sprite do dino: folha 4x4")
+	var sheet := SpriteSheetDef.from_json_file(dino.stats.sheet_path)
+	_check(sheet.is_valid() and dino.visual.hframes == sheet.columns and dino.visual.vframes == sheet.rows
+			and dino.visual.hframes == 11 and dino.visual.vframes == 4, "sprite do dino: folha 11x4 lida do JSON")
+	_check(dino.visual.texture.get_size() == Vector2(sheet.frame_size * Vector2i(sheet.columns, sheet.rows)), "o PNG tem o tamanho do JSON")
 	view.tick(0.01)
-	_check(dino.visual.frame_coords == Vector2i(SpriteFacing.DOWN, 0), "parado: de frente, quadro 0")
+	_check(dino.visual.frame_coords == Vector2i(0, SpriteFacing.DOWN), "parado: de frente, coluna 0 do idle")
 	dino.velocity = Vector2.LEFT * 40.0
 	view.tick(0.13)
-	_check(dino.visual.frame_coords.x == SpriteFacing.LEFT and dino.visual.frame_coords.y > 0, "andando para a esquerda")
+	_check(dino.visual.frame_coords.y == SpriteFacing.LEFT and dino.visual.frame_coords.x in [2, 3, 4, 5], "andando para a esquerda")
 	dino.velocity = Vector2.UP * 40.0
 	view.tick(0.01)
-	_check(dino.visual.frame_coords.x == SpriteFacing.UP, "andando para cima")
+	_check(dino.visual.frame_coords.y == SpriteFacing.UP and dino.visual.frame_coords.x in [2, 3, 4, 5], "andando para cima")
 	dino.velocity = Vector2.ZERO
 	view.tick(0.01)
-	_check(dino.visual.frame_coords == Vector2i(SpriteFacing.UP, 0), "parou: mantém a direção, quadro 0")
+	_check(dino.visual.frame_coords.y == SpriteFacing.UP and dino.visual.frame_coords.x in [0, 1], "parou: mantém a direção, idle")
 	dino.torpor.add_torpor(dino.torpor.max_torpor)
 	view.tick(0.01)
-	_check(dino.visual.frame_coords == Vector2i(SpriteFacing.DOWN, 0) and is_equal_approx(dino.visual.rotation, PI / 2.0),
-			"dormindo: quadro de frente girado 90 graus")
+	_check(dino.visual.frame_coords == Vector2i(9, SpriteFacing.UP) and dino.visual.rotation == 0.0,
+			"dormindo: quadro de sono na direção em que estava, sem girar")
 	dino.torpor.reduce_torpor(dino.torpor.max_torpor)
 	view.tick(0.01)
 	_check(dino.visual.rotation == 0.0 and not view.is_sleep_icon_visible(), "acordou: em pé de novo")
@@ -719,7 +722,7 @@ func _test_player_view_frames() -> void:
 	view.player = player
 	_root.add_child(view)
 	_track.call(view)
-	_check(player.visual.hframes == 10 and player.visual.vframes == 4, "sprite do jogador: folha 10x4 (quadros 16x32)")
+	_check(player.visual.hframes == 10 and player.visual.vframes == 4, "sprite do jogador: folha 10x4 (quadros 32x32)")
 	var sheet := SpriteSheetDef.from_json_file(PlayerView.SHEET_PATH)
 	view.tick(0.01)
 	_check(player.visual.frame_coords == Vector2i(0, SpriteFacing.DOWN), "parado de frente: coluna 0 do idle")
@@ -799,7 +802,7 @@ func _test_terrain_scene() -> void:
 	_check(main.y_sort_enabled and terrain.y_sort_enabled, "profundidade pela posição em y")
 	_check(main.get_node_or_null("Bounds") == null and terrain.get_node_or_null("House") == null
 			and terrain.get_node_or_null("Chest") == null, "sem casa, baú nem paredes fixas na Main")
-	_check(scenery.get_used_cells().size() == map.scenery["tree_decor"].size() + map.scenery["formation_a"].size()
+	_check(scenery.get_used_cells().size() == map.scenery["formation_a"].size()
 			+ map.scenery["formation_b"].size() + map.scenery["formation_c"].size(), "uma célula de cenário por item do mapa")
 	_check(scenery.get_cell_tile_data(scenery.get_used_cells()[0]).get_collision_polygons_count(0) == 1, "o cenário bloqueia só nos pés")
 	# O jogador e o dino começam em terra firme, em chão livre.

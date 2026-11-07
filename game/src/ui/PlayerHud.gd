@@ -12,12 +12,15 @@ extends Control
 ## painel de madeira: rótulos e barras levam contorno escuro.
 const HOTBAR_WIDTH := 9 * HotbarBar.SLOT_SIZE.x + 8 * HotbarBar.SLOT_GAP
 const EDGE_MARGIN := 3.0
+## Vida e fome discretas: ícone pequeno, barra curta e o número ao lado (cantinho de cima, longe do centro).
+const BAR_SIZE := Vector2(26.0, 4.0)
+const ICON_SIZE := Vector2(8.0, 8.0)
 const NOTICE_SECONDS := 2.0
 const NOTICE_WIDTH := 200.0
 ## Distância do prompt e do aviso ao pé da tela (acima da barra de atalhos).
 const PROMPT_BOTTOM := 36
 const NOTICE_BOTTOM := 48
-const OUTLINE_SIZE := 1
+const OUTLINE_SIZE := 2  # a Vale Mini em 8 px não desenha contorno de 1 px (arredonda para 0)
 const SAVING_SECONDS := 1.0
 const SAVING_TEXT := "Salvando"
 ## Amarelo claro com contorno escuro: legível sobre qualquer terreno.
@@ -27,14 +30,15 @@ const STARVING_TEXT := "Morrendo de fome!"
 
 @export var player: Player
 
-var _health_bar := StatBar.new("Vida", Color(0.8, 0.2, 0.2), StatBar.BAR_SIZE,
-		preload("res://assets/third_party/ninja-adventure/ui/icon_heart.png"))
-var _hunger_bar := StatBar.new("Fome", Color(0.98, 0.85, 0.35), StatBar.BAR_SIZE,
-		preload("res://assets/third_party/ninja-adventure/items/food_meat.png"))
+var _health_bar := StatBar.new("Vida", Color(0.8, 0.2, 0.2), BAR_SIZE,
+		preload("res://assets/third_party/ninja-adventure/ui/icon_heart.png"), ICON_SIZE, true)
+var _hunger_bar := StatBar.new("Fome", Color(0.98, 0.85, 0.35), BAR_SIZE,
+		preload("res://assets/third_party/ninja-adventure/items/food_meat.png"), ICON_SIZE, true)
 var _xp_label := Label.new()
 var _xp_bar := StatBar.new("", Color(0.45, 0.6, 1.0), Vector2(StatBar.BAR_SIZE.x, 3.0))
 var _hotbar := HotbarBar.new()
 var _prompt := Label.new()
+var _highlighted: ResourceNodeView = null
 var _notice := Label.new()
 var _hunger_warning := Label.new()
 var _saving := Label.new()
@@ -261,10 +265,26 @@ func _on_target_changed(target: InteractableArea) -> void:
 	_watched = target
 	if _watched != null:
 		_watched.availability_changed.connect(_on_availability_changed)
+	_highlight(target)
 	_refresh_prompt()
 
 
+## Só o nó de recurso que o jogador está a ponto de tocar ganha contorno e nome; o resto do mundo, nada.
+func _highlight(target: InteractableArea) -> void:
+	if _highlighted != null and is_instance_valid(_highlighted):
+		_highlighted.set_highlight(false)
+	_highlighted = null
+	if target == null or not (target.entity is ResourceNode):
+		return
+	for child in target.entity.get_children():
+		if child is ResourceNodeView:
+			_highlighted = child
+			_highlighted.set_highlight(true)
+
+
 func _on_availability_changed(_available: bool) -> void:
+	if _highlighted != null and is_instance_valid(_highlighted):
+		_highlighted.set_highlight(_available)
 	_refresh_prompt()
 
 
@@ -272,9 +292,15 @@ func _on_lock_changed(_locked: bool) -> void:
 	_refresh_prompt()
 
 
+## O alvo é o domado de OUTRO jogador (a dica de ordem só vale no seu)?
+func _is_foreign_command() -> bool:
+	var dino := _watched.entity as Dino
+	return dino != null and dino.can_command() and not dino.can_interact() and dino.owner_player_id != player.player_id
+
+
 func _refresh_prompt() -> void:
 	var can_show := _watched != null and is_instance_valid(_watched) \
-			and _watched.can_prompt() and not player.input_locked
+			and _watched.can_prompt() and not player.input_locked and not _is_foreign_command()
 	_prompt.visible = can_show
 	if can_show:
 		_prompt.text = "E para %s" % _watched.prompt

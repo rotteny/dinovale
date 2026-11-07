@@ -1,5 +1,5 @@
 {
-	"ancora": "base do quadro (pes em y=22, contorno em y=23)",
+	"ancora": "base do quadro (pes em y=30, folha 32x32 de IA-placeholder)",
 	"animacoes": {
 		"attack": {
 			"colunas": [
@@ -49,10 +49,10 @@
 		12
 	],
 	"colunas": 11,
-	"direita": "desenhada a parte (nao e espelho cego): a luz continua vindo de cima-esquerda",
+	"direita": "arte de IA (PixelLab), perfil direito proprio (south-east), nao e espelho",
 	"especie": "paquicefalo",
 	"filhote": "nao incluso (M4)",
-	"golpe": "preparo (cabeca recua), impacto (investida, boca aberta ou chifres a frente), volta.",
+	"golpe": "deslocamento 1 a 2 px na direcao do olhar (placeholder)",
 	"layout": "igual nas cinco especies: colunas 0-1 idle, 2-5 walk, 6-8 attack, 9 sleep, 10 dead; linhas down, up, left, right",
 	"linhas": 4,
 	"linhas_direcao": [
@@ -64,8 +64,8 @@
 	"luz": "cima-esquerda",
 	"porte": "Pequeno",
 	"quadro": [
-		24,
-		24
+		32,
+		32
 	],
-	"sleep_dead": "desenhados de lado (corpo deitado): linhas down e left olham para a esquerda, up e right olham para a direita; dead = de barriga para cima, patas rigidas para o alto, olho em X"
+	"sleep_dead": "sprite girado 90 graus e escurecido; morto gira ao contrario e escurece mais (placeholder)"
 }

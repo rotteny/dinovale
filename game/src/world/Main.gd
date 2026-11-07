@@ -46,6 +46,10 @@ var scheduler: SaveScheduler
 ## Zona ativa dos dinos (MUN-05) e o grupo onde os selvagens do mapa moram.
 var zone: DinoZone
 var wild: WildPopulation
+## Carcaças dos dinos mortos (recorte do SOB-06).
+var carcasses: CarcassField
+## Consulta única de ocupação do chão (jogador e dinos hoje; a grade de construção depois).
+var occupancy := TileOccupancy.new()
 
 ## `entity_id` da criatura cuja tela compartilhada está aberta (0 = nenhuma).
 var _screen_target_id: int = 0
@@ -85,6 +89,7 @@ func _ready() -> void:
 	scheduler.manager = save_manager
 	scheduler.field = resources
 	scheduler.wild = wild
+	scheduler.carcasses = carcasses
 	scheduler.authority = authority
 	scheduler.saved.connect(_on_saved)
 	add_child(scheduler)
@@ -110,7 +115,10 @@ func _place_on_island() -> void:
 		return
 	player.position = map.start_point()
 	dino.position = map.center_of(map.landmarks.get("paquicefalo_tutorial", map.start_cell))
+	occupancy.add_source(func() -> Array: return [player])
+	occupancy.add_source(func() -> Array: return zone.dinos() if zone != null else [dino])
 	if resources != null:
+		resources.occupancy = occupancy
 		resources.populate(map, world_rules)
 	_build_zone()
 
@@ -125,6 +133,12 @@ func _build_zone() -> void:
 	zone.map = map
 	zone.foci = [player]
 	add_child(zone)
+	carcasses = CarcassField.new()
+	carcasses.name = "Carcasses"
+	carcasses.y_sort_enabled = true
+	carcasses.authority = authority
+	carcasses.occupancy = occupancy
+	add_child(carcasses)
 	wild = WildPopulation.new()
 	wild.name = "Wild"
 	wild.y_sort_enabled = true
@@ -166,7 +180,7 @@ func save_game(reason: SaveManager.Reason) -> bool:
 
 func _continue_saved_game() -> void:
 	var outcome := save_manager.load_first(
-			func(data: Dictionary) -> bool: return WorldSnapshot.restore(data, player, dino, resources, wild))
+			func(data: Dictionary) -> bool: return WorldSnapshot.restore(data, player, dino, resources, wild, carcasses))
 	if outcome.status == SaveManager.Status.OK:
 		_respawn_count = WorldSnapshot.respawn_count_of(outcome.data)
 		scheduler.respawn_count = _respawn_count
@@ -178,9 +192,10 @@ func _continue_saved_game() -> void:
 			zone.reclassify()  # o jogador e os dinos mudaram de lugar
 		if WorldSnapshot.was_dead_pending_choice(outcome.data):
 			_enter_death()  # carregar um morto reabre a escolha; não desfaz a morte
-		_notify(outcome.message)
-		if not WorldSnapshot.same_map_revision(outcome.data):
-			_notify(MAP_CHANGED_NOTICE, 8.0)  # por último: é o aviso que o jogador precisa ler
+		if WorldSnapshot.same_map_revision(outcome.data):
+			_notify(outcome.message)
+		else:  # um aviso só: o da cópia anterior (.bak), se houve, junto com o do mapa
+			_notify((outcome.message + " " if outcome.message != "" else "") + MAP_CHANGED_NOTICE, 8.0)
 		return
 	# Continuar que falha não abre jogo novo nem grava nada: volta ao título com o motivo, e o arquivo
 	# que o jogo recusou fica exatamente como estava.
@@ -300,6 +315,7 @@ func _notify(text: String, seconds: float = PlayerHud.NOTICE_SECONDS) -> void:
 ## Só domado: um selvagem que morre não é salvo. A criatura já saiu do mundo (`queue_free` do próprio
 ## dino roda antes, pela ordem das conexões), então o save a deixa de fora e ela não volta ao carregar.
 func _on_wild_died(creature: Dino, tamed: bool) -> void:
+	carcasses.spawn_from(creature)  # o corpo fica no lugar (a criatura some no mesmo quadro)
 	_detach_wild_views(creature)  # morto não guarda view nem chave
 	if tamed:
 		scheduler.request(SaveManager.Reason.TAMED_DINO_DEATH)
@@ -330,9 +346,12 @@ func _attach_wild_views(creature: Dino) -> void:
 		view.volume_db = template.volume_db
 	var bars := DinoStatusBars.new()
 	bars.dino = creature
+	var marker := DinoMarker.new()
+	marker.dino = creature
 	add_child(view)
 	add_child(bars)
-	_wild_views[creature] = [view, bars]
+	add_child(marker)  # só aparece se o dino for domado do jogador local
+	_wild_views[creature] = [view, bars, marker]
 
 
 func _detach_wild_views(creature: Variant) -> void:
@@ -343,6 +362,9 @@ func _detach_wild_views(creature: Variant) -> void:
 
 
 func _on_dino_died() -> void:
+	if not is_instance_valid(dino):
+		return
+	carcasses.spawn_from(dino)
 	if dino.state_machine.is_tamed:
 		scheduler.request(SaveManager.Reason.TAMED_DINO_DEATH)
 

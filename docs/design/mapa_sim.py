@@ -212,7 +212,7 @@ def contagens():
     terra = {k: sum(1 for y in range(S) for x in range(S) if LAND[y][x] and faixa(y) == k) for k in "CMP"}
     return {k: terra[k] / base[k] for k in "CMP"}, terra
 NOS = {   # id: (item, por colheita, s, respawn s, {bioma: n na ilha de 128}, fonte)
- "tree (coletavel)":  ("madeira", 3, 8, 480, {"C": 22, "M": 36, "P": 8}, "codigo"),
+ "tree (coletavel)":  ("madeira", 3, 8, 480, {"C": 88, "M": 144, "P": 24}, "codigo; TODAS coletaveis, sem arvore de cenario (06/11, dono)"),
  "bush baga (+2 fibra)": ("baga", 3, 12, 240, {"C": 14, "M": 8}, "unico: 3 baga em 9 s + 2 fibra em 3 s"),
  "bush sono (+2 fibra)": ("Cochilo", 3, 16, 420, {"M": 10}, "unico: 3 frutas em 12 s + 2 fibra em 4 s"),
  "rock (so Picareta)": ("pedra", 4, 10, 600, {"C": 6, "M": 8, "P": 30}, "codigo; Soco nao coleta"),
@@ -232,7 +232,7 @@ def recursos():
     s = sitios(); D = dijkstra(s["inicio"]); far = max(D, key=D.get)
     avul_n, avul_t = 10, math.ceil(D[far] / 30) + 4
     print(f"pedras avulsas: {avul_n} no nucleo (volta em 300 s) + {avul_t} na trilha ate a ponta ({D[far]:.0f} tiles: 1 a cada 30, mais 4 na entrada da Pedreira; volta em 600 s) = {avul_n+avul_t}")
-    arv = sum(round(v * esc[b]) for b, v in NOS["tree (coletavel)"][4].items()); print(f"arvores: {arv} coletaveis + cenario 3:1 (Pedreira 2:1) ~ {round(arv*3*0.93)}")
+    arv = sum(round(v * esc[b]) for b, v in NOS["tree (coletavel)"][4].items()); print(f"arvores: {arv} coletaveis (todas; sem arvore de cenario, as formacoes rochosas seguem fixas)")
     print("Cochilo: 1 dino dormindo gasta 2 a 3 frutas/min; oferta = n arbustos x 3 / 7 min")
 def dinos():
     esc, terra = contagens(); tot = sum(terra.values())

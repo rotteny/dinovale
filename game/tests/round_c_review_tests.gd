@@ -21,6 +21,12 @@ func run() -> void:
 	_release_worlds()
 	await _test_carcass_save_age_and_id()
 	_release_worlds()
+	await _test_carcass_restored_id_and_unregister()
+	_release_worlds()
+	await _test_target_foreign_tamed()
+	_release_worlds()
+	await _test_wild_level_tag_in_world()
+	_release_worlds()
 	await _test_loaded_depleted_node_returns_by_frames()
 	_release_worlds()
 	await _test_marker_follows_dino()
@@ -285,3 +291,72 @@ func _test_highlight_follows_availability() -> void:
 	_check(not view.is_highlighted() and not main.hud.prompt_label().visible, "esgotado: o destaque e o prompt somem na hora")
 	tree_node.component.tick(tree_node.def.respawn_seconds)
 	_check(tree_node.is_available() and view.is_highlighted(), "o nó volta cheio com o jogador ao lado: o destaque volta")
+
+
+## O id gravado volta exatamente (um id fixo, que o sorteio de ids novos não produziria) e, quando a carcaça
+## expira ou esvazia, sai da autoridade: o id antigo vira alvo desconhecido.
+func _test_carcass_restored_id_and_unregister() -> void:
+	var main := await _quiet_world("d_carcass_id")
+	var entry := {"id": 424242, "species": "placeholder_dino", "level": 10, "x": 40.0, "y": 40.0, "age": 1.0}
+	main.carcasses.restore_list([entry])
+	var node: ResourceNode = main.carcasses.nodes()[0]
+	_check(main.authority.id_of(node) == 424242, "a carcaça restaurada volta com o id gravado (424242)")
+	main.player.global_position = node.global_position
+	_check(main.authority.request_gather(1, 424242) != RESULT.UNKNOWN_TARGET, "com o id vivo, a colheita reconhece o alvo")
+	main.carcasses.restore_list([entry])
+	node = main.carcasses.nodes()[0]
+	_check(main.authority.id_of(node) == 424242, "restaurar de novo mantém o id")
+	main.carcasses.tick(main.carcasses.rules.fresh_seconds + 1.0)
+	await _frames(2)
+	_check(main.carcasses.count() == 0 and main.authority.request_gather(1, 424242) == RESULT.UNKNOWN_TARGET,
+			"expirou: o id antigo vira UNKNOWN_TARGET")
+	# `entity()` já esconde nó liberado: só `is_registered` prova o `unregister` (senão o id ficaria vazando).
+	_check(not main.authority.is_registered(424242), "expirou: o id saiu do registro da autoridade (unregister)")
+	main.carcasses.restore_list([entry])
+	node = main.carcasses.nodes()[0]
+	node.harvest()  # esvaziada
+	await _frames(3)
+	_check(main.carcasses.count() == 0 and main.authority.request_gather(1, 424242) == RESULT.UNKNOWN_TARGET,
+			"esvaziou: o id antigo também vira UNKNOWN_TARGET")
+	_check(not main.authority.is_registered(424242), "esvaziou: o id saiu do registro da autoridade (unregister)")
+
+
+## O domado de outro dono não disputa o alvo: nem toma o lugar da carcaça mais longe, nem vira alvo sozinho.
+func _test_target_foreign_tamed() -> void:
+	var main := await _quiet_world("d_foreign_target")
+	var foreign := main.wild.creature_at(0)
+	var dead := main.wild.creature_at(1)
+	_tame_for(foreign, "outro")
+	await _place(main, foreign, Vector2(0, 10))
+	_check(main.player.target == null, "o domado de outro, sozinho ao lado, não é alvo")
+	await _place(main, dead, Vector2(20, 0))
+	_kill(dead)
+	await _frames(3)
+	var carcass: ResourceNode = main.carcasses.nodes()[0]
+	_check(main.player.target == carcass.interactable, "o domado de outro, mais perto, não tira a carcaça do alvo")
+	var mine := main.wild.creature_at(2)
+	_tame_for(mine, main.player.player_id)
+	await _place(main, mine, Vector2(0, -12))
+	_check(main.player.target == mine.interactable, "o domado do próprio jogador continua sendo alvo")
+
+
+## Mundo real: o selvagem acordado a 3 tiles ganha o seu `WildLevelTag` (pendurado na `Main`), que mostra o nível
+## e acompanha o dino.
+func _test_wild_level_tag_in_world() -> void:
+	var main := await _quiet_world("d_level_tag")
+	var creature := main.wild.creature_at(0)
+	creature.level = 23
+	await _place(main, creature, Vector2(48, 0))  # 3 tiles
+	await _root.get_tree().process_frame  # a etiqueta se atualiza no `_process`, não na física
+	await _root.get_tree().process_frame
+	var tag: WildLevelTag = null
+	for child in main.get_children():
+		if child is WildLevelTag and (child as WildLevelTag).dino == creature:
+			tag = child
+	_check(tag != null, "o selvagem do mapa ganhou um WildLevelTag na Main")
+	if tag == null:
+		return
+	_check(tag.tag_visible() and tag.tag_text() == "Nv 23", "a 3 tiles, acordado: 'Nv 23' visível")
+	creature.global_position += Vector2(12, 7)
+	tag.tick()
+	_check(tag.global_position == creature.global_position, "a etiqueta acompanha o dino")

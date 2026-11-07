@@ -13,6 +13,7 @@ func run() -> void:
 	await _test_occupied_place_waits()
 	_release_worlds()
 	_test_occupancy_query()
+	_test_occupancy_shape_box()
 	await _test_command_denials()
 	_release_worlds()
 	await _test_highlight_and_markers()
@@ -120,6 +121,54 @@ func _test_occupancy_query() -> void:
 	_check(not query.is_cell_free(Vector2i(2, 2), 16.0) and query.is_cell_free(Vector2i(9, 9), 16.0), "consulta por tile")
 	body.free()
 	_check(query.is_free(Rect2(32, 32, 16, 16)), "corpo liberado não ocupa mais")
+
+
+## Corpo com caixa de colisão 10x10 deslocada +8 em x da origem do corpo, sobre o tile 32..48 (área com folga: 31..49).
+## Com o corpo em x, a caixa cobre de x+3 a x+13.
+func _test_occupancy_shape_box() -> void:
+	var query := TileOccupancy.new()
+	var body := Node2D.new()
+	var shape_node := CollisionShape2D.new()
+	var shape := RectangleShape2D.new()
+	shape.size = Vector2(10, 10)
+	shape_node.shape = shape
+	shape_node.position = Vector2(8, 0)
+	body.add_child(shape_node)
+	_root.add_child(body)
+	var holder: Array = [body]
+	query.add_source(func() -> Array: return holder)
+	var tile := Rect2(32, 32, 16, 16)
+	# Centro (origem) do corpo fora do tile, mas a caixa entra: ocupado.
+	body.global_position = Vector2(30, 40)  # caixa em x 33..43
+	_check(body.global_position.x < tile.position.x and not query.is_free(tile), "origem fora do tile, caixa dentro: ocupado")
+	body.global_position = Vector2(60, 40)  # caixa 63..73: longe
+	_check(query.is_free(tile), "caixa longe do tile: livre")
+	# Folga de 1 px: a caixa a 0,5 px fora do tile ainda ocupa; a 1,5 px fora, não.
+	body.global_position = Vector2(48.5 + 5.0 - 8.0, 40)  # caixa 48.5..58.5: começa 0,5 px fora do tile
+	_check(not query.is_free(tile), "caixa a 0,5 px fora do tile: ocupado (folga de 1 px)")
+	body.global_position = Vector2(49.5 + 5.0 - 8.0, 40)  # caixa 49.5..59.5: começa 1,5 px fora
+	_check(query.is_free(tile), "caixa a 1,5 px fora do tile: livre")
+	# O mesmo vale do outro lado (caixa terminando fora, à esquerda).
+	body.global_position = Vector2(31.5 - 5.0 - 8.0, 40)  # caixa 21.5..31.5 termina 0,5 px fora
+	_check(not query.is_free(tile), "caixa terminando 0,5 px antes do tile: ocupado")
+	body.global_position = Vector2(30.5 - 5.0 - 8.0, 40)  # termina em 30.5: 1,5 px fora
+	_check(query.is_free(tile), "caixa terminando 1,5 px antes do tile: livre")
+	# Deslocamento muda o resultado: o corpo fixo em (40, 40) com a forma deslocada para fora do tile.
+	body.global_position = Vector2(40, 40)
+	_check(not query.is_free(tile), "forma deslocada +8 com o corpo no tile: ocupado")
+	shape_node.position = Vector2(80, 0)
+	_check(query.is_free(tile) and tile.has_point(body.global_position),
+			"forma deslocada para longe: livre, embora o ponto do corpo esteja no tile")
+	# Forma desligada: vale o ponto do corpo.
+	shape_node.disabled = true
+	_check(not query.is_free(tile), "forma desligada: vale o ponto do corpo (no tile, ocupado)")
+	body.global_position = Vector2(100, 100)
+	_check(query.is_free(tile), "forma desligada e ponto fora do tile: livre")
+	shape_node.disabled = false
+	body.global_position = Vector2(20, 40)
+	shape_node.position = Vector2(20, 0)  # caixa 35..45 dentro do tile, origem do corpo (20) fora
+	_check(not query.is_free(tile), "forma ligada de novo conta pela caixa")
+	body.free()
 
 
 # ----------------------------------------------------------------------------- comando

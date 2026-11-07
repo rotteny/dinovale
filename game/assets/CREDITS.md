@@ -57,4 +57,5 @@ Licença dos assets próprios: CC BY 4.0 (ver `/ASSETS-LICENSE`). Código: MIT.
 | sounds/passo.ogg | terceiro | Beltrano | https://opengameart.org/... | CC0 | cortado | 2026-11-05 |
 | sprites/arvore.png | IA-placeholder | <ferramenta e modelo> | - | pendente | trocar antes do v0.2 | 2026-11-05 |
 -->
+| game/assets/sprites/ui/cursor.png (10x12) | propria | autoria do projeto, gerado por `docs/design/arte/gerar_cursor.gd` (sem IA, sem recorte de terceiros); cursor do mouse em seta, ponta no pixel 0,0 | - | CC-BY-4.0 | so cores da paleta do pacote registrado acima; conferido por script ao gravar; o jogo o amplia por vizinho mais proximo (`PixelCursor`) | 2026-11-07 |
 | game/assets/fonts/ValeMini.ttf, LEIA-ME.txt | terceiro | Kenney (Kenney Mini), derivada com fontTools para o Dino Vale (fonte "Vale Mini") | https://kenney.nl/assets/kenney-fonts | CC0 | minúsculas acentuadas redesenhadas (corpo da minúscula + 1 linha vazia + acento pixelado) e í ì ï com haste curta; maiúsculas e o resto inalterados; grade de 8 px | 2026-11-06 |

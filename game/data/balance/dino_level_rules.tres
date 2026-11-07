@@ -15,3 +15,5 @@ meals_slope = 0.015
 meals_floor = 0.85
 taming_bonus = 0.5
 taming_cap = 1.5
+level_tag_range_tiles = 6.0
+tile_size = 16

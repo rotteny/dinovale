@@ -26,6 +26,14 @@ const _EPSILON := 1e-9
 @export var taming_bonus: float = 0.5
 ## O nível final nunca passa de `taming_cap x nível selvagem`.
 @export var taming_cap: float = 1.5
+## Distância (em tiles) até a qual o jogador vê o "Nv N" sobre o selvagem.
+@export var level_tag_range_tiles: float = 6.0
+@export_range(4, 64) var tile_size: int = 16
+
+
+## Alcance do "Nv N" do selvagem, em pixels do mundo.
+func level_tag_range() -> float:
+	return level_tag_range_tiles * float(tile_size)
 
 
 func clamp_level(level: int) -> int:

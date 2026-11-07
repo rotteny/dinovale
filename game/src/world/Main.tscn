@@ -1,4 +1,4 @@
-[gd_scene load_steps=26 format=3]
+[gd_scene load_steps=27 format=3]
 
 [ext_resource type="PackedScene" path="res://src/entities/dino/Dino.tscn" id="1_dino"]
 
@@ -13,6 +13,7 @@
 [ext_resource type="Script" path="res://src/ui/DinoStatusBars.gd" id="6_bars"]
 [ext_resource type="Script" path="res://src/ui/DinoView.gd" id="7_view"]
 [ext_resource type="Script" path="res://src/ui/DinoMarker.gd" id="99_marker"]
+[ext_resource type="Script" path="res://src/ui/WildLevelTag.gd" id="98_tag"]
 [ext_resource type="PackedScene" path="res://src/world/Terrain.tscn" id="8_terrain"]
 [ext_resource type="Script" path="res://src/ui/PlayerView.gd" id="9_pview"]
 [ext_resource type="Script" path="res://src/ui/PlayerCamera.gd" id="22_camera"]
@@ -20,6 +21,7 @@
 [ext_resource type="AudioStream" path="res://assets/third_party/ninja-adventure/sounds/hit/hit1.wav" id="10_hit"]
 [ext_resource type="AudioStream" path="res://assets/third_party/ninja-adventure/sounds/pickup/powerup1.wav" id="11_tamed"]
 [ext_resource type="AudioStream" path="res://assets/third_party/ninja-adventure/sounds/swing/whoosh.wav" id="12_attack"]
+[ext_resource type="Script" path="res://src/ui/PixelCursor.gd" id="97_cursor"]
 
 [node name="Main" type="Node2D" node_paths=PackedStringArray("player", "screen", "dino", "authority", "pause", "hud", "death_screen", "resources")]
 y_sort_enabled = true
@@ -53,6 +55,11 @@ dino = NodePath("../Dino")
 [node name="DinoMarker" type="Node2D" parent="." node_paths=PackedStringArray("dino")]
 script = ExtResource("99_marker")
 dino = NodePath("../Dino")
+
+[node name="WildLevelTag" type="Node2D" parent="." node_paths=PackedStringArray("dino", "viewer")]
+script = ExtResource("98_tag")
+dino = NodePath("../Dino")
+viewer = NodePath("../Player")
 
 [node name="DinoView" type="Node2D" parent="." node_paths=PackedStringArray("dino")]
 script = ExtResource("7_view")
@@ -121,3 +128,6 @@ anchor_bottom = 1.0
 mouse_filter = 2
 script = ExtResource("13_pause")
 screen = NodePath("../InventoryScreen")
+
+[node name="PixelCursor" type="Node" parent="."]
+script = ExtResource("97_cursor")

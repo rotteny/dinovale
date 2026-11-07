@@ -38,6 +38,8 @@ func is_cell_free(cell: Vector2i, tile: float) -> bool:
 
 
 ## A caixa de colisão do corpo toca a área? Sem caixa, vale o ponto do corpo.
+## Limitações: só a PRIMEIRA `CollisionShape2D` filha conta, e rotação e escala dela (ou do corpo) são ignoradas:
+## a caixa é o `get_rect()` da forma deslocado pela posição global do nó da forma.
 func _touches(zone: Rect2, body: Node2D) -> bool:
 	for child in body.get_children():
 		var shape_node := child as CollisionShape2D

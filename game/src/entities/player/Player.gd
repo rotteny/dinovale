@@ -162,7 +162,7 @@ func update_target() -> void:
 	var best_distance := INF
 	var best_is_primary := false
 	for area in _in_range:
-		if not is_instance_valid(area) or not area.can_prompt():
+		if not is_instance_valid(area) or not area.can_prompt() or _is_others_tamed(area):
 			continue
 		var primary := area.entity is Dino and area.can_interact()
 		var distance := global_position.distance_squared_to(area.global_position)
@@ -173,6 +173,12 @@ func update_target() -> void:
 	if best != target:
 		target = best
 		target_changed.emit(target)
+
+
+## É o domado (com dono) de OUTRO jogador? Esse não é alvo: a tecla nada faria nele e ele não pode tomar o lugar de um nó de recurso.
+func _is_others_tamed(area: InteractableArea) -> bool:
+	var dino := area.entity as Dino
+	return dino != null and dino.can_command() and dino.owner_player_id != player_id
 
 
 ## Criatura mais próxima no alcance (o golpe não depende de qual interagível é o alvo).
@@ -300,10 +306,18 @@ func perform_gather(node: ResourceNode) -> String:
 		_hurt_hands(def.hand_self_damage * delivered_units)  # carcaça: 1 por item entregue, parcial ou não
 	elif not with_tool and left.is_empty():
 		_hurt_hands(def.hand_self_damage)  # o custo é por colheita COMPLETA, não por tentativa parcial
-	_gather_timer = def.gather_seconds * (float(delivered_units) / float(maxi(_total_units(def), 1)) if def.hand_damage_per_item else 1.0)
+	_gather_timer = _gather_cost(def, delivered_units)
 	for item_id: String in delivered:
 		gathered.emit(item_id, delivered[item_id])
 	return ""
+
+
+## Recarga da coleta: a da carcaça é proporcional às unidades entregues (parcial recarrega menos); a dos outros
+## nós é a inteira.
+func _gather_cost(def: ResourceNodeDef, delivered_units: int) -> float:
+	if not def.hand_damage_per_item:
+		return def.gather_seconds
+	return def.gather_seconds * float(delivered_units) / float(maxi(_total_units(def), 1))
 
 
 func _total_units(def: ResourceNodeDef) -> int:

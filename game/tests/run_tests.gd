@@ -25,6 +25,7 @@ func _run() -> void:
 	DinoLevelTests.new(root, _track, _check).run()
 	DinoReviewTests.new(root, _track, _check).run()
 	HudHotbarTests.new(root, _track, _check).run()
+	PresentationTests.new(root, _track, _check).run()
 	InventoryModelTests.new(root, _track, _check).run()
 	EquipmentFlowTests.new(root, _track, _check).run()
 	_free_tracked_nodes()

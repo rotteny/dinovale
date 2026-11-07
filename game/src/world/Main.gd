@@ -55,7 +55,7 @@ var occupancy := TileOccupancy.new()
 var _screen_target_id: int = 0
 var _quit_failed_once: bool = false
 var _last_failure_notice: String = ""
-var _wild_views: Dictionary = {}  # Dino -> [DinoView, DinoStatusBars] dos selvagens ativos
+var _wild_views: Dictionary = {}  # Dino -> [DinoView, DinoStatusBars, DinoMarker, WildLevelTag] dos selvagens ativos
 var _gather_notice: String = ""
 var _gather_notice_frame: int = -1
 ## O Continuar falhou: esta partida não existe de verdade (a cena volta ao título) e não grava nada.
@@ -351,7 +351,11 @@ func _attach_wild_views(creature: Dino) -> void:
 	add_child(view)
 	add_child(bars)
 	add_child(marker)  # só aparece se o dino for domado do jogador local
-	_wild_views[creature] = [view, bars, marker]
+	var tag := WildLevelTag.new()
+	tag.dino = creature
+	tag.viewer = player
+	add_child(tag)  # só aparece enquanto o dino for selvagem, vivo e perto
+	_wild_views[creature] = [view, bars, marker, tag]
 
 
 func _detach_wild_views(creature: Variant) -> void:

@@ -92,6 +92,11 @@ func entity(entity_id: int) -> Node:
 	return node as Node
 
 
+## O `entity_id` está registrado (mesmo que o nó já tenha saído)? Serve para provar `unregister`.
+func is_registered(entity_id: int) -> bool:
+	return _entities.has(entity_id)
+
+
 ## `entity_id` registrado do nó, ou 0.
 func id_of(node: Node) -> int:
 	if node == null:

@@ -7,6 +7,7 @@
 # Variáveis opcionais:
 #   GODOT         binário do Godot (padrão: godot)
 #   GDLINT        binário do gdlint (padrão: gdlint no PATH)
+#   TESTS_TIMEOUT_SECONDS  limite do passo de testes (padrão 600)
 #   REQUIRE_LINT  1 = falha se o gdlint não existir (o CI usa 1)
 #
 # Etapas extras: todo executável em tools/checks.d/*.sh roda no fim, em ordem
@@ -19,6 +20,8 @@ readonly GODOT="${GODOT:-godot}"
 readonly GDLINT="${GDLINT:-gdlint}"
 readonly REQUIRE_LINT="${REQUIRE_LINT:-0}"
 readonly STEP_TIMEOUT_SECONDS=180
+# A suíte de testes é mais longa (196 a 199 s sob carga): limite próprio.
+readonly TESTS_TIMEOUT_SECONDS="${TESTS_TIMEOUT_SECONDS:-600}"
 # Erro de script em GDScript não muda o exit code do Godot: a saída é a verdade.
 readonly GODOT_PROBLEM_PATTERN='(SCRIPT ERROR|Parse Error|(^|[^A-Za-z])(ERROR|WARNING):)'
 
@@ -44,9 +47,13 @@ show_problem_lines() {
 run_godot_step() {
   local step_name="$1"
   shift
+  local step_timeout="$STEP_TIMEOUT_SECONDS"
+  if [[ "$step_name" == "testes" ]]; then
+    step_timeout="$TESTS_TIMEOUT_SECONDS"
+  fi
   echo "==> $step_name"
   local exit_code=0
-  timeout "$STEP_TIMEOUT_SECONDS" "$GODOT" --headless --path "$GAME_DIR" "$@" 2>&1 \
+  timeout "$step_timeout" "$GODOT" --headless --path "$GAME_DIR" "$@" 2>&1 \
     | strip_ansi >"$LOG_FILE" || exit_code=${PIPESTATUS[0]}
   tail -n 5 "$LOG_FILE"
   if [[ "$exit_code" -ne 0 ]]; then

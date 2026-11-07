@@ -15,7 +15,9 @@ Fonte de verdade para rodar o projeto: `game/README.md` (seção Como rodar). O 
 
 `tools/check.sh` roda: import, testes, cena do jogo (`Main`, 120 quadros), cena inicial (120 quadros), lint e `tools/checks.d/*.sh` (testes de arquitetura). Falha por código de saída **ou** por `ERROR`/`WARNING` na saída da engine. Se ele não existir ou estiver quebrado, avise em vez de contornar. Variáveis: `GODOT` (binário), `GDLINT` (binário do lint), `REQUIRE_LINT=1` (reprova se não houver gdlint; o CI usa).
 
-**Rode o `tools/check.sh` em primeiro plano** e espere o fim: cada passo tem limite de 180 s (`STEP_TIMEOUT_SECONDS`), a saída é a verdade (erro de script em GDScript não muda o código de saída) e rodá-lo em segundo plano ou cortá-lo por tempo externo esconde falha. Não declare pronto com base num passo isolado.
+**Uma suíte só:** `godot --headless --path game --script res://tests/run_tests.gd -- --suite=ServerRules` (nome da classe, com ou sem o sufixo `Tests`). No fim o runner imprime o tempo de cada suíte, da mais lenta para a mais rápida, e toda falha sai como `FALHOU: <teste> [suíte <nome>]`.
+
+**Rode o `tools/check.sh` em primeiro plano** e espere o fim: cada passo tem limite de 180 s (`STEP_TIMEOUT_SECONDS`; o de testes tem `TESTS_TIMEOUT_SECONDS`, padrão 600), a saída é a verdade (erro de script em GDScript não muda o código de saída) e rodá-lo em segundo plano ou cortá-lo por tempo externo esconde falha. Não declare pronto com base num passo isolado.
 
 ## Requisitos
 

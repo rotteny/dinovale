@@ -15,6 +15,10 @@ Uma tarefa só está pronta quando:
 7. Houve **revisão independente antes do merge**, quando a tarefa mexe em lógica compartilhada, save ou rede (quem revisa não é quem implementou).
 8. O jogo foi rodado, quando a mudança é visível (ver `testes-e-validacao.md`).
 
+## Fluxo da v0.2: etapas pequenas
+
+A ordem de execução da v0.2 é a lista de etapas de `docs/design/corte-v02/shikamaru.md` (decisões em `decisoes-0611-0711.md`). Cada etapa é **uma entrega jogável** com no máximo 2 tarefas de código: a implementação é revisada por QA **por etapa**, depois fecha com **um commit local** (sem push), e o dono joga antes de a próxima começar. Etapa sem revisão de QA não é base para a seguinte.
+
 ## Limite de escopo por tarefa
 
 - Uma tarefa, um objetivo. Mexa só nos arquivos que o briefing lista. Precisou de outro? Pare e peça.
@@ -35,7 +39,7 @@ Uma pessoa pode acumular vários; uma IA recebe um por tarefa.
 | Arte e som | Guia de arte, sprites, tilesets, SFX; segue `arte-e-licencas.md` |
 | Landing | Só `html/`. Não toca na UI do jogo |
 | Testes e revisão independente | Testes, testes de arquitetura, revisão de código antes do merge |
-| Arquitetura | ADRs: autoridade, formato de save, ids e registries |
+| Arquitetura | ADRs: autoridade, formato de save, ids e registries, regras do servidor |
 | Infraestrutura | CI, scripts de build, releases |
 | Segurança | Gate de segurança de rede (a partir do co-op) |
 

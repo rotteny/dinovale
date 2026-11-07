@@ -38,4 +38,5 @@ tools/check.sh
 | Sprites, sons, tilesets, ícones, `CREDITS.md`, licenças | `docs/contexto/arte-e-licencas.md` |
 | Regras de jogo, balanceamento, nomes e textos do jogo, originalidade | `docs/contexto/game-design.md` |
 | Escopo da tarefa, definição de pronto, papéis, revisão, commits | `docs/contexto/contribuicao.md` |
+| Decisões recentes do dono e etapas da v0.2 | `docs/design/corte-v02/` (`decisoes-0611-0711.md` primeiro) |
 | Landing em `html/` | `docs/contexto/contribuicao.md` (papéis) e `README.md` |

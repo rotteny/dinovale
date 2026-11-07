@@ -22,7 +22,7 @@ Toda criatura tem uma barra de **torpor**, separada da vida. Quando o torpor che
 
 ### Inspirações
 
-Dino Vale é inspirado em jogos que admiramos: *ARK: Survival Evolved*, pela domesticação de criaturas e pela sobrevivência; *Stardew Valley*, pelo ritmo de cuidar de um lugar seu; e *Terraria*, pela exploração e pela construção em 2D.
+Dino Vale é inspirado em jogos que admiramos: *ARK: Survival Evolved*, pela domesticação de criaturas e pela sobrevivência; *Stardew Valley*, pelo ritmo de cuidar de um lugar seu e pelo visual de fazenda em pixel art; e *Terraria*, pela exploração e pela construção em 2D.
 
 Dino Vale é um projeto independente, sem vínculo com esses jogos ou com seus criadores. Todos os nomes pertencem aos seus respectivos donos.
 

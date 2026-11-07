@@ -59,9 +59,9 @@ Dependências: E3b.
 Risco: SOB-15 é "provisório" e não tem aceite na proposta da `SHIRO`. Aceite que proponho: desmaio de 8 s ao lado de um Utahraptor L20 tira 40 a 48 de vida e não mata; de 20 s abre a tela de morte. Os dois valores em dado; o QA-01a escolhe.
 
 **E5. Corpo e respawn por região.**
-Objetivo: morrer é barato e claro: o corpo guarda tudo por 10 min e a tela de morte oferece as 3 regiões.
-Tarefas: SOB-02 (corpo com itens, 10 min), SOB-12 (tela com lista única; só as 3 regiões agora; Cama e Saco entram na E12; sorteio com 30 tentativas, distância de Agressivo/Semi, ponto reserva, proteção de 3 s; `RespawnPicker`/`RespawnRules` já existem).
-Dono testa: morrer na Pedreira, renascer na Campina, voltar e pegar tudo do corpo; morrer com o corpo já no chão (limite).
+Objetivo: morrer é barato e claro: o corpo guarda tudo por 10 min e a tela de morte oferece "Local aleatório" (ilha inteira, regiões como reserva; provisório, GDD 12.2).
+Tarefas: SOB-02 (corpo com itens, 10 min), SOB-12 (tela com lista única; só "Local aleatório" agora (sorteio na ilha inteira, regiões em dados como reserva); Cama e Saco entram na E12; sorteio com 30 tentativas, distância de Agressivo/Semi, ponto reserva, proteção de 3 s; `RespawnPicker`/`RespawnRules` já existem).
+Dono testa: morrer e renascer longe de Utahraptor, voltar e pegar tudo do corpo; morrer com o corpo já no chão (limite).
 Dependências: E4.
 Risco: estado de morto no save (o gatilho formal é do SAV-04b, E18); aqui só o corpo precisa persistir.
 Nota: é a única etapa do bloco A que poderia ir para depois do QA-01a (renascer só na Campina, como no M1), se o dono aceitar testar sem corpo. Mantenho antes: ser devorado sem consequência não testa a ameaça.

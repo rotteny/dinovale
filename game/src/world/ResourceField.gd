@@ -12,6 +12,10 @@ const NodeScene: PackedScene = preload("res://src/entities/resource/ResourceNode
 var occupancy: TileOccupancy = null
 
 ## Nós por id. Montado no primeiro uso a partir dos filhos.
+## Regras do servidor para os nós criados por `populate` (1,0 = as do dado). Defina antes de `populate`.
+var yield_multiplier: float = 1.0
+var respawn_rate: float = 1.0
+
 var _by_id: Dictionary = {}
 var _indexed: bool = false
 
@@ -41,6 +45,8 @@ func populate(map: IslandMap, rules: WorldRules) -> int:
 			node.node_id = "%s_%d" % [kind, i + 1]
 			node.def = def
 			node.position = map.center_of(cell)
+			node.yield_multiplier = yield_multiplier
+			node.respawn_rate = respawn_rate
 			if kind == "loose_stone" and i < map.loose_core_count:  # o exportador põe as do núcleo primeiro
 				node.respawn_override = rules.loose_core_respawn_seconds
 			add_node(node)

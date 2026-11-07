@@ -203,6 +203,16 @@ rule_no_global_rng() {
     "src/entities/dino/DinoStateMachine.gd=remover na tarefa de seed derivada (ADR-001 NET-01 / ADR-003: hash([seed, entity_id]))"
 }
 
+# ADR-004: só o host lê o arquivo de regras do servidor; ninguém escreve num campo do ServerRules depois da carga
+# (ele é imutável na sessão; nada de UI nem componente chamando `load_file`).
+rule_server_rules_only_host_loads_and_nobody_writes() {
+  {
+    index_grep 'src/(?!world/Main\.gd)' '\bServerRules\.load_file\('
+    index_grep 'src/' '\bserver_rules\.\w+\s*(?:[-+*/]?=)(?!=)'
+  } | judge "ServerRules: só o host carrega, ninguém escreve" \
+    "o host (Main) chama ServerRules.load_file uma vez; consumidor recebe o valor e não muda o ServerRules (ADR-004)"
+}
+
 # Todo script com to_dict consta na tabela de roundtrip por JSON, e só ele.
 rule_every_saveable_is_in_roundtrip_table() {
   local saveables tabled
@@ -266,6 +276,7 @@ main() {
   rule_input_only_in_controller_and_ui
   rule_ui_does_not_call_mutators
   rule_no_global_rng
+  rule_server_rules_only_host_loads_and_nobody_writes
   rule_every_saveable_is_in_roundtrip_table
   rule_from_dict_does_not_emit_game_events
 

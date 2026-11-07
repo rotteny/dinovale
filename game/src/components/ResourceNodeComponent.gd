@@ -17,6 +17,10 @@ var depleted: bool = false
 var respawn_left: float = 0.0
 ## Tempo de volta próprio deste nó (a pedra avulsa do núcleo volta mais cedo). 0 = o do tipo.
 var respawn_override: float = 0.0
+## Regras do servidor (ADR-004): multiplica o que a colheita entrega e acelera a volta do nó (2 = volta em metade do
+## tempo). 1,0 é a identidade. O mundo define ao criar o nó; nunca muda na sessão.
+var yield_multiplier: float = 1.0
+var respawn_rate: float = 1.0
 ## O que sobrou no nó numa colheita parcial (item -> unidades): o inventário não coube tudo e "o que sobra
 ## fica no arbusto" (mapa-ilha.md 8). Vazio = nó inteiro. Nó parcial segue disponível e vai ao save.
 var leftover: Dictionary = {}
@@ -62,9 +66,8 @@ func is_waiting() -> bool:
 
 ## Segundos até um nó esgotado voltar: o do próprio nó ou, sem ele, o do tipo.
 func respawn_total() -> float:
-	if respawn_override > 0.0:
-		return respawn_override
-	return def.respawn_seconds if def != null else 0.0
+	var base := respawn_override if respawn_override > 0.0 else (def.respawn_seconds if def != null else 0.0)
+	return base / maxf(respawn_rate, 0.001)
 
 
 func is_available() -> bool:
@@ -79,7 +82,18 @@ func is_partial() -> bool:
 func pending_yields() -> Dictionary:
 	if def == null or depleted:
 		return {}
-	return leftover.duplicate() if is_partial() else def.total_yields()
+	return leftover.duplicate() if is_partial() else full_yields()
+
+
+## A colheita inteira deste nó (item -> unidades), já com o multiplicador do servidor: `maxi(1, roundi(x mult))`.
+func full_yields() -> Dictionary:
+	var scaled: Dictionary = {}
+	if def == null:
+		return scaled
+	var base := def.total_yields()
+	for item_id: String in base:
+		scaled[item_id] = maxi(1, roundi(float(base[item_id]) * yield_multiplier))
+	return scaled
 
 
 ## Colheita parcial: o que não coube continua no nó, que não esgota nem começa a contar tempo.
@@ -99,7 +113,7 @@ func harvest() -> int:
 	_retry_left = 0.0
 	set_physics_process(true)
 	changed.emit()
-	return def.yield_amount
+	return int(full_yields().get(def.item_id, def.yield_amount))
 
 
 func to_dict() -> Dictionary:
@@ -123,7 +137,7 @@ func from_dict(data: Dictionary) -> void:
 ## Só itens que a colheita do tipo entrega e no máximo a quantidade dela (dado de fora não é confiável).
 func _read_leftover(raw: Variant) -> Dictionary:
 	var kept: Dictionary = {}
-	var all := def.total_yields()
+	var all := full_yields()
 	var source := SafeRead.dict(raw)
 	for item_id: Variant in source:
 		var key := str(item_id)

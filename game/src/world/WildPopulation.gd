@@ -18,6 +18,11 @@ const DINO_SCENE: PackedScene = preload("res://src/entities/dino/Dino.tscn")
 const TYPE_TAMED := "tamed_dino"
 ## Teto de entradas lidas de um save (dado de fora não é confiável).
 const MAX_ENTRIES := 1024
+## Espécies do mapa, na ordem em que nascem (a ordem fixa o índice do delta: nunca reordenar, só acrescentar).
+const SPECIES: Array[DinoBaseStats] = [
+	preload("res://data/dino/placeholder_dino.tres"),
+	preload("res://data/dino/utahraptor.tres"),
+]
 const FALLBACK_ID_BASE := 1 << 20
 
 ## Para registrar quem é recriado (a criatura registrada acha o dono por aqui).
@@ -27,6 +32,11 @@ var last_restored: Array[Dino] = []
 ## Os que o último `restore` recriou a partir de entidade (o chamador põe na zona).
 var last_adopted: Array[Dino] = []
 
+## Quem os agressivos perseguem (devolve `Array` de `Node2D`); o mundo preenche.
+var target_locator: Callable = Callable()
+## Regras de doma deste mundo (cópia com as chaves do `ServerRules`); null = as do `preload` de cada dino.
+var taming_rules: TamingRules = null
+
 var _by_index: Dictionary = {}  # int -> Dino
 var _index_of: Dictionary = {}  # Dino -> int
 var _dead: Dictionary = {}  # int -> true
@@ -35,30 +45,56 @@ var _adopted: Array = []  # Dino (pode ter sido liberado: sempre passar por `ado
 var _ids: Dictionary = {}  # Dino -> id gravado na entidade (0 = qualquer livre)
 
 
-## Cria os selvagens (no máximo `limit`), pulando a célula do tutorial e as repetidas. Devolve a lista.
+## Cria os selvagens de cada espécie (no máximo `limit` por espécie), pulando a célula do tutorial e as repetidas.
+## Os índices correm pela ordem de `SPECIES`, depois pela ordem do mapa. Devolve a lista.
 func populate(map: IslandMap, rules: WorldRules, skip_cell: Vector2i, limit: int) -> Array[Dino]:
 	var rng := SeededRng.new()
 	rng.seed_from(["wild", map.seed_value])
 	var created: Array[Dino] = []
-	var cells: Array = map.spawns.get("paquicefalo", [])
-	var seen := {}
-	for cell: Vector2i in cells:
-		if created.size() >= limit:
-			break
-		if cell == skip_cell or seen.has(cell):
-			continue
-		seen[cell] = true
-		var band := rules.level_band_of(map.terrain_at(cell))
-		var creature: Dino = DINO_SCENE.instantiate()
-		creature.level = band.x + rng.next_below(band.y - band.x + 1)
-		creature.position = map.center_of(cell)
-		add_child(creature)
-		var index := created.size()
-		_by_index[index] = creature
-		_index_of[creature] = index
-		creature.health.died.connect(_on_died.bind(creature))
-		created.append(creature)
+	for kind in SPECIES:
+		var cells: Array = map.spawns.get(kind.spawn_key, [])
+		var seen := {}
+		var count := 0
+		for cell: Vector2i in cells:
+			if count >= limit:
+				break
+			if cell == skip_cell or seen.has(cell):
+				continue
+			seen[cell] = true
+			var band := rules.level_band_of(map.terrain_at(cell))
+			var creature := _make_creature(kind)
+			creature.level = band.x + rng.next_below(band.y - band.x + 1)
+			creature.position = map.center_of(cell)
+			add_child(creature)
+			_apply_rules(creature)
+			var index := created.size()
+			_by_index[index] = creature
+			_index_of[creature] = index
+			creature.health.died.connect(_on_died.bind(creature))
+			created.append(creature)
+			count += 1
 	return created
+
+
+## Espécie pelo id salvo; desconhecido (ou ausente, save antigo) cai na primeira.
+static func species_by_id(species_id: String) -> DinoBaseStats:
+	for kind in SPECIES:
+		if kind.id == species_id:
+			return kind
+	return SPECIES[0]
+
+
+func _make_creature(kind: DinoBaseStats) -> Dino:
+	var creature: Dino = DINO_SCENE.instantiate()
+	creature.stats = kind
+	creature.target_locator = target_locator
+	return creature
+
+
+## As regras de doma do mundo (só depois de entrar na árvore: o componente é filho).
+func _apply_rules(creature: Dino) -> void:
+	if taming_rules != null:
+		creature.taming.rules = taming_rules
 
 
 func index_of(creature: Dino) -> int:
@@ -271,8 +307,9 @@ func _state_is_dead(state: Variant) -> bool:
 func _adopt(state: Dictionary, created: Array[Dino], saved_id: int = 0) -> bool:
 	if _state_is_dead(state):
 		return true
-	var creature: Dino = DINO_SCENE.instantiate()
+	var creature := _make_creature(species_by_id(SafeRead.text(state.get("species"), "")))
 	add_child(creature)
+	_apply_rules(creature)
 	if not creature.from_dict(state):
 		creature.free()
 		return false

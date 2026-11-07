@@ -604,7 +604,8 @@ func _test_continue_failure() -> void:
 		main.scheduler.request(R.AUTOSAVE)
 		main.player.health.take_damage(10000.0)
 		await _root.get_tree().process_frame
-		_check(_read_raw(manager.main_path()) == case[1] and _dir_files(manager) == ["world.json"],
+		var saved_files := _dir_files(manager).filter(func(name: String) -> bool: return name != ServerRules.FILE_NAME)
+		_check(_read_raw(manager.main_path()) == case[1] and saved_files == ["world.json"],
 				"%s: o arquivo recusado sobrevive idêntico e nada novo foi gravado" % case[0])
 	GameSession.notice = "O jogo recusou o save."
 	var title := _title(root_dir + "/title_notice")

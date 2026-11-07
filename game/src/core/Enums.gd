@@ -4,7 +4,7 @@ extends RefCounted
 ## Enums compartilhados. Em saves, grave o NOME do valor, não o número:
 ## assim reordenar um enum não corrompe mundos antigos.
 
-enum DinoStateId { IDLE, WANDER, UNCONSCIOUS, TAMED }
+enum DinoStateId { IDLE, WANDER, UNCONSCIOUS, TAMED, CHASE }
 
 ## Ordem de movimento do dino domado (GDD 6.11). STAY é o padrão de quem acabou de ser domado.
 enum DinoOrder { STAY, FOLLOW }

@@ -22,3 +22,20 @@ extends Resource
 @export var carcass_texture: Texture2D
 ## Caixa de colisão do corpo, em pixels (largura, altura). O corpo a lê ao nascer.
 @export var hitbox_size: Vector2 = Vector2(24.0, 16.0)
+## Chave desta espécie em `IslandMap.spawns` (onde ela nasce no mapa).
+@export var spawn_key: String = "paquicefalo"
+## Comida ideal da doma (id de `Items`).
+@export var ideal_food: String = "berry"
+## Agressivo (GDD 6.7): ao avistar o jogador, persegue. Falso = não persegue (os demais tipos de Conduta vêm depois).
+@export var aggressive: bool = false
+## Percepção do agressivo, em tiles: a distância efetiva é `raiz(dx² + (peso x dy)²)`; 8 e 1,6 dão a elipse
+## de 8 tiles na horizontal e 5 na vertical (GDD 4.2).
+@export_range(1.0, 32.0) var perception_tiles: float = 8.0
+@export_range(1.0, 4.0) var perception_vertical_weight: float = 1.6
+## Velocidade da perseguição, em pixels por segundo (GDD 6.7: 90).
+@export_range(1.0, 400.0) var chase_speed: float = 90.0
+## Desiste com o alvo a mais de tantos tiles, ou depois de tantos segundos perseguindo (GDD 6.7: 20 tiles, 15 s).
+@export_range(1.0, 64.0) var chase_give_up_tiles: float = 20.0
+@export_range(1.0, 120.0) var chase_max_seconds: float = 15.0
+## Depois de desistir, segundos sem voltar a perseguir (alerta do GDD 6.7: 5 s).
+@export_range(0.0, 60.0) var alert_seconds: float = 5.0

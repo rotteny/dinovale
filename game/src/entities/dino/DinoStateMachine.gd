@@ -6,6 +6,7 @@ extends Node
 ## servidor headless.
 ##
 ##   IDLE <-> WANDER
+##   IDLE/WANDER -> CHASE -> IDLE     (agressivo avista o alvo; desiste por distância, tempo ou sem alvo)
 ##   qualquer estado -> UNCONSCIOUS   (TorporComponent.knocked_out)
 ##   UNCONSCIOUS -> IDLE              (acordou selvagem)
 ##   UNCONSCIOUS -> TAMED             (mark_tamed, ou acordou já domesticado)
@@ -36,6 +37,15 @@ var speed_multiplier := 1.0
 var self_position := Vector2.ZERO
 var owner_position := Vector2.ZERO
 var owner_known := false
+## Atributos da espécie (percepção e perseguição); só o agressivo os usa. Preenchido por `configure`.
+var stats: DinoBaseStats = null
+## Velocidade de andar do corpo, em pixels por segundo, e lado do tile: a perseguição vira multiplicador sobre ela.
+var walk_speed := 40.0
+var tile_px := 16.0
+## Alvo da perseguição (o corpo informa por `observe_target`); `target_known` falso = nenhum à vista.
+var target_position := Vector2.ZERO
+var target_known := false
+var _alert_left := 0.0
 
 var _states: Dictionary = {}
 
@@ -57,6 +67,7 @@ func start() -> void:
 		Enums.DinoStateId.WANDER: DinoWanderState.new(),
 		Enums.DinoStateId.UNCONSCIOUS: DinoUnconsciousState.new(),
 		Enums.DinoStateId.TAMED: DinoTamedState.new(),
+		Enums.DinoStateId.CHASE: DinoChaseState.new(),
 	}
 	for state: DinoState in _states.values():
 		state.machine = self
@@ -67,7 +78,47 @@ func start() -> void:
 
 
 func tick(delta: float) -> void:
+	_alert_left = maxf(_alert_left - delta, 0.0)
+	if _can_start_chase():
+		transition_to(Enums.DinoStateId.CHASE)
 	_states[current_id].tick(delta)
+
+
+## Dados da espécie e do corpo para a percepção e a perseguição.
+func configure(species: DinoBaseStats, body_speed: float, tile_size: float) -> void:
+	stats = species
+	walk_speed = maxf(body_speed, 1.0)
+	tile_px = tile_size
+
+
+## O corpo informa o alvo mais próximo que pode ser perseguido (`known` falso = nenhum).
+func observe_target(at: Vector2, known: bool) -> void:
+	target_position = at
+	target_known = known
+
+
+## Distância efetiva ao alvo (elipse do GDD 4.2: o vertical pesa mais), em pixels.
+func target_distance() -> float:
+	var offset := target_position - self_position
+	var weight := stats.perception_vertical_weight if stats != null else 1.0
+	return Vector2(offset.x, offset.y * weight).length()
+
+
+func chase_speed_multiplier() -> float:
+	return stats.chase_speed / walk_speed if stats != null else 1.0
+
+
+## Entra em alerta: não persegue de novo por `alert_seconds` (chamado ao sair da perseguição).
+func start_alert() -> void:
+	_alert_left = stats.alert_seconds if stats != null else 0.0
+
+
+func _can_start_chase() -> bool:
+	if stats == null or not stats.aggressive or is_tamed or not target_known or _alert_left > 0.0:
+		return false
+	if current_id != Enums.DinoStateId.IDLE and current_id != Enums.DinoStateId.WANDER:
+		return false
+	return target_distance() <= stats.perception_tiles * tile_px
 
 
 ## O corpo informa onde a criatura está e onde o dono está (`known` falso = dono ausente do mundo).

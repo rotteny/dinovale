@@ -14,6 +14,9 @@ const TILE_PX := 16.0
 @export var def: ResourceNodeDef
 ## Tempo de volta próprio (0 = o do tipo); vai para o componente ao nascer.
 @export var respawn_override: float = 0.0
+## Regras do servidor (`ServerRules`): multiplicador de coleta e velocidade de volta; 1,0 = as do dado.
+@export var yield_multiplier: float = 1.0
+@export var respawn_rate: float = 1.0
 
 ## Consulta de ocupação do chão (o campo a entrega): o nó só volta se o lugar estiver livre.
 var occupancy: TileOccupancy = null
@@ -28,6 +31,8 @@ var _shape: CollisionShape2D = null
 func _ready() -> void:
 	component.def = def
 	component.respawn_override = respawn_override
+	component.yield_multiplier = yield_multiplier
+	component.respawn_rate = respawn_rate
 	component.can_return = _place_is_free
 	interactable.entity = self
 	interactable.prompt = def.prompt if def != null else "colher"

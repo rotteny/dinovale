@@ -40,6 +40,8 @@ var feeder_player_id: String = ""
 ## Resolve um `player_id` no corpo do jogador no mundo (ou null se não está). A autoridade o preenche ao
 ## registrar a criatura; sem ele a ordem Seguir não encontra o dono e o dino fica parado.
 var player_locator: Callable = Callable()
+## Devolve os corpos que o agressivo pode perseguir (`Array` de `Node2D`; o mundo preenche). Sem ele, ninguém é alvo.
+var target_locator: Callable = Callable()
 
 var _restoring: bool = false
 
@@ -73,6 +75,7 @@ func _ready() -> void:
 
 func _physics_process(_delta: float) -> void:
 	observe_owner()
+	observe_targets()
 	velocity = state_machine.desired_direction * move_speed * state_machine.speed_multiplier \
 			* torpor.movement_multiplier()
 	move_and_slide()
@@ -87,6 +90,24 @@ func observe_owner() -> void:
 		owner_body = player_locator.call(owner_player_id) as Node2D
 	var present := owner_body != null and not _is_dead_body(owner_body)
 	state_machine.observe(global_position, owner_body.global_position if present else Vector2.ZERO, present)
+
+
+## Informa à máquina o alvo vivo mais próximo (só o agressivo procura). Público para testar sem quadros.
+func observe_targets() -> void:
+	if not stats.aggressive or state_machine.is_tamed or not target_locator.is_valid():
+		state_machine.observe_target(Vector2.ZERO, false)
+		return
+	var best: Node2D = null
+	var best_distance := INF
+	for candidate: Variant in target_locator.call():
+		var body := candidate as Node2D
+		if body == null or not is_instance_valid(body) or _is_dead_body(body):
+			continue
+		var distance := global_position.distance_squared_to(body.global_position)
+		if distance < best_distance:
+			best = body
+			best_distance = distance
+	state_machine.observe_target(best.global_position if best != null else Vector2.ZERO, best != null)
 
 
 ## Reavalia o prompt depois de o dono mudar fora do fluxo normal (ex.: dono corrigido ao carregar).
@@ -164,6 +185,8 @@ func _apply_level() -> void:
 	attack_damage = level_rules.damage(stats.base_damage, level)
 	taming.level = level
 	taming.stats = stats
+	taming.ideal_food = stats.ideal_food
+	state_machine.configure(stats, move_speed, float(level_rules.tile_size))
 	taming.level_rules = level_rules
 	if not _restoring:
 		level_changed.emit(level)
@@ -195,6 +218,7 @@ func _refresh_prompt() -> void:
 
 func to_dict() -> Dictionary:
 	return {
+		"species": stats.id,
 		"position": {"x": position.x, "y": position.y},
 		"level": level,
 		"health": health.to_dict(),

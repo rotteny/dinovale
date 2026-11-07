@@ -679,9 +679,10 @@ func _test_zone_in_main() -> void:
 		var right := again.wild.get_child(i) as Dino
 		same = same and left.position == right.position and left.level == right.level
 	_check(same, "o mesmo mapa dá os mesmos selvagens, nos mesmos lugares e níveis")
-	_check(zone.dino_count() == main.world_rules.wild_population_max
-		and main.wild.get_child_count() == main.world_rules.wild_population_max - 1,
-			"a ilha nasce com 108 paquicéfalos: o do tutorial e 107 pelo mapa (%d)" % zone.dino_count())
+	var predators: int = main.map.spawns["utahraptor"].size()
+	_check(predators == 10 and zone.dino_count() == main.world_rules.wild_population_max + predators
+		and main.wild.get_child_count() == main.world_rules.wild_population_max - 1 + predators,
+			"a ilha nasce com 108 paquicéfalos (o do tutorial e 107 pelo mapa) e 10 utahraptores (%d)" % zone.dino_count())
 	_check(zone.active_count + zone.far_count + zone.dormant_count == zone.dino_count() and zone.active_count <= 32,
 			"todo dino tem modo e o teto vale")
 	_check(zone.far_count > 0 and zone.dormant_count > 0, "do início há dino distante e dormindo")
@@ -744,7 +745,7 @@ func _test_zone_in_main() -> void:
 	var gone: Dino = main.wild.get_child(0)
 	gone.free()
 	zone.reclassify()
-	_check(zone.dino_count() == main.world_rules.wild_population_max - 1, "dino removido sai da zona")
+	_check(zone.dino_count() == main.world_rules.wild_population_max + 10 - 1, "dino removido sai da zona")
 
 
 func _test_zone_load_360() -> void:

@@ -324,6 +324,32 @@ def spawns(site, rng, placer):
     return out
 
 
+# Utahraptores por toca (mapa-ilha.md 5: U1 sentinela com 1; U2 a U6 bandos de 1 a 2; 10 no total, como na
+# tabela de 360 dinos). [premissa] quais bandos tem 1 e quais tem 2: U4 e a sentinela U1 ficam com 1.
+UTAHRAPTOR_PER_DEN = {"U1": 1, "U2": 2, "U3": 2, "U4": 1, "U5": 2, "U6": 2}
+UTAHRAPTOR_RADIUS = 5  # tiles em volta da toca (a ronda do CRI-12 e de 10; nascer perto basta)
+
+
+def utahraptor_spawns(site, placer, taken):
+    """Celulas dos Utahraptores, na ordem das tocas (U1..U6). Semente propria: nao mexe no sorteio dos
+    paquicefalos (os indices deles no save continuam valendo)."""
+    rng = random.Random(m.SEED * 104729 + 7)
+    out = []
+    used = set(taken)
+    for name in sorted(UTAHRAPTOR_PER_DEN):
+        den = site["tocas"][name]
+        near = [(x, y) for y in range(den[1] - UTAHRAPTOR_RADIUS, den[1] + UTAHRAPTOR_RADIUS + 1)
+                for x in range(den[0] - UTAHRAPTOR_RADIUS, den[0] + UTAHRAPTOR_RADIUS + 1)
+                if 0 <= x < m.S and 0 <= y < m.S and (x, y) in m.MAIN and m.DSEA[y][x] >= 5
+                and biome_of(x, y) == "M" and (x, y) not in placer.blocked and (x, y) not in used
+                and 2 <= math.hypot(x - den[0], y - den[1]) <= UTAHRAPTOR_RADIUS]
+        for _ in range(UTAHRAPTOR_PER_DEN[name]):
+            cell = near.pop(rng.randrange(len(near)))
+            used.add(cell)
+            out.append(cell)
+    return out
+
+
 def export():
     m.preparar(256)
     rng = random.Random(m.SEED * 7919 + 13)
@@ -335,6 +361,7 @@ def export():
         placer.add(kind, x, y)
     ratio, seen = reachable_ratio(placer, start)
     sp = spawns(site, rng, placer)
+    ut = utahraptor_spawns(site, placer, sp)
     scenery = {"formation_a": [], "formation_b": [], "formation_c": []}
     for kind, x, y in forms:
         scenery[kind].append((x, y))
@@ -367,7 +394,7 @@ def export():
         "nodes": {k: [list(p) for p in sorted(v)] for k, v in nodes.items()},
         "loose_stone_respawn": {"core": 300, "trail": 600, "core_count": len(loose_core)},
         "scenery": {k: [list(p) for p in v] for k, v in scenery.items()},
-        "spawns": {"paquicefalo": [list(p) for p in sp]},
+        "spawns": {"paquicefalo": [list(p) for p in sp], "utahraptor": [list(p) for p in ut]},
     }
     return data, ratio
 
@@ -394,7 +421,8 @@ def main():
     n = data["nodes"]
     print("gravado %s (%d bytes)" % (path, len(text.encode())))
     print("nos:", {k: len(v) for k, v in n.items()}, "| cenario:", {k: len(v) for k, v in data["scenery"].items()},
-          "| paquicefalos:", len(data["spawns"]["paquicefalo"]))
+          "| paquicefalos:", len(data["spawns"]["paquicefalo"]),
+          "| utahraptores:", len(data["spawns"]["utahraptor"]))
     print("terra firme alcancavel a pe, com obstaculos: %.2f%%" % (ratio * 100))
 
 

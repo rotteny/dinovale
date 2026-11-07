@@ -43,6 +43,11 @@ var pending_death_choice: bool = false
 var save_manager: SaveManager
 var scheduler: SaveScheduler
 
+## Regras do servidor deste mundo (ADR-004), lidas uma vez ao carregar. `respawn_rules`, `world_rules` e `taming_rules`
+## passam a ser as cópias com as chaves aplicadas; as Resources do `preload` nunca são alteradas.
+var server_rules: ServerRules
+var taming_rules: TamingRules
+
 ## Zona ativa dos dinos (MUN-05) e o grupo onde os selvagens do mapa moram.
 var zone: DinoZone
 var wild: WildPopulation
@@ -65,6 +70,7 @@ var _respawn_count: int = 0
 
 
 func _ready() -> void:
+	_load_server_rules()
 	map = IslandMap.default_map()
 	_place_on_island()
 	dino.level = dino_level
@@ -107,6 +113,27 @@ func _ready() -> void:
 		_continue_saved_game()
 
 
+## Lê `server_rules.json` do mundo (ou o caminho de `--server-rules=`) e aplica as chaves sobre cópias das regras.
+## Só o host chama isto (ADR-004). Arquivo ruim nunca impede o mundo de abrir: avisa e usa os padrões.
+func _load_server_rules() -> void:
+	var defaults := ServerRulesDefaults.new(respawn_rules, world_rules, dino.taming.rules)
+	var world_dir := GameSession.save_root.path_join(
+			world_id if SaveManager.is_valid_world_id(world_id) else GameSession.DEFAULT_WORLD)
+	var path := ServerRules.path_for(world_dir, OS.get_cmdline_user_args())
+	server_rules = ServerRules.load_file(path, defaults)
+	for problem in server_rules.problems:
+		push_warning("ServerRules: %s" % problem)
+	respawn_rules = server_rules.apply_respawn(respawn_rules)
+	world_rules = server_rules.apply_world(world_rules)
+	taming_rules = server_rules.apply_taming(dino.taming.rules)
+	dino.taming.rules = taming_rules
+
+
+## Quem os agressivos perseguem: os jogadores (um hoje).
+func _chase_targets() -> Array:
+	return [player]
+
+
 ## Início do jogador e a criatura do tutorial no ponto do mapa, e os nós de recurso nascem do dado do mapa.
 ## Mapa inválido (arquivo ruim) deixa a cena como está: o erro fica no log, o jogo não aborta.
 func _place_on_island() -> void:
@@ -119,6 +146,8 @@ func _place_on_island() -> void:
 	occupancy.add_source(func() -> Array: return zone.dinos() if zone != null else [dino])
 	if resources != null:
 		resources.occupancy = occupancy
+		resources.yield_multiplier = server_rules.collect_multiplier
+		resources.respawn_rate = server_rules.resource_respawn_rate
 		resources.populate(map, world_rules)
 	_build_zone()
 
@@ -142,6 +171,8 @@ func _build_zone() -> void:
 	wild = WildPopulation.new()
 	wild.name = "Wild"
 	wild.y_sort_enabled = true
+	wild.taming_rules = taming_rules
+	wild.target_locator = _chase_targets
 	add_child(wild)
 	zone.register(dino, false)
 	var tutorial_cell: Vector2i = map.landmarks.get("paquicefalo_tutorial", Vector2i(-1, -1))

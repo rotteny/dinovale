@@ -1,0 +1,31 @@
+[gd_resource type="Resource" script_class="DinoBaseStats" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://src/core/DinoBaseStats.gd" id="1_stats"]
+[ext_resource type="Texture2D" path="res://assets/sprites/dinos/utahraptor.png" id="2_dead"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_dead"]
+atlas = ExtResource("2_dead")
+region = Rect2(320, 0, 32, 32)
+
+[resource]
+script = ExtResource("1_stats")
+id = "utahraptor"
+display_name = "Utahraptor"
+sheet_path = "res://assets/sprites/dinos/utahraptor.json"
+base_health = 80.0
+base_damage = 8.0
+base_torpor = 120.0
+base_meals = 10
+difficulty = 1.5
+carcass_meat = 5
+carcass_texture = SubResource("AtlasTexture_dead")
+hitbox_size = Vector2(14, 14)
+spawn_key = "utahraptor"
+ideal_food = "meat"
+aggressive = true
+perception_tiles = 8.0
+perception_vertical_weight = 1.6
+chase_speed = 90.0
+chase_give_up_tiles = 20.0
+chase_max_seconds = 15.0
+alert_seconds = 5.0

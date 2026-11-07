@@ -120,7 +120,8 @@ func _flush() -> bool:
 	var live_dino: Dino = dino if is_instance_valid(dino) else null
 	var envelope := WorldSnapshot.capture(player, live_dino, _game_version(),
 			Time.get_datetime_string_from_system(true), field, respawn_count,
-			authority.next_entity_id() if authority != null else 0, wild, carcasses)
+			authority.next_entity_id() if authority != null else 0, wild, carcasses,
+			authority.clock.now() if authority != null else 0.0)
 	var ok := manager.write(envelope)
 	last_duration_usec = Time.get_ticks_usec() - started
 	_saving = false

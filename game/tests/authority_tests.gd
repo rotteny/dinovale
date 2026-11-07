@@ -31,6 +31,7 @@ func run() -> void:
 	_test_rules_data()
 	_test_denied_intents_change_nothing()
 	_test_dead_actor_is_denied()
+	await _test_request_move()
 	_test_attack_and_interact_paths()
 	_test_feeding_makes_the_owner()
 	_test_command_rules()
@@ -183,6 +184,12 @@ func _test_denied_intents_change_nothing() -> void:
 		["ordenar quem não existe", "request_command", [1, 999, "FOLLOW"], RESULT.UNKNOWN_TARGET],
 		["ordenar o jogador", "request_command", [1, 1, "FOLLOW"], RESULT.UNKNOWN_TARGET],
 		["ordem de ator inexistente", "request_command", [77, &"mine", "FOLLOW"], RESULT.UNKNOWN_ACTOR],
+		["mover com NaN", "request_move", [1, Vector2(NAN, 0.0)], RESULT.INVALID_ARGUMENT],
+		["mover com infinito", "request_move", [1, Vector2(0.0, INF)], RESULT.INVALID_ARGUMENT],
+		["mover com menos infinito", "request_move", [1, Vector2(-INF, 0.0)], RESULT.INVALID_ARGUMENT],
+		["mover com comprimento 50", "request_move", [1, Vector2(50.0, 0.0)], RESULT.INVALID_ARGUMENT],
+		["mover na diagonal sem normalizar", "request_move", [1, Vector2(1.0, 1.0)], RESULT.INVALID_ARGUMENT],
+		["mover ator inexistente", "request_move", [42, Vector2.RIGHT], RESULT.UNKNOWN_ACTOR],
 	]
 	for entry: Array in cases:
 		var before := _snapshot(world)
@@ -218,6 +225,37 @@ func _test_dead_actor_is_denied() -> void:
 			and authority.request_transfer_slot(1, 1, 0, authority.id_of(world["asleep"])) == Enums.ActionResult.ACTOR_DEAD,
 			"jogador morto: golpe, interação, ordem e transferência negados")
 	_check(_snapshot(world) == before, "jogador morto: nada mudou")
+
+
+func _physics_frames(count: int) -> void:
+	for _i in count:
+		await _root.get_tree().physics_frame
+
+
+## `request_move` valido anda no quadro seguinte; um pedido some depois de um quadro (sem pedido novo, para);
+## morto nao anda e nao incomoda (sem `action_denied`).
+func _test_request_move() -> void:
+	var world := _world()
+	var authority: WorldAuthority = world["authority"]
+	var player: Player = world["player"]
+	var denials := [0]
+	player.set_physics_process(true)
+	authority.action_denied.connect(func(_a: int, _b: String, _c: Enums.ActionResult) -> void: denials[0] += 1)
+	_check(authority.request_move(1, Vector2.RIGHT, false) == RESULT.OK and authority.request_move(1, Vector2.ZERO) == RESULT.OK
+			and authority.request_move(1, Vector2(0.6, 0.8)) == RESULT.OK and authority.request_move(1, Vector2.RIGHT) == RESULT.OK,
+			"direção válida (zero, diagonal normalizada, eixo) é aceita")
+	await _physics_frames(2)
+	var after_one := player.position.x
+	_check(after_one > 0.0, "pedido válido move o corpo para a direção (%s)" % player.position)
+	await _physics_frames(2)
+	_check(is_equal_approx(player.position.x, after_one), "sem pedido novo o corpo para")
+	_check(authority.request_move(1, Vector2(NAN, 0.0)) == RESULT.INVALID_ARGUMENT, "NaN negado")
+	await _physics_frames(2)
+	_check(is_equal_approx(player.position.x, after_one), "pedido negado não move")
+	player.health.take_damage(1000.0)
+	var denied_before: int = denials[0]
+	_check(authority.request_move(1, Vector2.RIGHT) == RESULT.ACTOR_DEAD and denials[0] == denied_before, "morto: negado em silêncio")
+	_release_worlds()
 
 
 func _test_attack_and_interact_paths() -> void:
@@ -387,7 +425,7 @@ func _test_order_save() -> void:
 
 func _test_migration_and_fixture_v3() -> void:
 	var raw: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(FIXTURE_V2))
-	_check(raw["format_version"] == 2 and SaveMigrations.CURRENT_VERSION == 4, "preparo: a fixture v2 segue v2 e o formato atual é o 4")
+	_check(raw["format_version"] == 2 and SaveMigrations.CURRENT_VERSION == 5, "preparo: a fixture v2 segue v2 e o formato atual é o 5")
 	var migrated := SaveMigrations.migrate(raw)
 	var wild_machine: Dictionary = migrated["entities"][0]["state"]["state_machine"]
 	_check(migrated["format_version"] == SaveMigrations.CURRENT_VERSION and not wild_machine.has("order")
@@ -415,7 +453,8 @@ func _test_migration_and_fixture_v3() -> void:
 	var player := _player_at(Vector2.ZERO)
 	var dino := _dino_at(Vector2.ZERO)
 	_check(WorldSnapshot.restore(outcome.data, player, dino), "fixture v3 é aplicada ao mundo")
-	_check(dino.state_machine.is_tamed and dino.state_machine.order == Enums.DinoOrder.FOLLOW and dino.owner_player_id == "local"
+	_check(dino.state_machine.is_tamed and dino.state_machine.order == Enums.DinoOrder.FOLLOW
+			and dino.owner_player_id == str(outcome.data["world"]["local_player_id"])
 			and dino.state_machine.current_id == Enums.DinoStateId.TAMED
 			and dino.level == 28, "fixture v3: domado, Seguir, dono local, nível 28")
 
@@ -619,7 +658,7 @@ func _test_follower_stays_inside() -> void:
 	var authority := main.authority
 	dino.torpor.add_torpor(dino.torpor.max_torpor)
 	dino.state_machine.mark_tamed()
-	dino.owner_player_id = "local"
+	dino.owner_player_id = player.player_id
 	var shore: Vector2 = _shore_points(main.map)["move_left"]
 	player.position = shore
 	dino.position = shore + Vector2(30, 0)

@@ -45,6 +45,8 @@ const POPUP_SECONDS := 0.7
 ## Sons por ocasião (`hit`, `yawn`, `tamed`). Vazio até a escolha do pacote de som.
 @export var cue_streams: Dictionary[StringName, AudioStream] = {}
 @export var volume_db: float = 6.0
+## O jogador local (para saber se o domado é dele); sem ele vale o id padrão do jogador de teste.
+var viewer: Player = null
 
 var _audio := AudioStreamPlayer2D.new()
 var _sleep_icon := Sprite2D.new()
@@ -218,7 +220,7 @@ func _on_band_changed(_band: int) -> void:
 
 func _on_tamed(final_level: int) -> void:
 	# O domado do jogador já mostra o nível na placa (DinoMarker); o número flutuante seria texto duplicado.
-	if dino.owner_player_id != Player.LOCAL_PLAYER_ID:
+	if dino.owner_player_id != (viewer.player_id if viewer != null else Player.LOCAL_PLAYER_ID):
 		_spawn_popup("Nv %d" % final_level, Color(1.0, 0.9, 0.4))
 	_cue(CUE_TAMED)
 

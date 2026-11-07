@@ -6,7 +6,7 @@
 script = ExtResource("1_rules")
 base_level = 10
 min_level = 1
-max_level = 75
+max_level = 50
 health_slope = 0.04
 health_floor = 0.5
 torpor_slope = 0.02

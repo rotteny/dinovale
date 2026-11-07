@@ -17,6 +17,8 @@ const BAR_OFFSET := Vector2(-15.0, -26.0)
 const LABEL_WIDTH := 80.0
 
 @export var dino: Dino
+## O jogador local: o `player_id` dele pode mudar (mundo novo gera um; o Continuar traz o salvo), então se lê na hora.
+@export var viewer: Player
 @export var local_player_id: String = Player.LOCAL_PLAYER_ID
 
 var _copies: Array[Sprite2D] = []
@@ -50,7 +52,7 @@ func _process(_delta: float) -> void:
 ## O dino é domado e dono é o jogador local, e está vivo?
 func is_marked() -> bool:
 	return is_instance_valid(dino) and not dino.is_queued_for_deletion() and dino.state_machine.is_tamed \
-			and dino.owner_player_id == local_player_id and not dino.health.is_dead()
+			and dino.owner_player_id == (viewer.player_id if viewer != null else local_player_id) and not dino.health.is_dead()
 
 
 func outline_visible() -> bool:

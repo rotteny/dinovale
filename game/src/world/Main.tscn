@@ -10,6 +10,7 @@
 [ext_resource type="Script" path="res://src/ui/DeathScreen.gd" id="14_death"]
 [ext_resource type="Script" path="res://src/world/ResourceField.gd" id="15_field"]
 [ext_resource type="Script" path="res://src/world/WorldAuthority.gd" id="21_authority"]
+[ext_resource type="Script" path="res://src/entities/player/PlayerController.gd" id="23_pctrl"]
 [ext_resource type="Script" path="res://src/ui/DinoStatusBars.gd" id="6_bars"]
 [ext_resource type="Script" path="res://src/ui/DinoView.gd" id="7_view"]
 [ext_resource type="Script" path="res://src/ui/DinoMarker.gd" id="99_marker"]
@@ -78,6 +79,11 @@ cue_streams = Dictionary[StringName, AudioStream]({
 
 [node name="Player" parent="." instance=ExtResource("2_player")]
 position = Vector2(200, 180)
+
+[node name="PlayerController" type="Node" parent="." node_paths=PackedStringArray("player", "authority")]
+script = ExtResource("23_pctrl")
+player = NodePath("../Player")
+authority = NodePath("../WorldAuthority")
 
 [node name="PlayerCamera" type="Camera2D" parent="." node_paths=PackedStringArray("player")]
 position = Vector2(200, 164)

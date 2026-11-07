@@ -22,20 +22,26 @@ const MAX_COORD := 1.0e6
 var authority: WorldAuthority = null
 ## Consulta de ocupação do chão (a carcaça nunca esgota e volta: some).
 var occupancy: TileOccupancy = null
+## Leitor do relógio do mundo, `() -> float` (ADR-006): a carcaça guarda QUANDO nasceu (`born_at`), nunca a idade.
+var clock: Callable = Callable()
 
-var _items: Array[Dictionary] = []  # {node, species, level, age, meat}
-
-
-func _physics_process(delta: float) -> void:
-	tick(delta)
+var _items: Array[Dictionary] = []  # {node, species, level, born_at, meat}
 
 
-## O tempo passa: a carcaça mais velha que `rules.fresh_seconds` some.
-func tick(delta: float) -> void:
+func _physics_process(_delta: float) -> void:
+	tick()
+
+
+## Some a carcaça cuja idade (`relógio - born_at`) chegou a `rules.fresh_seconds`. Só compara instantes.
+func tick() -> void:
+	var current := _now()
 	for item in _items.duplicate():
-		item["age"] = float(item["age"]) + delta
-		if float(item["age"]) >= rules.fresh_seconds:
+		if current - float(item["born_at"]) >= rules.fresh_seconds:
 			_remove(item)
+
+
+func _now() -> float:
+	return float(clock.call()) if clock.is_valid() else 0.0
 
 
 func count() -> int:
@@ -53,11 +59,11 @@ func nodes() -> Array[ResourceNode]:
 func spawn_from(creature: Dino) -> ResourceNode:
 	if not is_instance_valid(creature) or not SPECIES.has(creature.stats.id):
 		return null
-	return _spawn(creature.stats.id, creature.level, creature.global_position + FEET_OFFSET, 0.0, 0)
+	return _spawn(creature.stats.id, creature.level, creature.global_position + FEET_OFFSET, _now(), 0)
 
 
 ## Nasce uma carcaça inteira (quem restaura aplica o que sobrou depois); `entity_id` > 0 pede esse id (restaura).
-func _spawn(species: String, level: int, point: Vector2, age: float, entity_id: int) -> ResourceNode:
+func _spawn(species: String, level: int, point: Vector2, born_at: float, entity_id: int) -> ResourceNode:
 	var stats := SPECIES[species] as DinoBaseStats
 	var meat := LEVEL_RULES.carcass_meat(stats.carcass_meat, level)
 	var def := BASE_DEF.duplicate() as ResourceNodeDef
@@ -70,10 +76,11 @@ func _spawn(species: String, level: int, point: Vector2, age: float, entity_id: 
 	node.def = def
 	node.position = point
 	node.occupancy = occupancy
+	node.clock = clock
 	while _items.size() >= rules.max_carcasses:
 		_remove(_items[0])  # a mais antiga sai
 	add_child(node)
-	var item := {"node": node, "species": species, "level": level, "age": age, "meat": meat}
+	var item := {"node": node, "species": species, "level": level, "born_at": born_at, "meat": meat}
 	_items.append(item)
 	node.component.changed.connect(func() -> void: _on_changed(item))
 	if authority != null:
@@ -102,7 +109,7 @@ func _remove(item: Dictionary) -> void:
 		node.queue_free()
 
 
-## Para o save: espécie, nível, ponto, idade e o que ainda resta (o id da entidade acompanha).
+## Para o save: espécie, nível, ponto, quando nasceu e o que ainda resta (o id da entidade acompanha).
 func to_list() -> Array:
 	var list: Array = []
 	for item in _items:
@@ -110,7 +117,7 @@ func to_list() -> Array:
 		var entry := {
 			"id": authority.id_of(node) if authority != null else 0,
 			"species": item["species"], "level": item["level"],
-			"x": node.position.x, "y": node.position.y, "age": item["age"],
+			"x": node.position.x, "y": node.position.y, "born_at": item["born_at"],
 		}
 		if node.component.is_partial():
 			entry["left"] = node.component.leftover.duplicate()
@@ -133,8 +140,10 @@ func restore_list(list: Array) -> void:
 		var level := LEVEL_RULES.clamp_level(SafeRead.integer(data.get("level"), 10, 1, 1000))
 		var point := Vector2(SafeRead.number(data.get("x"), 0.0, -MAX_COORD, MAX_COORD),
 				SafeRead.number(data.get("y"), 0.0, -MAX_COORD, MAX_COORD))
-		var age := SafeRead.number(data.get("age"), 0.0, 0.0, rules.fresh_seconds - 1.0)
-		var node := _spawn(species, level, point, age, SafeRead.integer(data.get("id"), 0, 0, 1 << 30))
+		# `born_at` não passa do relógio (já reposto) e não é mais velho que o prazo: o vencido some no 1º tick.
+		var current := _now()
+		var born_at := SafeRead.number(data.get("born_at"), current, current - rules.fresh_seconds, current)
+		var node := _spawn(species, level, point, born_at, SafeRead.integer(data.get("id"), 0, 0, 1 << 30))
 		var left := _clean_left(data.get("left"), node.def)
 		if not left.is_empty():
 			node.component.leave(left)

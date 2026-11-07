@@ -27,6 +27,8 @@ const MAX_PLAYER_ID_LENGTH := 64
 		if is_node_ready():
 			_apply_level()
 
+## Sexo ("f" ou "m", `DinoBaseStats.SEX_*`): decidido ao nascer e imutável; sem efeito em atributo nem dieta (ADR-007).
+var sex: String = DinoBaseStats.SEX_FEMALE
 ## Dano do ataque do dino, derivado do nível (sem uso até existir carnívoro).
 var attack_damage: float = 0.0
 
@@ -64,6 +66,7 @@ func _ready() -> void:
 	if torpor.pause_phase == 0.0:
 		torpor.pause_phase = fposmod(position.x * 0.37 + position.y * 0.61, torpor.band_rules.pause_period)
 	taming.level_finalized.connect(_on_level_finalized)
+	taming.taming_reset.connect(_on_taming_reset)
 	_apply_level()
 	interactable.availability = can_interact
 	interactable.prompt_availability = can_command
@@ -150,10 +153,12 @@ func apply_torpor(amount: float) -> bool:
 ## Ataque recebido: dano primeiro, torpor depois, para que o golpe que derruba a
 ## criatura acordada não conte como ataque ao dormindo. Domesticado não é alvo.
 ## Retorna true se algo foi aplicado.
-func receive_hit(damage: float, torpor_amount: float, attacker_kind: String) -> bool:
+## `attacker_id` é o `player_id` de quem bate (""= não é jogador): golpe de jogador que não é o que
+## reservou a doma tira vida e põe torpor, mas não derruba a Eficiência.
+func receive_hit(damage: float, torpor_amount: float, attacker_kind: String, attacker_id: String = "") -> bool:
 	if state_machine.is_tamed or not taming.rules.knows_attacker(attacker_kind):
 		return false
-	var hit := take_damage(damage, attacker_kind)
+	var hit := take_damage(damage, attacker_kind, _spares_efficiency(attacker_kind, attacker_id))
 	if not health.is_dead() and apply_torpor(torpor_amount):
 		hit = true
 	return hit
@@ -162,16 +167,20 @@ func receive_hit(damage: float, torpor_amount: float, attacker_kind: String) -> 
 ## Dano de um atacante (`TamingRules.ATTACKER_*`). Acordada, só tira vida. Dormindo e
 ## selvagem, também derruba a Eficiência. Se a vida zera, a criatura morre e uma
 ## domesticação em curso falha. Retorna true se causou dano.
-func take_damage(amount: float, attacker_kind: String) -> bool:
+func take_damage(amount: float, attacker_kind: String, spare_efficiency: bool = false) -> bool:
 	if amount < 0.0 or health.is_dead() or not taming.rules.knows_attacker(attacker_kind):
 		return false
 	var was_taming := taming.is_active()
 	var before := health.current_health
 	health.take_damage(amount)
-	if was_taming:
+	if was_taming and not spare_efficiency:
 		# Dano 0 também conta: o fixo de Eficiência do atacante vale por golpe.
 		taming.apply_attack(attacker_kind, (before - health.current_health) / health.max_health * 100.0)
 	return amount > 0.0 or was_taming
+
+
+func _spares_efficiency(attacker_kind: String, attacker_id: String) -> bool:
+	return attacker_kind == TamingRules.ATTACKER_PLAYER and feeder_player_id != "" and attacker_id != feeder_player_id
 
 
 ## Vida e torpor máximos e dano pelas fórmulas do nível. O que a criatura já perdeu
@@ -190,6 +199,11 @@ func _apply_level() -> void:
 	taming.level_rules = level_rules
 	if not _restoring:
 		level_changed.emit(level)
+
+
+## Doma cancelada ou reiniciada: a reserva do primeiro alimentador acaba (a próxima refeição ideal reserva de novo).
+func _on_taming_reset() -> void:
+	feeder_player_id = ""
 
 
 func _on_level_finalized(final_level: int) -> void:
@@ -219,6 +233,7 @@ func _refresh_prompt() -> void:
 func to_dict() -> Dictionary:
 	return {
 		"species": stats.id,
+		"sex": sex,
 		"position": {"x": position.x, "y": position.y},
 		"level": level,
 		"health": health.to_dict(),
@@ -242,6 +257,9 @@ func _saved_player_id(value: Variant) -> String:
 ## o inventário (versão e se cabe, inclusive equipamento, que a criatura não guarda) ANTES de
 ## tocar em qualquer campo; o SaveManager trata `false` como save inválido, sem carga parcial.
 func from_dict(data: Dictionary) -> bool:
+	var saved_species := SafeRead.text(data.get("species"), "")
+	if saved_species != "" and saved_species != stats.id:
+		return false  # estado de outra espécie não se aplica (ADR-007); sem `species` (save antigo) segue aceito
 	if not SafeRead.block_valid(data, "inventory"):
 		return false
 	var saved_inventory := SafeRead.dict(data.get("inventory"))
@@ -251,6 +269,9 @@ func from_dict(data: Dictionary) -> bool:
 		return false
 	# Restaurar não é evento de jogo: `level_changed` fica quieto (a UI lê o estado).
 	_restoring = true
+	var saved_sex := SafeRead.text(data.get("sex"), "")
+	if saved_sex == DinoBaseStats.SEX_FEMALE or saved_sex == DinoBaseStats.SEX_MALE:
+		sex = saved_sex  # gravado e derivado diferentes: vale o gravado
 	var saved_position := SafeRead.dict(data.get("position"))
 	position = Vector2(
 		SafeRead.number(saved_position.get("x"), position.x, -COORD_LIMIT, COORD_LIMIT),
@@ -269,6 +290,8 @@ func from_dict(data: Dictionary) -> bool:
 	taming.reconcile()
 	# Os máximos vêm do nível, não do save: dado salvo não é confiável.
 	_apply_level()
+	if not state_machine.is_tamed and not torpor.is_unconscious:
+		feeder_player_id = ""  # selvagem acordado não tem reserva (acordar a zera); save que traz uma não a prende
 	_restoring = false
 	# Vida 0 no save: morta na carga, sem emitir `died` (não é evento de jogo).
 	if health.is_dead():

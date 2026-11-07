@@ -4,6 +4,9 @@ extends Resource
 ## Atributos base de uma criatura, no nível base (`DinoLevelRules.base_level`).
 ## Precursor do `SpeciesDef` (ADR-003): quando ele existir, estes campos migram para lá.
 
+const SEX_FEMALE := "f"
+const SEX_MALE := "m"
+
 @export var id: String = "placeholder_dino"
 ## Nome da espécie, como o jogador lê (placa do domado).
 @export var display_name: String = "Dino"
@@ -39,3 +42,14 @@ extends Resource
 @export_range(1.0, 120.0) var chase_max_seconds: float = 15.0
 ## Depois de desistir, segundos sem voltar a perseguir (alerta do GDD 6.7: 5 s).
 @export_range(0.0, 60.0) var alert_seconds: float = 5.0
+## Chance de nascer macho (`sexo_proporcao_macho` do desenho, `docs/design/corte-v02/montaria-vinculo-trabalho.md`): 0,5 = 50/50
+## em toda espécie. Sexo não muda atributo, torpor, dieta nem velocidade.
+@export_range(0.0, 1.0) var male_ratio: float = 0.5
+
+
+## Sexo do selvagem que nasce do ponto `spawn_id` (ADR-007): fluxo próprio, `["wild", semente, spawn_id, "sex"]`, separado do
+## do nível para um sorteio novo nunca deslocar o outro. O mesmo ponto dá o mesmo sexo em qualquer revisão do mapa.
+func roll_sex(map_seed: int, spawn_id: String) -> String:
+	var rng := SeededRng.new()
+	rng.seed_from(["wild", map_seed, spawn_id, "sex"])
+	return SEX_MALE if rng.next_below(1000) < roundi(male_ratio * 1000.0) else SEX_FEMALE

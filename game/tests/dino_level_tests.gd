@@ -120,7 +120,7 @@ func _test_level_rules_formulas() -> void:
 				"nível final (%d, %d%%) = %d" % [entry[0], entry[1], entry[2]])
 	_check(rules.final_level(20, 500.0) == 30 and rules.final_level(20, -50.0) == 20,
 			"Eficiência fora de 0..100 é limitada")
-	_check(rules.clamp_level(0) == 1 and rules.clamp_level(999) == 75, "nível limitado a 1..75")
+	_check(rules.clamp_level(0) == 1 and rules.clamp_level(999) == 50, "nível limitado a 1..50 (teto do servidor no MVP)")
 
 
 func _test_balance_data_files() -> void:
@@ -179,7 +179,7 @@ func _test_dino_level_stats_and_save() -> void:
 	tampered["torpor"] = {"current": 0.0, "max": 1e9}
 	copy.from_dict(tampered)
 	_check(copy.level == LEVEL_RULES.max_level, "nível do save acima do teto é limitado")
-	_check(is_equal_approx(copy.health.max_health, 100.0 * (1.0 + 0.04 * 65.0)) and copy.torpor.max_torpor < 1000.0,
+	_check(is_equal_approx(copy.health.max_health, 100.0 * (1.0 + 0.04 * 40.0)) and copy.torpor.max_torpor < 1000.0,
 			"máximos de vida e torpor vêm do nível, não do save")
 	copy.from_dict({"level": "lixo"})
 	_check(copy.level == LEVEL_RULES.base_level, "nível ilegível usa o nível padrão")

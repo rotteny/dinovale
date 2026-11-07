@@ -188,11 +188,14 @@ func _test_use_item_with_sleeping_dino_in_reach() -> void:
 func _test_hotbar_keys_and_input_map() -> void:
 	var player := _player()
 	player.hunger.current_hunger = 10.0
-	player._unhandled_input(_action("hotbar_2"))
+	var controller := PlayerController.new()
+	controller.player = player
+	controller._unhandled_input(_action("hotbar_2"))
 	_check(player.inventory.count(Items.MEAT) == 3 and is_equal_approx(player.hunger.current_hunger, 50.0),
 			"tecla 2 usa o atalho da posição 2 (carne)")
 	player.tick(0.5)
-	player._unhandled_input(_action("hotbar_9"))
+	controller._unhandled_input(_action("hotbar_9"))
+	controller.free()
 	_check(player.inventory.count(Items.MEAT) == 3, "tecla 9 (vazia) não faz nada")
 	# Mapa de entrada: as 9 teclas existem e nenhuma outra ação usa a mesma tecla.
 	var taken: Dictionary = {}

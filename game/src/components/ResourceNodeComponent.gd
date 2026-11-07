@@ -1,7 +1,8 @@
 # SPDX-License-Identifier: MIT
 class_name ResourceNodeComponent
 extends Node
-## Estado de um nó de recurso (MUN-02): cheio ou esgotado, e quanto falta para voltar. Lógica pura,
+## Estado de um nó de recurso (MUN-02): cheio ou esgotado, e QUANDO volta (`due_at`, instante do relógio do mundo,
+## ADR-006: nunca um contador que desconta `delta`). Lógica pura,
 ## sem desenho nem física. `harvest()` é a única porta de saída do recurso; quem pede a coleta
 ## (o jogador, via `Player.request_gather`) valida alcance e espaço antes.
 
@@ -14,7 +15,10 @@ const RETRY_SECONDS := 0.5
 @export var def: ResourceNodeDef
 
 var depleted: bool = false
-var respawn_left: float = 0.0
+## Instante (relógio do mundo) em que o nó esgotado volta; decidido na colheita, com `respawn_total()` de então.
+var due_at: float = 0.0
+## Leitor do relógio do mundo, `() -> float` (injetado pelo campo; `WorldAuthority.clock.now`). Sem ele, o tempo é 0.
+var clock: Callable = Callable()
 ## Tempo de volta próprio deste nó (a pedra avulsa do núcleo volta mais cedo). 0 = o do tipo.
 var respawn_override: float = 0.0
 ## Regras do servidor (ADR-004): multiplica o que a colheita entrega e acelera a volta do nó (2 = volta em metade do
@@ -28,40 +32,39 @@ var leftover: Dictionary = {}
 ## novo a cada `RETRY_SECONDS`; esperar não conta como perdido e o nó segue no save como esgotado.
 var can_return: Callable = Callable()
 
-var _retry_left: float = 0.0
+## Próxima tentativa de voltar com o lugar ocupado (instante do relógio; não vai ao save).
+var _retry_at: float = 0.0
 
 
-func _ready() -> void:
-	set_physics_process(depleted)  # só o esgotado conta tempo: com centenas de nós cheios, nenhum custo por quadro
+## O relógio do mundo agora.
+func now() -> float:
+	return float(clock.call()) if clock.is_valid() else 0.0
 
 
-func _physics_process(delta: float) -> void:
-	tick(delta)
-
-
-## Faz o tempo de volta correr. Esgotado que chega a zero volta cheio.
-func tick(delta: float) -> void:
+## Quem acorda o nó é o `ResourceField` (só os esgotados, só quando o prazo vence): esgotado que chegou a `due_at`
+## volta cheio, se o lugar estiver livre. Só compara instantes: não há `_physics_process` aqui.
+func tick() -> void:
 	if not depleted or def == null:
 		return
-	if respawn_left > 0.0:
-		respawn_left -= delta
-		if respawn_left > 0.0:
-			return
-		respawn_left = 0.0
-	_retry_left -= delta
-	if _retry_left > 0.0:
+	var current := now()
+	if current < due_at or current < _retry_at:
 		return
-	_retry_left = RETRY_SECONDS
+	_retry_at = current + RETRY_SECONDS
 	if can_return.is_valid() and not bool(can_return.call()):
 		return  # lugar ocupado: espera e tenta de novo
 	depleted = false
-	set_physics_process(false)
+	due_at = 0.0
 	changed.emit()
 
 
-## Esgotado, com o tempo de volta já cumprido, esperando o lugar ficar livre?
+## Quando vale olhar este nó de novo (o prazo, ou a próxima tentativa se o lugar estava ocupado).
+func next_check_at() -> float:
+	return maxf(due_at, _retry_at)
+
+
+## Esgotado, com o prazo de volta já vencido, esperando o lugar ficar livre?
 func is_waiting() -> bool:
-	return depleted and respawn_left <= 0.0
+	return depleted and now() >= due_at
 
 
 ## Segundos até um nó esgotado voltar: o do próprio nó ou, sem ele, o do tipo.
@@ -109,15 +112,14 @@ func harvest() -> int:
 		return 0
 	depleted = true
 	leftover = {}
-	respawn_left = respawn_total()
-	_retry_left = 0.0
-	set_physics_process(true)
+	due_at = now() + respawn_total()
+	_retry_at = 0.0
 	changed.emit()
 	return int(full_yields().get(def.item_id, def.yield_amount))
 
 
 func to_dict() -> Dictionary:
-	var data := {"def": def.id if def != null else "", "depleted": depleted, "respawn_left": respawn_left}
+	var data := {"def": def.id if def != null else "", "depleted": depleted, "due_at": due_at}
 	if is_partial():
 		data["leftover"] = leftover.duplicate()
 	return data
@@ -128,9 +130,11 @@ func from_dict(data: Dictionary) -> void:
 	if def == null or SafeRead.text(data.get("def"), "") != def.id:
 		return
 	depleted = SafeRead.flag(data.get("depleted"), false)
-	respawn_left = SafeRead.number(data.get("respawn_left"), 0.0, 0.0, respawn_total()) if depleted else 0.0
+	var current := now()
+	# Prazo absoluto: no máximo a duração cheia à frente do relógio já reposto (ADR-006); vencido volta no 1º tick.
+	due_at = SafeRead.number(data.get("due_at"), current, 0.0, current + respawn_total()) if depleted else 0.0
+	_retry_at = 0.0
 	leftover = _read_leftover(data.get("leftover")) if not depleted else {}
-	set_physics_process(depleted)
 	changed.emit()
 
 

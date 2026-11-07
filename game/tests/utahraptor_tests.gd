@@ -208,7 +208,7 @@ func _test_population_and_chase() -> void:
 		(
 			raptors.size() == 10
 			and (main.wild.get_child(0) as Dino).stats.id == "placeholder_dino"
-			and main.wild.creature_at(107) == raptors[0]
+			and main.wild.creature_at("w107") == raptors[0]
 		),
 		"10 utahraptores depois dos 107 paquicéfalos do mapa (índices dos paquicéfalos intactos)"
 	)
@@ -245,7 +245,7 @@ func _test_taming_and_save() -> void:
 	var after := await _save_and_continue(
 		"utahraptor_tamed",
 		func(main: Main) -> void:
-			var raptor := main.wild.creature_at(107)
+			var raptor := main.wild.creature_at("w107")
 			raptor.level = 10
 			raptor.feeder_player_id = main.player.player_id
 			raptor.torpor.add_torpor(raptor.torpor.max_torpor)

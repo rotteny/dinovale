@@ -28,3 +28,19 @@ static func wire_screen(screen: InventoryScreen, authority: WorldAuthority, play
 	authority.action_denied.connect(func(_actor: int, action: String, result: Enums.ActionResult) -> void:
 		if action == WorldAuthority.ACTION_TRANSFER:
 			screen.show_transfer_refusal(result))
+
+
+## Faz passar `seconds` de jogo no mundo da `Main`: avança o relógio da autoridade (o único que o faz) e acorda os
+## nós esgotados e as carcaças vencidas, como os quadros fariam (ADR-006).
+static func pass_time(main: Main, seconds: float) -> void:
+	main.authority.clock.advance(seconds)
+	main.resources.tick()
+	main.carcasses.tick()
+
+
+## Relógio de mentira para componente sem a `Main`: `clock = TestClock.new(); node.clock = clock.now`.
+class TestClock extends RefCounted:
+	var time: float = 0.0
+
+	func now() -> float:
+		return time

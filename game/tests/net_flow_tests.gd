@@ -198,9 +198,20 @@ func _test_feeder_and_owner_with_two_actors() -> void:
 	# Recolher a comida NÃO faz de quem recolhe o alimentador.
 	_check(authority.request_transfer_slot(1, wild_id, 0, 1) == RESULT.OK and wild.feeder_player_id == SECOND_ID
 			and first.inventory.count(Items.BERRY) > 10 - 1, "recolher a comida ideal não muda quem alimentou")
-	# O último a alimentar fica com a criatura.
-	_check(_feed(authority, first, wild_id) == RESULT.OK and wild.feeder_player_id == "local",
-			"o último a depositar a comida ideal passa a ser o candidato")
+	# O primeiro a alimentar reserva a criatura: A alimenta, B alimenta, A fica dono.
+	_check(_feed(authority, first, wild_id) == RESULT.OK and wild.feeder_player_id == SECOND_ID,
+			"quem alimentou depois não toma a reserva de quem alimentou primeiro")
+	# Golpe de quem não reservou não derruba a Eficiência; o do dono da reserva derruba.
+	var before := wild.taming.efficiency
+	_check(wild.receive_hit(0.0, 0.0, TamingRules.ATTACKER_PLAYER, "local") and wild.taming.efficiency == before,
+			"golpe de outro jogador não reduz a Eficiência")
+	_check(wild.receive_hit(0.0, 0.0, TamingRules.ATTACKER_PLAYER, SECOND_ID) and wild.taming.efficiency < before,
+			"golpe de quem reservou reduz a Eficiência")
+	# Doma reiniciada (acordou selvagem) libera a reserva.
+	var reset_dino := _sleeping(_dino_at(Vector2(30, 30)))
+	reset_dino.feeder_player_id = "local"
+	reset_dino.taming.taming_reset.emit()
+	_check(reset_dino.feeder_player_id == "", "doma reiniciada limpa a reserva")
 	# O mesmo vale quando o outro recolhe o que o primeiro depositou.
 	var third := _sleeping(_dino_at(Vector2(20, 30)))
 	authority.register(third)
@@ -210,7 +221,7 @@ func _test_feeder_and_owner_with_two_actors() -> void:
 			"recolher depois de outro depositar: quem alimentou continua o mesmo")
 	# Domesticar com cada alimentador dá o dono certo (nunca um id fixo).
 	wild.taming.tick(100.0)
-	_check(wild.state_machine.is_tamed and wild.owner_player_id == "local", "domesticou: dono é o jogador 1")
+	_check(wild.state_machine.is_tamed and wild.owner_player_id == SECOND_ID, "domesticou: dono é quem alimentou primeiro (3)")
 	_check(_feed(authority, second, other_id) == RESULT.OK, "preparo: o jogador 3 deposita")
 	other_wild.taming.tick(100.0)
 	_check(other_wild.state_machine.is_tamed and other_wild.owner_player_id == SECOND_ID and other_wild.feeder_player_id == SECOND_ID,
@@ -220,7 +231,7 @@ func _test_feeder_and_owner_with_two_actors() -> void:
 			"o jogador 1 não manda no dino do 3")
 	_check(authority.request_command(SECOND_ENTITY, other_id, "FOLLOW") == RESULT.OK
 			and other_wild.state_machine.order == Enums.DinoOrder.FOLLOW, "o jogador 3 manda no dele")
-	_check(authority.request_command(SECOND_ENTITY, wild_id, "FOLLOW") == RESULT.NOT_OWNER, "e não manda no do jogador 1")
+	_check(authority.request_command(1, wild_id, "FOLLOW") == RESULT.NOT_OWNER, "e o jogador 1 não manda no que o 3 reservou primeiro")
 
 
 func _test_registry_helpers() -> void:
@@ -287,7 +298,7 @@ func _test_migration_feeder_and_restore_owner() -> void:
 			broken["entities"][0]["state"]["owner_player_id"] = owner
 		var dino := _dino_at(Vector2.ZERO)
 		_check(WorldSnapshot.restore(broken, _player_at(Vector2.ZERO), dino) and dino.state_machine.is_tamed
-				and dino.owner_player_id == "local" and dino.can_command(),
+				and dino.owner_player_id == str(data["world"]["local_player_id"]) and dino.can_command(),
 				"domado sem dono válido (%s): vira do primeiro jogador do save" % str(owner))
 	var kept := _dino_at(Vector2.ZERO)
 	var other_owner: Dictionary = data.duplicate(true)
@@ -315,8 +326,8 @@ func _test_gather_by_target_id() -> void:
 	var player := main.player
 	player.set_physics_process(false)
 	var authority := main.authority
-	var bush := main.resources.node_by_id("bush_baga_1")
-	var wood := main.resources.node_by_id("tree_1")
+	var bush := main.resources.node_by_id("n1")
+	var wood := main.resources.node_by_id("n316")
 	var denied := _denials(authority)
 	player.position = bush.position + Vector2(0, 10)
 	player.target = wood.interactable  # a mira local aponta para OUTRO nó

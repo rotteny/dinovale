@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: MIT
 class_name Player
 extends CharacterBody2D
-## Corpo do jogador: lê o input, aplica a velocidade à física e compõe os atributos.
-## As regras ficam nos componentes. Só este corpo conhece `Input`; a regra de
-## movimento (`apply_input`) recebe a direção pronta e é testável sem input real.
+## Corpo do jogador: aplica a velocidade à física e compõe os atributos. As regras ficam nos
+## componentes. Não lê `Input`: o `PlayerController` pede o movimento à autoridade (`request_move`) e
+## a regra (`apply_input`) recebe a direção pronta, testável sem input real.
 ##
 ## Interação: o detector (Area2D) enxerga as `InteractableArea` no alcance e o
 ## `target` é a mais próxima, só uma sugestão de mira. `try_interact` e `attack` são a intenção do
@@ -76,6 +76,9 @@ var _eat_timer: float = 0.0
 var _equip_timer: float = 0.0
 var _gather_timer: float = 0.0
 var _last_equipped: String = ""
+## Direção e corrida do quadro, guardadas por `perform_move` e consumidas pela física.
+var _move_direction: Vector2 = Vector2.ZERO
+var _move_sprint: bool = false
 ## Motivo da última recusa de uma regra (`perform_*`); "" quando o pedido valeu. Só devolve texto ao chamador.
 var _last_refusal: String = ""
 
@@ -110,8 +113,10 @@ func _ready() -> void:
 
 func _physics_process(delta: float) -> void:
 	tick(delta)
-	var direction := Vector2.ZERO if input_locked else read_direction()
-	velocity = apply_input(direction, Input.is_action_pressed("sprint"), delta)
+	# O pedido de movimento vale por um quadro: sem pedido novo (controlador ausente, pedido negado), para.
+	velocity = apply_input(_move_direction, _move_sprint, delta)
+	_move_direction = Vector2.ZERO
+	_move_sprint = false
 	move_and_slide()
 
 
@@ -125,23 +130,11 @@ func tick(delta: float) -> void:
 	update_target()
 
 
-## Única leitura de input de ações. Só dispara fora de telas.
-func _unhandled_input(event: InputEvent) -> void:
-	if event.is_action_pressed("interact"):
-		try_interact()
-	elif event.is_action_pressed("attack"):
-		attack()
-	else:
-		for slot in HotbarComponent.SLOT_COUNT:
-			if event.is_action_pressed("hotbar_%d" % (slot + 1)):
-				request_use_item(slot)
-				break
-
-
-## Única leitura de input. `get_vector` já devolve comprimento no máximo 1, então
-## a diagonal não é mais rápida que o eixo.
-func read_direction() -> Vector2:
-	return Input.get_vector("move_left", "move_right", "move_up", "move_down")
+## Efeito do pedido de movimento: guarda a direção do quadro (já validada). Só a autoridade chama
+## (`WorldAuthority.request_move`). A tela aberta trava o corpo: a direção vira zero.
+func perform_move(direction: Vector2, wants_sprint: bool) -> void:
+	_move_direction = Vector2.ZERO if input_locked else direction
+	_move_sprint = wants_sprint and not input_locked
 
 
 ## Regra de movimento: converte direção + pedido de corrida na velocidade do frame
@@ -230,7 +223,7 @@ func can_strike() -> bool:
 ## arma, GDD 5.9b), parando no piso de vida das regras.
 func strike(dino: Dino) -> bool:
 	var weapon := current_weapon()
-	if not dino.receive_hit(weapon.damage, weapon.torpor, TamingRules.ATTACKER_PLAYER):
+	if not dino.receive_hit(weapon.damage, weapon.torpor, TamingRules.ATTACKER_PLAYER, player_id):
 		return false
 	_attack_timer = weapon.cooldown
 	_hurt_hands(weapon.self_damage)

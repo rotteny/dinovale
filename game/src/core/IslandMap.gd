@@ -23,6 +23,8 @@ static var _default: IslandMap = null
 
 var map_id: String = ""
 var revision: int = 0
+## Hash do conteúdo do mapa (gravado pelo exportador, ADR-007): é o que o save guarda em `world.map_revision`.
+var content_hash: String = ""
 var size: int = 0
 var tile: int = 16
 var seed_value: int = 0
@@ -33,6 +35,9 @@ var dens: Dictionary = {}
 var nodes: Dictionary = {}
 var scenery: Dictionary = {}
 var spawns: Dictionary = {}
+## Ids estáveis (ADR-007), alinhados índice a índice com `nodes[tipo]` e `spawns[tipo]`: `{"tipo": [String]}`.
+var node_ids: Dictionary = {}
+var spawn_ids: Dictionary = {}
 var loose_core_count: int = 0
 
 var _terrain: PackedByteArray = PackedByteArray()
@@ -77,8 +82,13 @@ func load_dict(data: Dictionary) -> bool:
 			if code < 0 or code >= TERRAIN_COUNT:
 				return false
 			cells[y * side + x] = code
+	size = side  # `in_bounds` lê o tamanho
+	var node_points := _read_points(SafeRead.dict(data.get("nodes")), SafeRead.dict(data.get("node_ids")), "n")
+	var spawn_points := _read_points(SafeRead.dict(data.get("spawns")), SafeRead.dict(data.get("spawn_ids")), "w")
+	if not _ids_are_unique([node_points[1], spawn_points[1]]):
+		size = 0
+		return false  # id vazio ou repetido: o save apontaria para dois lugares (ADR-007)
 	_terrain = cells
-	size = side
 	map_id = SafeRead.text(data.get("id"), "")
 	revision = SafeRead.integer(data.get("revision"), 0, 0, 1 << 20)
 	tile = SafeRead.integer(data.get("tile"), 16, 4, 64)
@@ -86,9 +96,12 @@ func load_dict(data: Dictionary) -> bool:
 	start_cell = _cell_of(data.get("start"), Vector2i(side >> 1, side >> 1))
 	landmarks = _cells_dict(SafeRead.dict(data.get("landmarks")))
 	dens = _cells_dict(SafeRead.dict(data.get("dens")))
-	nodes = _cell_lists(SafeRead.dict(data.get("nodes")))
+	content_hash = SafeRead.text(data.get("content_hash"), "")
+	nodes = node_points[0]
+	node_ids = node_points[1]
 	scenery = _cell_lists(SafeRead.dict(data.get("scenery")))
-	spawns = _cell_lists(SafeRead.dict(data.get("spawns")))
+	spawns = spawn_points[0]
+	spawn_ids = spawn_points[1]
 	loose_core_count = SafeRead.integer(SafeRead.dict(data.get("loose_stone_respawn")).get("core_count"), 0, 0, 1000)
 	_valid = true
 	return true
@@ -188,6 +201,48 @@ func _cell_lists(raw: Dictionary) -> Dictionary:
 				cells.append(cell)
 		result[str(key)] = cells
 	return result
+
+
+## Como `_cell_lists`, mais o id de cada ponto mantido (`[células, ids]`). Sem lista de ids (mapa de teste), ou com
+## tamanho diferente da lista de pontos, os ids saem `<prefixo><tipo>:<posição na lista>`: o arquivo real traz todos.
+func _read_points(raw: Dictionary, raw_ids: Dictionary, prefix: String) -> Array:
+	var all_cells: Dictionary = {}
+	var all_ids: Dictionary = {}
+	for key: Variant in raw:
+		var pairs := SafeRead.list(raw[key])
+		var saved_ids := SafeRead.list(raw_ids.get(key))
+		var has_ids := saved_ids.size() == pairs.size()
+		var cells: Array[Vector2i] = []
+		var ids: Array[String] = []
+		for i in pairs.size():
+			var cell := _cell_of(pairs[i], Vector2i(-1, -1))
+			if in_bounds(cell):
+				cells.append(cell)
+				ids.append(SafeRead.text(saved_ids[i], "") if has_ids else "%s%s:%d" % [prefix, key, i])
+		all_cells[str(key)] = cells
+		all_ids[str(key)] = ids
+	return [all_cells, all_ids]
+
+
+## Nenhum id vazio e nenhum repetido, entre nós e nascimentos juntos (`[{tipo: [ids]}, ...]`).
+func _ids_are_unique(groups: Array) -> bool:
+	var seen: Dictionary = {}
+	for group: Dictionary in groups:
+		for kind: Variant in group:
+			for id: String in group[kind]:
+				if id == "" or seen.has(id):
+					return false
+				seen[id] = true
+	return true
+
+
+## Id do primeiro ponto de `spawns[kind]` nesta célula ("" se não há).
+func spawn_id_at(kind: String, cell: Vector2i) -> String:
+	var cells: Array = spawns.get(kind, [])
+	for i in cells.size():
+		if cells[i] == cell:
+			return (spawn_ids.get(kind, []) as Array)[i]
+	return ""
 
 
 func _cells_dict(raw: Dictionary) -> Dictionary:

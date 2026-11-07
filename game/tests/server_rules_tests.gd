@@ -296,8 +296,8 @@ func _test_consumers() -> void:
 		"o mundo com arquivo lê as chaves"
 	)
 	# multiplicador_coleta e respawn_recurso
-	var plain_bush := plain.resources.node_by_id("bush_baga_1")
-	var custom_bush := custom.resources.node_by_id("bush_baga_1")
+	var plain_bush := plain.resources.node_by_id("n1")
+	var custom_bush := custom.resources.node_by_id("n1")
 	var base_yields := plain_bush.component.pending_yields()
 	var doubled := custom_bush.component.pending_yields()
 	var yields_ok := not base_yields.is_empty() and base_yields.size() == doubled.size()

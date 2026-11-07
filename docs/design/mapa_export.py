@@ -10,7 +10,16 @@ Biblioteca padrao apenas. Mesma semente, mesmo arquivo (byte a byte).
 Uso (da raiz do repositorio):
     python3 docs/design/mapa_export.py            # grava game/data/world/lunata.json
     python3 docs/design/mapa_export.py --check    # falha se o arquivo gravado difere do que sairia daqui
+    python3 docs/design/mapa_export.py --primeira-geracao   # so quando nao ha arquivo anterior com ids
+
+Ids estaveis (ADR-007): cada spawn e cada no de recurso ganha um id opaco, gravado em campos PARALELOS
+(`spawn_ids`, `node_ids`, mesma ordem das listas de `spawns` e `nodes`; o formato das listas nao muda).
+Ao reexportar, le o arquivo anterior e herda o id do ponto do mesmo tipo que ficou igual ou andou ate
+ID_RADIUS tiles. Ponto novo ganha id novo; o contador (`id_counter`) nunca volta, entao id aposentado
+nao e reaproveitado. `content_hash` e o SHA-256 (16 hex) do conteudo canonico, sem `revision` nem ele mesmo.
+Testes: python3 -m unittest docs/design/mapa_export_test.py (ou rode o arquivo de teste direto).
 """
+import hashlib
 import json
 import functools
 import math
@@ -33,6 +42,9 @@ BIOME_CODE = {"C": 3, "M": 4, "P": 5}
 FEET = {"tree": (12, 8), "rock": (24, 12), "bush": (10, 6), "formation_a": (52, 14), "formation_b": (84, 12),
         "formation_c": (48, 12)}
 START_CLEAR = 8        # tiles sem arvore nem rocha em volta do inicio
+ID_RADIUS = 2.0        # tiles: ponto do mesmo tipo ate aqui do anterior herda o id
+SPAWN_ORDER = ["paquicefalo", "utahraptor"]  # ordem das especies no populate do jogo
+TUTORIAL_KEY = "paquicefalo_tutorial"
 SPACING = {"tree": 3.0, "rock": 3.0, "bush": 2.0, "formation": 4.0}
 
 
@@ -350,6 +362,109 @@ def utahraptor_spawns(site, placer, taken):
     return out
 
 
+
+def match_ids(old_points, new_points, old_ids):
+    """Casa pontos novos com os anteriores do mesmo tipo (raio ID_RADIUS), do mais perto ao mais longe,
+    sem repetir. Devolve lista paralela a `new_points`: id herdado ou None."""
+    pairs = []
+    for i, (nx, ny) in enumerate(new_points):
+        for j, (ox, oy) in enumerate(old_points):
+            d = math.hypot(nx - ox, ny - oy)
+            if d <= ID_RADIUS:
+                pairs.append((d, i, j))
+    pairs.sort()
+    out = [None] * len(new_points)
+    used = set()
+    for _, i, j in pairs:
+        if out[i] is None and j not in used:
+            out[i] = old_ids[j]
+            used.add(j)
+    return out
+
+
+def first_spawn_ids(spawns, tutorial):
+    """Primeira geracao: o indice do `populate` do jogo (w<i>) para quem ele cria; os demais seguem depois."""
+    ids, index, extra = {}, 0, 0
+    for kind in SPAWN_ORDER:
+        ids[kind] = [None] * len(spawns[kind])
+        seen = set()
+        for i, p in enumerate(spawns[kind]):
+            if tuple(p) == tuple(tutorial) or tuple(p) in seen or sum(x is not None for x in ids[kind]) >= 107:
+                continue
+            seen.add(tuple(p))
+            ids[kind][i] = "w%d" % index
+            index += 1
+    for kind in SPAWN_ORDER:
+        for i, v in enumerate(ids[kind]):
+            if v is None:
+                ids[kind][i] = "w%d" % (index + extra)
+                extra += 1
+    return ids, index + extra
+
+
+def assign_ids(data, previous, first_generation):
+    """Poe `spawn_ids`, `node_ids` e `id_counter` em `data`. Devolve o relatorio {mantidos, novos, aposentados}."""
+    report = {"kept": [], "new": [], "retired": []}
+    if first_generation:
+        spawn_ids, wc = first_spawn_ids(data["spawns"], data["landmarks"]["paquicefalo_tutorial"])
+        node_ids, nc = {}, 0
+        for kind in sorted(data["nodes"]):
+            node_ids[kind] = ["n%d" % (nc + i + 1) for i in range(len(data["nodes"][kind]))]
+            nc += len(data["nodes"][kind])
+        report["new"] = [i for v in list(spawn_ids.values()) + list(node_ids.values()) for i in v]
+        data["spawn_ids"], data["node_ids"], data["id_counter"] = spawn_ids, node_ids, {"w": wc, "n": nc}
+        return report
+    counter = dict(previous["id_counter"])
+    for group, prefix, key in (("spawns", "w", "spawn_ids"), ("nodes", "n", "node_ids")):
+        data[key] = {}
+        for kind, pts in data[group].items():
+            old = previous[group].get(kind, [])
+            old_ids = previous[key].get(kind, [])
+            got = match_ids(old, pts, old_ids)
+            for i, v in enumerate(got):
+                if v is None:
+                    counter[prefix] += 1
+                    got[i] = "%s%d" % (prefix, counter[prefix])
+                    report["new"].append(got[i])
+                else:
+                    report["kept"].append(v)
+            data[key][kind] = got
+    data["id_counter"] = counter
+    still = set(report["kept"])
+    old_all = [i for k in ("spawn_ids", "node_ids") for v in previous[k].values() for i in v]
+    report["retired"] = [i for i in old_all if i not in still]
+    return report
+
+
+def canonical(data):
+    """Copia do conteudo sem `revision` e `content_hash`, com listas de pontos ordenadas (id, x, y) para a
+    ordem nao mexer no hash. Os terrenos (`rows`) mantem a ordem: ela e o conteudo."""
+    c = {k: v for k, v in data.items() if k not in ("revision", "content_hash")}
+    for group, key in (("spawns", "spawn_ids"), ("nodes", "node_ids")):
+        merged = {}
+        for kind, pts in data[group].items():
+            merged[kind] = sorted([i, p[0], p[1]] for i, p in zip(data[key][kind], pts))
+        c[group] = merged
+        del c[key]
+    c["portal_pieces"] = sorted(data["portal_pieces"])
+    c["scenery"] = {k: sorted(v) for k, v in data["scenery"].items()}
+    return c
+
+
+def content_hash(data):
+    text = json.dumps(canonical(data), sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
+
+
+def load_previous(path):
+    """Arquivo anterior com ids, ou None se nao existe / ainda nao tem ids."""
+    if not os.path.exists(path):
+        return None
+    with open(path, encoding="utf-8") as f:
+        prev = json.load(f)
+    return prev if all(k in prev for k in ("spawn_ids", "node_ids", "id_counter")) else None
+
+
 def export():
     m.preparar(256)
     rng = random.Random(m.SEED * 7919 + 13)
@@ -409,8 +524,17 @@ def dump(data):
 
 def main():
     data, ratio = export()
-    text = dump(data)
     path = os.path.normpath(OUT)
+    previous = load_previous(path)
+    first = "--primeira-geracao" in sys.argv
+    if previous is None and not first:
+        sys.exit("recusado: sem arquivo anterior com ids em %s. Reexportar do zero emitiria ids novos para "
+                 "tudo; se e mesmo a primeira geracao, use --primeira-geracao." % path)
+    if previous is not None and first:
+        sys.exit("recusado: ja existe arquivo anterior com ids; --primeira-geracao descartaria todos eles.")
+    report = assign_ids(data, previous, previous is None)
+    data["content_hash"] = content_hash(data)
+    text = dump(data)
     if "--check" in sys.argv:
         with open(path, encoding="utf-8") as f:
             same = f.read() == text
@@ -424,6 +548,11 @@ def main():
           "| paquicefalos:", len(data["spawns"]["paquicefalo"]),
           "| utahraptores:", len(data["spawns"]["utahraptor"]))
     print("terra firme alcancavel a pe, com obstaculos: %.2f%%" % (ratio * 100))
+    print("ids: %d mantidos, %d novos, %d aposentados | content_hash %s" % (
+        len(report["kept"]), len(report["new"]), len(report["retired"]), data["content_hash"]))
+    for label, key in (("novos", "new"), ("aposentados", "retired")):
+        if 0 < len(report[key]) <= 50:
+            print("  %s: %s" % (label, ", ".join(report[key])))
 
 
 if __name__ == "__main__":

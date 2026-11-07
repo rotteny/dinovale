@@ -30,6 +30,8 @@ signal level_preview_changed(level: int, preview: int)
 signal level_finalized(final_level: int)
 ## A criatura morreu durante a domesticação: a comida consumida está perdida.
 signal taming_failed
+## A domesticação voltou ao zero (acordou selvagem ou a criatura morreu): quem a reservara perde a reserva.
+signal taming_reset
 
 const MAX_PROGRESS := 100.0
 const MAX_EFFICIENCY := 100.0
@@ -210,6 +212,7 @@ func _on_died() -> void:
 		return
 	has_failed = true
 	_reset_progress()
+	taming_reset.emit()
 	taming_failed.emit()
 
 
@@ -218,3 +221,4 @@ func _on_died() -> void:
 func _on_state_changed(previous: Enums.DinoStateId, current: Enums.DinoStateId) -> void:
 	if previous == Enums.DinoStateId.UNCONSCIOUS and current != Enums.DinoStateId.TAMED:
 		_reset_progress()
+		taming_reset.emit()

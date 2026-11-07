@@ -49,8 +49,8 @@ func _tame_for(creature: Dino, owner_id: String) -> void:
 
 func _test_tamed_level_text_once() -> void:
 	var main := await _world("c_level_text")
-	var mine := main.wild.creature_at(0)
-	var theirs := main.wild.creature_at(1)
+	var mine := main.wild.creature_at("w0")
+	var theirs := main.wild.creature_at("w1")
 	for creature: Dino in [mine, theirs]:
 		creature.global_position = main.player.global_position + Vector2(randf_range(-40.0, 40.0), randf_range(20.0, 40.0))
 	main.zone.reclassify()
@@ -58,7 +58,7 @@ func _test_tamed_level_text_once() -> void:
 	var mine_view := _view_of_dino(main, mine)
 	var theirs_view := _view_of_dino(main, theirs)
 	_check(mine_view != null and theirs_view != null, "dinos perto do jogador têm view")
-	_tame_for(mine, Player.LOCAL_PLAYER_ID)
+	_tame_for(mine, main.player.player_id)
 	_tame_for(theirs, "outro")
 	_check(mine_view.popup_count() == 0, "domado do jogador: sem 'Nv' flutuante (a placa já mostra o nível)")
 	_check(theirs_view.popup_count() == 1, "domado de outro jogador mantém o 'Nv' flutuante")
@@ -67,46 +67,46 @@ func _test_tamed_level_text_once() -> void:
 func _test_every_kind_vanishes_and_returns() -> void:
 	var main := await _world("c_vanish")
 	for kind in KINDS:
-		var node := main.resources.node_by_id("%s_1" % kind)
+		var node := main.resources.node_by_id(main.map.node_ids[kind][0])
 		_check(node != null and node.visible and node.is_available(), "%s: existe e está inteiro" % kind)
 		node.harvest()
 		await _root.get_tree().physics_frame
 		_check(not node.visible and not node.blocks_movement() and not node.is_available(),
 				"%s: esgotado some por inteiro (desenho e colisão)" % kind)
-		node.component.tick(node.component.respawn_total() + 1.0)
+		TestWorld.pass_time(main, node.component.respawn_total() + 1.0)
 		await _root.get_tree().physics_frame
 		var solid := node.def.foot_size != Vector2.ZERO and node.def.blocks_when_full
 		_check(node.visible and node.is_available() and node.blocks_movement() == solid,
 				"%s: volta pelo respawn do tipo, com desenho e colisão" % kind)
 	# Colheita parcial não some.
-	var bush := main.resources.node_by_id("bush_baga_1")
+	var bush := main.resources.node_by_id("n1")
 	bush.component.leave({bush.def.item_id: 1})
 	_check(bush.visible and bush.is_available() and bush.component.is_partial(), "colheita parcial ainda não some")
 
 
 func _test_occupied_place_waits() -> void:
 	var main := await _world("c_occupied")
-	var node := main.resources.node_by_id("tree_5")
+	var node := main.resources.node_by_id("n320")
 	main.player.position = node.global_position
 	node.harvest()
-	node.component.tick(node.component.respawn_total() + 1.0)
+	TestWorld.pass_time(main, node.component.respawn_total() + 1.0)
 	_check(node.component.depleted and node.component.is_waiting() and not node.visible,
 			"jogador em cima: o nó espera esgotado, sem voltar")
 	var entry := node.component.to_dict()
 	_check(entry["depleted"] == true, "esperando não é perdido: segue no save como esgotado")
-	node.component.tick(60.0)
+	TestWorld.pass_time(main, 60.0)
 	_check(node.component.depleted, "continua esperando enquanto estiver ocupado")
 	main.player.position = node.global_position + Vector2(200, 0)
-	node.component.tick(1.0)
+	TestWorld.pass_time(main, 1.0)
 	_check(node.is_available() and node.visible, "livre o lugar, tenta de novo e volta")
 	# Um dino parado no tile também segura.
-	var other := main.resources.node_by_id("rock_3")
+	var other := main.resources.node_by_id("n176")
 	main.dino.global_position = other.global_position + Vector2(2, -2)
 	other.harvest()
-	other.component.tick(other.component.respawn_total() + 1.0)
+	TestWorld.pass_time(main, other.component.respawn_total() + 1.0)
 	_check(other.component.depleted, "um dino no tile segura o nó")
 	main.dino.global_position = other.global_position + Vector2(300, 0)
-	other.component.tick(1.0)
+	TestWorld.pass_time(main, 1.0)
 	_check(other.is_available(), "o dino sai e o nó volta")
 
 
@@ -176,18 +176,18 @@ func _test_occupancy_shape_box() -> void:
 func _test_command_denials() -> void:
 	var main := await _world("c_command")
 	var player := main.player
-	var wild_awake := main.wild.creature_at(0)
+	var wild_awake := main.wild.creature_at("w0")
 	player.position = wild_awake.position + Vector2(10, 0)
 	var id := main.authority.id_of(wild_awake)
 	_check(main.authority.request_command(1, id, "FOLLOW") == RESULT.WRONG_STATE and wild_awake.state_machine.order == Enums.DinoOrder.STAY,
 			"selvagem acordado: ordem negada")
-	var sleeper := main.wild.creature_at(1)
+	var sleeper := main.wild.creature_at("w1")
 	sleeper.position = player.position + Vector2(12, 0)
 	sleeper.torpor.add_torpor(sleeper.torpor.max_torpor)
 	await _root.get_tree().physics_frame
 	_check(sleeper.can_interact() and main.authority.request_command(1, main.authority.id_of(sleeper), "FOLLOW") == RESULT.WRONG_STATE,
 			"selvagem desacordado, sem dono: ordem negada")
-	var foreign := main.wild.creature_at(2)
+	var foreign := main.wild.creature_at("w2")
 	_tame_for(foreign, "outro")
 	foreign.position = player.position + Vector2(-12, 0)
 	var foreign_id := main.authority.id_of(foreign)
@@ -203,7 +203,7 @@ func _test_command_denials() -> void:
 	main.hud._on_target_changed(foreign.interactable)
 	_check(not main.hud.prompt_label().visible, "a HUD não oferece ordem no domado de outro")
 	# O próprio domado aceita.
-	var mine := main.wild.creature_at(3)
+	var mine := main.wild.creature_at("w3")
 	_tame_for(mine, player.player_id)
 	mine.position = player.position + Vector2(0, 14)
 	_check(main.authority.request_command(1, main.authority.id_of(mine), "FOLLOW") == RESULT.OK, "o próprio domado aceita a ordem")
@@ -236,8 +236,8 @@ func _marker_of(main: Main, creature: Dino) -> DinoMarker:
 
 func _test_highlight_and_markers() -> void:
 	var main := await _world("c_highlight")
-	var tree_node := main.resources.node_by_id("tree_20")
-	var rock := main.resources.node_by_id("rock_20")
+	var tree_node := main.resources.node_by_id("n335")
+	var rock := main.resources.node_by_id("n193")
 	main.hud._on_target_changed(tree_node.interactable)
 	var view := _view_of(tree_node)
 	_check(view.is_highlighted() and view.highlight_text() == "Árvore: Madeira", "nó coletável ao alcance: contorno e o nome do que rende")
@@ -246,14 +246,14 @@ func _test_highlight_and_markers() -> void:
 	_check(not view.is_highlighted() and rock_view.is_highlighted() and rock_view.highlight_text() == "Pedra", "o destaque muda com o alvo")
 	main.hud._on_target_changed(null)
 	_check(not _view_of(rock).is_highlighted(), "sem alvo, sem destaque")
-	var other := _view_of(main.resources.node_by_id("tree_21"))
+	var other := _view_of(main.resources.node_by_id("n336"))
 	_check(not other.is_highlighted(), "fora do alcance, nada")
 	tree_node.harvest()
 	_check(not view.is_highlighted(), "esgotado não tem destaque (nem desenho)")
 	# Placa do domado: só no do jogador.
-	var mine := main.wild.creature_at(0)
-	var theirs := main.wild.creature_at(1)
-	var wild_one := main.wild.creature_at(2)
+	var mine := main.wild.creature_at("w0")
+	var theirs := main.wild.creature_at("w1")
+	var wild_one := main.wild.creature_at("w2")
 	_tame_for(mine, main.player.player_id)
 	_tame_for(theirs, "outro")
 	for creature: Dino in [mine, theirs, wild_one]:  # perto do jogador: na zona ativa, com view e placa
@@ -281,7 +281,7 @@ func _kill(creature: Dino) -> void:
 
 func _test_carcass_from_death() -> void:
 	var main := await _world("c_carcass")
-	var creature := main.wild.creature_at(0)
+	var creature := main.wild.creature_at("w0")
 	var point := creature.global_position
 	var level := creature.level
 	var expected := main.carcasses.LEVEL_RULES.carcass_meat(4, level)
@@ -293,9 +293,9 @@ func _test_carcass_from_death() -> void:
 			"no lugar do corpo, e registrada na autoridade")
 	_check(carcass.def.yield_amount == expected and carcass.def.item_id == "meat" and carcass.def.hand_damage_per_item,
 			"rende a carne da espécie no nível (%d)" % expected)
-	_check(main.wild.creature_at(0) == null or main.wild.is_dead(0), "o morto não renasce em cima")
+	_check(main.wild.creature_at("w0") == null or main.wild.is_dead("w0"), "o morto não renasce em cima")
 	# Domado também.
-	var mine := main.wild.creature_at(1)
+	var mine := main.wild.creature_at("w1")
 	_tame_for(mine, main.player.player_id)
 	_kill(mine)
 	await _root.get_tree().physics_frame
@@ -305,9 +305,9 @@ func _test_carcass_from_death() -> void:
 	await _root.get_tree().physics_frame
 	_check(main.carcasses.count() == 3, "o dino da cena morto deixa carcaça")
 	# Some pelo tempo do GDD (10 min).
-	main.carcasses.tick(600.0 - 1.0)
+	TestWorld.pass_time(main, 600.0 - 1.0)
 	_check(main.carcasses.count() == 3, "antes de 10 min a carcaça fica")
-	main.carcasses.tick(2.0)
+	TestWorld.pass_time(main, 2.0)
 	await _root.get_tree().physics_frame
 	_check(main.carcasses.count() == 0, "com 10 min (GDD 5.6) a carcaça some")
 
@@ -315,7 +315,7 @@ func _test_carcass_from_death() -> void:
 func _test_carcass_hand_cost_and_partial() -> void:
 	var main := await _world("c_carcass_cost")
 	var player := main.player
-	var creature := main.wild.creature_at(0)
+	var creature := main.wild.creature_at("w0")
 	creature.level = 20  # 4 x 1,3 = 5 de carne: mais de 1 item
 	_kill(creature)
 	await _root.get_tree().physics_frame
@@ -343,7 +343,7 @@ func _test_carcass_hand_cost_and_partial() -> void:
 	await _root.get_tree().physics_frame
 	_check(main.carcasses.count() == 0 and main.authority.entity(id) == null, "esvaziada, a carcaça some e sai do registro")
 	# Com mais itens que o piso de vida: o Soco não mata.
-	var big := main.wild.creature_at(1)
+	var big := main.wild.creature_at("w1")
 	big.level = 60
 	_kill(big)
 	await _root.get_tree().physics_frame
@@ -360,11 +360,11 @@ func _test_carcass_hand_cost_and_partial() -> void:
 func _test_carcass_save_and_limits() -> void:
 	var saved_entries: Array = []
 	var after := await _save_and_continue("c_carcass_save", func(main: Main) -> void:
-		_kill(main.wild.creature_at(0))
-		_kill(main.wild.creature_at(1))
+		_kill(main.wild.creature_at("w0"))
+		_kill(main.wild.creature_at("w1"))
 		var half: ResourceNode = main.carcasses.nodes()[0]
 		half.component.leave({"meat": 2})
-		main.carcasses.tick(30.0)
+		TestWorld.pass_time(main, 30.0)
 		saved_entries.append_array(main.carcasses.to_list()))
 	_check(saved_entries.size() == 2, "preparo: duas carcaças gravadas")
 	_check(after.carcasses.count() == 2, "as carcaças voltam ao carregar")
@@ -372,10 +372,10 @@ func _test_carcass_save_and_limits() -> void:
 	var spot := Vector2(saved_entries[0]["x"], saved_entries[0]["y"])
 	_check(back[0].component.pending_yields() == {"meat": 2} and back[0].global_position.distance_to(spot) < 0.01,
 			"posição e o que resta voltam")
-	_check(after.wild.is_dead(0) and after.wild.creature_at(0) == null or after.wild.is_dead(0), "o morto continua morto (não renasce)")
+	_check(after.wild.is_dead("w0"), "o morto continua morto (não renasce)")
 	_check(after.authority.id_of(back[0]) == int(saved_entries[0]["id"]), "o id da entidade se mantém")
 	# Dado hostil: espécie desconhecida, número louco e excesso.
-	var crazy := {"species": "placeholder_dino", "level": 99999, "x": 1e30, "y": "a", "age": -5, "left": {"meat": 999, "x": 4}}
+	var crazy := {"species": "placeholder_dino", "level": 99999, "x": 1e30, "y": "a", "born_at": 1.0e30, "left": {"meat": 999, "x": 4}}
 	after.carcasses.restore_list([{"species": "nada"}, crazy, 7, null])
 	_check(after.carcasses.count() == 1, "espécie desconhecida e lixo são descartados")
 	var node: ResourceNode = after.carcasses.nodes()[0]
@@ -387,7 +387,7 @@ func _test_carcass_save_and_limits() -> void:
 	after.carcasses.restore_list(many)
 	_check(after.carcasses.count() == 8, "no máximo 8 carcaças (GDD 5.6)")
 	for i in 5:
-		_kill(after.wild.creature_at(10 + i))
+		_kill(after.wild.creature_at("w%d" % (10 + i)))
 	_check(after.carcasses.count() == 8, "a mais antiga sai quando passa de 8")
 
 

@@ -181,8 +181,7 @@ rule_input_only_in_controller_and_ui() {
   index_grep 'src/(?!ui/)(?!.*PlayerController\.gd)' \
     '\bInput\b|\bInputEvent\w*|\bfunc _(unhandled_)?(key_)?input\b' \
     | judge "Input só em PlayerController e src/ui" \
-      "mova a leitura de input para o PlayerController (ADR-001, NET-01)" \
-      "src/entities/player/Player.gd=remover em NET-01 (extrai read_direction e _unhandled_input para PlayerController)"
+      "mova a leitura de input para o PlayerController (ADR-001, NET-01)"
 }
 
 # R-F: a UI observa, não muda estado.

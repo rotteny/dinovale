@@ -72,6 +72,7 @@ var _respawn_count: int = 0
 func _ready() -> void:
 	_load_server_rules()
 	map = IslandMap.default_map()
+	player.player_id = WorldSnapshot.new_player_id()  # mundo novo: id aleatório (o Continuar o troca pelo salvo)
 	_place_on_island()
 	dino.level = dino_level
 	get_tree().auto_accept_quit = false  # o fechar da janela passa pelo save (_notification)
@@ -148,6 +149,7 @@ func _place_on_island() -> void:
 		resources.occupancy = occupancy
 		resources.yield_multiplier = server_rules.collect_multiplier
 		resources.respawn_rate = server_rules.resource_respawn_rate
+		resources.clock = authority.clock.now
 		resources.populate(map, world_rules)
 	_build_zone()
 
@@ -167,6 +169,7 @@ func _build_zone() -> void:
 	carcasses.y_sort_enabled = true
 	carcasses.authority = authority
 	carcasses.occupancy = occupancy
+	carcasses.clock = authority.clock.now
 	add_child(carcasses)
 	wild = WildPopulation.new()
 	wild.name = "Wild"
@@ -176,6 +179,14 @@ func _build_zone() -> void:
 	add_child(wild)
 	zone.register(dino, false)
 	var tutorial_cell: Vector2i = map.landmarks.get("paquicefalo_tutorial", Vector2i(-1, -1))
+	var tutorial_spawn := map.spawn_id_at(dino.stats.spawn_key, tutorial_cell)  # o do tutorial também tem sexo pelo ponto
+	dino.sex = dino.stats.roll_sex(map.seed_value, tutorial_spawn if tutorial_spawn != "" else "tutorial")
+	var scene_marker := get_node_or_null("DinoMarker") as DinoMarker
+	if scene_marker != null:
+		scene_marker.viewer = player
+	var scene_view := get_node_or_null("DinoView") as DinoView
+	if scene_view != null:
+		scene_view.viewer = player
 	# o do tutorial é um dos `wild_population_max`
 	for creature in wild.populate(map, world_rules, tutorial_cell, world_rules.wild_population_max - 1):
 		zone.register(creature, false)
@@ -211,7 +222,7 @@ func save_game(reason: SaveManager.Reason) -> bool:
 
 func _continue_saved_game() -> void:
 	var outcome := save_manager.load_first(
-			func(data: Dictionary) -> bool: return WorldSnapshot.restore(data, player, dino, resources, wild, carcasses))
+			func(data: Dictionary) -> bool: return WorldSnapshot.restore(data, player, dino, resources, wild, carcasses, authority))
 	if outcome.status == SaveManager.Status.OK:
 		_respawn_count = WorldSnapshot.respawn_count_of(outcome.data)
 		scheduler.respawn_count = _respawn_count
@@ -371,6 +382,7 @@ func _attach_wild_views(creature: Dino) -> void:
 		return
 	var view := DinoView.new()
 	view.dino = creature
+	view.viewer = player
 	var template := get_node_or_null("DinoView") as DinoView
 	if template != null:
 		view.cue_streams = template.cue_streams
@@ -379,6 +391,7 @@ func _attach_wild_views(creature: Dino) -> void:
 	bars.dino = creature
 	var marker := DinoMarker.new()
 	marker.dino = creature
+	marker.viewer = player
 	add_child(view)
 	add_child(bars)
 	add_child(marker)  # só aparece se o dino for domado do jogador local

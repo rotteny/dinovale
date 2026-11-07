@@ -126,7 +126,8 @@ func _test_health_protection_and_revive() -> void:
 
 func _test_life_dead_with_health() -> void:
 	var pair := _fresh_pair()
-	var data := SaveManager.make_envelope({}, [{"player_id": "local", "entity_id": 1, "life": WorldSnapshot.LIFE_DEAD_PENDING_CHOICE,
+	var data := SaveManager.make_envelope({"next_entity_id": 3},
+			[{"player_id": "local", "entity_id": 1, "life": WorldSnapshot.LIFE_DEAD_PENDING_CHOICE,
 			"state": {"health": {"current": 50.0}}}], [], "0.1.0", "x")
 	_check(WorldSnapshot.restore(data, pair[0], pair[1]) and (pair[0] as Player).health.is_dead(),
 			"life morto com vida > 0 no estado: carrega morto")
@@ -134,7 +135,8 @@ func _test_life_dead_with_health() -> void:
 
 func _test_dead_load_drops_protection() -> void:
 	var pair := _fresh_pair()
-	var data := SaveManager.make_envelope({}, [{"player_id": "local", "entity_id": 1, "life": WorldSnapshot.LIFE_DEAD_PENDING_CHOICE,
+	var data := SaveManager.make_envelope({"next_entity_id": 3},
+			[{"player_id": "local", "entity_id": 1, "life": WorldSnapshot.LIFE_DEAD_PENDING_CHOICE,
 			"state": {"health": {"current": 0.0}, "protection": 60.0}}], [], "0.1.0", "x")
 	_check(WorldSnapshot.restore(data, pair[0], pair[1]) and (pair[0] as Player).health.protection_left == 0.0,
 			"carregar morto zera a proteção salva")
@@ -143,26 +145,31 @@ func _test_dead_load_drops_protection() -> void:
 func _test_node_component() -> void:
 	var node: ResourceNodeComponent = _track.call(ResourceNodeComponent.new())
 	_check(not node.is_available() and node.harvest() == 0, "sem def: nada a colher")
+	var clock := TestWorld.TestClock.new()
+	node.clock = clock.now
 	node.def = TREE
 	_check(node.is_available() and node.harvest() == TREE.yield_amount and not node.is_available(), "colher entrega e esgota")
 	_check(node.harvest() == 0, "esgotado não entrega de novo")
 	var returned := [0]
 	node.changed.connect(func() -> void: returned[0] += 1)
-	node.tick(TREE.respawn_seconds - 1.0)
+	clock.time += TREE.respawn_seconds - 1.0
+	node.tick()
 	_check(not node.is_available() and returned[0] == 0, "antes do tempo continua esgotado")
-	node.tick(1.0)
+	clock.time += 1.0
+	node.tick()
 	_check(node.is_available() and returned[0] == 1, "no tempo, volta cheio")
-	node.harvest()
-	node.tick(100.0)
+	node.harvest()  # em t = respawn_seconds: vence em t + respawn_seconds
+	clock.time += 100.0
 	var copy: ResourceNodeComponent = _track.call(ResourceNodeComponent.new())
+	copy.clock = clock.now
 	copy.def = TREE
 	copy.from_dict(JSON.parse_string(JSON.stringify(node.to_dict())))
-	_check(not copy.is_available() and is_equal_approx(copy.respawn_left, TREE.respawn_seconds - 100.0),
-			"estado esgotado e tempo restante vão no save")
+	_check(not copy.is_available() and is_equal_approx(copy.due_at - clock.time, TREE.respawn_seconds - 100.0),
+			"estado esgotado e o instante de volta vão no save")
 	copy.from_dict({"def": "rock", "depleted": false})
 	_check(not copy.is_available(), "dado de outro tipo de nó é ignorado")
-	copy.from_dict({"def": "tree", "depleted": true, "respawn_left": 1.0e30})
-	_check(copy.respawn_left == TREE.respawn_seconds, "tempo de save é limitado")
+	copy.from_dict({"def": "tree", "depleted": true, "due_at": 1.0e30})
+	_check(copy.due_at == clock.time + TREE.respawn_seconds, "o instante de save é limitado ao relógio mais a duração")
 
 
 func _test_node_defs() -> void:
@@ -225,12 +232,12 @@ func _test_respawn_points_are_free() -> void:
 	var main := _main("free_points", 20, true)
 	await tree.physics_frame
 	await tree.physics_frame
-	_check(not main._is_free_point(main.resources.node_by_id("rock_1").global_position + Vector2(0, -4)),
+	_check(not main._is_free_point(main.resources.node_by_id("n174").global_position + Vector2(0, -4)),
 			"rocha (colisão dos pés) não é ponto livre")
 	_check(not main._is_free_point(Vector2(64, 64)), "o mar não é ponto livre")
 	_check(main.map.terrain_at(Vector2i(200, 128)) == IslandMap.DEEP and not main._is_free_point(main.map.center_of(Vector2i(200, 128))),
 			"água funda (a enseada) não é ponto livre")
-	_check(not main._is_free_point(main.resources.node_by_id("bush_baga_1").global_position), "em cima de nó de recurso não é ponto livre")
+	_check(not main._is_free_point(main.resources.node_by_id("n1").global_position), "em cima de nó de recurso não é ponto livre")
 	_check(main._is_free_point(RULES.region_by_id("campina").fallback_point), "o ponto reserva da Campina é livre")
 	var all_free := true
 	var far := true
@@ -300,8 +307,8 @@ func _test_gather_rules() -> void:
 	var main := _main("gather")
 	await tree.physics_frame
 	var player := main.player
-	var bush := main.resources.node_by_id("bush_baga_1")
-	var wood := main.resources.node_by_id("tree_1")
+	var bush := main.resources.node_by_id("n1")
+	var wood := main.resources.node_by_id("n316")
 	_check(player.request_gather() == Player.GATHER_NO_TARGET, "sem alvo: recusa")
 	player.target = bush.interactable
 	_check(player.request_gather() == Player.GATHER_TOO_FAR and bush.is_available(), "longe do nó: recusa e o nó não gasta")
@@ -347,7 +354,7 @@ func _test_gather_rules() -> void:
 	player.health.take_damage(10000.0)
 	_check(player.request_gather() == Player.GATHER_BLOCKED and wood.is_available(), "morto não colhe")
 	# Respawn do nó pelo relógio do jogo.
-	bush.component.tick(BERRY_BUSH.respawn_seconds)
+	TestWorld.pass_time(main, BERRY_BUSH.respawn_seconds)
 	_check(bush.is_available() and bush.interactable.can_interact(), "o nó volta no tempo e fica interagível")
 
 
@@ -355,30 +362,31 @@ func _test_nodes_in_save() -> void:
 	var tree := _root.get_tree()
 	var main := _main("nodes_save")
 	await tree.physics_frame
-	var bush := main.resources.node_by_id("bush_baga_2")
+	var bush := main.resources.node_by_id("n2")
 	main.player.position = bush.position + Vector2(0, 10)
 	main.player.target = bush.interactable
 	main.player.request_gather()
-	bush.component.tick(60.0)
+	TestWorld.pass_time(main, 60.0)
 	main.save_game(SaveManager.Reason.BED)
 	GameSession.continue_requested = true
 	var again := _main("nodes_save", 20, true)
-	var restored := again.resources.node_by_id("bush_baga_2")
-	_check(not restored.is_available() and is_equal_approx(restored.component.respawn_left, BERRY_BUSH.respawn_seconds - 60.0),
+	var restored := again.resources.node_by_id("n2")
+	_check(not restored.is_available() and is_equal_approx(restored.component.due_at - again.authority.clock.now(),
+			BERRY_BUSH.respawn_seconds - 60.0),
 			"nó colhido continua esgotado depois de salvar e continuar, com o tempo restante")
-	_check(again.resources.node_by_id("bush_baga_1").is_available(), "os outros nós seguem cheios")
-	again.resources.restore_list([5, "x", {"id": 7}, {"id": "tree_1", "def": "tree", "depleted": true, "respawn_left": 9.0}])
-	_check(not again.resources.node_by_id("tree_1").is_available(), "lista com lixo não aborta e aplica o que serve")
+	_check(again.resources.node_by_id("n1").is_available(), "os outros nós seguem cheios")
+	again.resources.restore_list([5, "x", {"id": 7}, {"id": "n316", "def": "tree", "depleted": true, "due_at": 9.0}])
+	_check(not again.resources.node_by_id("n316").is_available(), "lista com lixo não aborta e aplica o que serve")
 	var junk: Array = []
 	for i in 15:
 		junk.append(i)
-	junk.append({"id": "tree_2", "def": "tree", "depleted": true, "respawn_left": 9.0})
+	junk.append({"id": "n317", "def": "tree", "depleted": true, "due_at": 9.0})
 	again.resources.restore_list(junk)
-	_check(not again.resources.node_by_id("tree_2").is_available(), "lixo no início da lista não esconde um nó válido")
+	_check(not again.resources.node_by_id("n317").is_available(), "lixo no início da lista não esconde um nó válido")
 	var ids: Array = []
 	for entry: Dictionary in again.resources.to_list():
 		ids.append(entry["id"])
-	_check(ids == ["tree_2"], "to_list leva só os esgotados (o mapa é estático); a lista aplicada de novo soltou o resto")
+	_check(ids == ["n317"], "to_list leva só os esgotados (o mapa é estático); a lista aplicada de novo soltou o resto")
 
 
 func _test_fixture_v2() -> void:
@@ -389,9 +397,9 @@ func _test_fixture_v2() -> void:
 	var main := _main("fixture_v2", 20, true)
 	var pair := [main.player, main.dino]
 	_check(WorldSnapshot.restore(outcome.data, pair[0], pair[1], main.resources), "fixture v2 é aplicada ao mundo")
-	_check(main.resources.to_list().is_empty() and main.resources.node_by_id("tree_1").is_available(),
+	_check(main.resources.to_list().is_empty() and main.resources.node_by_id("n316").is_available(),
 			"fixture v2: os ids do mapa antigo (berry_1...) não existem na ilha e são ignorados; nada esgota")
-	_check(main.resources.node_by_id("rock_1").is_available(), "fixture v2: nó com tipo diferente do salvo é ignorado")
+	_check(main.resources.node_by_id("n174").is_available(), "fixture v2: nó com tipo diferente do salvo é ignorado")
 	_check(WorldSnapshot.respawn_count_of(outcome.data) == 3, "fixture v2: contador de respawns")
 
 
@@ -437,8 +445,8 @@ func _test_targeting() -> void:
 	var main := _main("targeting")
 	await tree.physics_frame
 	var player := main.player
-	var bush := main.resources.node_by_id("bush_baga_1")
-	var other := main.resources.node_by_id("bush_baga_2")
+	var bush := main.resources.node_by_id("n1")
+	var other := main.resources.node_by_id("n2")
 	var dino := main.dino
 	player.position = Vector2(200, 180)
 	dino.position = Vector2(226, 180)
@@ -472,7 +480,7 @@ func _test_targeting() -> void:
 	player._in_range.clear()
 	player._in_range.append(other.interactable)
 	other.component.depleted = false
-	other.component.respawn_left = 0.0
+	other.component.due_at = 0.0
 	player.respawn_at(other.position + Vector2(28, 0), main.respawn_rules)
 	player.update_target()
 	_check(player.target == other.interactable and player.try_interact(), "renascendo a 28 px do nó, interagir funciona de imediato")

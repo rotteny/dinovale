@@ -6,6 +6,7 @@ extends SaveTests
 
 const FIXTURE_V3 := "res://tests/fixtures/saves/v3.json"
 const FIXTURE_V4 := "res://tests/fixtures/saves/v4.json"
+const FIXTURE_V5 := "res://tests/fixtures/saves/v5.json"
 const RESULT := Enums.ActionResult
 const WORLD_RULES: WorldRules = preload("res://data/world/world_rules.tres")
 const RESPAWN_RULES: RespawnRules = preload("res://data/balance/respawn_rules.tres")
@@ -36,7 +37,8 @@ func run() -> void:
 	_release_worlds()
 	await _test_zone_load_360()
 	_release_worlds()
-	await _test_save_v4()
+	await _test_save_v5()
+	await _test_migration_v4_to_v5()
 	_release_worlds()
 	await _test_continue_from_v3()
 	_release_worlds()
@@ -364,8 +366,8 @@ func _test_main_terrain_and_nodes() -> void:
 		if not main.world_rules.disabled_node_kinds.has(kind):
 			expected += (map.nodes[kind] as Array).size()
 	_check(field.node_count() == expected and expected > 500, "um nó por posição do mapa, sem minério (%d)" % field.node_count())
-	_check(field.node_by_id("iron_seam_1") == null, "minério não é instanciado na v0.2")
-	_check(field.node_by_id("tree_1") != null and field.node_by_id("fiber_plant_1") == null, "ids <tipo>_<n>; sem planta de fibra")
+	_check(field.node_by_id("n132") == null, "minério não é instanciado na v0.2")
+	_check(field.node_by_id("n316") != null and field.node_by_id("fiber_plant_1") == null, "ids <tipo>_<n>; sem planta de fibra")
 	_check(not map.scenery.has("tree_decor"), "toda árvore do mapa é coletável: não há árvore de cenário")
 	var node_sum := 0
 	for node in field.nodes():
@@ -373,7 +375,7 @@ func _test_main_terrain_and_nodes() -> void:
 		if node_sum % 40 == 0:
 			_check(map.is_land(map.cell_of(node.position)), "o nó %s está em terra firme" % node.node_id)
 	# Colisão só nos pés.
-	var rock := field.node_by_id("rock_1")
+	var rock := field.node_by_id("n174")
 	var rock_body: StaticBody2D = null
 	for child in rock.get_children():
 		rock_body = child if child is StaticBody2D else rock_body
@@ -381,7 +383,7 @@ func _test_main_terrain_and_nodes() -> void:
 	var foot := rock.def.foot_size
 	_check(rock.blocks_movement() and (shape.shape as RectangleShape2D).size == foot and is_equal_approx(shape.position.y, -foot.y / 2.0),
 			"a rocha bloqueia só nos pés (caixa %s apoiada na origem)" % str(foot))
-	var bush := field.node_by_id("bush_baga_1")
+	var bush := field.node_by_id("n1")
 	bush.component.harvest()
 	await tree.physics_frame
 	await tree.physics_frame
@@ -389,7 +391,7 @@ func _test_main_terrain_and_nodes() -> void:
 	var view_sprite := _first_sprite(rock)
 	_check(view_sprite != null and is_equal_approx(view_sprite.offset.y, -view_sprite.texture.get_height()),
 			"o sprite sobe da origem: os pés ficam na origem (ordem por Y)")
-	var wood := field.node_by_id("tree_1")
+	var wood := field.node_by_id("n316")
 	wood.component.harvest()
 	await tree.physics_frame
 	await tree.physics_frame
@@ -443,7 +445,7 @@ func _test_punch_rules() -> void:
 	var floor_hp := player.rules.hand_damage_floor
 	_check(floor_hp == 10.0 and player.current_weapon().self_damage == 1.0 and player.current_weapon().damage > 0.0, PUNCH_ONLY)
 	# Árvore à mão: coleta e custa 1 de vida por colheita.
-	var wood := main.resources.node_by_id("tree_1")
+	var wood := main.resources.node_by_id("n316")
 	_near(main, wood)
 	var hp := player.health.current_health
 	var logs := player.inventory.count(Items.WOOD)
@@ -451,13 +453,13 @@ func _test_punch_rules() -> void:
 		and player.inventory.count(Items.WOOD) == logs + wood.def.yield_amount
 			and not wood.is_available()
 			and is_equal_approx(player.health.current_health, hp - 1.0), "árvore no Soco: coleta e custa 1 de vida")
-	var second := main.resources.node_by_id("tree_2")
+	var second := main.resources.node_by_id("n317")
 	_near(main, second)
 	hp = player.health.current_health
 	_check(authority.request_gather(1, authority.id_of(second)) == RESULT.OK and is_equal_approx(player.health.current_health, hp - 1.0),
 			"a segunda colheita custa mais 1 (por colheita, não por golpe)")
 	# Pedra à mão: um toque, 1 de dano, sem coleta; o nó fica cheio.
-	var rock := main.resources.node_by_id("rock_1")
+	var rock := main.resources.node_by_id("n174")
 	_near(main, rock)
 	hp = player.health.current_health
 	var stones := player.inventory.count(Items.STONE)
@@ -497,7 +499,7 @@ func _test_punch_rules() -> void:
 	player.tick(60.0)
 	_check(player.strike(creature) and player.health.current_health == floor_hp and not player.health.is_dead(),
 			"no piso: nada mais é tirado")
-	var third := main.resources.node_by_id("tree_3")
+	var third := main.resources.node_by_id("n318")
 	_near(main, third)
 	_check(authority.request_gather(1, authority.id_of(third)) == RESULT.OK and player.health.current_health == floor_hp
 			and not third.is_available(), "no piso a árvore ainda é colhida, sem custo, sem morrer")
@@ -517,8 +519,8 @@ func _test_punch_denials() -> void:
 	await tree.physics_frame
 	var player := main.player
 	var authority := main.authority
-	var wood := main.resources.node_by_id("tree_1")
-	var rock := main.resources.node_by_id("rock_1")
+	var wood := main.resources.node_by_id("n316")
+	var rock := main.resources.node_by_id("n174")
 	# Fora de alcance: negado, sem custo e sem gastar o nó.
 	player.position = wood.position + Vector2(400, 0)
 	var before := player.to_dict()
@@ -538,7 +540,7 @@ func _test_punch_denials() -> void:
 	# Recarga.
 	var hp := player.health.current_health
 	_check(authority.request_gather(1, authority.id_of(wood)) == RESULT.OK, "preparo: colheu a árvore")
-	var other := main.resources.node_by_id("tree_2")
+	var other := main.resources.node_by_id("n317")
 	other.position = player.position + Vector2(0, 6)
 	hp = player.health.current_health
 	_check(authority.request_gather(1, authority.id_of(other)) == RESULT.COOLDOWN and other.is_available()
@@ -550,7 +552,7 @@ func _test_punch_denials() -> void:
 	_check(authority.request_gather(1, authority.id_of(wood)) == RESULT.WRONG_STATE and player.health.current_health == hp,
 			"esgotado: negado, sem custo")
 	# Sem espaço: nada é colhido nem cobrado.
-	var bush := main.resources.node_by_id("tree_4")
+	var bush := main.resources.node_by_id("n319")
 	_near(main, bush)
 	while player.inventory.room_for(Items.WOOD) > 0:
 		var filler := Items.STONE if player.inventory.room_for(Items.STONE) > 0 else Items.WOOD
@@ -603,16 +605,16 @@ func _test_loose_stones() -> void:
 		and player.inventory.count(Items.STONE) == stones + core.def.yield_amount
 			and player.health.current_health == hp and not core.is_available(), "pedra avulsa: coleta à mão, sem custo")
 	main.player.position = core.position + Vector2(200, 0)  # o corpo em cima do lugar segura o nó (caixa de colisão)
-	core.component.tick(299.0)
+	TestWorld.pass_time(main, 299.0)
 	_check(not core.is_available(), "antes dos 300 s segue esgotada")
-	core.component.tick(1.0)
+	TestWorld.pass_time(main, 1.0)
 	_check(core.is_available(), "aos 300 s a pedra do núcleo volta")
 	_near(main, trail)
 	authority.request_gather(1, authority.id_of(trail))
 	main.player.position = trail.position + Vector2(200, 0)
-	trail.component.tick(300.0)
+	TestWorld.pass_time(main, 300.0)
 	_check(not trail.is_available(), "a pedra da trilha segue esgotada aos 300 s")
-	trail.component.tick(300.0)
+	TestWorld.pass_time(main, 300.0)
 	_check(trail.is_available(), "aos 600 s a pedra da trilha volta")
 
 
@@ -736,7 +738,7 @@ func _test_zone_in_main() -> void:
 	# Fixado pelo estado: domado fica ativo mesmo longe.
 	main.dino.torpor.add_torpor(main.dino.torpor.max_torpor)
 	_check(main.dino.state_machine.mark_tamed(), "preparo: o dino do tutorial foi domado")
-	main.dino.owner_player_id = "local"
+	main.dino.owner_player_id = main.player.player_id
 	zone.tick(zone.rules.reevaluate_seconds)
 	_check(zone.mode_of(main.dino) == ActivityZone.Mode.ACTIVE and main.dino.process_mode == Node.PROCESS_MODE_INHERIT,
 			"o domado fica ativo longe do dono (o relógio dele corre)")
@@ -789,63 +791,166 @@ func _test_zone_load_360() -> void:
 	_check(main.zone.active_count <= 32, "carga: o teto de 32 ativos se mantém depois de 60 quadros")
 
 
-# ----------------------------------------------------------------------------- save v4
+# ----------------------------------------------------------------------------- save v5
 
-func _test_save_v4() -> void:
+func _test_save_v5() -> void:
 	var tree := _root.get_tree()
 	var manager := SaveManager.new(root_dir)
-	var outcome := manager.read_file(FIXTURE_V4)
-	_check(outcome.status == SaveManager.Status.OK and outcome.data.get("format_version") == 4 and SaveMigrations.CURRENT_VERSION == 4,
-			"fixture v4 carrega sem migrar")
+	var outcome := manager.read_file(FIXTURE_V5)
+	_check(outcome.status == SaveManager.Status.OK and outcome.data.get("format_version") == 5 and SaveMigrations.CURRENT_VERSION == 5,
+			"fixture v5 carrega sem migrar")
 	var world: Dictionary = outcome.data.get("world", {})
-	_check(world.get("map_id") == "lunata" and world.get("map_revision") == IslandMap.default_map().revision
+	_check(world.get("map_id") == "lunata" and world.get("map_revision") == IslandMap.default_map().content_hash
 			and not world.has("rows") and not world.has("nodes"),
-			"o save leva o id e a revisão do mapa, nunca o mapa")
-	_check(FileAccess.get_file_as_string(FIXTURE_V4).length() < 8000, "o save é pequeno: o mapa estático fica fora dele")
-	var main := _main("fixture_v4", 20, true)
+			"o save leva o id e o hash do mapa, nunca o mapa")
+	_check(FileAccess.get_file_as_string(FIXTURE_V5).length() < 8000, "o save é pequeno: o mapa estático fica fora dele")
+	var main := _main("fixture_v5", 20, true)
 	await tree.physics_frame
 	var pair := [main.player, main.dino]
-	_check(WorldSnapshot.restore(outcome.data, pair[0], pair[1], main.resources, main.wild), "fixture v4 é aplicada ao mundo")
-	_check(main.wild.creature_at(3) == null and main.wild.is_dead(3) and main.wild.creature_at(4) != null,
+	_check(WorldSnapshot.restore(outcome.data, pair[0], pair[1], main.resources, main.wild, main.carcasses, main.authority),
+			"fixture v5 é aplicada ao mundo")
+	_check(main.player.player_id == world["local_player_id"] and main.authority.clock.now() == 1000.0,
+			"o jogador local vem de world.local_player_id e o relógio do mundo é reposto")
+	_check(main.wild.creature_at("w3") == null and main.wild.is_dead("w3") and main.wild.creature_at("w4") != null,
 			"o selvagem morto do save não volta; o vizinho segue")
-	var stone := main.resources.node_by_id("loose_stone_11")
-	var wood := main.resources.node_by_id("tree_3")
-	_check(not stone.is_available() and stone.component.respawn_left == 500.0 and not wood.is_available()
-		and wood.component.respawn_left == 230.0,
-			"só os nós esgotados voltam esgotados, com o tempo que faltava")
-	_check(main.resources.node_by_id("tree_1").is_available() and main.resources.node_by_id("rock_1").is_available(),
+	var stone := main.resources.node_by_id("n160")
+	var wood := main.resources.node_by_id("n318")
+	_check(not stone.is_available() and stone.component.due_at == 1500.0 and not wood.is_available()
+		and wood.component.due_at == 1230.0,
+			"só os nós esgotados voltam esgotados, com o instante em que voltam")
+	_check(main.carcasses.count() == 1, "a carcaça do save volta (nasceu em 850, o relógio está em 1000)")
+	_check(main.resources.node_by_id("n316").is_available() and main.resources.node_by_id("n174").is_available(),
 			"o resto do mapa segue cheio")
 	_check(main.resources.to_list().size() == 2, "to_list leva só os 2 esgotados")
+	# O relógio decide: em 1230 a árvore volta, a pedra ainda não; em 1450 a carcaça (600 s) já passou.
+	TestWorld.pass_time(main, 230.0)
+	_check(wood.is_available() and not stone.is_available(), "aos 1230 s a árvore volta e a pedra segue esgotada")
+	TestWorld.pass_time(main, 220.0)
+	_check(main.carcasses.count() == 0, "aos 1450 s a carcaça de 850 some (600 s)")
 	# Roundtrip: salvar o que a Main tem e carregar gera o mesmo estado dos nós, e o arquivo não cresce com o mapa.
 	_check(main.save_game(SaveManager.Reason.BED), "salva o mundo restaurado")
 	var raw := FileAccess.get_file_as_string(main.save_manager.main_path())
-	_check(raw.length() < 8000 and raw.contains('"map_id"') and raw.contains("loose_stone_11"),
-			"o arquivo salvo é pequeno e leva só o estado dos nós")
+	_check(raw.length() < 8000 and raw.contains('"map_id"') and raw.contains("n160") and raw.contains('"time"'),
+			"o arquivo salvo é pequeno e leva só o estado dos nós e o relógio")
 	GameSession.continue_requested = true
-	var again := _main("fixture_v4", 20, true)
+	var again := _main("fixture_v5", 20, true)
 	await tree.physics_frame
-	_check(not again.resources.node_by_id("loose_stone_11").is_available()
-			and absf(again.resources.node_by_id("tree_3").component.respawn_left - 230.0) < 1.0,
-			"Continuar mantém os nós esgotados")
+	_check(not again.resources.node_by_id("n160").is_available() and again.resources.node_by_id("n160").component.due_at == 1500.0
+			and absf(again.authority.clock.now() - 1450.0) < 1.0, "Continuar mantém os nós esgotados, os instantes e o relógio")
 	_check(again.player.position == Vector2(2296, 3160), "Continuar mantém a posição do jogador dentro da ilha")
+	_check(again.player.player_id == main.player.player_id, "Continuar mantém o player_id")
 	# Hostil: lista de nós com lixo, posição fora da ilha e mapa de outra revisão.
 	var hostile := outcome.data.duplicate(true)
-	hostile["world"]["resource_nodes"] = [5, "x", {"id": "tree_1", "def": "tree", "depleted": true, "respawn_left": 1.0e30},
+	hostile["world"]["resource_nodes"] = [5, "x", {"id": "n316", "def": "tree", "depleted": true, "due_at": 1.0e30},
 			{"id": "nao_existe"}]
 	hostile["players"][0]["state"]["position"] = {"x": -5000.0, "y": 1.0e9}
-	var other := _main("hostile_v4", 20, true)
+	var other := _main("hostile_v5", 20, true)
 	await tree.physics_frame
-	_check(WorldSnapshot.restore(hostile, other.player, other.dino, other.resources), "save hostil é aceito sem abortar")
+	_check(WorldSnapshot.restore(hostile, other.player, other.dino, other.resources, null, null, other.authority),
+			"save hostil é aceito sem abortar")
 	other._keep_on_island(false)
-	_check(other.player.position == other.map.safe_point() and other.resources.node_by_id("tree_1").component.respawn_left <= 480.0,
-			"posição fora da ilha vai ao ponto seguro; tempo absurdo é limitado")
-	# Migração v3 para v4 pura e repetível.
+	_check(other.player.position == other.map.safe_point()
+			and other.resources.node_by_id("n316").component.due_at <= other.authority.clock.now() + 480.0,
+			"posição fora da ilha vai ao ponto seguro; instante absurdo é limitado")
+	# `next_entity_id` é obrigatório no v5.
+	var without := outcome.data.duplicate(true)
+	without["world"].erase("next_entity_id")
+	var third := _main("no_next_id", 20, true)
+	await tree.physics_frame
+	_check(not WorldSnapshot.restore(without, third.player, third.dino, third.resources, third.wild, third.carcasses, third.authority),
+			"v5 sem world.next_entity_id é recusado")
+	# Migração v3 para v4 pura e repetível (o salto continua na tabela).
 	var v3: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(FIXTURE_V3))
-	var migrated := SaveMigrations.migrate(v3)
-	_check(migrated["format_version"] == 4 and migrated["world"]["map_id"] == "lunata" and migrated["world"]["map_revision"] == 0
+	var migrated := SaveMigrations.v3_to_v4(v3)
+	_check(migrated["world"]["map_id"] == "lunata" and migrated["world"]["map_revision"] == 0
 			and WorldSnapshot.has_legacy_coordinates(migrated), "v3 para v4: id do mapa, revisão 0 e marca de coordenadas antigas")
 	_check(v3["format_version"] == 3 and v3["world"]["map_id"] == "main", "a migração não altera o dado de entrada")
-	_check(not WorldSnapshot.has_legacy_coordinates(outcome.data), "o save v4 novo não é marcado como antigo")
+	_check(not WorldSnapshot.has_legacy_coordinates(outcome.data), "o save novo não é marcado como antigo")
+
+
+func _test_migration_v4_to_v5() -> void:
+	var tree := _root.get_tree()
+	var fixed_id := "3f9c1a7be2d84f60a15c9e7d0b4a2c68"
+	var v4: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(FIXTURE_V4))
+	var before := v4.duplicate(true)
+	var v5 := SaveMigrations.v4_to_v5(v4, fixed_id)
+	_check(v4 == before, "a migração v4 para v5 não altera o dado de entrada")
+	_check(v5 == SaveMigrations.v4_to_v5(v4, fixed_id), "a migração é pura: o mesmo v4 e o mesmo id dão o mesmo v5")
+	var world: Dictionary = v5["world"]
+	_check(world["map_revision"] == SaveMigrations.FIRST_ID_MAP_HASH and world["time"] == 0.0
+			and world["local_player_id"] == fixed_id and v5["players"][0]["player_id"] == fixed_id,
+			"v5: revisão em texto (hash), world.time 0 e o jogador 'local' vira o id novo")
+	_check(world["wild"] == [{"dead": true, "id": "w3"}], "o delta do selvagem passa de índice 3 para o id w3")
+	var due := {}
+	for node: Dictionary in world["resource_nodes"]:
+		due[node["id"]] = node["due_at"]
+		_check(not node.has("respawn_left"), "o nó migrado não guarda mais o que faltava")
+	_check(due == {"n160": 500.0, "n318": 230.0}, "loose_stone_11 vira n160 e tree_3 vira n318, com due_at = o que faltava")
+	var sex: String = v5["entities"][0]["state"]["sex"]
+	_check(sex == SaveMigrations.v4_sex(2) and (sex == "f" or sex == "m") and SaveMigrations.v4_sex(2) == sex,
+			"o dino ganha sexo por [sex, v4, id da entidade], igual em toda chamada")
+	_check(SaveMigrations.v4_sex(5) == SaveMigrations.v4_sex(int(5.0)), "o id entra como inteiro (o JSON devolve 5.0)")
+	_check(int(world["next_entity_id"]) >= 581, "next_entity_id nunca fica abaixo do que já existe")
+	# Outra revisão (ou mapa antigo): o delta cai, domados ficam, a revisão vira texto.
+	var other_rev := v4.duplicate(true)
+	other_rev["world"]["map_revision"] = 99
+	var dropped := SaveMigrations.v4_to_v5(other_rev, fixed_id)
+	_check(dropped["world"]["wild"] == [] and dropped["world"]["resource_nodes"] == [] and dropped["world"]["map_revision"] == "99"
+			and dropped["entities"].size() == 1, "outra revisão: delta de selvagem e de nó descartados, entidades ficam")
+	var legacy := v4.duplicate(true)
+	legacy["world"]["legacy_coordinates"] = true
+	_check(SaveMigrations.v4_to_v5(legacy, fixed_id)["world"]["resource_nodes"] == [], "coordenadas legadas: o delta cai")
+	# Id de jogador que não é "local" fica como está.
+	var named := v4.duplicate(true)
+	named["players"][0]["player_id"] = "outro"
+	_check(SaveMigrations.v4_to_v5(named, fixed_id)["world"]["local_player_id"] == "outro", "player_id que não é 'local' não é trocado")
+	# Entradas malformadas seguem como vieram: a carga as recusa, a migração não as conserta.
+	var junk := v4.duplicate(true)
+	junk["world"]["wild"] = [{"index": -3, "dead": true}, {"index": "x", "dead": true}, 5]
+	var junk_out: Array = SaveMigrations.v4_to_v5(junk, fixed_id)["world"]["wild"]
+	_check(junk_out == [{"index": -3, "dead": true}, {"index": "x", "dead": true}, 5], "índice inválido não vira id")
+	# A numeração congelada confere com a primeira exportação (só enquanto o mapa for ela).
+	var map := IslandMap.default_map()
+	if map.content_hash == SaveMigrations.FIRST_ID_MAP_HASH:
+		for kind: String in SaveMigrations.V4_NODE_BLOCKS:
+			var block: Array = SaveMigrations.V4_NODE_BLOCKS[kind]
+			var ids: Array = map.node_ids[kind]
+			_check(ids.size() == int(block[1]) and ids[0] == "n%d" % (int(block[0]) + 1) and ids[-1] == "n%d" % (int(block[0]) + int(block[1])),
+					"a tabela congelada de %s bate com os ids do mapa" % kind)
+		_check(map.spawn_ids["paquicefalo"][1] == "w0" and map.spawn_ids["utahraptor"][0] == "w107",
+				"os spawns seguem a numeração do populate de então (w0 no 2º ponto, w107 no 1º utahraptor)")
+	# Mesmo segundo de jogo antes e depois: o nó (230 s) e a carcaça (idade 100 de 600) vencem como venceriam no v4.
+	var aged := v4.duplicate(true)
+	aged["world"]["carcasses"] = [{"id": 570, "species": "placeholder_dino", "level": 12, "x": 2000.0, "y": 3000.0, "age": 100.0}]
+	var mig := SaveMigrations.v4_to_v5(aged, fixed_id)
+	_check(mig["world"]["carcasses"][0]["born_at"] == -100.0 and not mig["world"]["carcasses"][0].has("age"),
+			"carcaça: age 100 vira born_at -100")
+	var main := _main("mig_same_second", 20, true)
+	await tree.physics_frame
+	mig["format_version"] = 5
+	_check(WorldSnapshot.restore(mig, main.player, main.dino, main.resources, main.wild, main.carcasses, main.authority),
+			"o v5 migrado é aplicado")
+	TestWorld.pass_time(main, 229.0)
+	_check(not main.resources.node_by_id("n318").is_available() and main.carcasses.count() == 1, "aos 229 s a árvore ainda não voltou")
+	TestWorld.pass_time(main, 1.0)
+	_check(main.resources.node_by_id("n318").is_available(), "aos 230 s a árvore volta (como no v4)")
+	TestWorld.pass_time(main, 269.0)
+	_check(main.carcasses.count() == 1, "aos 499 s a carcaça (idade 100) ainda está")
+	TestWorld.pass_time(main, 1.0)
+	_check(main.carcasses.count() == 0, "aos 500 s a carcaça (idade 100 + 500 = 600) some (como no v4)")
+	# Pelo caminho do arquivo: o `SaveManager` migra com id aleatório e o Continuar o aplica.
+	var manager := SaveManager.new(root_dir, "from_v4")
+	DirAccess.make_dir_recursive_absolute(manager.main_path().get_base_dir())
+	var written := FileAccess.open(manager.main_path(), FileAccess.WRITE)
+	written.store_string(FileAccess.get_file_as_string(FIXTURE_V4))
+	written.close()
+	GameSession.continue_requested = true
+	var loaded := _main("from_v4", 20, true)
+	await tree.physics_frame
+	_check(loaded.player.player_id.length() == 32 and loaded.player.player_id != "local"
+			and loaded.player.player_id.is_valid_hex_number(false),
+			"Continuar de um v4: o jogador ganha um id aleatório de 32 hex")
+	_check(loaded.wild.is_dead("w3") and not loaded.resources.node_by_id("n318").is_available(), "Continuar de um v4: o delta vale por id")
 
 
 func _test_continue_from_v3() -> void:
@@ -861,7 +966,7 @@ func _test_continue_from_v3() -> void:
 	var loaded := _main("from_v3", 20, true)
 	await tree.physics_frame
 	var raw: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(FIXTURE_V3))
-	_check(loaded.dino.level == 28 and loaded.dino.state_machine.is_tamed and loaded.dino.owner_player_id == "local",
+	_check(loaded.dino.level == 28 and loaded.dino.state_machine.is_tamed and loaded.dino.owner_player_id == loaded.player.player_id,
 			"Continuar de um save v3: o dino domado e o nível voltam (sem perder o bicho)")
 	var saved_hunger: float = raw["players"][0]["state"]["hunger"]["current"]
 	_check(is_equal_approx(loaded.player.hunger.current_hunger, saved_hunger), "Continuar de um save v3: o estado do jogador volta")
@@ -872,6 +977,6 @@ func _test_continue_from_v3() -> void:
 	_check(loaded.zone.mode_of(loaded.dino) == ActivityZone.Mode.ACTIVE, "o domado carregado fica ativo na zona")
 	_check(loaded.save_game(SaveManager.Reason.BED), "depois de carregar o v3, salvar grava no formato novo")
 	var after: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(loaded.save_manager.main_path()))
-	_check(after["format_version"] == 4 and not WorldSnapshot.has_legacy_coordinates(after),
-			"o arquivo regravado é v4 e sem a marca de mapa antigo")
+	_check(after["format_version"] == 5 and not WorldSnapshot.has_legacy_coordinates(after),
+			"o arquivo regravado é v5 e sem a marca de mapa antigo")
 	main.free()

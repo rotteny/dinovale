@@ -634,7 +634,8 @@ func _test_rotation_preserves_unread_files() -> void:
 func _test_life_field_and_dead_state() -> void:
 	for value: Variant in [5, null, [1], {"a": 1}, true, 1.5, "xyz", -1]:
 		var pair := _fresh_pair()
-		var data := SaveManager.make_envelope({}, [{"player_id": "local", "entity_id": 1, "life": value, "state": {}}], [], "0.1.0", "x")
+		var data := SaveManager.make_envelope({"next_entity_id": 3},
+			[{"player_id": "local", "entity_id": 1, "life": value, "state": {}}], [], "0.1.0", "x")
 		_check(WorldSnapshot.restore(data, pair[0], pair[1]) and not (pair[0] as Player).health.is_dead()
 				and not WorldSnapshot.was_dead_pending_choice(data), "life %s não aborta e vale vivo" % str(value))
 	var odd := SaveManager.make_envelope({}, [5, {"player_id": 7}], [3], "0.1.0", "x")
@@ -642,7 +643,8 @@ func _test_life_field_and_dead_state() -> void:
 			"entradas que não são dicionário não abortam")
 	var pair := _fresh_pair()
 	var dead_state := {"health": {"current": 0.0}}
-	var dead := SaveManager.make_envelope({}, [{"player_id": "local", "entity_id": 1, "state": dead_state}], [], "0.1.0", "x")
+	var dead := SaveManager.make_envelope({"next_entity_id": 3},
+			[{"player_id": "local", "entity_id": 1, "state": dead_state}], [], "0.1.0", "x")
 	_check(WorldSnapshot.was_dead_pending_choice(dead) and WorldSnapshot.restore(dead, pair[0], pair[1])
 			and (pair[0] as Player).health.is_dead(),
 			"vida 0 sem life: carrega morto (a escolha de respawn é a saída)")

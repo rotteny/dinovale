@@ -130,20 +130,24 @@ func _state_machine_case() -> Array:
 func _dino_case() -> Array:
 	var original := _spawn(DinoScene) as Dino
 	original.position = Vector2(48.0, 96.0)
+	original.torpor.add_torpor(original.torpor.max_torpor)  # desacordado: só assim a reserva (`feeder_player_id`) existe
 	original.level = 15
 	original.health.take_damage(25.0)
-	original.torpor.add_torpor(100.0)
 	original.feeder_player_id = "amigo"
+	original.sex = DinoBaseStats.SEX_MALE
 	return [original, _spawn(DinoScene)]
 
 
 func _resource_node_case() -> Array:
 	var def: ResourceNodeDef = load("res://data/resources/tree.tres")
 	var original: ResourceNodeComponent = _track.call(ResourceNodeComponent.new())
+	var clock := TestWorld.TestClock.new()
+	original.clock = clock.now
 	original.def = def
 	original.harvest()
-	original.tick(30.0)
+	clock.time = 30.0  # o instante de volta vai no save; o relógio já está 30 s à frente
 	var restored: ResourceNodeComponent = _track.call(ResourceNodeComponent.new())
+	restored.clock = clock.now
 	restored.def = def
 	return [original, restored]
 

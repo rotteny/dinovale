@@ -27,14 +27,25 @@ const ACTION_EQUIP := "equip"
 const ACTION_UNEQUIP := "unequip"
 const ACTION_GATHER := "gather"
 ## Tamanho máximo de `iid` e de nome de vaga aceitos (dado vindo de fora não é confiável).
+const ACTION_MOVE := "move"
+
+## Folga no comprimento da direção (ponto flutuante; `get_vector` entrega até 1).
+const MOVE_LENGTH_TOLERANCE := 0.001
 const MAX_ID_LENGTH := 32
 ## Nome da ordem mais longo aceito (`Enums.DinoOrder`): corta lixo antes de procurar o nome.
 const MAX_ORDER_NAME := 16
 
 @export var rules: ActionRules = preload("res://data/balance/action_rules.tres")
 
+## Relógio do mundo (ADR-006). Só esta autoridade o avança, em `_physics_process`; os sistemas recebem `clock.now`.
+var clock := WorldClock.new()
+
 var _entities: Dictionary = {}
 var _next_id: int = 1
+
+
+func _physics_process(delta: float) -> void:
+	clock.advance(delta)
 
 
 ## Registra `node` no mundo. `entity_id` 0 = o próximo livre. Devolve o id usado, ou 0 se o id pedido já
@@ -119,6 +130,21 @@ func request_attack(actor_id: int, target_id: int) -> Enums.ActionResult:
 	return _answer(actor_id, ACTION_ATTACK, problem)
 
 
+## Pede andar na `direction` neste quadro (comprimento no máximo 1; `wants_sprint` = correr). Nega NaN,
+## infinito e vetor maior que 1. Jogador morto não anda, em silêncio (não é abuso e vem a cada quadro).
+func request_move(actor_id: int, direction: Vector2, wants_sprint: bool = false) -> Enums.ActionResult:
+	var actor := _live_player(actor_id)
+	var problem := _actor_problem(actor_id, actor)
+	if problem == Enums.ActionResult.ACTOR_DEAD:
+		return problem
+	if problem == Enums.ActionResult.OK and (not is_finite(direction.x) or not is_finite(direction.y)
+			or direction.length() > 1.0 + MOVE_LENGTH_TOLERANCE):
+		problem = Enums.ActionResult.INVALID_ARGUMENT
+	if problem == Enums.ActionResult.OK:
+		actor.perform_move(direction, wants_sprint)
+	return _answer(actor_id, ACTION_MOVE, problem)
+
+
 ## Interagir com `target_id`. Concedida, emite `interaction_granted`; o efeito é de quem a ouve.
 func request_interact(actor_id: int, target_id: int) -> Enums.ActionResult:
 	var actor := _live_player(actor_id)
@@ -133,7 +159,7 @@ func request_interact(actor_id: int, target_id: int) -> Enums.ActionResult:
 
 ## Move o slot `index` do inventário de `from_id` para o de `to_id`. Um dos lados é o ator e o outro, uma
 ## criatura selvagem inconsciente (a tela compartilhada): do ator para ela é ALIMENTAR (a comida ideal
-## faz do ator o candidato a dono); dela para o ator é recolher. O que não couber fica onde estava.
+## faz do ator o candidato a dono se ainda não há um: o primeiro reserva); dela para o ator é recolher. O que não couber fica onde estava.
 func request_transfer_slot(actor_id: int, from_id: int, index: int, to_id: int) -> Enums.ActionResult:
 	var actor := _live_player(actor_id)
 	var feeding := from_id == actor_id and to_id != actor_id
@@ -149,7 +175,8 @@ func request_transfer_slot(actor_id: int, from_id: int, index: int, to_id: int) 
 		var item_id := str(source.get_slot(index).get("id", ""))
 		if source.transfer_slot(index, dino.inventory if feeding else actor.inventory) == 0:
 			problem = Enums.ActionResult.REFUSED
-		elif feeding and item_id == dino.taming.ideal_food:
+		elif feeding and item_id == dino.taming.ideal_food and dino.feeder_player_id == "":
+			# O primeiro a depositar a comida ideal reserva o dino; os seguintes não tomam a vaga.
 			dino.feeder_player_id = actor.player_id
 	return _answer(actor_id, ACTION_TRANSFER, problem)
 

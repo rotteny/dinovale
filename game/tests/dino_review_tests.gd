@@ -24,8 +24,8 @@ func _test_review_fixes() -> void:
 	_check(LEVEL_RULES.final_level(60, 5.0) == 62 and LEVEL_RULES.final_level(75, 76.0) == 104, "(60,5%)=62 e (75,76%)=104")
 	_check(LEVEL_RULES.final_level(20, 50.0) == 25 and LEVEL_RULES.final_level(1, 100.0) == 2, "valores exatos 20@50%=25 e 1@100%=2")
 	_check(LEVEL_RULES.final_level(60, 100.0) == 90, "teto 1,5x: 60 vira no máximo 90")
-	var top := _sleeping_dino_at(75)
-	_check(top.taming.preview_level() == 75, "prévia limitada ao nível máximo do mundo (75)")
+	var top := _sleeping_dino_at(45)
+	_check(top.taming.preview_level() == 50, "prévia limitada ao nível máximo do mundo (50)")
 	var mid := _sleeping_dino_at(20)
 	mid.taming.efficiency = 50.0
 	_check(mid.taming.preview_level() == 25, "prévia com valor exato: L20 a 50% = 25")
@@ -209,12 +209,12 @@ func _test_review_followups() -> void:
 	frac.from_dict({"health": {"current": 0.5}})
 	_check(is_equal_approx(frac.health.current_health, 0.5), "load não cura vida fracionária")
 	# Prévia emitida pelo sinal é a mesma do final (com teto).
-	var top := _sleeping_dino_at(75)
+	var top := _sleeping_dino_at(45)
 	var seen := [0]
 	top.taming.level_preview_changed.connect(func(_lv: int, final_level: int) -> void: seen[0] = final_level)
 	top.taming.efficiency = 100.0
 	top.taming.apply_attack(TamingRules.ATTACKER_PLAYER, 0.0)
-	_check(seen[0] == top.taming.preview_level() and seen[0] == 75, "sinal da prévia limita ao teto (%d)" % seen[0])
+	_check(seen[0] == top.taming.preview_level() and seen[0] == 50, "sinal da prévia limita ao teto (%d)" % seen[0])
 	# Fase da pausa definida na cena vale.
 	var scene_dino: Dino = DinoScene.instantiate()
 	scene_dino.get_node("TorporComponent").set("pause_phase", 2.5)

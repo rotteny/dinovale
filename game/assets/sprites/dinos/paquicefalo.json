@@ -1,5 +1,5 @@
 {
-	"ancora": "base do quadro (pes em y=30, folha 32x32 de IA-placeholder)",
+	"ancora": "base do quadro (pes em y=30, contorno em y=31, folha 32x32); montado por partes por script",
 	"animacoes": {
 		"attack": {
 			"colunas": [
@@ -49,10 +49,10 @@
 		12
 	],
 	"colunas": 11,
-	"direita": "arte de IA (PixelLab), perfil direito proprio (south-east), nao e espelho",
+	"direita": "desenhada por script (geometria espelhada, sombreada de novo com a luz a esquerda)",
 	"especie": "paquicefalo",
 	"filhote": "nao incluso (M4)",
-	"golpe": "deslocamento 1 a 2 px na direcao do olhar (placeholder)",
+	"golpe": "cabecada desenhada nos quadros 6-8 (cabeca e tronco avancam 2 a 3 px); sem deslocamento extra em codigo",
 	"layout": "igual nas cinco especies: colunas 0-1 idle, 2-5 walk, 6-8 attack, 9 sleep, 10 dead; linhas down, up, left, right",
 	"linhas": 4,
 	"linhas_direcao": [
@@ -67,5 +67,5 @@
 		32,
 		32
 	],
-	"sleep_dead": "sprite girado 90 graus e escurecido; morto gira ao contrario e escurece mais (placeholder)"
+	"sleep_dead": "desenhados de lado, deitados (down/left olham esquerda, up/right direita); morto de barriga para cima"
 }

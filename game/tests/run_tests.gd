@@ -64,6 +64,7 @@ func _suites() -> Array:
 		["ServerRulesTests", ServerRulesTests.new, true],
 		["UtahraptorTests", UtahraptorTests.new, true],
 		["WildPersistenceTests", WildPersistenceTests.new, true],
+		["SaveV5Tests", SaveV5Tests.new, true],
 		["WorldGuardTests", WorldGuardTests.new, true],
 		["RoundCTests", RoundCTests.new, true],
 		["RoundCReviewTests", RoundCReviewTests.new, true],

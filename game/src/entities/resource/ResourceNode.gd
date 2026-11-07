@@ -6,6 +6,9 @@ extends Node2D
 ## coletar é pedido do jogador (`Player.request_gather`, pela autoridade). A origem do nó são os PÉS: o
 ## desenho sobe dali e a colisão fica só ali (GDD 4.2).
 
+## Mudou entre cheio e esgotado (o campo reage: só ele acorda o nó esgotado, por prazo).
+signal state_changed(node: ResourceNode)
+
 ## Lado do tile do mapa, em pixels (a pegada do nó na consulta de ocupação).
 const TILE_PX := 16.0
 
@@ -17,6 +20,9 @@ const TILE_PX := 16.0
 ## Regras do servidor (`ServerRules`): multiplicador de coleta e velocidade de volta; 1,0 = as do dado.
 @export var yield_multiplier: float = 1.0
 @export var respawn_rate: float = 1.0
+
+## Leitor do relógio do mundo (ADR-006), repassado ao componente ao nascer.
+var clock: Callable = Callable()
 
 ## Consulta de ocupação do chão (o campo a entrega): o nó só volta se o lugar estiver livre.
 var occupancy: TileOccupancy = null
@@ -30,6 +36,7 @@ var _shape: CollisionShape2D = null
 
 func _ready() -> void:
 	component.def = def
+	component.clock = clock
 	component.respawn_override = respawn_override
 	component.yield_multiplier = yield_multiplier
 	component.respawn_rate = respawn_rate
@@ -40,6 +47,7 @@ func _ready() -> void:
 	component.changed.connect(interactable.refresh)
 	_build_body()
 	component.changed.connect(_refresh_body)
+	component.changed.connect(func() -> void: state_changed.emit(self))
 
 
 func is_available() -> bool:

@@ -62,7 +62,7 @@ func _test_full_taming_integration() -> void:
 	_check(dino.state_machine.current_id == Enums.DinoStateId.TAMED, "dino chegou a TAMED")
 	_check(is_equal_approx(dino.taming.taming_progress, 100.0), "progresso em 100%")
 	# Pelo caminho da autoridade: quem depositou a comida ideal é o candidato e, ao fim, o dono.
-	_check(dino.owner_player_id == Player.LOCAL_PLAYER_ID and dino.feeder_player_id == Player.LOCAL_PLAYER_ID,
+	_check(dino.owner_player_id == player.player_id and dino.feeder_player_id == player.player_id,
 			"domesticou pela Main: o jogador que alimentou é o dono")
 	_check(dino.level == 28, "nível final 28 (20 com Eficiência 79%%: %d)" % dino.level)
 	_check(not screen.is_open and not player.input_locked, "domesticar fechou a tela e liberou o jogador")

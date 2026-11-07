@@ -1,7 +1,7 @@
 # ADR-007: Ids estáveis de spawn e de nó, revisão do mapa por hash e save v5
 
 **Data**: 2026-11-07
-**Status**: Proposto
+**Status**: Aceito (07/11/2026; decisões 4 a 6 do bloco A do dono)
 **Decisores**: dono do projeto; proposta de `KURAMA` (tarefa 3 do roteiro da auditoria geral de 07/11)
 
 ## Contexto
@@ -23,7 +23,7 @@ Fatos do código hoje (conferidos em 07/11):
 2. **`espécie:índice`** (`"utahraptor:3"`): resolve o deslocamento entre espécies. Contra: inserir ou remover um ponto no meio da lista da espécie renumera os seguintes; é o mesmo defeito em escala menor.
 3. **Id opaco gravado pelo exportador e mantido entre revisões**: cada spawn e cada nó ganha um id no `lunata.json`; o exportador lê o arquivo anterior e preserva os ids. Contra: o exportador ganha estado (o arquivo anterior) e uma regra de correspondência.
 
-## Decisão (recomendada)
+## Decisão
 
 Opção 3, com estes contratos:
 
@@ -36,11 +36,17 @@ Opção 3, com estes contratos:
 
 ### Save v5, fechado agora, uma vez só
 
-Recomendação: **não** manter o "v5 aberto durante a v0.2" que está em avaliação (`docs/contexto/save.md`). Fechar o v5 agora com as três mudanças que quebram o formato, juntas e numa só migração:
+Decidido: **não** manter o "v5 aberto durante a v0.2" que estava em avaliação (`docs/contexto/save.md`). O v5 fecha agora com as cinco mudanças que quebram o formato ou mudam a geração, juntas e numa só migração:
 
 1. ids estáveis no delta (este ADR) e `world.map_revision` como texto (hash);
 2. `world.time` e prazos absolutos (ADR-006);
 3. `player_id` aleatório: 32 hex de `Crypto.generate_random_bytes(16)` na criação do mundo (fora da simulação, não fere a regra de RNG com seed); o `WorldSnapshot` passa a achar o jogador local por `world.local_player_id`, não pelo literal `"local"`.
+4. **`sex` em todo Dino** (`"f"` ou `"m"`, imutável depois de nascer, sem efeito em atributo nem dieta): `Dino.to_dict`/`from_dict` passam a escrever e ler o campo. O domado sempre o grava; o selvagem o grava quando entra no delta (doma começou, ferido), para que mudar a regra de geração nunca troque o sexo de um dino que o jogador já tocou. Gravado e derivado diferentes: vale o gravado.
+5. **`world.next_entity_id` como contrato**: o campo já é gravado (`WorldSnapshot.gd:42`, lido em `:126-127`; contador em `WorldAuthority.next_entity_id`), mas os ids do jogador e do primeiro dino ainda são fixos (`WorldSnapshot.gd:13-14`). No v5 ele passa a ser obrigatório e a única fonte de id de entidade nascida em jogo (ovo, filhote, domado novo), nunca reutilizado; o v5 não muda o formato do campo, só a regra.
+
+### Nível e sexo do selvagem pela semente do spawn
+
+Hoje o nível sai de um fluxo único por mapa, sorteado em sequência (`WildPopulation.gd:51-52` e `:66`): mudar a lista de spawns muda o nível de selvagens que nem estão no delta, e com sexo uma fêmea já vista viraria macho. Decidido: cada spawn tem o próprio fluxo, `SeededRng.seed_from(["wild", map.seed_value, spawn_id, "level"])` para o nível e `[..., "sex"]` para o sexo (fluxos separados, para um sorteio novo nunca deslocar o outro). Sexo meio a meio por espécie, com a proporção em dado, não no código. O mesmo spawn gera o mesmo dino em qualquer revisão que mantenha o id.
 
 Campo novo depois disso entra aditivo, com padrão no `from_dict` e sem subir a versão (como `world.carcasses`); só mudança incompatível vira v6.
 
@@ -49,6 +55,8 @@ Campo novo depois disso entra aditivo, com padrão no `from_dict` e sem subir a 
 - **Mesma revisão** (`map_id == "lunata"` e `map_revision == 2`): `{"index": i}` vira `{"id": "w<i>"}` e o id de nó `"<tipo>_<k>"` vira o id que a primeira exportação deu a ele (regra fixa, escrita na migração). `map_revision` vira o hash da primeira exportação com ids.
 - **Outra revisão ou `legacy_coordinates`**: o delta de selvagem e de nó é descartado, como o v4 já faz entre revisões; domados em `entities` passam intactos.
 - `player_id "local"` vira um id novo aleatório em `players` e em todo `owner_player_id` e `feeder_player_id` que apontava para `"local"`; a migração recebe o id gerado como argumento, para continuar pura e testável.
+- Sexo: domado de `entities` sem `sex` recebe `["f", "m"][SeededRng(["sex", "v4", entity_id]).next_below(2)]`, determinístico e sem ler mapa (rodar duas vezes dá o mesmo resultado; teste de idempotência). Selvagem do delta mantido não ganha `sex` na migração: na carga vale o derivado do spawn, como para o selvagem sem mudança.
+- `world.next_entity_id` passa como está (o v4 já o grava); a migração só garante que ele é maior que todo id em `entities`.
 - Tempo: a parte do ADR-006.
 - Fixture `v5.json`; `v4.json` nunca é removida.
 
@@ -59,9 +67,10 @@ Campo novo depois disso entra aditivo, com padrão no `from_dict` e sem subir a 
 - **Riscos**: quem gerar o mapa sem o arquivo anterior emite ids novos para tudo (o exportador deve recusar rodar sem ele, salvo flag explícita de mapa novo); o hash precisa de serialização canônica estável (ordem de chaves e números), senão muda sem o conteúdo mudar.
 - **Revisitar se**: houver mais de um mapa por mundo (o id passa a ser `map_id` + id); o mapa passar a ser editado à mão ou por ferramenta que não seja o exportador.
 
-## Decisões para o dono
+## Decisões do dono (07/11/2026, bloco A; numeração da consolidação)
 
-1. Aprovar id opaco do exportador (opção 3) e o raio de correspondência (proposta: 2 tiles).
-2. Aprovar revisão por hash e aplicar o delta por id mesmo com a revisão diferente.
-3. Fechar o v5 agora (ids, `world.time`, `player_id`) em vez do v5 aberto durante a v0.2.
-4. Aceitar que save v4 de revisão diferente da 2 perde o delta de selvagens e nós (domados ficam).
+4. **Aprovado**: id opaco gravado pelo exportador (opção 3), com raio de correspondência de 2 tiles.
+5. **Aprovado**: revisão do mapa por hash e delta aplicado por id mesmo com revisão diferente.
+6. **Aprovado**: save v5 fechado agora, com ids, `world.time`, `player_id` aleatório, `sex` e `next_entity_id`; nível e sexo do selvagem pela semente do spawn.
+
+A perda do delta de selvagens e nós em save v4 de revisão diferente da 2 (domados ficam) não foi votada à parte: fica aceita como consequência da decisão 6, já que o v4 não tem como apontar o ponto certo nessa situação.

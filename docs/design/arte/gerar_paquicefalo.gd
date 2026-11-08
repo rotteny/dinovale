@@ -1,7 +1,7 @@
 ## Gerador do Paquicefalo por PARTES (corpo, pescoco, cabeca com domo, cauda, pernas, bracos).
 ## Arte propria, CC BY 4.0, sem IA e sem recorte de terceiros. Da raiz do repositorio:
 ##   godot --headless --script docs/design/arte/gerar_paquicefalo.gd -- <pasta de saida>
-## Saida na pasta: paquicefalo.png (352x128, quadro 32x32, MESMO layout da folha atual), paquicefalo.json
+## Saida na pasta: paquicefalo.png (352x256, quadro 32x32, 8 direcoes: linhas 0-3 como a folha atual, 4-7 as diagonais), paquicefalo.json
 ## (o jogo nao usa sprite de domado: "sem sprite novo", GDD 6.11; o parametro `tame` fica no codigo, desligado).
 ## NAO grava em game/assets: o dono aprova antes de trocar.
 ##
@@ -12,10 +12,14 @@
 ## e #141b1b. A vista da direita e a da esquerda espelhada na GEOMETRIA, mas sombreada de novo com a luz a esquerda.
 ##
 ## Layout (igual nas cinco especies): colunas 0-1 parado, 2-5 andar, 6-8 golpe, 9 dormindo, 10 morto;
-## linhas down, up, left, right. Pes em y=30, contorno em y=31.
+## linhas down, up, left, right, down_left, down_right, up_left, up_right. Pes em y=30, contorno em y=31.
+## As 4 diagonais (linhas 4-7) sao montadas em 3D (`render3d.gd`, mesmas partes e poses, luz a esquerda);
+## dormindo e morto nas diagonais reusam o quadro deitado de lado (esquerda para *_left, direita para *_right).
 extends SceneTree
 const Lib = preload("arte_lib.gd")
+const R3 = preload("render3d.gd")
 var L = Lib.new()
+var R = R3.new()
 
 const S := 32
 const COLS := 11
@@ -370,14 +374,82 @@ func pose_fb(col: int, up: bool) -> Dictionary:
 		p["tail"] = [-2.0, 0.0, 2.0, 0.0][col - 2]
 	return p
 
+
+# ------------------------------------------------------------------ DIAGONAIS (partes 3D; f = frente, z = altura)
+func Z(sy: float) -> float:
+	return 30.0 - sy
+
+func fw(u: float) -> float:
+	return u - 1.5
+
+func mat_body3(n: Vector3, ramp: Array) -> Array:
+	if n.z < -0.25:
+		return BELLY
+	if n.z > 0.6:
+		return DORSAL
+	return ramp
+
+func mat_tail3(n: Vector3, ramp: Array) -> Array:
+	return BELLY if n.z < -0.4 else ramp
+
+func diag(p: Dictionary, yaw: float, tame: bool) -> Image:
+	R.clear()
+	var bx: float = p.get("bx", 0.0)
+	var bob: float = p.get("bob", 0.0)
+	var hdx: float = p.get("hdx", 0.0)
+	var hdy: float = p.get("hdy", 0.0)
+	var tail: float = p.get("tail", 0.0)
+	var arm: float = p.get("arm", 0.0)
+	var nf: Array = p.get("near", [0.0, 0.0])
+	var ff: Array = p.get("far", [0.0, 0.0])
+	var by := 19.4 + bob
+	# cauda
+	R.chain([[0, fw(-5.5 + bx), Z(by - 0.5), 3.3], [0, fw(-8.0 + bx * 0.8), Z(by + 0.3), 2.8], [0, fw(-10.0 + bx * 0.6), Z(by + 1.2 + tail * 0.4), 2.2],
+		[0, fw(-11.8 + bx * 0.5), Z(by + 2.0 + tail * 0.8), 1.6], [0, fw(-13.2 + bx * 0.4), Z(by + 2.4 + tail), 1.0]], BACK, {"mat": mat_tail3})
+	# pernas (biped: uma de cada lado) e pes
+	for s in [[-1.0, ff, -1], [1.0, nf, 0]]:
+		var lg: Array = s[1]
+		var x: float = 3.2 * s[0]
+		var hu := -1.2
+		var fu: float = hu + lg[0]
+		var ku: float = (hu + fu) * 0.5 - 1.6
+		R.chain([[x, fw(hu), Z(24.0), 3.2], [x, fw((hu + ku) * 0.5), Z(25.6), 2.5], [x, fw(ku), Z(26.8 + lg[1] * 0.5), 2.0],
+			[x, fw((ku + fu) * 0.5), Z(27.9 + lg[1]), 1.45], [x, fw(fu), Z(28.6 + lg[1]), 1.4]], BACK, {"shift": s[2]})
+		R.ell(Vector3(x, fw(fu + 1.3), Z(29.2 + lg[1])), Vector3(1.9, 2.8, 1.3), CLAW, {"shift": s[2]})
+	# bracos
+	for s in [[-1.0, -arm], [1.0, arm]]:
+		R.chain([[5.3 * s[0], fw(5.0 + bx + s[1]), Z(22.4 + bob), 1.5], [5.4 * s[0], fw(5.9 + bx + s[1] * 1.4), Z(24.2 + bob), 1.3]], BACK)
+	# corpo, pescoco
+	R.ell(Vector3(0, fw(0.5 + bx), Z(by + 1.2)), Vector3(5.8, 8.2, 5.7), BACK, {"mat": mat_body3})
+	R.chain([[0, fw(4.4 + bx), Z(by - 1.0), 3.6], [0, fw(6.2 + bx + hdx * 0.5), Z(by - 4.0 + hdy * 0.5), 3.4]], BACK, {"edge": false})
+	# cabeca
+	var hx: float = 7.6 + bx + hdx
+	var hyy: float = 12.8 + bob + hdy
+	R.ell(Vector3(0, fw(hx), Z(hyy + 0.4)), Vector3(5.0, 6.0, 5.3), FACE)
+	R.ell(Vector3(0, fw(hx + 4.2), Z(hyy + 2.2)), Vector3(3.2, 4.0, 2.9), FACE, {"edge": false})
+	R.ell(Vector3(0, fw(hx - 1.6), Z(hyy - 3.4)), Vector3(4.3, 3.7, 2.6), DOME)
+	for n in [[-2.8, -4.6, 0.2], [2.8, -4.6, 0.2], [0.0, -5.0, 1.6]]:
+		R.ell(Vector3(n[0], fw(hx + n[1]), Z(hyy + n[2])), Vector3(1.15, 1.15, 1.15), DOME, {"shift": 1})
+	for nx in [-3.4, -1.7, 0.0, 1.7, 3.4]:
+		R.ell(Vector3(nx, fw(hx + 2.4 - absf(nx) * 0.35), Z(hyy - 1.4 + absf(nx) * 0.2)), Vector3(0.9, 0.9, 0.9), ["w_br", "orange", "orange", "orange"], {"edge": false})
+	# olhos (na lateral do cranio), narinas
+	for sx in [-1.0, 1.0]:
+		var e := Vector3(0.79 * 5.0 * sx, fw(hx + 0.52 * 6.0), Z(hyy + 0.4) - 0.3 * 5.3)
+		R.decal(e, "K")
+		R.decal(e + Vector3(0, 0, -1.0), "K")
+		R.decal(Vector3(0.9 * sx, fw(hx + 7.4), Z(hyy + 1.8)), "s_xx")
+	return R.render(yaw)
+
 func make_sheet(tame: bool) -> Image:
-	var sheet: Image = L.img(S * COLS, S * 4)
-	for row in 4:
+	var sheet: Image = L.img(S * COLS, S * 8)
+	for row in 8:
 		for col in COLS:
 			var im: Image
 			if col == 9 or col == 10:
 				# down/left olham a esquerda; up/right a direita (convencao do gerador anterior)
-				im = lying(-1.0 if (row == 0 or row == 2) else 1.0, col == 10, tame)
+				im = lying(-1.0 if (row == 0 or row == 2 or row == 4 or row == 6) else 1.0, col == 10, tame)
+			elif row >= 4:
+				im = diag(pose(col), R.DIR_YAW[row], tame)
 			else:
 				match row:
 					0: im = front(pose_fb(col, false), tame)
@@ -408,9 +480,9 @@ func _init() -> void:
 		"especie": "paquicefalo",
 		"filhote": "nao incluso (M4)",
 		"golpe": "cabecada desenhada nos quadros 6-8 (cabeca e tronco avancam 2 a 3 px); sem deslocamento extra em codigo",
-		"layout": "igual nas cinco especies: colunas 0-1 idle, 2-5 walk, 6-8 attack, 9 sleep, 10 dead; linhas down, up, left, right",
-		"linhas": 4,
-		"linhas_direcao": ["down", "up", "left", "right"],
+		"layout": "igual nas cinco especies: colunas 0-1 idle, 2-5 walk, 6-8 attack, 9 sleep, 10 dead; linhas down, up, left, right, down_left, down_right, up_left, up_right",
+		"linhas": 8,
+		"linhas_direcao": R.DIR_NAMES,
 		"luz": "cima-esquerda",
 		"porte": "Pequeno",
 		"quadro": [S, S],

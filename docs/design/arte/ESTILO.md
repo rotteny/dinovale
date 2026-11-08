@@ -8,7 +8,7 @@ Onde estão os assets: `game/assets/third_party/ninja-adventure/` (mapa de uso e
 
 - **Sensação:** fazenda aconchegante. O mundo é acolhedor; **os animais trazem o perigo**.
 - **Carisma só na propaganda e nos filhotes.** Dino adulto é neutro; carnívoro adulto é agressivo.
-- Vista **3/4 (de cima)**, personagens de frente na pose padrão, 4 direções (baixo, cima, esquerda, direita). Grade **16x16**; câmera **320x180** (20 x 11,25 tiles), 4x em 1280x720.
+- Vista **3/4 (de cima)**, personagens de frente na pose padrão, 4 direções (baixo, cima, esquerda, direita); jogador e Paquicéfalo têm também as 4 diagonais (8 direções, 08/11). Grade **16x16**; câmera **320x180** (20 x 11,25 tiles), 4x em 1280x720.
 - Natureza cheia de miudezas (flores, pedras, tufos, arbustos), como no pacote.
 
 ## Regras herdadas do pacote (para tudo que for desenhado novo)

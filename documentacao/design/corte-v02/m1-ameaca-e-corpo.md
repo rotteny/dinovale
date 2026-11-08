@@ -163,7 +163,7 @@ Bandos de 3 a 4 [decidido; `bandos-e-dano-em-area.md`]. O tamanho é dado de esp
 - Dormindo ou domado não ajuda. Quem já está bravo não é chamado de novo.
 - O ajudante usa a mesma regra de acalmar: 8 s sem dano dado ou recebido, mais o teto `helper_max_seconds` = 12 s contado a partir da entrada. Se ele mesmo é golpeado, vira principal (relógio de 8 s dele, sem teto).
 - A chamada é por evento de golpe, não por visão. Passivo não tem `share_alert` de visão (ele só olha).
-- Nenhum ataque de bando atinge outro dino (sem fogo amigo; só o jogador é alvo no M1).
+- Nenhum ataque de bando atinge outro dino (sem fogo amigo; só o jogador é alvo no M1). (M1: revisto na seção 10, o alvo pode ser um dino de outra espécie; nunca do mesmo bando.)
 
 **Dano esperado do revide** (jogador de pé, contato contínuo, `damage` 6, recarga 1,6 s, o ciclo gasta 40% do tempo em rodeio e ameaça, ou seja, tempo útil de 0,6 [premissa]; os ajudantes começam 2 s depois) [calculado]:
 
@@ -207,7 +207,7 @@ Já existe a perseguição (90 px/s, percepção elíptica 8 x 5 tiles, desiste 
 - A mordida só sai com o alvo dentro de `attack_reach_px` e depois do `windup_s`; sem alvo no alcance no fim do aviso, a mordida "erra" e a recarga corre inteira.
 - Desistência, como hoje: alvo além de 20 tiles, 5 s sem visão, 15 s de perseguição (`chase_max_seconds`), ou 3 s preso (seção 1). Alerta de 5 s depois.
 - Tempo de vida do jogador sob mordida contínua, sem nocaute [calculado]: vida 100 + vida do caído 70 (seção 5) = 170; 22 mordidas; 1 raptor = 31,5 s de contato; 2 = 15,8 s; 3 = 10,5 s. O nocaute com Bastão derruba o raptor em 5 golpes (3,5 s) no L20 (GDD 6.1b), com 2 a 3 mordidas no caminho (16 a 24 de vida) [calculado]; é a saída esperada contra 1. Contra bando de 2 a 3, a saída é fugir ou perder.
-- Utahraptor mira também o dormindo e o domado, mas isso é M2 (CRI-12); no M1 só o jogador é alvo [lido plano, linha 259].
+- Utahraptor mira também o dormindo e o domado, mas isso é M2 (CRI-12); no M1 só o jogador é alvo [lido plano, linha 259]. (revisto na seção 10: predação entre espécies.)
 - O Agressivo "ataca ao avistar" (GDD 934): o aviso de 0,8 s é o jogador ouvir o grunhido e ver "!" antes da mordida. Com a percepção de 8 tiles a 90 px/s, o raptor leva 1,4 s para chegar (128 px / 90) [calculado]: o aviso corre durante a corrida de aproximação quando o alvo está longe, e só é pausa quando o alvo já está perto. Regra: `THREAT` de um alvo a mais de 4 tiles é feito **correndo** (grunhido e "!" no quadro 0, sem parar); a pausa de 0,8 s só vale a menos de 4 tiles [premissa].
 
 ---
@@ -390,3 +390,168 @@ CONFLITO 7: `PLANEJAMENTO.md:101` e `GDD.md:383` dizem "sem barra de stamina" no
 - **D3. Duração do desmaio e vida do caído.** Recomendo 10 s e 70, que faz 1 raptor não matar e 2 ou 3 matarem (tabela da seção 5); o QA-01a pode mexer em 8 a 20 s.
 - **D4. O corpo (10 min) conta tempo com o jogo fechado?** Recomendo que não (só corre com o mundo rodando, como a espera da Cama, GDD 1285), para fechar o jogo não ser jeito de perder tudo.
 - **D5. O revide do bando de Paquicéfalo na primeira doma.** Recomendo começar com `max_helpers` 2 e dano 6, e baixar para dano 4 se P2 falhar, em vez de tirar o bando.
+
+---
+
+## 10. Predação (adendo 08/11)
+
+Pedido do dono (08/11): o carnívoro caça. O alvo é o mais próximo entre o jogador e os herbívoros selvagens; se o alvo morre ou some, procura outro. Regras do dono que moldam tudo abaixo [decidido]: (1) **só dentro do alcance de agressividade** da espécie, o mesmo que ela já usa contra o jogador, sem raio de caça maior e sem atravessar o mapa; (2) **em combate com um selvagem, o carnívoro ignora o jogador**; (3) **vale para todo carnívoro**, não só o Utahraptor, com números por espécie em `.tres`. O Utahraptor é o primeiro caso.
+
+**Decisões do dono de 08/11 já aplicadas aqui** [decidido]: D6 (o domado do jogador é presa, sempre que o porte for válido), D10 (o carnívoro come a presa inteira e a carcaça some), D11 e D12 (piso de 2 por bando, reposição de 1 a cada 600 s, caça só no raio ativo de 16 tiles, zona segura de 8 tiles na Campina) e a etapa 5b depois da 5 e antes da 6. D7, D8, D9, D13 e D14 valem como [provisório] com as recomendações deste adendo (10.9).
+
+**Substitui** a frase "só o jogador é alvo no M1" (seção 3, "Nenhum ataque de bando atinge outro dino", e seção 4, "no M1 só o jogador é alvo") e o "não acerta outro dino" da seção 6. A regra nova de quem pode ferir quem está em 10.4. A seção 3 e a seção 4 seguem valendo para o jogador.
+
+### 10.1 Quem caça e quem é presa (critério)
+
+- **Caçador = espécie com `predation: PredationProfile` preenchido** em `DinoBaseStats` (nulo = não caça). Critério explícito, não derivado de `ideal_food`. Por quê: `ideal_food = "meat"` é a comida da **doma** (o que alimenta o dino), não diz que ele caça; um necrófago ou um futuro onívoro comeria carne sem caçar, e um carnívoro de peixe tem outra comida ideal. `aggressive` fala do jogador. Com o perfil, ligar a caça de uma espécie é um arquivo de dado, e os testes usam uma espécie de teste.
+- **Presa = espécie cujo `attacker_kind` está em `prey_kinds`** do caçador (padrão `["herbivore"]`; `attacker_kind` já existe e é a dieta de fato). Hoje: Paquicéfalo. Lista de exceção `prey_exclude_ids` (vazia).
+- **Elegível agora** (todas verdadeiras): vivo, porte permitido (abaixo), fora da zona segura do nascimento (10.5) e fora do `fail_cooldown_s` (do bando, para selvagem; do próprio id, para domado) e **um destes dois**: (a) **selvagem** sem dono, acordado, **não está em doma nem nocauteado**, em modo ATIVO da `DinoZone` e com o bando dele com **mais de `herd_floor_alive` vivos** (10.5); (b) **domado do jogador** (D6), acordado **ou dormindo**, sem piso de bando. A condição "ativo" é do **caçador** (a até 16 tiles de um foco, por distância, nunca por fixação de estado); o domado fixado como ativo pelo estado não vale como ativo para caçar. Consequência: domado deixado longe do jogador está a salvo, e o risco aparece justo quando o dono o leva para perto de uma toca.
+- **O domado do jogador é presa, sempre que o porte for válido [decidido D6].** Domado carnívoro nunca é presa (regra de carnívoro contra carnívoro), e domado não caça no M1 (a ordem de atacar é M3). **Domado dormindo (torpor): é presa (recomendo, coerente com "sempre" e com o GDD 261)**, mas não foge. **Em doma** (selvagem nocauteado sendo alimentado, ainda sem dono) e nocauteado selvagem **continuam fora no M1 (recomendo, D15)**: a doma é o tutorial do M1 (critério 1) e tem o dono ao lado por cerca de 40 s; a defesa disso é M2/CRI-12.
+- **Presa por porte (recomendo "igual ou menor").** `max_prey_size_delta` = 0. O enum tem 3 portes (`SMALL`, `MEDIUM`, `LARGE`); Utahraptor (Médio) caça Pequeno e Médio e **não** caça Grande. O Paquicéfalo no `.tres` não declara `size` (padrão `MEDIUM`; o GDD diz Pequeno): em ambos os casos é presa. "Com bando, até um acima" fica como campo `pack_size_bonus_min_members` = 0 (desligado): com 2+ acordados do mesmo bando a 8 tiles, sobe um porte. Fica desligado porque o Triceratops (Grande) é M2 e não dá para calibrar um duelo que não existe [jogar].
+- **Carnívoro contra carnívoro: não caçam (recomendo, é a sua sugestão).** `attacker_kind` carnívoro nunca é presa de carnívoro, e não se ferem nem entre espécies diferentes. Motivo: sem isso o mapa vira "o maior come o menor" e as tocas se esvaziam; a competição por território é M4+.
+
+### 10.2 Escolha do alvo
+
+Números em `PredationProfile` (por espécie) [premissa] salvo onde marcado. **O alcance não está no perfil: vem da espécie**, para ser sempre o de agressividade: `perception_tiles` (8), `perception_vertical_weight` (1,6; elipse 8 x 5), `chase_give_up_tiles` (20), `chase_max_seconds` (15, vale para o jogador). Espécie com percepção 12 caça a 12.
+
+| Campo | Valor | Marca |
+|---|---|---|
+| `reevaluate_s` | 0,5 (escalonado por id, 0 a 0,5 s de fase) | [premissa] |
+| `lock_min_seconds` | 2,0 | [premissa] |
+| `switch_ratio` | 0,7 (histerese: o novo tem de estar 30% mais perto) | [premissa] |
+| `engage_tiles` | 4,0 (igual a `run_threat_tiles`) | [premissa] |
+| `hunt_max_seconds` | 40 | [premissa, conta em 10.3] |
+| `fail_cooldown_s` | 60 | [premissa] |
+| `switch_to_player_on_damage` | verdadeiro | [recomendo, D7] |
+
+Regras (frases testáveis):
+
+1. **Candidatos só dentro da elipse** (distância efetiva = raiz de dx² + (1,6 dy)² até `perception_tiles`): o jogador e as presas elegíveis. Fora dela ninguém é candidato: sem alvo, o carnívoro segue o natural e **nunca caminha até uma presa fora do alcance**.
+2. **Escolha: o mais próximo** em distância efetiva, jogador e presa em pé de igualdade (sem peso). Empate dentro de 5%: o jogador.
+3. **Travar.** Ao escolher, trava o alvo; só reavalia a cada `reevaluate_s`. **Histerese:** troca de alvo só se o candidato novo estiver a menos de `switch_ratio` x a distância do atual **e** o alvo atual estiver travado há mais de `lock_min_seconds`. Alvo perdido não espera nada.
+4. **Em combate** = presa selvagem travada **e** (carnívoro a até `engage_tiles` dela **ou** já mordeu nesta caça). A perseguição antes do contato (travada, mais longe que `engage_tiles`, sem mordida) **não** é combate: ali o jogador ainda pode tomar o alvo pela histerese (precisa ficar 30% mais perto que a presa).
+5. **Em combate o jogador não é candidato**: mesmo a 1 tile, mesmo caído (`attacks_downed`), o carnívoro não troca por proximidade e não o morde. Presa para outra presa: sem troca em combate, só quando a presa some (regra 7).
+6. **Jogador causou dano ao carnívoro durante a caça** (`switch_to_player_on_damage`, recomendo, D7): larga a presa em até `reevaluate_s`, vira alvo o jogador e segue o ciclo normal da seção 4 (calma de 8 s). Ignorar quem bate nele ficaria estranho e o "ignorar" viraria escudo. Sem dano do jogador, ignora por toda a caça.
+7. **Presa morre ou some** (morreu, foi domada ou nocauteada, saiu a mais de `chase_give_up_tiles`, 5 s sem visão, `hunt_max_seconds`, ou o par saiu do raio ativo): **volta imediatamente à regra 2**, dentro da mesma elipse, e aí o jogador volta a contar. Sem candidato: natural (volta à coleira do bando), sem alerta. Presa que sumiu por falha (tempo, distância, recuo) entra em `fail_cooldown_s` para aquele bando.
+8. **Quem já mordeu o jogador neste episódio não troca para presa** até a calma de 8 s: fecha o uso de um herbívoro como isca para quebrar a fuga da seção 2.
+9. **Prefere o jogador** quando: ele é o mais próximo (regra 2); ele causou dano (6); o carnívoro está **saciado** (10.3: saciado não caça presa, mas o jogador segue sendo alvo, senão o abate daria imunidade); a presa acabou (7).
+10. **Sem coordenação de bando:** cada carnívoro escolhe sozinho. Dois do mesmo bando tendem a travar a mesma presa por serem os mais próximos dela.
+11. **Escudo do dono.** Presa a até `owner_shield_tiles` = 4 [premissa] do jogador não toma o alvo de quem **já persegue o jogador** (regra 4): o domado em "Seguir" colado no dono não vira rota de fuga automática. Com nada travado, vale a regra 2 normalmente: o domado mais perto que o dono é o alvo. Ver exploit da isca em 10.4.
+
+### 10.3 Abate, carne e saciedade
+
+- **A presa morre pelo caminho de toda morte de dino:** a carcaça existente (`CarcassField`, `carcass_meat`, que já escala com o nível por `DinoLevelRules`) nasce onde ela caiu, **só para o carnívoro comer**; a carcaça de caça **nunca** fica no mundo depois da refeição [decidido D10].
+- **O carnívoro come tudo [decidido D10]:** fase `EAT` ao lado da carcaça, de duração `eat_seconds_per_meat` x carne = 2,0 s x carne [premissa], teto `eat_seconds_max` = 20 (Paquicéfalo 4 = 8 s; Utahraptor 5 = 10 s). A carne da carcaça **encolhe em linha reta** durante o `EAT` (`ceil(carne x (1 - t / duração))`) e a carcaça some no fim. **Só come quem não está saciado** e deu o golpe final; se o golpe final é de um saciado, a carcaça fica inteira (600 s). Durante o `EAT` o jogador dentro da elipse é candidato normal (comer não é combate): **interrompe a refeição e a sobra proporcional fica no chão** (disputa pela carne: o jogador paga com a atenção do carnívoro).
+- **Saciado:** `sated_seconds_per_meat` = 60 s x carne comida, teto `sated_max_seconds` = 600 [premissa], em relógio do mundo (vai ao save); comeu pela metade, saciedade pela metade. Paquicéfalo 4 = 240 s (a conta anterior), Utahraptor 5 = 300 s. Saciado não escolhe presa; escolhe o jogador normalmente (regra 9). Ciclo mínimo: caçada <= 40 s + `EAT` 8 s + 240 s = 288 s, **no máximo 17% do tempo caçando** [calculado: 48/288] e no máximo 12,5 abates por hora por carnívoro. A conta se mantém porque os dois tempos crescem com a carne: presa de 10 de carne dá `EAT` de 20 s e saciedade de 600 s, 9% do tempo [calculado: 60/660].
+- **Conta da caçada** (modelo de fluido, biblioteca padrão, 0,05 s por passo; mordida 8 a cada 1,7 s = 4,7 por s [premissa: 1,5 s de recarga + 0,2 s de ciclo]; revide do Paquicéfalo 6 x 0,6 / 1,6 = 2,25 por s por atacante, ajudantes a partir de 2 s; Utahraptor L20 com 126 de vida e recuo em 25%; presa 100 de vida):
+
+| Carnívoros | Presa com 1 atacante (sobrevivente só) | Bando de 3 (golpeado + 2 ajudantes) |
+|---|---|---|
+| 1 | abate em 21,3 s | **recua aos 15,4 s, presa com 27,8 de vida** |
+| 2 | abate em 10,6 s | abate em 10,6 s |
+| 3 | abate em 7,0 s | abate em 7,0 s |
+
+  Leitura: um raptor sozinho **não derruba** um bando de 3 ou mais (recua e entra no `fail_cooldown_s`); dois ou mais derrubam. Como o bando de Utahraptor é de 2 a 3 e o de Paquicéfalo de 3 a 4 (e o piso de 10.5 protege o bando de 2), o resultado depende de quantos raptores travam: é a tensão certa e fica em dado. Com Utahraptor L1 (80 de vida) um sozinho recua aos 10,3 s com a presa em 52. `hunt_max_seconds` = 40 sai da pior caçada de um raptor sozinho: 12,8 s fechando a distância de 8 tiles (presa a 80 px/s, ele a 90: 10 px/s de ganho) + 21,3 s de abate = 34,1 s, mais folga.
+- **Mordida que fere atrasa a presa:** `wound_slow_factor` 0,5 por `wound_slow_seconds` 3,0 [premissa, no perfil do caçador]. Sem isso a conta não fecha: a presa a 80 px/s contra os 90 dele ganha 120 px na recarga de 1,5 s e ele leva cerca de 14 s para cada mordida [calculado: 120 / 10 + 2], ou seja, dois abates por hora de coragem. Com 0,5 ele mantém o contato.
+- **Recuo do caçador:** vida abaixo de `retreat_health_ratio` = 0,25 [premissa] encerra a caçada (só contra presa; a luta com o jogador não muda e o nocaute segue valendo).
+
+### 10.4 Reação da presa e do bando
+
+Reaproveita a etapa 5 (`HerdCall`, `ThreatCycle`, fuga abaixo de 25%) e muda o alvo, que deixa de ser sempre o jogador.
+
+- **Alarme:** a presa **travada** que tem o carnívoro a menos de `prey_alarm_tiles` = 6 [premissa, `PredationRules`] **foge** a velocidade brava (80) até 6 tiles (`flee_goal_tiles` já existe), **em direção ao centro do bando** quando o centro não está do lado do carnívoro, para a chamada achar ajudantes. Só ela foge; o resto do bando só olha (Passivo não tem alarme de visão).
+- **Golpeada:** vale a seção 3. `HerdCall.raise_call(struck, attacker_id, attacker_at, others)` já recebe o atacante como id e posição: passa o id e a posição do **carnívoro**. Até `max_helpers` = 2 membros (acordados, vivos, selvagens, mesma espécie, a até 8 tiles do golpeado) entram 0,5 s depois, com `helper_max_seconds` = 12. O golpeado revida enquanto tem 25% ou mais de vida, e foge abaixo disso. Cabeçada de 6, recarga de 1,6 s, empurrão de 24 px **valem contra o carnívoro**.
+- **O que muda no código** (aviso ao `SORA`): hoje `ThreatCycle.struck`, `DinoAggressiveState.observe_target`, `HerdCall` e o pedido de dano da autoridade assumem que o alvo é o jogador. Passam a aceitar um **alvo genérico** (`id` + posição + `HealthComponent`): o jogador ou um `Dino`. O dano dino contra dino sai por intenção validada pela autoridade (`request_dino_strike(attacker_id, target_id)`), como o dano no jogador.
+- **Quem pode ferir quem** (a autoridade recusa o resto, `DinoRelation.may_strike(a, b)`): só **carnívoro contra herbívoro**, nos dois sentidos. Nunca dentro do mesmo bando (`herd_id`), nunca da mesma espécie, nunca carnívoro contra carnívoro, nunca herbívoro contra herbívoro. O ajudante só tem como alvo **o carnívoro que feriu o bando dele** (não o jogador, não outro dino que passe). A cabeçada e a mordida acertam só o alvo travado (`area_attack` nulo continua).
+- Sinal: o "!" de quem caça uma presa usa `AggressionRules.hunt_mark_color` (laranja [premissa]), diferente do vermelho, que significa "bravo com você". Evita o jogador achar que o raptor ocupado vem em sua direção (P1).
+
+#### Domado como presa (D6)
+
+- **Reação: foge, não revida.** A ajuda em combate do domado é M3. O domado acordado e travado, com o carnívoro a menos de `prey_alarm_tiles` (6), foge a velocidade brava (80) para **longe do carnívoro**, não para o dono (não trazer o raptor até o jogador), pela regra de fuga de 6 tiles que já existe; fixado como ativo pelo estado enquanto foge. Domado **dormindo** não foge. A ordem não muda: ao acabar a caçada "Seguir" retoma, "Ficar" fica onde parou.
+- **Golpeado, não chama bando:** `HerdCall.raise_call` só vale para presa selvagem; domado não pede nem presta ajuda (já era regra: "dormindo ou domado não ajuda").
+- **Log ao dono** (`game_event`, só para o dono, texto em `GameMessages`, teste A18): `tamed_attacked` WARNING "{name} está sendo atacado por {species}." quando o carnívoro trava o domado a menos de `prey_alarm_tiles` (um por episódio, rearma 30 s depois de a caçada acabar); `tamed_killed` DANGER "{name} foi morto por {species}.". Chegam em qualquer distância (no co-op, só ao dono).
+- **Domado morto:** perde-se o dino (sai do save como qualquer morte; XP e vínculo dele vão junto) e a carcaça é comida (10.3). **O alforje cai no chão (recomendo, D17):** como a 5b vem antes do corpo da etapa 6 e dino não tem corpo, usa o item de chão que já existe: uma pilha por stack (`pile_max` 3), 4 a 12 px do ponto da morte, 300 s (`ground_item_rules`), **ignorando o teto de 24 por área** só nesse drop (no máximo o alforje de 4 slots), para nada se perder pelo teto. Na etapa 6, se o dono quiser, vira um corpo de 10 min com "Recuperar itens", mesma interface do corpo do jogador.
+- **O raptor ignora o dono que está ao lado? Sim, a regra vale** (em combate com a presa o jogador não é candidato). **Isso é uma isca, mas com preço alto:** (1) a janela vale 7 a 21 s do abate [calculado em 10.3] ou 34 s com a fuga, e o dono só a usa **perdendo o domado**; (2) um domado que foge a 80 contra os 90 do raptor, com a mordida atrasando-o pela metade, cai em 21 s (1 raptor) ou 10,6 s (2): o dono troca o trabalho de doma por 30 a 90 tiles de caminhada [calculado: 7 a 21 s x 70 px/s = 30 a 92 tiles]; (3) qualquer dano do dono no raptor desfaz a isca (D7). Hoje o herbívoro **selvagem** já é isca de graça, e isso decorre da regra do dono. **Fecho, em dado:** o escudo do dono (10.2, regra 11, 4 tiles) impede o domado colado no dono de quebrar a fuga; a regra 8 impede trocar para presa depois de morder o jogador; o log avisa para o dono reagir. O que sobra é troca justa e fica para o playtest (P11).
+- **Risco novo, em números:** o piso de bando não protege domado. Um bando de 3 raptores cai sobre domados a até 8 tiles em série (só o que dá o golpe final come, os outros seguem): 3 domados somem em cerca de 30 a 40 s se o dono não intervir [calculado: 7 s com 3 raptores + 10,6 s com 2 + 21 s com 1 = 38,6 s] — é o preço do D6. Controle em dado: `PredationRules.tamed_is_prey` (verdadeiro, decidido) e `tamed_hunt_cooldown_s` = 0 [premissa, sobe se o playtest pedir].
+
+### 10.5 Ecossistema: os herbívoros não somem
+
+**Fato lido que cria o risco:** `WildPopulation.tick` só renasce o bando quando **nenhum** membro está vivo (`_wild_alive == 0`, depois de `group_respawn_seconds` = 1200 s). Então uma caça que mata membro por membro deixa o bando em 1 ou 2 **para sempre**, até o último morrer. Por isso o limite precisa estar na regra, não no respawn atual.
+
+Cinco freios, todos em dado (`PredationRules`, `data/balance/predation_rules.tres` [premissa]):
+
+| Freio | Valor | Efeito |
+|---|---|---|
+| Piso de bando `herd_floor_alive` | 2 | bando com 2 ou menos vivos não é presa; um bando de 4 perde no máximo 2 |
+| Reposição `member_regen_seconds` | 600 | cada vaga vazia renasce 1 membro no bando se ele tem 1 ou mais vivos e **nenhum jogador a menos de `group_respawn_player_clearance_tiles` (40, `world_rules`)** |
+| Saciedade `sated_seconds_per_meat` x carne | 60 s por carne (Paquicéfalo 240 s, teto 600) | máximo 12,5 abates por hora por carnívoro; 17% do tempo caçando |
+| Só no raio ativo | `zone_rules.active_radius_tiles` = 16 | a caçada **não fixa** o dino como ativo (ao contrário de perseguir o jogador); par fora do raio ativo encerra a caçada sem abate. **Longe do jogador o mundo não caça**: nada some quando ninguém está olhando |
+| Zona segura do nascimento `spawn_safe_margin_tiles` | 8 tiles em volta de cada região de `respawn_rules.tres` (hoje a Campina) | presa dentro dela não é elegível: o tutorial de doma do M1 não perde o Paquicéfalo para o raptor |
+
+**Conta por bando de presa exposto** [calculado]: o carnívoro anda até 4 tiles do centro do bando dele (`cohesion_radius_tiles` 4) e vê 8; o Paquicéfalo anda até 3 do centro dele: só há contato se os centros ficam a até 4 + 8 + 3 = 15 tiles. Com os bandos de Paquicéfalo espaçados de 24 tiles no mínimo (`min_group_spacing_tiles`), cabem no máximo **2 bandos de presa** nesse círculo por bando de raptor; o resto do mapa não é afetado. O número real de bandos expostos sai do mapa na etapa 5b (medir, não estimo).
+
+- **Pior caso, bando de 4 exposto, jogador sempre perto (sem reposição):** perde 2 e para no piso de 2. Nunca zera.
+- **Jogador longe (com reposição):** cada vaga vazia volta em 600 s, no máximo 1 abate por 600 s por bando = **6 por hora**, e o bando oscila entre 2 e 3 de 4. Os raptores (saciedade de 240 s) podem mais do que isso: quem limita é o piso e a reposição, não o apetite. Contraponto: perto do jogador a caçada só acontece com o jogador no raio ativo; longe, não há caçada: então o bando só cai quando alguém está vendo, e só volta quando ninguém está.
+- **Custo do piso:** bando exposto passa a maior parte do tempo em 2 a 3 de 4 membros [calculado]. O decidido de "bandos de 3 a 4" vale para o nascimento, não para o tamanho vivo depois da caça.
+- **Mudança em `WildPopulation`:** passa a repor membro (hoje só renasce o bando inteiro); guarda `regen_due_at` por vaga no save; o respawn do bando inteiro continua como está.
+- **Carne (D10):** com a carcaça de caça sempre comida, o abate **não toca o teto de 8** do `CarcassField` (a carcaça existe só durante o `EAT` e some). O abate não abastece o jogador de carne, exceto na disputa de uma refeição interrompida (10.3). A conta do ecossistema acima não muda: quem limita é o piso e a reposição, não a carne. Domados mortos não têm piso nem reposição: perda permanente (10.4).
+
+### 10.6 Desempenho
+
+- **Nunca varre os 360 dinos.** O carnívoro lê só o conjunto **ativo** da `DinoZone` (máximo `max_active` = 32, reavaliado a cada 0,25 s pela zona). Conta: P carnívoros ativos x A ativos. Típico P <= 6 (bandos de 2 a 3 espaçados de 40 tiles), A <= 32: 192 testes por 0,5 s = 384 por s; pior caso P = A = 32: 2.048 por s. A 2 µs por teste [premissa, não medido] são 0,8 ms **por segundo** no típico e 4 ms por segundo no pior = **0,05 e 0,25 ms por quadro a 60 fps** [calculado]. Descarte primeiro por distância ao quadrado (sem raiz) e só depois a elipse. Se um dia o conjunto ativo passar de 32, entra grade de células de 8 tiles; hoje não precisa.
+- **Reavaliação a cada `reevaluate_s` = 0,5 s**, com fase por id (carnívoros não reavaliam no mesmo quadro). Entre reavaliações só o alvo travado é seguido.
+- Caminho: perseguir e fugir usam o `PathProvider` (seção 1, prioridade "perseguição" e "fuga", 3 pedidos por quadro). Pior caso 4 caçadas simultâneas = 8 pedidos a cada 0,5 s = 0,27 por quadro, cabe no orçamento de 1,07 por quadro da seção 1.
+- Save: guarda `sated_until` (relógio do mundo) e `regen_due_at`; a caçada em curso **não** é salva (ao carregar, o carnívoro volta ao natural).
+
+### 10.7 Aceite (A20 em diante)
+
+Os testes usam **espécies de teste** (`tests/data/`): `test_carnivore` (Médio, `attacker_kind` carnívoro, `PredationProfile` próprio, percepção 6 para provar que o alcance é o da espécie), `test_carnivore_b` (outra espécie carnívora), `test_herbivore_small`, `test_herbivore_large`. O teste de arquitetura falha se `utahraptor` ou `placeholder_dino` aparecer como id nos arquivos de predação.
+
+| # | Critério |
+|---|---|
+| A20 | Espécie de teste com perfil caça herbívoro dentro da percepção dela; espécie **sem** perfil não caça; a regra não cita id de espécie. |
+| A21 | Alcance: presa a 6,5 tiles efetivos (percepção 6) nunca é travada e o carnívoro não anda até ela em 60 s; elipse: dy de 4 tiles (efetivo 6,4) fora, dx de 5,9 dentro; sem candidato, comportamento natural. |
+| A22 | Jogador e presa no alcance: trava o mais próximo; presa a 0,8x da distância da atual não troca; a 0,65x troca só depois de 2 s; dois alvos oscilando 5% por 60 s geram no máximo 1 troca. |
+| A23 | Combate: com presa travada a menos de `engage_tiles` e jogador a 1 tile por 20 s, nenhuma mordida no jogador e o alvo não muda; em perseguição a mais de `engage_tiles`, jogador 30% mais perto toma o alvo; dano do jogador no carnívoro (com `switch_to_player_on_damage`) troca em até 0,5 s; quem já mordeu o jogador não troca para presa. |
+| A24 | Presa morre: em até 0,5 s escolhe outra dentro do alcance, ou o jogador se ele é o mais próximo, ou natural sem candidato; presa fora do alcance nunca é perseguida. |
+| A25 | Porte: Médio caça Pequeno e Médio e não Grande; com `pack_size_bonus_min_members` = 2 e 2 acordados a 8 tiles, caça Grande; padrão desligado. |
+| A26 | Carnívoro contra carnívoro: `test_carnivore` e `test_carnivore_b` a 1 tile por 60 s, zero dano, zero trava; `may_strike` recusa mesma espécie, mesmo `herd_id` e herbívoro contra herbívoro; ajudante só fere o carnívoro que feriu o bando (nem o jogador, nem outro Paquicéfalo). |
+| A27 | Abate e carne (D10): a carcaça nasce com `carcass_meat` e some ao fim de `eat_seconds_per_meat` x carne (8 s com carne 4); a carne cai em linha reta durante o `EAT`; jogador entra na elipse no meio da refeição: o `EAT` para e sobra `ceil(carne x (1 - t / duração))` por 600 s; saciado é 60 s por carne comida (240 s com 4), teto 600; saciado não trava presa mas trava o jogador; passado o prazo, volta a caçar; golpe final de um saciado deixa a carcaça inteira; `CarcassField` nunca passa de 8 por causa de caça. |
+| A28 | Revide: golpe no bando chama até 2 ajudantes em 0,5 s com alvo no carnívoro; o carnívoro recua a 25% de vida e não trava o mesmo bando por 60 s; bando de 3 contra 1 carnívoro L20 não termina em abate. |
+| A29 | Ecossistema: 2 h de relógio, bando de 4 exposto a 3 carnívoros, jogador perto: o bando nunca fica com menos de 2 vivos; jogador a mais de 40 tiles e fora do raio ativo: zero abates e reposição de 1 a cada 600 s; presa dentro da zona segura do nascimento nunca é morta. |
+| A30 | Desempenho: com 360 dinos no mundo e 32 ativos, os testes de distância por reavaliação ficam <= P x A + P; reavaliação respeita 0,5 s; tick de predação < 0,3 ms [premissa, medir]. |
+| A31 | Save no meio da caçada carrega sem erro e sem caçada; `sated_until` e `regen_due_at` voltam iguais. |
+| A32 | Domado presa (D6): domado acordado de porte válido dentro da elipse é elegível e o carnívoro o trava; domado carnívoro e porte inválido não; domado longe do jogador (fixado ativo, caçador sem foco a 16 tiles) nunca é caçado; o piso de bando não protege domado; domado dormindo é elegível, em doma e nocauteado selvagem não. |
+| A33 | Reação do domado: foge a 80 para longe do carnívoro (não em direção ao dono), não revida, não chama bando; a ordem ("Seguir" ou "Ficar") sobrevive à caçada; dormindo não foge. |
+| A34 | Log: `tamed_attacked` uma vez por episódio e rearma 30 s depois do fim; `tamed_killed` na morte; os dois só ao dono; textos em `GameMessages` (A18 já percorre `EVENTS`). |
+| A35 | Domado morto deixa o alforje no chão (uma pilha por stack, 4 a 12 px, 300 s), sem perder nada pelo teto de 24 por área; sai do save; a carcaça é comida. |
+| A36 | Isca: carnívoro em combate com domado a 1 tile do jogador por 20 s não o morde e não troca; dano do jogador troca em até 0,5 s; domado a até 4 tiles do jogador não toma o alvo de quem já o persegue; quem já mordeu o jogador não troca para o domado. |
+| A37 | Zero erro de script, `tools/check.sh` verde, e rodar o jogo (regra do `AGENTS.md`). |
+
+### 10.8 Etapa nova para o SORA
+
+**Etapa 5b: "Predação e alvo genérico". Entra depois da 5 e antes da 6** (recomendo). Motivo: ela generaliza o alvo (jogador ou dino) em `ThreatCycle`, `HerdCall` e no dano da autoridade, exatamente o código que a etapa 5 acaba de mexer; fazer a 6 antes obrigaria a abrir de novo o mesmo trecho com os ramos de `attacks_downed`. A etapa 6 (caído, morte, corpo) não depende da predação e a caçada não depende do corpo. Contra: adia a 6, que é o "corpo" do M1; se o dono preferir ver o corpo primeiro, a 5b pode ir **depois da 6** sem mudar nada além da ordem.
+
+Escopo: `PredationProfile` e `PredationRules` em `.tres` e as 4 espécies de teste; alvo genérico; `DinoRelation.may_strike`; escolha de alvo (10.2), `EAT`, saciedade, recuo; alarme e fuga da presa; reposição de membro e piso em `WildPopulation`; zona segura; `hunt_mark_color`; save; domado como presa (fuga, `tamed_attacked`, `tamed_killed`, alforje no chão); `EAT` que consome a carcaça. Testes A20 a A37. A etapa 7 (integração) soma a carga: 32 ativos com 6 carnívoros caçando e a contagem dos bandos expostos no mapa real.
+
+### 10.9 Decisões do dono
+
+- **D6. [DECIDIDO 08/11] O domado do jogador é presa sempre, de porte válido** (recomendação anterior, "não", vencida). Consequências tratadas em 10.4: foge sem revidar, log ao dono, isca com preço, risco de perder vários domados para um bando (P11).
+- **D7. [provisório 08/11] Se o jogador bater no carnívoro enquanto ele caça: ignora ou troca?** Recomendo **troca só quando o jogador causa dano** (sua sugestão): a regra de ignorar não vira escudo.
+- **D8. [provisório 08/11] Porte da presa.** Recomendo "igual ou menor" no M1 e o bônus de bando desligado (campo pronto).
+- **D9. [provisório 08/11] Carnívoro contra carnívoro.** Recomendo **não se caçam nem se ferem** (sua sugestão).
+- **D10. [DECIDIDO 08/11] O carnívoro come tudo e a carcaça some** (recomendação anterior, "metade", vencida). Ajustes em 10.3 e 10.5: `EAT` 2 s por carne (teto 20), saciedade 60 s por carne (teto 600), a carne só sobra se o jogador interromper a refeição.
+- **D11. [DECIDIDO 08/11] Piso de 2 por bando e reposição de membros (muda `WildPopulation`, hoje só renasce o bando inteiro).** Recomendo sim; sem isso a caçada esvazia as tocas sem volta. Preço: bando exposto vive em 2 a 3 de 4.
+- **D12. [DECIDIDO 08/11] Fora do raio ativo (16 tiles do jogador) ninguém caça.** Recomendo sim: nada some quando ninguém vê, e o jogador não volta a um mapa esvaziado. Preço: o mundo "congela" a caça longe do jogador; no co-op vale a distância ao jogador mais próximo.
+- **D13. [provisório 08/11] Carnívoro saciado ainda ataca o jogador.** Recomendo sim; senão cada abate dá 4 minutos de imunidade e a ameaça vira calendário.
+- **D14. [provisório 08/11] Tempo de caça e recuo.** Recomendo `hunt_max_seconds` 40 e recuo em 25%; ajustável em dado depois do playtest.
+- **D15. Selvagem nocauteado e em doma é presa?** Recomendo **não** no M1: é o tutorial de doma (critério 1 do M1) e o GDD 261 deixa a defesa do dormindo para o M2/CRI-12. Entra quando houver defesa (ordem, curral, dino defensor).
+- **D16. Domado dormindo é presa?** Recomendo **sim** (coerente com o "sempre" do D6): não foge, o log avisa no travamento e a janela de 7 a 21 s dá tempo de chegar. Alternativa: protegido enquanto dorme (a ameaça do dormindo some do jogo).
+- **D17. O que o domado morto deixa.** Recomendo o **alforje no chão** (item de chão existente, 300 s, sem teto de área nesse drop) na 5b e, na etapa 6, trocar por corpo de 10 min se o dono quiser. Alternativa: perder tudo (mais duro, e o dono já perdeu o dino).
+- **D18. Escudo do dono (4 tiles) e fuga para longe do raptor.** Recomendo manter as duas: sem o escudo o "Seguir" vira rota de fuga automática; com a fuga em direção ao dono o raptor chegaria ao jogador. Ajustável em dado.
+
+**A janela tática (comentário).** Com o raptor ocupado, o jogador passa: a janela vale de 7 a 21 s do abate mais a aproximação (até 34 s no pior). É **bom** para o jogo por três razões: o mundo parece vivo e tem leitura ("aquele raptor está caçando, cruzo por trás"); o jogador ganha uma decisão com custo (esperar, passar, ou interromper a refeição e disputar a sobra); e premia observar, que combina com o vínculo e a doma. Os riscos estão fechados nas regras: dano do jogador quebra o "ignorar" (6), quem já mordeu o jogador não troca para presa (8, sem isca), saciado ainda ataca (D13), escudo do dono de 4 tiles (10.2). Com o domado como presa a janela custa um domado: é troca com preço, não graça. O que **não fecha só com conta**: se o raptor deixar de assustar porque "sempre tem um Paquicéfalo por perto" **[jogar]**.
+
+**Perguntas novas para o playtest:** P8. O jogador entende o "!" laranja como "está caçando outro" e age ("passo") em vez de se achar a presa? P9. O bando de Paquicéfalo em 2 a 3 de 4 ainda parece bando, ou o jogador acha o mapa vazio? P10. Quantas caçadas o jogador vê por hora numa região exposta (a conta dá no máximo 6 abates por hora por bando de presa, mas a frequência real depende de onde ele anda). P11. Perder domados para um bando de raptores é "a natureza cobra" ou "o jogo pune quem cuida"? Quantos domados o jogador perde por hora e o log `tamed_attacked` chega a tempo?
+
+**Conflito 8 (aberto, sem resolver).** `GDD.md:261` diz que o Utahraptor é solitário na 0.2 e mira o Paquicéfalo dormindo (aviso 3 s). Aqui: ele segue com bando de 2 a 3 (CONFLITO 2), mira o **domado** (D6) e o domado dormindo (D16), mas **não** o selvagem em doma (D15). `GDD.md:1259`-`1294` fala do corpo do jogador, não do de dino; o alforje no chão (D17) é a solução intermediária. Não afeta a conta; só o texto do GDD.

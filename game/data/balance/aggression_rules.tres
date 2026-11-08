@@ -15,3 +15,4 @@ mark_text = "!"
 mark_color = Color(0.95, 0.15, 0.12, 1)
 alert_color = Color(1, 0.45, 0.4, 1)
 fade_seconds = 0.4
+hunt_mark_color = Color(1, 0.6, 0.1, 1)

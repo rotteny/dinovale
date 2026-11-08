@@ -117,6 +117,7 @@ func _main(world: String, level: int = 20, no_menu: bool = false, seed_value: in
 		node.set_physics_process(false)
 	main.wild.process_mode = Node.PROCESS_MODE_DISABLED  # os selvagens do mapa ficam parados: o teste não é deles
 	main.zone.set_physics_process(false)  # a zona só age onde o teste a chama (`WorldTests`)
+	main.predation.set_physics_process(false)  # a caça também (`PredationTests` a chama)
 	main.dino.process_mode = Node.PROCESS_MODE_INHERIT
 	main.dino.visible = true
 	return main

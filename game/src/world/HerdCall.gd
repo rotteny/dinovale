@@ -15,7 +15,7 @@ var _pending: Array[Dictionary] = []
 
 ## Abre a chamada pelo golpe em `struck` (bando "" = sem bando, nada acontece). `others` são todos os dinos do mundo;
 ## `attacker_at` é onde o atacante está. Devolve quantos ajudantes foram escalados.
-func raise_call(struck: Dino, attacker_id: String, attacker_at: Vector2, others: Array[Dino]) -> int:
+func raise_call(struck: Dino, attacker_id: String, attacker_at: Vector2, others: Array[Dino], attacker: Node2D = null) -> int:
 	if struck.herd_id == "" or struck.owner_player_id != "" or struck.state_machine.is_tamed:
 		return 0
 	var tile := float(struck.level_rules.tile_size)
@@ -30,7 +30,7 @@ func raise_call(struck: Dino, attacker_id: String, attacker_at: Vector2, others:
 	for pick in picks:
 		if count >= slots:
 			break
-		_pending.append({"dino": pick, "attacker_id": attacker_id, "left": rules.call_delay_s})
+		_pending.append({"dino": pick, "attacker_id": attacker_id, "attacker": attacker, "left": rules.call_delay_s})
 		count += 1
 	return count
 
@@ -62,7 +62,8 @@ func tick(delta: float) -> void:
 			continue
 		var dino := entry["dino"] as Dino
 		if is_instance_valid(dino) and not dino.is_queued_for_deletion():
-			dino.join_call(entry["attacker_id"], rules.helper_max_seconds)
+			var attacker := entry.get("attacker") as Node2D if is_instance_valid(entry.get("attacker")) else null
+			dino.join_call(entry["attacker_id"], rules.helper_max_seconds, attacker)
 	_pending = waiting
 
 

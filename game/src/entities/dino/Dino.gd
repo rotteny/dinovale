@@ -54,6 +54,18 @@ var player_locator: Callable = Callable()
 ## Devolve os corpos que o agressivo pode perseguir (`Array` de `Node2D`; o mundo preenche). Sem ele, ninguém é alvo.
 var target_locator: Callable = Callable()
 
+## Identidade de combate (`dino:<id de entidade>`, dada pela autoridade ao registrar; "" = não registrado). É o "atacante"
+## que o bando e o alvo genérico guardam; o do jogador é o `player_id`.
+var combat_id: String = ""
+## Alvo de caça escolhido pela predação (`PredationSystem`); com ele o dino persegue esta criatura e ignora os jogadores.
+var hunt_target: Node2D = null
+## Até quando (relógio do mundo) o carnívoro está saciado e não caça presa. Vai ao save; 0 = sem saciedade.
+var sated_until: float = 0.0
+## Quantas vezes um jogador lhe causou dano (a predação compara: dano do jogador durante a caça troca o alvo).
+var player_damage_count: int = 0
+## Episódio de agressão em que mordeu um jogador pela última vez (-1 = nunca): quem mordeu não troca para presa.
+var bit_player_episode: int = -1
+
 ## Bando de nascença (`<vaga>.<geração>`, dado por `WildPopulation`); "" = sem bando. Não vai ao save: o mundo o refaz.
 var herd_id: String = ""
 
@@ -62,6 +74,8 @@ var _restoring: bool = false
 var _target_body: Node2D = null
 ## Quem bateu por último (`player_id`): o alvo do selvagem que só revida. Não vai para o save (bravo não persiste).
 var _aggressor_id: String = ""
+## Corpo do atacante quando ele é uma criatura (o bando e a presa revidam contra este corpo, sem varrer o mundo).
+var _aggressor_body: Node2D = null
 
 @onready var health: HealthComponent = $HealthComponent
 @onready var torpor: TorporComponent = $TorporComponent
@@ -101,7 +115,7 @@ func _physics_process(_delta: float) -> void:
 	observe_owner()
 	observe_targets()
 	velocity = state_machine.desired_direction * move_speed * state_machine.speed_multiplier \
-			* torpor.movement_multiplier()
+			* torpor.movement_multiplier() * state_machine.wound_multiplier()
 	move_and_slide()
 
 
@@ -116,13 +130,41 @@ func observe_owner() -> void:
 	state_machine.observe(global_position, owner_body.global_position if present else Vector2.ZERO, present)
 
 
-## Informa à máquina o alvo vivo mais próximo (só o agressivo procura). Público para testar sem quadros.
+## Está caçando outra criatura agora (a apresentação pinta o "!" de laranja).
+func is_hunting_prey() -> bool:
+	return hunt_target != null and is_instance_valid(hunt_target) and state_machine.is_aggressive
+
+
+## Identidade de combate de um corpo: `player_id` do jogador, `combat_id` da criatura, "" para o resto.
+static func combat_id_of(body: Node) -> String:
+	var dino := body as Dino
+	if dino != null:
+		return dino.combat_id
+	return str(body.get("player_id")) if body.get("player_id") != null else ""
+
+
+## Informa à máquina o alvo vivo mais próximo (só o agressivo procura). Público para testar sem quadros. Com `hunt_target`
+## persegue só ele; atacado por uma criatura, persegue só ela; senão, o jogador mais próximo (ou quem bateu).
 func observe_targets() -> void:
 	state_machine.observe_health(health.current_health / maxf(health.max_health, 1.0))
-	var may_target := stats.aggressive or state_machine.is_aggressive  # o Passivo só mira enquanto está bravo
-	if not may_target or state_machine.is_tamed or not target_locator.is_valid():
+	var hunting := hunt_target != null and is_instance_valid(hunt_target) and not _is_dead_body(hunt_target)
+	if not hunting:
+		hunt_target = null
+	state_machine.hunt_engaged = hunting
+	var may_target := stats.aggressive or hunting or state_machine.is_aggressive  # o Passivo só mira enquanto está bravo
+	if not may_target or state_machine.is_tamed:
 		_target_body = null
 		state_machine.observe_target(Vector2.ZERO, false)
+		return
+	if hunting:
+		_set_target(hunt_target)
+		return
+	if _aggressor_body != null:
+		var attacker := _aggressor_body if is_instance_valid(_aggressor_body) and not _is_dead_body(_aggressor_body) else null
+		_set_target(attacker)
+		return
+	if not target_locator.is_valid():
+		_set_target(null)
 		return
 	var best: Node2D = null
 	var best_distance := INF
@@ -136,16 +178,21 @@ func observe_targets() -> void:
 		if distance < best_distance:
 			best = body
 			best_distance = distance
-	_target_body = best
-	state_machine.observe_target(best.global_position if best != null else Vector2.ZERO, best != null)
+	_set_target(best)
+
+
+func _set_target(body: Node2D) -> void:
+	_target_body = body
+	state_machine.observe_target(body.global_position if body != null else Vector2.ZERO, body != null)
 
 
 ## Chamada do bando (só a autoridade chama): fica bravo contra `attacker_id` por no máximo `max_seconds`. Devolve se entrou.
 ## Morto, dormindo, domado ou já bravo não entra.
-func join_call(attacker_id: String, max_seconds: float) -> bool:
+func join_call(attacker_id: String, max_seconds: float, attacker_body: Node2D = null) -> bool:
 	if health.is_dead() or owner_player_id != "" or not state_machine.provoke_as_helper(max_seconds):
 		return false
 	_aggressor_id = attacker_id
+	_aggressor_body = attacker_body
 	observe_targets()
 	return true
 
@@ -154,6 +201,7 @@ func join_call(attacker_id: String, max_seconds: float) -> bool:
 func _on_aggression_changed(aggressive: bool) -> void:
 	if not aggressive:
 		_aggressor_id = ""
+		_aggressor_body = null
 
 
 ## O golpe do ciclo saiu. Só acertou se havia alvo no alcance; o dano é pedido à autoridade (`attack_requested`).
@@ -229,13 +277,33 @@ func receive_hit(damage: float, torpor_amount: float, attacker_kind: String, att
 	var hit := take_damage(damage, attacker_kind, _spares_efficiency(attacker_kind, attacker_id))
 	if not health.is_dead() and apply_torpor(torpor_amount):
 		hit = true
+	if hit and attacker_kind == TamingRules.ATTACKER_PLAYER:
+		player_damage_count += 1
 	if hit and attacker_kind == TamingRules.ATTACKER_PLAYER and not health.is_dead():
 		_aggressor_id = attacker_id
+		_aggressor_body = null
 		state_machine.provoke()
 		observe_targets()  # o alvo já vale no quadro do golpe: a máquina não acalma por "sem alvo"
 		if state_machine.is_aggressive:
 			provoked.emit(attacker_id)
 	return hit
+
+
+## Mordida de outra criatura (só a autoridade chama, depois de `may_strike`). Domado só leva dano (não revida, não chama
+## o bando). Selvagem acordado leva dano, vira bravo contra QUEM mordeu e provoca o bando (`provoked`); o caçador mordido
+## pela presa só perde vida (a caçada é quem decide o alvo dele). Devolve se tirou vida.
+func be_bitten(damage: float, attacker: Dino) -> bool:
+	if health.is_dead() or attacker == null or not take_damage(damage, attacker.stats.attacker_kind):
+		return false
+	if health.is_dead() or state_machine.is_tamed or stats.predation != null:
+		return true
+	_aggressor_id = attacker.combat_id
+	_aggressor_body = attacker
+	state_machine.provoke()
+	observe_targets()
+	if state_machine.is_aggressive:
+		provoked.emit(attacker.combat_id)
+	return true
 
 
 ## Dano de um atacante (`TamingRules.ATTACKER_*`). Acordada, só tira vida. Dormindo e
@@ -317,6 +385,7 @@ func to_dict() -> Dictionary:
 		"state_machine": state_machine.to_dict(),
 		"owner_player_id": owner_player_id,
 		"feeder_player_id": feeder_player_id,
+		"sated_until": sated_until,
 	}
 
 
@@ -360,6 +429,7 @@ func from_dict(data: Dictionary) -> bool:
 	state_machine.from_dict(SafeRead.dict(data.get("state_machine")))
 	owner_player_id = _saved_player_id(data.get("owner_player_id")) if state_machine.is_tamed else ""
 	feeder_player_id = _saved_player_id(data.get("feeder_player_id"))
+	sated_until = SafeRead.number(data.get("sated_until"), 0.0, 0.0, COORD_LIMIT * COORD_LIMIT)  # save antigo: sem saciedade
 	_refresh_prompt()
 	taming.reconcile()
 	# Os máximos vêm do nível, não do save: dado salvo não é confiável.

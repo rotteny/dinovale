@@ -12,6 +12,7 @@ extends Node
 ##   qualquer estado -> UNCONSCIOUS   (TorporComponent.knocked_out)
 ##   UNCONSCIOUS -> IDLE              (acordou selvagem)
 ##   UNCONSCIOUS -> TAMED             (mark_tamed, ou acordou já domesticado)
+##   IDLE/WANDER/TAMED -> FLEEING -> IDLE/TAMED   (presa de carnívoro: foge enquanto a ameaça se renova; a ordem sobrevive)
 ##   TAMED -> STUCK -> TAMED          (domado em Seguir travou longe do dono e fora da tela: desiste SEM teleporte;
 ##                                     tenta de novo com ordem nova, ou com o dono perto/à vista depois de um intervalo)
 ##
@@ -82,6 +83,18 @@ var health_ratio := 1.0
 ## Entrou chamado pelo bando (não foi golpeado): vale o teto `helper_left`, que só roda enquanto é ajudante.
 var is_helper := false
 var helper_left := 0.0
+## Fuga da presa (`begin_flee`): de onde foge, para onde prefere ir (centro do bando) e quanto falta sem a ameaça renovar.
+var flee_from := Vector2.ZERO
+var flee_toward := Vector2.ZERO
+var flee_toward_known := false
+var flee_hold_left := 0.0
+## Mordida que feriu atrasa o dino: velocidade x `wound_factor` por `wound_left` segundos.
+var wound_left := 0.0
+var wound_factor := 1.0
+## O dino está sendo usado para caçar outra criatura (`Dino.observe_targets` liga): mesmo sem ser Agressivo, persegue o alvo.
+var hunt_engaged := false
+## Parado comendo (a predação o liga e desliga): sem andar e sem iniciar perseguição.
+var holding := false
 ## Fase atual do ciclo (`NONE` fora dele ou sem perfil).
 var threat_phase: Enums.ThreatPhase:
 	get:
@@ -114,6 +127,7 @@ func start() -> void:
 		Enums.DinoStateId.TAMED: DinoTamedState.new(),
 		Enums.DinoStateId.AGGRESSIVE: DinoAggressiveState.new(),
 		Enums.DinoStateId.STUCK: DinoStuckState.new(),
+		Enums.DinoStateId.FLEEING: DinoFleeState.new(),
 	}
 	follower.rules = nav_rules
 	for state: DinoState in _states.values():
@@ -128,6 +142,10 @@ func tick(delta: float) -> void:
 	if threat_cycle != null and not is_aggressive:
 		threat_cycle.cool(delta)
 	_alert_left = maxf(_alert_left - delta, 0.0)
+	wound_left = maxf(wound_left - delta, 0.0)
+	if holding:
+		desired_direction = Vector2.ZERO
+		return
 	if _can_start_chase():
 		transition_to(Enums.DinoStateId.AGGRESSIVE)
 	_states[current_id].tick(delta)
@@ -164,7 +182,7 @@ func observe_health(ratio: float) -> void:
 
 ## Foge em vez de revidar? Só o Passivo (não Agressivo), bravo e com a vida abaixo do limite das regras.
 func should_flee() -> bool:
-	return stats != null and not stats.aggressive and health_ratio < aggression.flee_health_ratio
+	return stats != null and not stats.aggressive and stats.predation == null and health_ratio < aggression.flee_health_ratio
 
 
 ## O corpo informa o alvo mais próximo que pode ser perseguido (`known` falso = nenhum).
@@ -180,6 +198,31 @@ func target_distance() -> float:
 	return Vector2(offset.x, offset.y * weight).length()
 
 
+## Multiplicador de velocidade da ferida de mordida (1 = sem ferida).
+func wound_multiplier() -> float:
+	return wound_factor if wound_left > 0.0 else 1.0
+
+
+## A mordida de um caçador feriu: o dino anda mais devagar por `seconds`.
+func apply_wound(factor: float, seconds: float) -> void:
+	wound_factor = clampf(factor, 0.05, 1.0)
+	wound_left = maxf(wound_left, seconds)
+
+
+## Presa em alarme: foge de `from` (e prefere `toward` quando `toward_known`) por `hold` segundos, renovável. Só quem está
+## acordado e calmo foge (bravo revida, desacordado não corre). Devolve se está fugindo.
+func begin_flee(from: Vector2, hold: float, toward: Vector2 = Vector2.ZERO, toward_known: bool = false) -> bool:
+	if current_id == Enums.DinoStateId.UNCONSCIOUS or current_id == Enums.DinoStateId.AGGRESSIVE or stats == null:
+		return false
+	flee_from = from
+	flee_toward = toward
+	flee_toward_known = toward_known
+	flee_hold_left = hold
+	if current_id != Enums.DinoStateId.FLEEING:
+		transition_to(Enums.DinoStateId.FLEEING)
+	return true
+
+
 func chase_speed_multiplier() -> float:
 	return stats.chase_speed / walk_speed if stats != null else 1.0
 
@@ -193,7 +236,8 @@ func provoke() -> void:
 	if current_id == Enums.DinoStateId.AGGRESSIVE:
 		is_helper = false  # golpeado de verdade: vira principal (relógio de calma, sem teto)
 		reset_calm()
-	elif current_id == Enums.DinoStateId.IDLE or current_id == Enums.DinoStateId.WANDER:
+	elif current_id == Enums.DinoStateId.IDLE or current_id == Enums.DinoStateId.WANDER \
+			or current_id == Enums.DinoStateId.FLEEING:
 		transition_to(Enums.DinoStateId.AGGRESSIVE)
 
 
@@ -206,12 +250,19 @@ func confirm_hit() -> void:
 func provoke_as_helper(max_seconds: float) -> bool:
 	if is_tamed or torpor.is_unconscious:
 		return false
-	if current_id != Enums.DinoStateId.IDLE and current_id != Enums.DinoStateId.WANDER:
+	if current_id != Enums.DinoStateId.IDLE and current_id != Enums.DinoStateId.WANDER \
+			and current_id != Enums.DinoStateId.FLEEING:
 		return false
 	transition_to(Enums.DinoStateId.AGGRESSIVE)
 	is_helper = true
 	helper_left = max_seconds
 	return true
+
+
+## A predação largou a presa e o bravo continua contra o jogador: o episódio recomeça (ver `DinoAggressiveState`).
+func restart_episode() -> void:
+	if is_aggressive:
+		(_states[Enums.DinoStateId.AGGRESSIVE] as DinoAggressiveState).restart_episode()
 
 
 ## Dano dado ou recebido: o relógio de calma recomeça. Sem efeito fora do estado bravo.
@@ -238,7 +289,7 @@ func start_reached_alert() -> void:
 
 
 func _can_start_chase() -> bool:
-	if stats == null or not stats.aggressive or is_tamed or not target_known or _alert_left > 0.0:
+	if stats == null or not (stats.aggressive or hunt_engaged) or is_tamed or not target_known or _alert_left > 0.0:
 		return false
 	if current_id != Enums.DinoStateId.IDLE and current_id != Enums.DinoStateId.WANDER:
 		return false
@@ -309,8 +360,12 @@ func mark_tamed() -> bool:
 
 
 func to_dict() -> Dictionary:
-	# Bravo não vai para o save: quem foi salvo bravo volta calmo (Idle), sem rancor.
-	var saved_id := Enums.DinoStateId.IDLE if is_aggressive else current_id
+	# Bravo e em fuga não vão para o save: quem foi salvo assim volta calmo (Idle ou Tamed), sem rancor.
+	var saved_id := current_id
+	if is_aggressive:
+		saved_id = Enums.DinoStateId.IDLE
+	elif current_id == Enums.DinoStateId.FLEEING:
+		saved_id = _awake_state()
 	return {
 		"state": Enums.DinoStateId.find_key(saved_id),
 		"is_tamed": is_tamed,

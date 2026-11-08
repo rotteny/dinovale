@@ -50,6 +50,14 @@ func reset_calm() -> void:
 	_calm_left = machine.aggression.calm_seconds
 
 
+## A caçada acabou e o bravo segue o jogador: o limite do episódio (`chase_max_seconds`) conta do zero, senão os segundos
+## gastos com a presa o acalmariam no mesmo quadro.
+func restart_episode() -> void:
+	_elapsed = 0.0
+	_far_time = 0.0
+	reset_calm()
+
+
 ## Quanto falta para acalmar sem novo dano (para teste e diagnóstico).
 func calm_left() -> float:
 	return _calm_left
@@ -77,6 +85,9 @@ func tick(delta: float) -> void:
 
 func _should_calm() -> bool:
 	var stats := machine.stats
+	if machine.hunt_engaged:
+		# Caçando outra criatura: quem encerra é a predação (tempo, recuo, vista); aqui só o alvo sumir ou fugir longe demais.
+		return not machine.target_known or machine.target_distance() > stats.chase_give_up_tiles * machine.tile_px
 	if not machine.target_known or _calm_left <= 0.0 or _far_time >= machine.aggression.far_seconds:
 		return true
 	if machine.is_helper and machine.helper_left <= 0.0:

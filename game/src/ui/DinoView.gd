@@ -244,6 +244,8 @@ func _apply_alert_mark(awake: bool, delta: float) -> void:
 	var alpha := _alert_fade.step(delta, awake and dino.state_machine.is_aggressive, aggression_rules)
 	_alert_mark.visible = alpha > 0.0
 	_alert_mark.modulate.a = alpha
+	var color := aggression_rules.hunt_mark_color if dino.is_hunting_prey() else aggression_rules.mark_color
+	_alert_mark.add_theme_color_override("font_color", color)  # laranja = caça outro dino; vermelho = bravo com você
 
 
 func _apply_yawn(band: int, delta: float) -> void:

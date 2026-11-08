@@ -22,6 +22,8 @@ const EVENTS: Dictionary = {
 	"player_downed": {"kind": Kind.DANGER, "text": "Você caiu."},
 	"tamed_stuck": {"kind": Kind.WARNING, "text": "{species} ficou preso."},
 	"dino_hit_player": {"kind": Kind.WARNING, "text": "{species} te acertou: -{amount} de vida."},
+	"tamed_attacked": {"kind": Kind.WARNING, "text": "{prey} está sendo atacado por {species}."},
+	"tamed_killed": {"kind": Kind.DANGER, "text": "{prey} foi morto por {species}."},
 	"order_given": {"kind": Kind.INFO, "text": "{species}: {order}."},
 	"action_refused": {"kind": Kind.WARNING, "text": "{reason}"},
 }

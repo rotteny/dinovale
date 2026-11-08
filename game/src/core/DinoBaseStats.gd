@@ -63,6 +63,8 @@ const SEX_MALE := "m"
 @export var area_attack: AreaAttackRules
 ## Ciclo de ameaça e golpe do bravo (null = só persegue, como na etapa 3).
 @export var threat_profile: ThreatProfile
+## Como a espécie caça (null = não caça). Só quem tem perfil e `threat_profile` caça: `m1-ameaca-e-corpo.md` seção 10.
+@export var predation: PredationProfile
 @export_group("Bando")
 ## Terrenos (índice do `IslandMap`) onde o bando desta espécie pode nascer. A região da vaga é a máscara; isto a restringe.
 @export var spawn_terrains: Array[int] = [3]

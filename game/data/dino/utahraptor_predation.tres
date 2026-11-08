@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="PredationProfile" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/core/PredationProfile.gd" id="1_predation"]
+
+[resource]
+script = ExtResource("1_predation")
+prey_kinds = Array[String](["herbivore"])
+prey_exclude_ids = Array[String]([])
+max_prey_size_delta = 0
+pack_size_bonus_min_members = 0
+reevaluate_s = 0.5
+lock_min_seconds = 2.0
+switch_ratio = 0.7
+engage_tiles = 4.0
+hunt_max_seconds = 40.0
+fail_cooldown_s = 60.0
+no_sight_seconds = 5.0
+switch_to_player_on_damage = true
+eat_seconds_per_meat = 2.0
+eat_seconds_max = 20.0
+sated_seconds_per_meat = 60.0
+sated_max_seconds = 600.0
+wound_slow_factor = 0.5
+wound_slow_seconds = 3.0
+retreat_health_ratio = 0.25

@@ -25,6 +25,9 @@ var occupancy: TileOccupancy = null
 ## Leitor do relógio do mundo, `() -> float` (ADR-006): a carcaça guarda QUANDO nasceu (`born_at`), nunca a idade.
 var clock: Callable = Callable()
 
+## Espécies extras que deixam carcaça (id -> `DinoBaseStats`), além das de `SPECIES`: o mundo e os testes as acrescentam.
+var extra_species: Dictionary = {}
+
 var _items: Array[Dictionary] = []  # {node, species, level, born_at, meat}
 
 
@@ -57,14 +60,46 @@ func nodes() -> Array[ResourceNode]:
 
 ## Deixa a carcaça de `creature` (morta agora) onde ela estava. Devolve o nó, ou null se a espécie é desconhecida.
 func spawn_from(creature: Dino) -> ResourceNode:
-	if not is_instance_valid(creature) or not SPECIES.has(creature.stats.id):
+	if not is_instance_valid(creature) or _stats_of(creature.stats.id) == null:
 		return null
 	return _spawn(creature.stats.id, creature.level, creature.global_position + FEET_OFFSET, _now(), 0)
 
 
+func _stats_of(species: String) -> DinoBaseStats:
+	if extra_species.has(species):
+		return extra_species[species] as DinoBaseStats
+	return SPECIES.get(species) as DinoBaseStats
+
+
+## A carcaça que `creature` (morta agora) deixou: a mais recente da espécie no ponto onde ela caiu. Null se não deixou.
+func carcass_of(creature: Dino) -> ResourceNode:
+	var point := creature.global_position + FEET_OFFSET
+	for index in range(_items.size() - 1, -1, -1):
+		var item := _items[index]
+		if item["species"] == creature.stats.id and (item["node"] as Node2D).position.distance_to(point) < 1.0:
+			return item["node"] as ResourceNode
+	return null
+
+
+## Carne que ainda há na carcaça (o que sobrou, ou a inteira).
+func meat_of(node: ResourceNode) -> int:
+	return int(node.component.pending_yields().get(node.def.item_id, 0))
+
+
+## A refeição de um carnívoro: deixa `left` de carne na carcaça (0 = some). Só `meat_of` ou menos.
+func set_meat(node: ResourceNode, left: int) -> void:
+	for item in _items:
+		if item["node"] == node:
+			if left <= 0:
+				_remove(item)
+			elif left < meat_of(node):
+				node.component.leave({node.def.item_id: left})
+			return
+
+
 ## Nasce uma carcaça inteira (quem restaura aplica o que sobrou depois); `entity_id` > 0 pede esse id (restaura).
 func _spawn(species: String, level: int, point: Vector2, born_at: float, entity_id: int) -> ResourceNode:
-	var stats := SPECIES[species] as DinoBaseStats
+	var stats := _stats_of(species)
 	var meat := LEVEL_RULES.carcass_meat(stats.carcass_meat, level)
 	var def := BASE_DEF.duplicate() as ResourceNodeDef
 	def.id = "carcass_%s" % species
@@ -135,7 +170,7 @@ func restore_list(list: Array) -> void:
 			break
 		var data := SafeRead.dict(entry)
 		var species := SafeRead.text(data.get("species"), "")
-		if not SPECIES.has(species):
+		if _stats_of(species) == null:
 			continue
 		var level := LEVEL_RULES.clamp_level(SafeRead.integer(data.get("level"), 10, 1, 1000))
 		var point := Vector2(SafeRead.number(data.get("x"), 0.0, -MAX_COORD, MAX_COORD),

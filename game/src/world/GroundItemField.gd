@@ -63,7 +63,9 @@ func total_of(item_id: String) -> int:
 
 ## Espalha `amount` de `item_id` em pilhas de até `rules.pile_max`, a 4 a 12 px de `origin`. `dropper_id` é quem largou
 ## (gancho do co-op). Devolve as pilhas criadas.
-func spawn_scatter(item_id: String, amount: int, origin: Vector2, dropper_id: String = "") -> Array[GroundItem]:
+## `ignore_area_cap` (alforje do domado morto) deixa o drop passar do teto por área: nada se perde por causa dele.
+func spawn_scatter(item_id: String, amount: int, origin: Vector2, dropper_id: String = "",
+		ignore_area_cap: bool = false) -> Array[GroundItem]:
 	var created: Array[GroundItem] = []
 	if not Items.has(item_id) or Items.is_individual(item_id) or amount <= 0:
 		return created
@@ -72,7 +74,7 @@ func spawn_scatter(item_id: String, amount: int, origin: Vector2, dropper_id: St
 	while left > 0:
 		var pile := mini(left, rules.pile_max)
 		left -= pile
-		var item := _spawn(item_id, pile, origin + _offset(origin, item_id, index), _now() + rules.despawn_seconds, 0)
+		var item := _spawn(item_id, pile, origin + _offset(origin, item_id, index), _now() + rules.despawn_seconds, 0, ignore_area_cap)
 		item.owner_player_id = dropper_id
 		item.owner_until = _now() + rules.owner_seconds
 		created.append(item)
@@ -89,12 +91,13 @@ func _offset(origin: Vector2, item_id: String, index: int) -> Vector2:
 	return Vector2.from_angle(angle) * distance
 
 
-func _spawn(item_id: String, amount: int, point: Vector2, due_at: float, entity_id: int) -> GroundItem:
+func _spawn(item_id: String, amount: int, point: Vector2, due_at: float, entity_id: int, ignore_area_cap: bool = false) -> GroundItem:
 	var item := GroundItem.new()
 	item.setup(item_id, amount)
 	item.position = point
 	item.due_at = due_at
-	_enforce_area_cap(point)
+	if not ignore_area_cap:
+		_enforce_area_cap(point)
 	add_child(item)
 	_items.append(item)
 	item.depleted.connect(_remove)

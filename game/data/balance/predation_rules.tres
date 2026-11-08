@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="PredationRules" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/core/PredationRules.gd" id="1_rules"]
+
+[resource]
+script = ExtResource("1_rules")
+herd_floor_alive = 2
+member_regen_seconds = 600.0
+spawn_safe_margin_tiles = 8.0
+prey_alarm_tiles = 6.0
+owner_shield_tiles = 4.0
+tie_ratio = 0.05
+pack_radius_tiles = 8.0
+tamed_attacked_rearm_s = 30.0
+flee_hold_seconds = 0.6

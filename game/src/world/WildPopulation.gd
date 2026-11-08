@@ -49,6 +49,8 @@ class Slot extends RefCounted:
 	var waiting: bool = false
 	var due_at: float = 0.0
 	var tries: int = 0
+	## Quando a próxima vaga vazia de um bando com vivos renasce (relógio do mundo); -1 = nada a repor. Vai ao save.
+	var regen_due_at: float = -1.0
 
 ## Semente do mundo (sorteio de bandos). Fora do save de mundos antigos, vale a semente do mapa.
 var world_seed: int = 0
@@ -68,6 +70,8 @@ var last_adopted: Array[Dino] = []
 
 ## Quem os agressivos perseguem (devolve `Array` de `Node2D`); o mundo preenche.
 var target_locator: Callable = Callable()
+## Piso do bando e reposição de membros (`PredationRules`): a caçada nunca esvazia um bando sem volta.
+var predation_rules: PredationRules = preload("res://data/balance/predation_rules.tres")
 ## Regras de doma deste mundo (cópia com as chaves do `ServerRules`); null = as do `preload` de cada dino.
 var taming_rules: TamingRules = null
 
@@ -141,7 +145,8 @@ func _build_member(kind: DinoBaseStats, layout: WildLayout, member_id: String, c
 
 
 func _register_member(slot: Slot, member_id: String, creature: Dino) -> void:
-	slot.member_ids.append(member_id)
+	if not slot.member_ids.has(member_id):
+		slot.member_ids.append(member_id)
 	_by_id[member_id] = creature
 	_id_of[creature] = member_id
 	creature.herd_id = herd_of(member_id)
@@ -215,6 +220,53 @@ func tick(now: float) -> void:
 				slot.tries = 0
 		elif now >= slot.due_at:
 			_try_respawn(slot, now)
+		if not slot.waiting:
+			_regen(slot, now)
+
+
+## Reposição de membros (D11): bando com 1 ou mais vivos e vaga vazia (morto, não domado) repõe UM membro a cada
+## `member_regen_seconds`, só com nenhum jogador a menos de `group_respawn_player_clearance_tiles` do ponto dele. O membro volta
+## com o mesmo id, no mesmo lugar e vida cheia. Domado morto é perda permanente (o id foi consumido).
+func _regen(slot: Slot, now: float) -> void:
+	var vacant := _vacant_members(slot)
+	if vacant.is_empty() or _wild_alive(slot) == 0:
+		slot.regen_due_at = -1.0
+		return
+	if slot.regen_due_at < 0.0:
+		slot.regen_due_at = now + predation_rules.member_regen_seconds
+		return
+	if now < slot.regen_due_at:
+		return
+	var cells := _layout.members_of(slot.def, slot.gen, slot.center)
+	var member_id := vacant[0]
+	var k := member_id.get_slice(".", 2).to_int()
+	if not cells.has(k):
+		_taken[member_id] = true  # o mapa de hoje não tem esta posição: some de vez, sem erro
+		return
+	var cell: Vector2i = cells[k]
+	if _near_player(cell, _rules.group_respawn_player_clearance_tiles):
+		return  # espera o jogador sair: a reposição só acontece fora da vista
+	_dead.erase(member_id)
+	var creature := _build_member(slot.kind, _layout, member_id, cell)
+	_register_member(slot, member_id, creature)
+	slot.regen_due_at = now + predation_rules.member_regen_seconds if vacant.size() > 1 else -1.0
+	group_spawned.emit([creature] as Array[Dino])
+
+
+## Ids da geração atual que estão vazios: mortos selvagens (domado morto e domado não entram).
+func _vacant_members(slot: Slot) -> Array[String]:
+	var vacant: Array[String] = []
+	for member_id in slot.member_ids:
+		if _dead.has(member_id) and not _taken.has(member_id):
+			vacant.append(member_id)
+	return vacant
+
+
+func _near_player(cell: Vector2i, tiles: float) -> bool:
+	for player_cell in _player_cells():
+		if Vector2(player_cell - cell).length() < tiles:
+			return true
+	return false
 
 
 ## Membros da geração atual ainda vivos e selvagens (sem dono).
@@ -331,7 +383,7 @@ func is_owned(creature: Dino) -> bool:
 
 ## Selvagem sem dono que saiu do estado de nascimento.
 func is_changed(creature: Dino) -> bool:
-	return creature.feeder_player_id != "" \
+	return creature.feeder_player_id != "" or creature.sated_until > 0.0 \
 			or creature.taming.taming_progress > 0.0 or creature.torpor.current_torpor > 0.0 \
 			or creature.torpor.is_unconscious or not creature.inventory.is_empty() \
 			or creature.health.current_health < creature.health.max_health
@@ -350,10 +402,10 @@ func to_list() -> Array:
 
 ## A entrada do delta do membro, ou null se ele está como nasceu (ou já sumiu sem marca).
 func _delta_entry(spawn_id: String) -> Variant:
+	if _taken.has(spawn_id):
+		return {"id": spawn_id, "tamed": true}  # consumido (domado, vivo ou morto): nunca é reposto
 	if _dead.has(spawn_id):
 		return {"id": spawn_id, "dead": true}
-	if _taken.has(spawn_id):
-		return {"id": spawn_id, "tamed": true}
 	var creature := creature_at(spawn_id)
 	if creature == null or creature.health.is_dead():
 		return null
@@ -373,17 +425,20 @@ func groups_to_list() -> Array:
 		var slot: Slot = _slots[id]
 		if slot.center == WildLayout.NO_CELL:
 			continue
-		var touched := false
+		var touched := slot.regen_due_at >= 0.0
 		for member_id in slot.member_ids:
+			if touched:
+				break
 			if _delta_entry(member_id) != null:
 				touched = true
-				break
 		if slot.gen == 0 and not slot.waiting and not touched:
 			continue
 		var entry := {"slot": id, "gen": slot.gen, "center": [slot.center.x, slot.center.y]}
 		if slot.waiting:
 			entry["due_at"] = slot.due_at
 			entry["tries"] = slot.tries
+		if slot.regen_due_at >= 0.0:
+			entry["regen_due_at"] = slot.regen_due_at
 		list.append(entry)
 	return list
 
@@ -485,6 +540,8 @@ func restore(list: Variant, saved_entities: Array, groups: Variant = [], saved_s
 			creature.free()
 		return false
 	_commit_slots(changed, fresh, layout, centers0, seed_value)
+	for slot_id: String in targets:
+		(_slots[slot_id] as Slot).regen_due_at = float((targets[slot_id] as Dictionary).get("regen_due_at", -1.0))
 	for pair: Array in plan:
 		var entry: Dictionary = pair[0]
 		var spawn_id := str(entry["id"])
@@ -537,11 +594,12 @@ func _plan_slots(groups: Variant, layout: WildLayout, centers0: Dictionary, now:
 		var waiting := entry.has("due_at")
 		read[slot_id] = {"gen": gen, "center": center, "waiting": waiting,
 				"due_at": SafeRead.number(entry.get("due_at"), 0.0, 0.0, now + slot.kind.group_respawn_seconds),
-				"tries": SafeRead.integer(entry.get("tries"), 0, 0, 1000)}
+				"tries": SafeRead.integer(entry.get("tries"), 0, 0, 1000),
+				"regen_due_at": SafeRead.number(entry.get("regen_due_at"), -1.0, -1.0, now + predation_rules.member_regen_seconds)}
 	var targets := {}
 	for slot_id in _order:
 		targets[slot_id] = read.get(slot_id, {"gen": 0, "center": centers0.get(slot_id, WildLayout.NO_CELL),
-				"waiting": false, "due_at": 0.0, "tries": 0})
+				"waiting": false, "due_at": 0.0, "tries": 0, "regen_due_at": -1.0})
 	return targets
 
 
@@ -672,4 +730,6 @@ func _on_died(creature: Dino) -> void:
 	var slot: Slot = _slots.get(_slot_of(spawn_id))
 	if slot != null and slot.member_ids.has(spawn_id):
 		_dead[spawn_id] = true  # só a geração atual guarda a marca: a que acabou já foi esquecida
+		if creature.state_machine.is_tamed or creature.owner_player_id != "":
+			_taken[spawn_id] = true  # domado morto: o id fica consumido, sem reposição
 	creature_died.emit(creature, creature.state_machine.is_tamed)

@@ -23,6 +23,10 @@ signal interaction_granted(actor_id: int, target_id: int)
 signal game_event(code: String, params: Dictionary)
 ## Um item deve aparecer no chão (colheita por golpes derrubou, ou o jogador largou). Quem desenha o chão escuta.
 signal items_dropped(item_id: String, amount: int, at: Vector2, dropper_id: String)
+## Evento de jogo só do dono (`player_id`): o log só o mostra a ele (domado atacado ou morto, co-op).
+signal owner_event(player_id: String, code: String, params: Dictionary)
+## Um golpe de criatura em criatura matou: a predação cuida da refeição, do aviso e do alforje.
+signal predator_kill(attacker: Dino, victim: Dino)
 
 const ACTION_ATTACK := "attack"
 const ACTION_INTERACT := "interact"
@@ -66,6 +70,8 @@ var ally_check: Callable = Callable()
 ## PvP do mundo (`ServerRules.pvp`, injetado pelo host): golpe em área acerta domados de OUTRO jogador. A autoridade não lê arquivo.
 var pvp_enabled: bool = false
 
+## Filtro extra da mordida de criatura em criatura, `(atacante: Dino, alvo: Dino) -> bool` (a predação põe o piso do bando).
+var bite_filter: Callable = Callable()
 ## Chamada do bando (`HerdCall`): a autoridade a alimenta quando um selvagem é golpeado e a avança a cada quadro.
 var herd := HerdCall.new()
 
@@ -106,6 +112,7 @@ func register(node: Node, entity_id: int = 0) -> int:
 	_next_id = maxi(_next_id, used + 1)
 	if node is Dino:
 		(node as Dino).player_locator = player_body
+		(node as Dino).combat_id = "dino:%d" % used
 	if node is Dino or node is Player:
 		if node.is_node_ready():
 			_watch(node)
@@ -254,6 +261,9 @@ func resolve_dino_attack(attacker_id: int, target_id: int, damage: float) -> Dic
 	var target := entity(target_id) as Node2D
 	if attacker == null or target == null or target == attacker or damage < 0.0:
 		return {}
+	var target_dino := target as Dino
+	if target_dino != null and not attacker.state_machine.is_tamed and attacker.owner_player_id == "":
+		return {target_id: 1.0} if _creature_bite(attacker, target_dino, damage) else {}  # selvagem em criatura: só `may_strike`
 	if attacker.stats.area_rules() != null:
 		return resolve_area_attack(attacker_id, target_id, damage, 0.0)
 	if attacker.health.is_dead() or attacker.state_machine.current_id == Enums.DinoStateId.UNCONSCIOUS:
@@ -261,9 +271,43 @@ func resolve_dino_attack(attacker_id: int, target_id: int, damage: float) -> Dic
 	return {target_id: 1.0} if _area_hit(attacker, target, damage, 0.0, 1.0) else {}
 
 
-## Um selvagem foi golpeado e está bravo: o bando dele é chamado contra o mesmo atacante.
+## Quem pode ferir quem (a única porta do dano de selvagem em criatura): jogador contra jogador e domado são de outras
+## regras; aqui, jogador vivo e hostil ao selvagem, ou criatura segundo `DinoRelation.may_strike` (carnívoro contra herbívoro,
+## nunca no mesmo bando, nunca da mesma espécie) com os dois vivos e o atacante acordado.
+func may_strike(attacker: Dino, target: Node2D) -> bool:
+	if attacker == null or target == null or attacker.health.is_dead() \
+			or attacker.state_machine.current_id == Enums.DinoStateId.UNCONSCIOUS:
+		return false
+	var player := target as Player
+	if player != null:
+		return _hostile_player(attacker, player)
+	var dino := target as Dino
+	return dino != null and not dino.health.is_dead() and DinoRelation.may_strike(attacker, dino)
+
+
+## Mordida de selvagem em criatura: aplica o dano se `may_strike` deixa, atrasa a presa ferida e avisa a morte.
+func _creature_bite(attacker: Dino, target: Dino, damage: float) -> bool:
+	if not may_strike(attacker, target) or (bite_filter.is_valid() and not bite_filter.call(attacker, target)) \
+			or not target.be_bitten(damage, attacker):
+		return false
+	var profile := attacker.stats.predation
+	if profile != null and not target.health.is_dead():
+		target.state_machine.apply_wound(profile.wound_slow_factor, profile.wound_slow_seconds)
+	if target.health.is_dead():
+		predator_kill.emit(attacker, target)
+	return true
+
+
+## O corpo de um atacante pelo id de combate (`player_id` ou `dino:<id>`); null se saiu do mundo.
+func attacker_body(attacker_id: String) -> Node2D:
+	if attacker_id.begins_with("dino:"):
+		return entity(attacker_id.trim_prefix("dino:").to_int()) as Node2D
+	return player_body(attacker_id) as Node2D
+
+
+## Um selvagem foi golpeado e está bravo: o bando dele é chamado contra o mesmo atacante (jogador ou criatura).
 func _on_dino_provoked(dino: Dino, attacker_id: String) -> void:
-	var attacker := player_body(attacker_id) as Node2D
+	var attacker := attacker_body(attacker_id)
 	if attacker == null:
 		return
 	var others: Array[Dino] = []
@@ -271,7 +315,7 @@ func _on_dino_provoked(dino: Dino, attacker_id: String) -> void:
 		var other := entity(int(id)) as Dino  # `entity` pula nó liberado (o cast direto de um liberado é erro de script)
 		if other != null:
 			others.append(other)
-	herd.raise_call(dino, attacker_id, attacker.global_position, others)
+	herd.raise_call(dino, attacker_id, attacker.global_position, others, attacker)
 
 
 ## O bravo pediu um golpe (`Dino.attack_requested`): confere o alcance contra a posição REAL dos dois, aplica o dano e
@@ -294,6 +338,8 @@ func _on_dino_attack(dino: Dino, target: Node2D, damage: float, episode: int) ->
 	_knock_back(dino, target, profile, hits.has(target_id))
 	if hits.has(target_id):
 		dino.state_machine.confirm_hit()
+	if hits.has(target_id) and target is Player:
+		dino.bit_player_episode = episode
 	if hits.has(target_id) and target is Player and _announced_episode.get(attacker_id, 0) != episode:
 		_announced_episode[attacker_id] = episode
 		announce("dino_hit_player", {"species": dino.stats.display_name, "amount": snappedf(damage, 0.1)})

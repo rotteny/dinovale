@@ -63,6 +63,8 @@ var zone: DinoZone
 var wild: WildPopulation
 ## Carcaças dos dinos mortos (recorte do SOB-06).
 var carcasses: CarcassField
+## Caça dos carnívoros (M1 etapa 5b): escolhe alvo, avisa a presa, come e descansa. Só a autoridade (este mundo) a roda.
+var predation: PredationSystem
 ## Itens soltos no chão (a colheita por golpes derruba aqui; o jogador também larga).
 var ground: GroundItemField
 ## Log do sistema (eventos da autoridade traduzidos em um lugar só) e a vista dele no canto de baixo.
@@ -241,6 +243,13 @@ func _build_zone() -> void:
 	zone.mode_applied.connect(_on_zone_mode_applied)
 	wild.authority = authority
 	wild.creature_died.connect(_on_wild_died)
+	predation = PredationSystem.new()
+	predation.name = "Predation"
+	predation.zone = zone
+	predation.carcasses = carcasses
+	predation.ground = ground
+	predation.authority = authority
+	add_child(predation)
 	zone.reclassify()
 
 
@@ -540,6 +549,9 @@ func _wire_mouse_ui() -> void:
 	message_log_view.messages = message_log
 	screen.get_parent().add_child(message_log_view)
 	authority.game_event.connect(message_log.push_event)
+	authority.owner_event.connect(func(owner_id: String, code: String, params: Dictionary) -> void:
+		if owner_id == player.player_id:  # aviso do domado é só do dono (no co-op, cada um lê os seus)
+			message_log.push_event(code, params))
 	if hud != null:
 		var bar := hud.hotbar_bar()
 		bar.assign_requested.connect(_on_hotbar_assign_requested)

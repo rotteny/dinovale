@@ -135,6 +135,7 @@ func _dino_case() -> Array:
 	original.health.take_damage(25.0)
 	original.feeder_player_id = "amigo"
 	original.sex = DinoBaseStats.SEX_MALE
+	original.sated_until = 321.5  # saciedade do carnívoro (predação): vai ao save
 	return [original, _spawn(DinoScene)]
 
 

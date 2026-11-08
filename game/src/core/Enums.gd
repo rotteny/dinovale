@@ -4,7 +4,7 @@ extends RefCounted
 ## Enums compartilhados. Em saves, grave o NOME do valor, não o número:
 ## assim reordenar um enum não corrompe mundos antigos.
 
-enum DinoStateId { IDLE, WANDER, UNCONSCIOUS, TAMED, AGGRESSIVE, STUCK }
+enum DinoStateId { IDLE, WANDER, UNCONSCIOUS, TAMED, AGGRESSIVE, STUCK, FLEEING }
 
 ## Fases do ciclo de ameaça do bravo (`ThreatCycle`). Nunca vai para o save (bravo não persiste).
 enum ThreatPhase { NONE, THREAT, APPROACH, CIRCLE, WINDUP, LUNGE, RECOVER }

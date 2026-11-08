@@ -176,6 +176,13 @@ rule_no_instance_ids_in_data() {
     "use o ID estável da entidade (ADR-003), nunca instance_id nem NodePath"
 }
 
+# M1 etapa 5b: a regra de predação vale para toda espécie com `PredationProfile`; nenhum arquivo dela cita o id de uma espécie.
+rule_predation_names_no_species() {
+  index_grep 'src/(world/PredationSystem|world/DinoRelation|core/Predation\w+)\.gd' '\b(utahraptor|placeholder_dino|paquicefalo)\b' \
+    | judge "predação sem id de espécie" \
+      "a regra decide por PredationProfile e tipo de atacante, nunca pelo id da espécie"
+}
+
 # R-E: Input só em PlayerController e src/ui/.
 rule_input_only_in_controller_and_ui() {
   index_grep 'src/(?!ui/)(?!.*PlayerController\.gd)' \
@@ -272,6 +279,7 @@ main() {
   rule_no_presentation_assets_in_logic
   rule_export_includes_credits
   rule_no_instance_ids_in_data
+  rule_predation_names_no_species
   rule_input_only_in_controller_and_ui
   rule_ui_does_not_call_mutators
   rule_no_global_rng

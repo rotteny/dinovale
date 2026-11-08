@@ -25,6 +25,8 @@ extends Resource
 @export var mark_text: String = "!"
 @export var mark_color: Color = Color(0.95, 0.15, 0.12)
 @export var alert_color: Color = Color(1.0, 0.45, 0.4)
+## "!" de quem caça outro dino: laranja, para o jogador não achar que o caçador ocupado vem para ele (vermelho = bravo com você).
+@export var hunt_mark_color: Color = Color(1.0, 0.6, 0.1)
 ## Tempo do fade ao entrar e ao sair do estado, em segundos.
 @export_range(0.05, 3.0) var fade_seconds: float = 0.4
 

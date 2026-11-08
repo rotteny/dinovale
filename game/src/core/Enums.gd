@@ -4,7 +4,7 @@ extends RefCounted
 ## Enums compartilhados. Em saves, grave o NOME do valor, não o número:
 ## assim reordenar um enum não corrompe mundos antigos.
 
-enum DinoStateId { IDLE, WANDER, UNCONSCIOUS, TAMED, CHASE }
+enum DinoStateId { IDLE, WANDER, UNCONSCIOUS, TAMED, CHASE, STUCK }
 
 ## Porte da espécie. Em dado, o NOME (`DinoBaseStats.size`); só Grande pode ter dano em área.
 enum DinoSize { SMALL, MEDIUM, LARGE }

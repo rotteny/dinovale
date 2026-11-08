@@ -131,18 +131,28 @@ func _is_dead_body(body: Node2D) -> bool:
 	return owner_health != null and owner_health.is_dead()
 
 
-## Retângulo do corpo no mundo (para testar sobreposição sem física).
+## Retângulo dos pés no mundo, o que colide de verdade (para testar sobreposição sem física).
 func body_rect() -> Rect2:
-	var size := stats.hitbox_size
+	var size := stats.foot_size()
 	var center: Vector2 = ($CollisionShape2D as Node2D).global_position
 	return Rect2(center - size * 0.5, size)
 
 
-## Caixa de colisão vinda dos dados (`DinoBaseStats.hitbox_size`), nunca da cena.
+## Retângulo de golpe e de alvo (hurtbox) no mundo: maior que os pés, não colide com nada.
+func hurtbox_rect() -> Rect2:
+	var size := stats.hitbox_size
+	var center: Vector2 = ($Hurtbox/CollisionShape2D as Node2D).global_position
+	return Rect2(center - size * 0.5, size)
+
+
+## Colisão dos pés pelo porte (`DinoBaseStats.foot_size`) e hurtbox pelo dado da espécie (`hitbox_size`), nunca da cena.
 func _apply_hitbox() -> void:
-	var shape := RectangleShape2D.new()
-	shape.size = stats.hitbox_size
-	$CollisionShape2D.shape = shape
+	var feet := RectangleShape2D.new()
+	feet.size = stats.foot_size()
+	$CollisionShape2D.shape = feet
+	var hurt := RectangleShape2D.new()
+	hurt.size = stats.hitbox_size
+	$Hurtbox/CollisionShape2D.shape = hurt
 
 
 ## Tem dono e já é domesticado: o E abre o menu de opções dele (o Seguir/Ficar sai do menu ou da tecla G).

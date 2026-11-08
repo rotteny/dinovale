@@ -23,7 +23,8 @@ const SEX_MALE := "m"
 @export var carcass_meat: int = 4
 ## Quadro "morto" da espécie (coluna 10 da folha): o desenho da carcaça.
 @export var carcass_texture: Texture2D
-## Caixa de colisão do corpo, em pixels (largura, altura). O corpo a lê ao nascer.
+## Caixa de golpe e de alvo (hurtbox), em pixels (largura, altura): o que o jogador acerta. NÃO colide com o mundo: a
+## colisão dos pés vem do porte (`foot_size`). O corpo a lê ao nascer.
 @export var hitbox_size: Vector2 = Vector2(24.0, 16.0)
 ## Chave desta espécie nas vagas de bando do mapa (`IslandMap.spawn_slots[].species`).
 @export var spawn_key: String = "paquicefalo"
@@ -52,6 +53,8 @@ const SEX_MALE := "m"
 @export_range(0.0, 1.0) var male_ratio: float = 0.5
 ## Porte (v0.2: Dodo pequeno, Paquicéfalo e Utahraptor médios, Triceratops grande).
 @export var size: Enums.DinoSize = Enums.DinoSize.MEDIUM
+## Tabela dos pés por porte (a colisão com o mundo).
+@export var size_rules: SizeClassRules = preload("res://data/balance/size_classes.tres")
 ## Tipo de atacante desta espécie perante a doma (`TamingRules.ATTACKER_*`): é a chave de `attack_fixed_loss`.
 @export var attacker_kind: String = TamingRules.ATTACKER_CARNIVORE
 ## Dano em área (null = golpe só no alvo). Só vale se `size` for Grande: veja `area_rules`.
@@ -82,3 +85,8 @@ func roll_sex(map_seed: int, spawn_id: String) -> String:
 	var rng := SeededRng.new()
 	rng.seed_from(["wild", map_seed, spawn_id, "sex"])
 	return SEX_MALE if rng.next_below(1000) < roundi(male_ratio * 1000.0) else SEX_FEMALE
+
+
+## Colisão dos pés (largura, altura em pixels): vem do porte, pela tabela do GDD.
+func foot_size() -> Vector2:
+	return size_rules.foot_of(size)

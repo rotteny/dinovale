@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="SizeClassRules" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/core/SizeClassRules.gd" id="1_rules"]
+
+[resource]
+script = ExtResource("1_rules")
+foot_small = Vector2(12, 12)
+foot_medium = Vector2(14, 14)
+foot_large = Vector2(28, 24)

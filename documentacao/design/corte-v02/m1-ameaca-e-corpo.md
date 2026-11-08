@@ -28,8 +28,8 @@ Valores de lido hoje: dino anda a 40 px/s (`Dino.move_speed`); Utahraptor perseg
 | Porte | `clearance_tiles` | Por quê |
 |---|---|---|
 | Pequeno | 0 | corpo menor que 1 tile |
-| Médio | 1 [premissa] | Paquicéfalo 24x16 e raptor 14x14: o Paquicéfalo não cabe em vão de 1 tile (16 px) |
-| Grande | 2 [premissa] | maior que um humano; passagem estreita é recusada |
+| Médio | 0 [provisório 08/11] | Médio é do tamanho do humano (GDD:87, 16x32): usa a MESMA folga do jogador e passa onde ele passa. Era 1 [premissa]: medido no mapa real, só 42% do terreno ficava aberto ao Médio (maior região 39% disso), e a mata a 29%. Colisão dos pés do Paquicéfalo é 24x16, maior que 14 px: pode travar onde o A* manda passar (a conferir jogando) |
+| Grande | 1 [provisório 08/11] | maior que um humano; vão de 1 ou 2 tiles é recusado, 3 passa. Era 2 [premissa] (só 11% do terreno aberto) |
 
    Uma grade por valor de folga (3 grades, 196 mil células, sem custo relevante de memória [calculado]).
 4. Movimento 8 direções, sem cortar quina (diagonal só se as duas ortogonais estiverem livres), heurística octogonal. O corpo continua colidindo de verdade; o caminho só guia.

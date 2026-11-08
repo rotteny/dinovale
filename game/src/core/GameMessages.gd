@@ -20,6 +20,7 @@ const EVENTS: Dictionary = {
 	"hands_hurt": {"kind": Kind.WARNING, "text": "-{amount} de vida (sem ferramenta)."},
 	"inventory_full": {"kind": Kind.WARNING, "text": "Inventário cheio."},
 	"player_downed": {"kind": Kind.DANGER, "text": "Você caiu."},
+	"tamed_stuck": {"kind": Kind.WARNING, "text": "{species} ficou preso."},
 	"order_given": {"kind": Kind.INFO, "text": "{species}: {order}."},
 	"action_refused": {"kind": Kind.WARNING, "text": "{reason}"},
 }

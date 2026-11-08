@@ -468,16 +468,31 @@ func _test_migration_and_fixture_v3() -> void:
 
 func _test_hitbox_by_data() -> void:
 	var dino := _dino_at(Vector2.ZERO)
-	var shape := dino.get_node("CollisionShape2D").shape as RectangleShape2D
-	_check(shape.size == dino.stats.hitbox_size and shape.size == Vector2(24, 16), "caixa do dino vem do dado")
+	var feet := dino.get_node("CollisionShape2D").shape as RectangleShape2D
+	var hurt := dino.get_node("Hurtbox/CollisionShape2D").shape as RectangleShape2D
+	_check(feet.size == dino.stats.foot_size() and feet.size == Vector2(14, 14), "pés do dino vêm do porte (Médio: 14x14)")
+	_check(hurt.size == dino.stats.hitbox_size and hurt.size == Vector2(24, 16), "hurtbox do dino vem do dado da espécie (24x16)")
+	_check(dino.body_rect().size == Vector2(14, 14) and dino.hurtbox_rect().size == Vector2(24, 16),
+			"body_rect é dos pés; hurtbox_rect é do golpe")
 	var custom: Dino = DinoScene.instantiate()
 	custom.stats = custom.stats.duplicate()
 	custom.stats.hitbox_size = Vector2(30, 20)
+	custom.stats.size = Enums.DinoSize.LARGE
 	_root.add_child(custom)
 	_track.call(custom)
-	_check((custom.get_node("CollisionShape2D").shape as RectangleShape2D).size == Vector2(30, 20), "outro dado, outra caixa")
+	_check((custom.get_node("Hurtbox/CollisionShape2D").shape as RectangleShape2D).size == Vector2(30, 20), "outro dado, outra hurtbox")
+	_check((custom.get_node("CollisionShape2D").shape as RectangleShape2D).size == Vector2(28, 24),
+			"Grande: pés de 28x24 pela tabela de portes")
+	var small: Dino = DinoScene.instantiate()
+	small.stats = small.stats.duplicate()
+	small.stats.size = Enums.DinoSize.SMALL
+	_root.add_child(small)
+	_track.call(small)
+	_check((small.get_node("CollisionShape2D").shape as RectangleShape2D).size == Vector2(12, 12),
+			"Pequeno: pés de 12x12 pela tabela de portes")
 	var other_dino := _dino_at(Vector2.ZERO)
-	_check((other_dino.get_node("CollisionShape2D").shape as RectangleShape2D).size == Vector2(24, 16),
+	_check((other_dino.get_node("CollisionShape2D").shape as RectangleShape2D).size == Vector2(14, 14)
+			and (other_dino.get_node("Hurtbox/CollisionShape2D").shape as RectangleShape2D).size == Vector2(24, 16),
 			"a caixa nova não vaza para outras criaturas")
 	var player := _player_at(Vector2.ZERO)
 	_check((player.get_node("CollisionShape2D").shape as RectangleShape2D).size == player.rules.hitbox_size
@@ -684,7 +699,7 @@ func _test_follower_stays_inside() -> void:
 	var gap := dino.position.distance_to(player.position)
 	_check(not bad and gap <= rules.follow_px() + 1.0 and gap > 0.0,
 			"domado seguindo o dono até o mar: em chão, fora de sólido, a até 3 tiles (%.1f px)" % gap)
-	# O dono passa para o outro lado de uma rocha: o dino empurra nela e não a atravessa.
+	# O dono passa para o outro lado de uma rocha: o dino nunca a atravessa (com a navegação do M1 ele a contorna).
 	var wall := _rock_rects(main, 1)[0]
 	dino.position = Vector2(wall.position.x - 40.0, wall.get_center().y)
 	var crossed := false
@@ -693,7 +708,7 @@ func _test_follower_stays_inside() -> void:
 		await tree.physics_frame
 		if wall.has_point(dino.global_position) or _inside_solid(dino, ignore_player):
 			crossed = true
-	_check(not crossed and dino.position.x < wall.position.x, "dono do outro lado da rocha: o dino fica contra ela, sem atravessá-la")
+	_check(not crossed, "dono do outro lado da rocha: o dino nunca a atravessa (contorna ou fica contra ela)")
 	# Ficar: o dono manda parar e se afasta; o dino não se mexe mais.
 	player.position = dino.position + Vector2(-20, 0)
 	_check(authority.request_command(1, authority.id_of(dino), "STAY") == Enums.ActionResult.OK, "pela Main: o dono manda Ficar")

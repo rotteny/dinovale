@@ -2,7 +2,7 @@
 class_name DinoOrderRules
 extends Resource
 ## Números das ordens do dino domado, só dados. Valores em `res://data/balance/dino_order_rules.tres`.
-## Quem usa: `DinoStateMachine`. A conta do Seguir é pura (`follow_direction`), testável sem física.
+## Quem usa: `DinoTamedState`: a conta pura `follow_direction` (testável sem física) decide se anda; o caminho é do `PathFollower`.
 
 ## Lado do tile do mapa, em pixels.
 @export_range(4, 64) var tile_size: int = 16

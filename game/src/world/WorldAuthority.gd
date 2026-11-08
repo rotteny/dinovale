@@ -114,6 +114,8 @@ func _watch(node: Node) -> void:
 					"done": dino.taming.meals_eaten(), "total": dino.taming.meals_required()}))
 		dino.taming.taming_reset.connect(func() -> void:
 			announce("taming_lost", {"species": dino.stats.display_name}))
+		dino.state_machine.got_stuck.connect(func() -> void:
+			announce("tamed_stuck", {"species": dino.stats.display_name}))
 	elif node is Player:
 		(node as Player).health.died.connect(func() -> void: announce("player_downed"))
 		(node as Player).weapon_broke.connect(func(item_id: String) -> void: announce("weapon_broke", {"item": Items.display_name(item_id)}))

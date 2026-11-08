@@ -10,6 +10,8 @@ extends Node
 ##   qualquer estado -> UNCONSCIOUS   (TorporComponent.knocked_out)
 ##   UNCONSCIOUS -> IDLE              (acordou selvagem)
 ##   UNCONSCIOUS -> TAMED             (mark_tamed, ou acordou já domesticado)
+##   TAMED -> STUCK -> TAMED          (domado em Seguir travou longe do dono e fora da tela: desiste SEM teleporte;
+##                                     tenta de novo com ordem nova, ou com o dono perto/à vista depois de um intervalo)
 ##
 ## Domesticado e acordado, o estado TAMED obedece à ordem (`Enums.DinoOrder`): STAY fica parado e
 ## FOLLOW anda até o dono. A máquina não vê o mundo: o corpo informa as posições por `observe`.
@@ -17,12 +19,16 @@ extends Node
 signal state_changed(previous: Enums.DinoStateId, current: Enums.DinoStateId)
 ## A ordem do domado mudou (a apresentação mostra o texto). Restaurar um save não emite.
 signal order_changed(order: Enums.DinoOrder)
+## O domado desistiu de seguir (episódio novo de "ficou preso"). Emitido UMA vez por episódio: só rearma depois de
+## o dino andar `stuck_clear_tiles`. A autoridade o anuncia no log (`tamed_stuck`).
+signal got_stuck
 
 @export var torpor: TorporComponent
 ## Duração mínima e máxima, em segundos, de cada estado.
 @export var idle_seconds := Vector2(1.0, 3.0)
 @export var wander_seconds := Vector2(1.0, 4.0)
 @export var order_rules: DinoOrderRules = preload("res://data/balance/dino_order_rules.tres")
+@export var nav_rules: NavigationRules = preload("res://data/balance/navigation_rules.tres")
 
 ## Fixe `rng.seed` para ter um comportamento reproduzível.
 var rng := RandomNumberGenerator.new()
@@ -45,7 +51,17 @@ var tile_px := 16.0
 ## Alvo da perseguição (o corpo informa por `observe_target`); `target_known` falso = nenhum à vista.
 var target_position := Vector2.ZERO
 var target_known := false
+## Quem guia o corpo pelo mapa (`PathProvider`); sem ele anda em linha reta. A zona o entrega ao registrar o dino.
+var navigation: PathProvider = null:
+	set(value):
+		navigation = value
+		follower.provider = value
+## Segue um destino e percebe quando trava (perseguição e Seguir do domado).
+var follower := PathFollower.new()
+
 var _alert_left := 0.0
+var _stuck_episode_open := false
+var _stuck_origin := Vector2.ZERO
 
 var _states: Dictionary = {}
 
@@ -68,7 +84,9 @@ func start() -> void:
 		Enums.DinoStateId.UNCONSCIOUS: DinoUnconsciousState.new(),
 		Enums.DinoStateId.TAMED: DinoTamedState.new(),
 		Enums.DinoStateId.CHASE: DinoChaseState.new(),
+		Enums.DinoStateId.STUCK: DinoStuckState.new(),
 	}
+	follower.rules = nav_rules
 	for state: DinoState in _states.values():
 		state.machine = self
 	torpor.knocked_out.connect(_on_knocked_out)
@@ -89,6 +107,7 @@ func configure(species: DinoBaseStats, body_speed: float, tile_size: float) -> v
 	stats = species
 	walk_speed = maxf(body_speed, 1.0)
 	tile_px = tile_size
+	follower.size_class = species.size
 
 
 ## O corpo informa o alvo mais próximo que pode ser perseguido (`known` falso = nenhum).
@@ -135,13 +154,35 @@ func observe(self_at: Vector2, owner_at: Vector2, known: bool) -> void:
 
 ## Troca a ordem. Só o domesticado acordado obedece; devolve se a ordem passou a valer.
 func set_order(next: Enums.DinoOrder) -> bool:
-	if not is_tamed or current_id != Enums.DinoStateId.TAMED:
+	if not is_tamed or (current_id != Enums.DinoStateId.TAMED and current_id != Enums.DinoStateId.STUCK):
 		return false
+	if current_id == Enums.DinoStateId.STUCK:
+		# Ordem nova (ou o G, mesmo igual à atual) é o jogador pedindo de novo: sai do preso e tenta.
+		if next != order:
+			order = next
+			order_changed.emit(order)
+		transition_to(Enums.DinoStateId.TAMED)
+		return true
 	if next != order:
 		order = next
 		_states[current_id].enter()  # reaplica a ordem à direção e à velocidade
 		order_changed.emit(order)
 	return true
+
+
+## Abre o episódio de "ficou preso" (o `got_stuck` sai uma vez por episódio). Chamado ao entrar em STUCK.
+func begin_stuck_episode() -> void:
+	if _stuck_episode_open:
+		return
+	_stuck_episode_open = true
+	_stuck_origin = self_position
+	got_stuck.emit()
+
+
+## Anda `stuck_clear_tiles` do ponto onde ficou preso: o episódio acaba e o próximo volta a avisar.
+func update_stuck_episode() -> void:
+	if _stuck_episode_open and self_position.distance_to(_stuck_origin) >= nav_rules.stuck_clear_tiles * tile_px:
+		_stuck_episode_open = false
 
 
 func transition_to(next_id: Enums.DinoStateId) -> void:

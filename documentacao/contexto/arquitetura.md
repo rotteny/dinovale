@@ -19,7 +19,7 @@ Fontes de verdade (não copie, leia): `game/README.md` (seção Arquitetura e Co
 - **Dados de balanceamento** (`Resource` em `game/data/balance/`): `CarcassRules` (carcaça fresca por 10 min, GDD 5.6) e `DinoLevelRules` (atributos por nível, alcance do rótulo de nível).
 - **Mundo:** `TileOccupancy` (`game/src/world/`) é o ponto único de "tem alguém neste retângulo?" (jogador e dinos hoje; o `BuildGrid` entrará aqui); `CarcassField` guarda as carcaças (entram no registro da autoridade, coleta por `request_gather`).
 - **Apresentação:** `WildLevelTag` ("Nv N" do dino selvagem, só acordado, vivo e perto) e `PixelCursor` (cursor do mouse ampliado por inteiro) ficam em `game/src/ui/`.
-- **IA do dino:** `DinoChaseState` (`game/src/entities/dino/states/`) é a perseguição do agressivo; ainda sem navegação (a etapa E2 a traz): obstáculo no caminho trava o corpo.
+- **IA do dino:** `DinoChaseState` (`game/src/entities/dino/states/`) é a perseguição do agressivo e `DinoTamedState` o Seguir do domado; os dois andam pelo `PathFollower` (`game/src/core/`), que pede caminho ao `PathProvider` (implementação `GridPathProvider`, A* nativo `AStarGrid2D`, grade 256x256 com 3 folgas por porte) e percebe quando trava (1 s replaneja, 2 s folga +1, 3 s preso). O domado preso, longe do dono e fora da tela, vai a `STUCK`: fica parado, sem teleporte, e o log diz "<espécie> ficou preso" (`tamed_stuck`). A grade acompanha os nós de recurso por sinal (`NavigationWorld`, `game/src/world/`): nunca se recalcula o mapa inteiro. Números em `data/balance/navigation_rules.tres` (`NavigationRules`).
 
 ## Decisões registradas
 

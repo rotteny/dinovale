@@ -23,7 +23,7 @@ func run() -> void:
 ## Dois dinos encostados no jogador (um de cada lado, e outro par em cima e embaixo), ambos sobrepostos.
 func _pinch(vertical: bool) -> Dictionary:
 	var player := _player_at(Vector2(400, 400))
-	var offset := Vector2(0, 12) if vertical else Vector2(12, 0)
+	var offset := Vector2(0, 8) if vertical else Vector2(10, 0)  # pés de 14x14: ainda sobrepostos ao jogador (12x8)
 	var first := _dino_at(player.position + offset)
 	var second := _dino_at(player.position - offset)
 	return {"player": player, "dinos": [first, second]}

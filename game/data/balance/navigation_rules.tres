@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="NavigationRules" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/core/NavigationRules.gd" id="1_rules"]
+
+[resource]
+script = ExtResource("1_rules")
+tile_px = 16
+clearance_small = 0
+clearance_medium = 0
+clearance_large = 1
+max_request_tiles = 48
+repath_interval_s = 0.5
+repath_target_moved_tiles = 2.0
+max_requests_per_frame = 3
+waypoint_reach_px = 4.0
+no_path_retry_s = 1.0
+stuck_check_seconds = 1.0
+stuck_min_progress_px = 6.0
+stuck_give_up_seconds = 3.0
+blocked_cell_seconds = 5.0
+stuck_far_tiles = 14.0
+stuck_offscreen_margin_tiles = 2.0
+screen_tiles = Vector2(20, 11.25)
+stuck_retry_min_seconds = 5.0
+stuck_clear_tiles = 4.0

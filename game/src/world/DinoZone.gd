@@ -20,6 +20,8 @@ const STEP_DIRECTIONS: Array[Vector2] = [
 
 ## Terra por onde o dino distante pode passear (sem ela, não anda). Vem do mundo.
 var map: IslandMap = null
+## Navegação (`PathProvider`) entregue a todo dino que entra na zona (opcional: sem ela, andam em linha reta).
+var navigation: PathProvider = null
 ## Quem dá o foco (um por jogador). Morto ainda conta pela posição.
 var foci: Array[Node2D] = []
 var active_count: int = 0
@@ -47,6 +49,10 @@ func register(dino: Dino, reclassify_now: bool = true) -> void:
 	if dino == null or _dinos.has(dino):
 		return
 	_dinos.append(dino)
+	if dino.is_node_ready():
+		dino.state_machine.navigation = navigation
+	else:
+		push_error("DinoZone: o dino entrou na zona antes de estar pronto; ficou sem navegação (anda em linha reta).")
 	if reclassify_now:
 		reclassify()
 

@@ -35,6 +35,8 @@ const MAP_CHANGED_NOTICE := "O mapa mudou desde este save: recursos e selvagens 
 @export var respawn_rules: RespawnRules = preload("res://data/balance/respawn_rules.tres")
 ## Quais nós, cenário e níveis a ilha usa (dado). O mapa em si é `IslandMap` (estático, fora do save).
 @export var world_rules: WorldRules = preload("res://data/world/world_rules.tres")
+## Navegação dos dinos (grade, folgas, "ficou preso"). Dado em `data/balance/navigation_rules.tres`.
+@export var navigation_rules: NavigationRules = preload("res://data/balance/navigation_rules.tres")
 
 ## Semente deste mundo (sorteio dos bandos, ADR-007). 0 = sorteia ao criar o mundo novo (ou usa `GameSession.world_seed_override`);
 ## o Continuar a troca pela salva. Quem quiser um mundo reproduzível (teste, servidor) a fixa antes de entrar na árvore.
@@ -54,6 +56,8 @@ var scheduler: SaveScheduler
 var server_rules: ServerRules
 var taming_rules: TamingRules
 
+## Grade de navegação (M1): a zona a entrega a cada dino; o estado dos nós de recurso chega a ela por sinal.
+var navigation: NavigationWorld
 ## Zona ativa dos dinos (MUN-05) e o grupo onde os selvagens do mapa moram.
 var zone: DinoZone
 var wild: WildPopulation
@@ -176,6 +180,10 @@ func _place_on_island() -> void:
 		resources.respawn_rate = server_rules.resource_respawn_rate
 		resources.clock = authority.clock.now
 		resources.populate(map, world_rules)
+	navigation = NavigationWorld.new()
+	navigation.name = "Navigation"
+	add_child(navigation)
+	navigation.setup(map, world_rules, navigation_rules, resources)
 	_build_zone()
 
 
@@ -186,6 +194,7 @@ func _build_zone() -> void:
 	zone = DinoZone.new()
 	zone.name = "DinoZone"
 	zone.map = map
+	zone.navigation = navigation.provider
 	zone.foci = [player]
 	add_child(zone)
 	carcasses = CarcassField.new()

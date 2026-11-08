@@ -4,15 +4,20 @@
 
 [resource]
 script = ExtResource("1_rules")
-hunger_decay_per_second = 0.2
+dev_starting_equipment = Array[String](["sleep_staff", "wooden_spear"])
+hunger_decay_idle = 0.04
+hunger_decay_walk = 0.06
+hunger_decay_run = 0.15
+hunger_cost_gather_strike = 0.3
+hunger_cost_attack = 0.4
+hunger_recovery_per_second = 4.0
 hunger_warning_ratio = 0.25
 food_cooldown = 0.5
 equip_cooldown = 0.3
 winded_ratio = 0.25
 hunger_restore = Dictionary[String, float]({
-"berry": 25.0,
-"fern": 15.0,
-"meat": 40.0
+"berry": 10.0,
+"meat": 30.0
 })
 hitbox_size = Vector2(12, 8)
 hitbox_offset = Vector2(0, -4)

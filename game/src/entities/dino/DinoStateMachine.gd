@@ -113,6 +113,11 @@ func start_alert() -> void:
 	_alert_left = stats.alert_seconds if stats != null else 0.0
 
 
+## Alcançou o alvo sem poder atacar: alerta mais longo que o da desistência comum (não persegue de novo logo).
+func start_reached_alert() -> void:
+	_alert_left = stats.reached_alert_seconds if stats != null else 0.0
+
+
 func _can_start_chase() -> bool:
 	if stats == null or not stats.aggressive or is_tamed or not target_known or _alert_left > 0.0:
 		return false

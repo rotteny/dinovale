@@ -10,6 +10,7 @@ const _ICONS: Dictionary[String, Texture2D] = {
 	Items.BERRY: preload("res://assets/third_party/ninja-adventure/items/food_seed3.png"),
 	Items.MEAT: preload("res://assets/third_party/ninja-adventure/items/food_meat.png"),
 	Items.SLEEP_STAFF: _BRANCH,
+	Items.WOODEN_SPEAR: _BRANCH,  # sem arte própria: o galho do pacote até a arte da Lança
 	Items.FERN: _GRASS,
 	# Materiais dos nós de recurso: ícones repetidos do pacote até haver arte própria.
 	Items.WOOD: _BRANCH,

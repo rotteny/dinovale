@@ -9,8 +9,13 @@ extends Node
 ## Mudou entre cheio e esgotado (a apresentação e a dica reagem).
 signal changed
 
+## Um golpe acertou o nó (a apresentação treme e mostra o progresso): golpes dados e golpes necessários.
+signal struck(hits: int, needed: int)
+
 ## Intervalo entre as tentativas de voltar quando o lugar está ocupado.
 const RETRY_SECONDS := 0.5
+## Teto de golpes lidos de um save (dado de fora não é confiável).
+const MAX_SAVED_HITS := 50
 
 @export var def: ResourceNodeDef
 
@@ -32,6 +37,9 @@ var leftover: Dictionary = {}
 ## novo a cada `RETRY_SECONDS`; esperar não conta como perdido e o nó segue no save como esgotado.
 var can_return: Callable = Callable()
 
+## Golpes já dados (colheita por golpes). Volta a zero sozinho, `def.hit_reset_seconds` depois do último golpe.
+var hits: int = 0
+var _hits_expire_at: float = 0.0
 ## Próxima tentativa de voltar com o lugar ocupado (instante do relógio; não vai ao save).
 var _retry_at: float = 0.0
 
@@ -73,6 +81,29 @@ func respawn_total() -> float:
 	return base / maxf(respawn_rate, 0.001)
 
 
+## Golpes que o nó guarda agora (já descontado o prazo sem golpes).
+func current_hits() -> int:
+	if hits > 0 and now() >= _hits_expire_at:
+		hits = 0
+	return hits
+
+
+func has_hits() -> bool:
+	return current_hits() > 0
+
+
+## Registra um golpe e devolve quantos o nó já levou. `needed` só vai ao aviso da apresentação.
+func register_hit(needed: int) -> int:
+	hits = current_hits() + 1
+	_hits_expire_at = now() + (def.hit_reset_seconds if def != null else 0.0)
+	struck.emit(hits, needed)
+	return hits
+
+
+func reset_hits() -> void:
+	hits = 0
+
+
 func is_available() -> bool:
 	return def != null and not depleted
 
@@ -111,6 +142,7 @@ func harvest() -> int:
 	if not is_available():
 		return 0
 	depleted = true
+	hits = 0
 	leftover = {}
 	due_at = now() + respawn_total()
 	_retry_at = 0.0
@@ -122,6 +154,9 @@ func to_dict() -> Dictionary:
 	var data := {"def": def.id if def != null else "", "depleted": depleted, "due_at": due_at}
 	if is_partial():
 		data["leftover"] = leftover.duplicate()
+	if has_hits():
+		data["hits"] = hits
+		data["hits_left_seconds"] = _hits_expire_at - now()  # relativo: o relógio do mundo é restaurado à parte
 	return data
 
 
@@ -135,6 +170,10 @@ func from_dict(data: Dictionary) -> void:
 	due_at = SafeRead.number(data.get("due_at"), current, 0.0, current + respawn_total()) if depleted else 0.0
 	_retry_at = 0.0
 	leftover = _read_leftover(data.get("leftover")) if not depleted else {}
+	hits = 0
+	if not depleted:
+		hits = SafeRead.integer(data.get("hits"), 0, 0, MAX_SAVED_HITS)
+		_hits_expire_at = current + SafeRead.number(data.get("hits_left_seconds"), 0.0, 0.0, def.hit_reset_seconds)
 	changed.emit()
 
 

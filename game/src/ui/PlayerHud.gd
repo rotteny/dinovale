@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: MIT
 class_name PlayerHud
 extends Control
-## HUD do jogador (GDD 5.7): vida, fome, XP com "Nv N" e a barra de atalhos 1 a 9, mais o
-## prompt de interação. Sem barra de stamina (o fôlego vira som e nuvem no `PlayerView`), sem
-## sede e sem durabilidade. O XP ainda não existe no jogo: `set_experience` é só o ponto de
+## HUD do jogador (GDD 5.7): vida, fome, stamina, XP com "Nv N" e a barra de atalhos 1 a 9, mais o
+## prompt de interação. A barra de Stamina (decisão do dono, 08/11) mostra quanto ainda dá para correr; o som e a nuvem
+## de fôlego seguem no `PlayerView`. Sem sede e sem durabilidade. O XP ainda não existe no jogo: `set_experience` é só o ponto de
 ## ligação e a HUD nasce mostrando Nv 1 e XP 0. Só apresentação: lê sinais do `player`; nenhuma regra aqui.
 ## Pode ser removida sem efeito no jogo (roda igual sem ela, inclusive headless).
 
@@ -27,6 +27,12 @@ const SAVING_TEXT := "Salvando"
 const HUNGER_WARNING_COLOR := Color("#ffe27a")
 const HUNGRY_TEXT := "Com fome: coma algo"
 const STARVING_TEXT := "Morrendo de fome!"
+## Stamina: verde-água (diferente da vida e da fome); abaixo do limiar de ofego muda de tom; esgotada fica cinza.
+const STAMINA_COLOR := Color("#6fd6c4")
+const STAMINA_WINDED_COLOR := Color("#f0a35a")
+const STAMINA_EXHAUSTED_COLOR := Color("#7d7d7d")
+## Dica de contexto bloqueada (ex.: falta ferramenta): cinza.
+const HINT_BLOCKED_COLOR := Color("#a8a8a8")
 
 @export var player: Player
 
@@ -34,6 +40,7 @@ var _health_bar := StatBar.new("Vida", Color(0.8, 0.2, 0.2), BAR_SIZE,
 		preload("res://assets/third_party/ninja-adventure/ui/icon_heart.png"), ICON_SIZE, true)
 var _hunger_bar := StatBar.new("Fome", Color(0.98, 0.85, 0.35), BAR_SIZE,
 		preload("res://assets/third_party/ninja-adventure/items/food_meat.png"), ICON_SIZE, true)
+var _stamina_bar := StatBar.new("Stamina", STAMINA_COLOR, BAR_SIZE, null, ICON_SIZE, true)
 var _xp_label := Label.new()
 var _xp_bar := StatBar.new("", Color(0.45, 0.6, 1.0), Vector2(StatBar.BAR_SIZE.x, 3.0))
 var _hotbar := HotbarBar.new()
@@ -60,7 +67,7 @@ func _ready() -> void:
 	bars.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	bars.add_theme_constant_override("separation", 0)
 	bars.position = Vector2(EDGE_MARGIN, EDGE_MARGIN)
-	for bar in [_health_bar, _hunger_bar]:
+	for bar in [_health_bar, _hunger_bar, _stamina_bar]:
 		bar.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN  # a linha ocupa só o seu tamanho, não a largura do aviso
 		bars.add_child(bar)
 	_outline(_hunger_warning)
@@ -117,13 +124,17 @@ func _ready() -> void:
 		return
 	player.equip_refused.connect(show_notice_for)
 	player.health.health_changed.connect(_health_bar.set_values)
-	player.hunger.hunger_changed.connect(_hunger_bar.set_values)
+	player.hunger.hunger_changed.connect(_refresh_hunger_bar)
 	player.hunger.hunger_changed.connect(_refresh_hunger_warning)
+	player.stamina.stamina_changed.connect(_refresh_stamina)
+	player.stamina.exhausted.connect(_refresh_stamina_state)
+	player.stamina.recovered.connect(_refresh_stamina_state)
 	player.target_changed.connect(_on_target_changed)
 	player.input_lock_changed.connect(_on_lock_changed)
 	_health_bar.set_values(player.health.current_health, player.health.max_health)
-	_hunger_bar.set_values(player.hunger.current_hunger, player.hunger.max_hunger)
+	_refresh_hunger_bar(player.hunger.current_hunger, player.hunger.max_hunger)
 	_refresh_hunger_warning(player.hunger.current_hunger, player.hunger.max_hunger)
+	_refresh_stamina(player.stamina.current_stamina, player.stamina.max_stamina)
 	_on_target_changed(player.target)
 
 
@@ -265,6 +276,9 @@ func _on_target_changed(target: InteractableArea) -> void:
 	_watched = target
 	if _watched != null:
 		_watched.availability_changed.connect(_on_availability_changed)
+		var struck_node := _watched.entity as ResourceNode
+		if struck_node != null and not struck_node.component.struck.is_connected(_on_node_struck):
+			struck_node.component.struck.connect(_on_node_struck)
 	_highlight(target)
 	_refresh_prompt()
 
@@ -280,6 +294,10 @@ func _highlight(target: InteractableArea) -> void:
 		if child is ResourceNodeView:
 			_highlighted = child
 			_highlighted.set_highlight(true)
+
+
+func _on_node_struck(_hits: int, _needed: int) -> void:
+	_refresh_prompt()
 
 
 func _on_availability_changed(_available: bool) -> void:
@@ -298,10 +316,45 @@ func _is_foreign_command() -> bool:
 	return dino != null and dino.can_command() and not dino.can_interact() and dino.owner_player_id != player.player_id
 
 
+## Dica de contexto do alvo ao alcance: nó de vários golpes mostra o gesto certo (e o que falta); o resto, "E para ...".
+func _hint_for(area: InteractableArea) -> Dictionary:
+	var node := area.entity as ResourceNode
+	if node != null and (node.def.is_struck() or node.def.tool_required):
+		return ActionHints.for_resource(node.def, player.has_tool_in_hand(node.def.tool_item_id), node.component.current_hits())
+	return {"text": "E para %s" % area.prompt, "blocked": false}
+
+
+## Barra de Fome: valor atual e, mais claro à frente, a parte que ainda vai subir (comida na fila).
+func _refresh_hunger_bar(current: float, maximum: float) -> void:
+	_hunger_bar.set_values(current, maximum)
+	_hunger_bar.set_pending(current, player.hunger.pending, maximum)
+
+
+## Barra de Stamina: o valor vem do sinal; o tom, do estado (esgotada, ofegando, normal). A UI não calcula nada.
+func _refresh_stamina(current: float, maximum: float) -> void:
+	_stamina_bar.set_values(current, maximum)
+	_refresh_stamina_state()
+
+
+func _refresh_stamina_state() -> void:
+	var color := STAMINA_COLOR
+	if player.stamina.is_exhausted:
+		color = STAMINA_EXHAUSTED_COLOR
+	elif player.stamina.is_winded():
+		color = STAMINA_WINDED_COLOR
+	_stamina_bar.set_fill_color(color)
+
+
+func stamina_bar() -> StatBar:
+	return _stamina_bar
+
+
 func _refresh_prompt() -> void:
 	var can_show := _watched != null and is_instance_valid(_watched) \
 			and _watched.can_prompt() and not player.input_locked and not _is_foreign_command()
 	_prompt.visible = can_show
 	if can_show:
-		_prompt.text = "E para %s" % _watched.prompt
+		var hint := _hint_for(_watched)
+		_prompt.text = hint["text"]
+		_prompt.modulate = HINT_BLOCKED_COLOR if hint["blocked"] else Color.WHITE
 		_recenter(_prompt)

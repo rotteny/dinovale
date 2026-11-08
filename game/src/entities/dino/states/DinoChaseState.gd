@@ -30,4 +30,11 @@ func tick(delta: float) -> void:
 
 
 func _steer() -> void:
+	# Na distância mínima o dino para: perseguir "para dentro" do alvo só espreme o corpo dele. Sem ataque (M1) ele
+	# desiste ali mesmo e fica em alerta longo, em vez de colar de novo a cada 20 s.
+	if machine.target_distance() <= machine.stats.chase_stop_px:
+		machine.desired_direction = Vector2.ZERO
+		machine.transition_to(Enums.DinoStateId.IDLE)
+		machine.start_reached_alert()
+		return
 	machine.desired_direction = (machine.target_position - machine.self_position).normalized()

@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="WeaponDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/core/WeaponDef.gd" id="1_weapon"]
+
+[resource]
+script = ExtResource("1_weapon")
+id = "wooden_spear"
+display_name = "Lança de madeira"
+damage = 12.0
+torpor = 0.0
+cooldown = 0.9
+reach_tiles = 1.8
+stamina_cost = 5.0

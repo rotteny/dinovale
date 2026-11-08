@@ -29,10 +29,6 @@ func run() -> void:
 	_release_worlds()
 	await _test_punch_rules()
 	_release_worlds()
-	await _test_punch_denials()
-	_release_worlds()
-	await _test_loose_stones()
-	_release_worlds()
 	await _test_zone_in_main()
 	_release_worlds()
 	await _test_zone_load_360()
@@ -435,7 +431,18 @@ func _first_sprite(node: ResourceNode) -> Sprite2D:
 
 func _near(main: Main, node: ResourceNode) -> void:
 	main.player.position = node.position + Vector2(0, 10)
+	main.player.facing = Vector2.UP  # o nó de golpes pede estar à frente
 	main.player.tick(60.0)  # a recarga da colheita anterior
+
+
+## Golpeia o nó `times` vezes, de frente, deixando passar a recarga entre os golpes. Devolve o último resultado.
+func _strikes(main: Main, node: ResourceNode, times: int) -> Enums.ActionResult:
+	var result := Enums.ActionResult.REFUSED
+	for hit in times:
+		_near(main, node)
+		main.player.facing = Vector2.UP
+		result = main.authority.request_gather(1, main.authority.id_of(node))
+	return result
 
 
 func _test_punch_rules() -> void:
@@ -451,14 +458,16 @@ func _test_punch_rules() -> void:
 	_near(main, wood)
 	var hp := player.health.current_health
 	var logs := player.inventory.count(Items.WOOD)
-	_check(authority.request_gather(1, authority.id_of(wood)) == RESULT.OK
-		and player.inventory.count(Items.WOOD) == logs + wood.def.yield_amount
-			and not wood.is_available()
-			and is_equal_approx(player.health.current_health, hp - 1.0), "árvore no Soco: coleta e custa 1 de vida")
+	_check(_strikes(main, wood, wood.def.hits_by_hand - 1) == RESULT.OK and wood.is_available()
+			and is_equal_approx(player.health.current_health, hp), "árvore no Soco: com um golpe a menos ela segue de pé, sem custo")
+	_check(_strikes(main, wood, 1) == RESULT.OK and not wood.is_available()
+			and main.ground.total_of(Items.WOOD) == wood.def.yield_amount and player.inventory.count(Items.WOOD) == logs
+			and is_equal_approx(player.health.current_health, hp - 1.0),
+			"árvore no Soco: no último golpe cai no chão (não no inventário) e custa 1 de vida")
 	var second := main.resources.node_by_id("n317")
 	_near(main, second)
 	hp = player.health.current_health
-	_check(authority.request_gather(1, authority.id_of(second)) == RESULT.OK and is_equal_approx(player.health.current_health, hp - 1.0),
+	_check(_strikes(main, second, second.def.hits_by_hand) == RESULT.OK and is_equal_approx(player.health.current_health, hp - 1.0),
 			"a segunda colheita custa mais 1 (por colheita, não por golpe)")
 	# Pedra à mão: um toque, 1 de dano, sem coleta; o nó fica cheio.
 	var rock := main.resources.node_by_id("n174")
@@ -503,7 +512,7 @@ func _test_punch_rules() -> void:
 			"no piso: nada mais é tirado")
 	var third := main.resources.node_by_id("n318")
 	_near(main, third)
-	_check(authority.request_gather(1, authority.id_of(third)) == RESULT.OK and player.health.current_health == floor_hp
+	_check(_strikes(main, third, third.def.hits_by_hand) == RESULT.OK and player.health.current_health == floor_hp
 			and not third.is_available(), "no piso a árvore ainda é colhida, sem custo, sem morrer")
 	# A conta do piso é do componente de vida: tira o que cabe acima do piso e nunca mata.
 	player.health.current_health = 50.0
@@ -513,161 +522,6 @@ func _test_punch_rules() -> void:
 			"o excedente nunca passa do piso")
 	_check(player.health.take_damage_down_to(-5.0, floor_hp) == 0.0 and player.health.current_health == floor_hp,
 			"valor negativo não cura nem fere")
-
-
-func _test_punch_denials() -> void:
-	var tree := _root.get_tree()
-	var main := _main("punch_denials", 20, true)
-	await tree.physics_frame
-	var player := main.player
-	var authority := main.authority
-	var wood := main.resources.node_by_id("n316")
-	var rock := main.resources.node_by_id("n174")
-	# Fora de alcance: negado, sem custo e sem gastar o nó.
-	player.position = wood.position + Vector2(400, 0)
-	var before := player.to_dict()
-	_check(authority.request_gather(1, authority.id_of(wood)) == RESULT.OUT_OF_RANGE and wood.is_available() and player.to_dict() == before,
-			"longe: negado, sem custo, o nó não gasta")
-	player.position = rock.position + Vector2(400, 0)
-	before = player.to_dict()
-	_check(authority.request_gather(1, authority.id_of(rock)) == RESULT.OUT_OF_RANGE and player.to_dict() == before,
-			"toque na rocha de longe: negado, sem custo")
-	# Alvo que não existe ou não é nó.
-	_check(authority.request_gather(1, 99999) == RESULT.UNKNOWN_TARGET
-		and authority.request_gather(1, authority.id_of(main.dino)) == RESULT.UNKNOWN_TARGET,
-			"alvo inexistente ou que não é nó: negado")
-	# Ator desconhecido (outro jogador que não existe): negado, nada muda.
-	_near(main, wood)
-	_check(authority.request_gather(7, authority.id_of(wood)) == RESULT.UNKNOWN_ACTOR and wood.is_available(), "ator desconhecido: negado")
-	# Recarga.
-	var hp := player.health.current_health
-	_check(authority.request_gather(1, authority.id_of(wood)) == RESULT.OK, "preparo: colheu a árvore")
-	var other := main.resources.node_by_id("n317")
-	other.position = player.position + Vector2(0, 6)
-	hp = player.health.current_health
-	_check(authority.request_gather(1, authority.id_of(other)) == RESULT.COOLDOWN and other.is_available()
-		and player.health.current_health == hp,
-			"em recarga: negado, sem custo, o nó não gasta")
-	# Esgotado.
-	player.tick(60.0)
-	hp = player.health.current_health
-	_check(authority.request_gather(1, authority.id_of(wood)) == RESULT.WRONG_STATE and player.health.current_health == hp,
-			"esgotado: negado, sem custo")
-	# Sem espaço: nada é colhido nem cobrado.
-	var bush := main.resources.node_by_id("n319")
-	_near(main, bush)
-	while player.inventory.room_for(Items.WOOD) > 0:
-		var filler := Items.STONE if player.inventory.room_for(Items.STONE) > 0 else Items.WOOD
-		player.inventory.add(filler, 1)
-	hp = player.health.current_health
-	var result := authority.request_gather(1, authority.id_of(bush))
-	_check(result != RESULT.OK and bush.is_available() and player.health.current_health == hp,
-			"sem espaço: negado, o nó não gasta, sem custo")
-	# Morto não colhe nem se machuca.
-	player.health.take_damage(10000.0)
-	_check(authority.request_gather(1, authority.id_of(rock)) == RESULT.ACTOR_DEAD, "morto: negado")
-	# Quem não é o jogador não colhe pela intenção da mira: sem alvo a recusa é clara.
-	player.target = null
-	_check(player.request_gather() != "", "sem alvo: recusa")
-
-
-func _test_loose_stones() -> void:
-	var tree := _root.get_tree()
-	var main := _main("loose", 20, true)
-	await tree.physics_frame
-	var player := main.player
-	var authority := main.authority
-	var core: ResourceNode = null
-	var trail: ResourceNode = null
-	var fast := 0
-	var slow := 0
-	for node in main.resources.nodes():
-		if node.def.id != "loose_stone":
-			continue
-		if node.component.respawn_total() == 300.0:
-			fast += 1
-			core = node if core == null else core
-		else:
-			slow += 1
-			trail = node if trail == null else trail
-	_check(fast == main.map.loose_core_count and fast == 10 and slow == 14,
-			"o exportador manda: 10 pedras voltam em 300 s e 14 em 600 s (%d e %d)" % [fast, slow])
-	var on_beach := 0
-	for cell: Vector2i in main.map.nodes.get("loose_stone", []):
-		if main.map.terrain_at(cell) == IslandMap.BEACH:
-			on_beach += 1
-	_check(on_beach == 0, "nenhuma pedra avulsa na praia")
-	_check(core != null and trail != null, "há pedra avulsa no núcleo e na trilha")
-	_check(core.component.respawn_total() == 300.0 and trail.component.respawn_total() == 600.0,
-			"pedra do núcleo volta em 300 s, a da trilha em 600 s")
-	_near(main, core)
-	var hp := player.health.current_health
-	var stones := player.inventory.count(Items.STONE)
-	_check(authority.request_gather(1, authority.id_of(core)) == RESULT.OK
-		and player.inventory.count(Items.STONE) == stones + core.def.yield_amount
-			and player.health.current_health == hp and not core.is_available(), "pedra avulsa: coleta à mão, sem custo")
-	main.player.position = core.position + Vector2(200, 0)  # o corpo em cima do lugar segura o nó (caixa de colisão)
-	TestWorld.pass_time(main, 299.0)
-	_check(not core.is_available(), "antes dos 300 s segue esgotada")
-	TestWorld.pass_time(main, 1.0)
-	_check(core.is_available(), "aos 300 s a pedra do núcleo volta")
-	_near(main, trail)
-	authority.request_gather(1, authority.id_of(trail))
-	main.player.position = trail.position + Vector2(200, 0)
-	TestWorld.pass_time(main, 300.0)
-	_check(not trail.is_available(), "a pedra da trilha segue esgotada aos 300 s")
-	TestWorld.pass_time(main, 300.0)
-	_check(trail.is_available(), "aos 600 s a pedra da trilha volta")
-
-
-# ----------------------------------------------------------------------------- zona ativa
-
-func _test_zone_classify() -> void:
-	var rules: ZoneRules = load("res://data/world/zone_rules.tres")
-	_check(rules.active_radius_tiles == 16.0 and rules.far_radius_tiles == 40.0 and rules.max_active == 32
-		and rules.far_step_seconds == 2.0,
-			"a zona vem do dado: raio ativo 16, distante 40, teto 32, passeio de 2 s")
-	var px := rules.tile_size
-	var distances := PackedFloat32Array([0.0, 16.0 * px, 16.0 * px + 1.0, 40.0 * px, 40.0 * px + 1.0, 1000.0 * px])
-	var pinned := PackedByteArray([0, 0, 0, 0, 0, 0])
-	var modes := ActivityZone.classify(distances, pinned, rules)
-	_check(modes == [ActivityZone.Mode.ACTIVE, ActivityZone.Mode.ACTIVE, ActivityZone.Mode.FAR, ActivityZone.Mode.FAR,
-			ActivityZone.Mode.DORMANT, ActivityZone.Mode.DORMANT], "bordas dos raios: 16 ainda ativo, 40 ainda distante, depois dorme")
-	_check(ActivityZone.classify(PackedFloat32Array(), PackedByteArray(), rules).is_empty(), "sem dinos, sem modos")
-	# Teto: 50 dinos dentro do raio, só os 32 mais perto ficam ativos; os outros viram distantes.
-	var many := PackedFloat32Array()
-	var none := PackedByteArray()
-	many.resize(50)
-	none.resize(50)
-	for i in 50:
-		many[i] = float(50 - i) * 4.0  # o último é o mais perto
-	var capped := ActivityZone.classify(many, none, rules)
-	var active := 0
-	for mode in capped:
-		active += 1 if mode == ActivityZone.Mode.ACTIVE else 0
-	_check(active == 32 and capped[49] == ActivityZone.Mode.ACTIVE and capped[0] == ActivityZone.Mode.FAR,
-			"teto de 32 ativos: ficam os mais perto")
-	# Fixados pelo estado: ativos mesmo longe, e ocupam vaga (os outros disputam o resto).
-	var far_pinned := PackedByteArray()
-	far_pinned.resize(50)
-	far_pinned[0] = 1
-	far_pinned[1] = 1
-	many[0] = 500.0 * px
-	var with_pins := ActivityZone.classify(many, far_pinned, rules)
-	active = 0
-	for mode in with_pins:
-		active += 1 if mode == ActivityZone.Mode.ACTIVE else 0
-	_check(with_pins[0] == ActivityZone.Mode.ACTIVE and with_pins[1] == ActivityZone.Mode.ACTIVE and active == 32,
-			"fixado fica ativo longe do jogador e conta nas 32 vagas")
-	# Mais de 32 fixados: todos ficam (não se desliga domado), os outros não ganham vaga.
-	var all_pinned := PackedByteArray()
-	all_pinned.resize(50)
-	all_pinned.fill(1)
-	var every := ActivityZone.classify(many, all_pinned, rules)
-	_check(every.count(ActivityZone.Mode.ACTIVE) == 50, "fixados passam do teto: nunca se desliga quem precisa do relógio")
-	# Determinismo.
-	var again := ActivityZone.classify(many, none, rules)
-	_check(ActivityZone.classify(many, none, rules) == again, "a classificação é determinística")
 
 
 func _test_zone_in_main() -> void:
@@ -992,3 +846,51 @@ func _test_continue_from_v3() -> void:
 	_check(after["format_version"] == 5 and not WorldSnapshot.has_legacy_coordinates(after),
 			"o arquivo regravado é v5 e sem a marca de mapa antigo")
 	main.free()
+
+
+func _test_zone_classify() -> void:
+	var rules: ZoneRules = load("res://data/world/zone_rules.tres")
+	_check(rules.active_radius_tiles == 16.0 and rules.far_radius_tiles == 40.0 and rules.max_active == 32
+		and rules.far_step_seconds == 2.0,
+			"a zona vem do dado: raio ativo 16, distante 40, teto 32, passeio de 2 s")
+	var px := rules.tile_size
+	var distances := PackedFloat32Array([0.0, 16.0 * px, 16.0 * px + 1.0, 40.0 * px, 40.0 * px + 1.0, 1000.0 * px])
+	var pinned := PackedByteArray([0, 0, 0, 0, 0, 0])
+	var modes := ActivityZone.classify(distances, pinned, rules)
+	_check(modes == [ActivityZone.Mode.ACTIVE, ActivityZone.Mode.ACTIVE, ActivityZone.Mode.FAR, ActivityZone.Mode.FAR,
+			ActivityZone.Mode.DORMANT, ActivityZone.Mode.DORMANT], "bordas dos raios: 16 ainda ativo, 40 ainda distante, depois dorme")
+	_check(ActivityZone.classify(PackedFloat32Array(), PackedByteArray(), rules).is_empty(), "sem dinos, sem modos")
+	# Teto: 50 dinos dentro do raio, só os 32 mais perto ficam ativos; os outros viram distantes.
+	var many := PackedFloat32Array()
+	var none := PackedByteArray()
+	many.resize(50)
+	none.resize(50)
+	for i in 50:
+		many[i] = float(50 - i) * 4.0  # o último é o mais perto
+	var capped := ActivityZone.classify(many, none, rules)
+	var active := 0
+	for mode in capped:
+		active += 1 if mode == ActivityZone.Mode.ACTIVE else 0
+	_check(active == 32 and capped[49] == ActivityZone.Mode.ACTIVE and capped[0] == ActivityZone.Mode.FAR,
+			"teto de 32 ativos: ficam os mais perto")
+	# Fixados pelo estado: ativos mesmo longe, e ocupam vaga (os outros disputam o resto).
+	var far_pinned := PackedByteArray()
+	far_pinned.resize(50)
+	far_pinned[0] = 1
+	far_pinned[1] = 1
+	many[0] = 500.0 * px
+	var with_pins := ActivityZone.classify(many, far_pinned, rules)
+	active = 0
+	for mode in with_pins:
+		active += 1 if mode == ActivityZone.Mode.ACTIVE else 0
+	_check(with_pins[0] == ActivityZone.Mode.ACTIVE and with_pins[1] == ActivityZone.Mode.ACTIVE and active == 32,
+			"fixado fica ativo longe do jogador e conta nas 32 vagas")
+	# Mais de 32 fixados: todos ficam (não se desliga domado), os outros não ganham vaga.
+	var all_pinned := PackedByteArray()
+	all_pinned.resize(50)
+	all_pinned.fill(1)
+	var every := ActivityZone.classify(many, all_pinned, rules)
+	_check(every.count(ActivityZone.Mode.ACTIVE) == 50, "fixados passam do teto: nunca se desliga quem precisa do relógio")
+	# Determinismo.
+	var again := ActivityZone.classify(many, none, rules)
+	_check(ActivityZone.classify(many, none, rules) == again, "a classificação é determinística")

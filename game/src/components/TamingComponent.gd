@@ -93,6 +93,18 @@ func preview_level() -> int:
 	return level_rules.clamp_level(level_rules.final_level(level, efficiency))
 
 
+## Refeições já feitas (o progresso em passos inteiros, como `_consume_meal` conta).
+func meals_eaten() -> int:
+	return roundi(taming_progress * meals_required() / MAX_PROGRESS)
+
+
+## Segundos até a próxima refeição (0 se não há comida ideal ou a doma não corre).
+func seconds_to_next_meal() -> float:
+	if not is_active() or food_available() <= 0 or taming_progress >= MAX_PROGRESS:
+		return 0.0
+	return maxf(seconds_per_meal - _meal_timer, 0.0)
+
+
 func food_available() -> int:
 	return inventory.count(ideal_food) if inventory != null else 0
 

@@ -122,7 +122,7 @@ func to_list() -> Array:
 	var list: Array = []
 	for node_id: String in ids:
 		var node: ResourceNode = _by_id[node_id]
-		if not node.component.depleted and not node.component.is_partial():
+		if not node.component.depleted and not node.component.is_partial() and not node.component.has_hits():
 			continue
 		var state: Dictionary = node.component.to_dict()
 		state["id"] = node_id

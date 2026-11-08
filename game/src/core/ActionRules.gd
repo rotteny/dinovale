@@ -20,6 +20,12 @@ extends Resource
 ## Vantagem de distância (px) que um candidato precisa ter sobre o alvo atual para tomar o lugar dele (destaque estável).
 @export_range(0.0, 32.0) var hysteresis_px: float = 6.0
 
+## Raio (px) em volta do cursor em que uma criatura ou objeto conta como "sob o cursor" (golpe e menu do mouse).
+## Anti-spam da coleta: pedido repetido no MESMO nó dentro deste tempo (s) é recusado ("em recarga"). Não há espera
+## entre nós diferentes: coletar um arbusto nunca trava o vizinho. Curto de propósito (<= 0,15 s).
+@export_range(0.0, 0.15) var gather_repeat_seconds: float = 0.12
+@export_range(2.0, 48.0) var mouse_pick_radius_px: float = 12.0
+
 
 func reach_px() -> float:
 	return reach_tiles * tile_size

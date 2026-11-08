@@ -7,11 +7,22 @@ extends Node
 ## nem regra de movimento: a autoridade valida e o corpo aplica. Um jogador remoto não tem controlador.
 
 ## Corpo que este controlador dirige.
+## Ação da tecla G (Seguir/Ficar do domado mais perto), criada por código para não mexer em `project.godot`.
+const TOGGLE_FOLLOW := &"toggle_follow"
+
 @export var player: Player
 ## Ponto de passagem das ações; a direção sai por ele, nunca direto no corpo.
 @export var authority: WorldAuthority
 
+## Menu de opções do clique direito no mundo: a `Main` liga a UI por estes dois ganchos (a lógica não conhece a tela).
+## `menu_opener(tela, título, id_do_alvo, opções) -> bool` abre; `menu_closer()` fecha. Sem eles o clique direito não faz nada.
+var menu_opener: Callable = Callable()
+var menu_closer: Callable = Callable()
+
 var _actor_id: int = 0
+## O mouse é o dispositivo em uso (mexeu ou clicou): o contorno e o golpe preferem o que está sob o cursor.
+## Qualquer tecla de ação ou de movimento devolve ao automático.
+var _mouse_in_use: bool = false
 
 
 func _init() -> void:
@@ -27,7 +38,15 @@ func _physics_process(_delta: float) -> void:
 func tick() -> void:
 	if player == null or authority == null:
 		return
-	authority.request_move(_id(), read_direction(), Input.is_action_pressed("sprint"))
+	var direction := read_direction()
+	authority.request_move(_id(), direction, Input.is_action_pressed("sprint"))
+	if direction != Vector2.ZERO:
+		_mouse_in_use = false
+	if _mouse_in_use and not pointer_over_ui():
+		player.mouse_point = player.get_global_mouse_position()  # a câmera anda: o cursor aponta para outro ponto do mundo
+		player.mouse_aim_active = true
+	elif not _mouse_in_use:
+		player.mouse_aim_active = false
 
 
 ## `get_vector` já devolve comprimento no máximo 1, então a diagonal não é mais rápida que o eixo.
@@ -35,19 +54,95 @@ func read_direction() -> Vector2:
 	return Input.get_vector("move_left", "move_right", "move_up", "move_down")
 
 
+## Cria a ação da tecla G se ainda não existe (chamar de novo não duplica).
+static func ensure_actions() -> void:
+	if InputMap.has_action(TOGGLE_FOLLOW):
+		return
+	InputMap.add_action(TOGGLE_FOLLOW)
+	var event := InputEventKey.new()
+	event.physical_keycode = KEY_G
+	InputMap.action_add_event(TOGGLE_FOLLOW, event)
+
+
+func _ready() -> void:
+	ensure_actions()
+
+
 ## Única leitura de input de ações. Só dispara fora de telas.
 func _unhandled_input(event: InputEvent) -> void:
 	if player == null:
 		return
-	if event.is_action_pressed("interact"):
-		player.try_interact()
+	ensure_actions()  # idempotente; garante a tecla G mesmo sem o `_ready` (testes)
+	if event is InputEventMouseMotion:
+		_mouse_in_use = true
+	elif event is InputEventMouseButton and event.pressed:
+		world_click(event.button_index, player.get_global_mouse_position(), event.position, pointer_over_ui())
+	elif event.is_action_pressed("interact"):
+		_mouse_in_use = false
+		if event is InputEventKey and event.shift_pressed:
+			open_target_options()  # Shift+E = o menu de opções do alvo (inventário do domado, Seguir, Ficar...)
+		elif player.target_is_own_tamed():
+			open_target_options()  # E num domado meu abre o menu: ordem nunca sai direto da tecla
+		else:
+			player.try_interact()
+	elif event.is_action_pressed(TOGGLE_FOLLOW):
+		_mouse_in_use = false
+		player.toggle_nearest_order()
 	elif event.is_action_pressed("attack"):
-		player.attack()
+		_mouse_in_use = false
+		player.attack_with_key()
 	else:
 		for slot in HotbarComponent.SLOT_COUNT:
 			if event.is_action_pressed("hotbar_%d" % (slot + 1)):
 				player.request_use_item(slot)
 				break
+
+
+## O ponteiro está sobre algum controle da UI (inventário, HUD, menus)? Clique ali nunca vira ação no mundo.
+func pointer_over_ui() -> bool:
+	return is_inside_tree() and get_viewport().gui_get_hovered_control() != null
+
+
+## Clique do mouse no mundo, já em coordenadas do mundo (`world_point`) e da tela (`screen_point`, onde o menu abre).
+## Esquerdo = golpe (vira para o cursor e prefere a criatura sob ele); direito = menu de opções do que está sob o cursor.
+## Sobre a UI não faz nada. Devolve se o pedido à autoridade valeu. Chamável sem janela (testes).
+func world_click(button: int, world_point: Vector2, screen_point: Vector2, over_ui: bool) -> bool:
+	if player == null or authority == null or over_ui:
+		return false
+	_mouse_in_use = true
+	if menu_closer.is_valid():
+		menu_closer.call()
+	if button == MOUSE_BUTTON_LEFT:
+		return player.attack_at(world_point)
+	if button == MOUSE_BUTTON_RIGHT and not player.input_locked:
+		return open_options(world_point, screen_point)
+	return false
+
+
+## Abre o menu de opções do que está sob `world_point`. Falso se não há nada ou nada a oferecer.
+func open_options(world_point: Vector2, screen_point: Vector2) -> bool:
+	var target := authority.entity_at(world_point)
+	if target == null or not menu_opener.is_valid():
+		return false
+	var target_id := authority.id_of(target)
+	var options := authority.interaction_options(_id(), target_id)
+	return bool(menu_opener.call(screen_point, _title_of(target), target_id, options))
+
+
+## Menu de opções do alvo da interação (`player.target`), junto de onde ele está na tela. Teclado: Shift+E.
+func open_target_options() -> bool:
+	if player.target == null or not is_instance_valid(player.target.entity) or player.input_locked:
+		return false
+	var node := player.target.entity as Node2D
+	return open_options(node.global_position, node.get_global_transform_with_canvas().origin)
+
+
+func _title_of(target: Node) -> String:
+	if target is Dino:
+		return (target as Dino).stats.display_name
+	if target is ResourceNode:
+		return (target as ResourceNode).def.display_name
+	return ""
 
 
 ## Id do jogador na autoridade, guardado: só procura de novo se o registro mudou.

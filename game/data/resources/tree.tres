@@ -15,9 +15,14 @@ respawn_seconds = 480.0
 prompt = "cortar madeira"
 color = Color(0.35, 0.55, 0.25, 1)
 tool_item_id = "axe_stone"
+tool_name = "Machado"
 tool_required = false
 hand_self_damage = 1.0
 touch_self_damage = 0.0
 texture = ExtResource("2_full")
 foot_size = Vector2(12, 8)
 blocks_when_full = true
+; [premissa] golpes provisórios (decisão do dono, 08/11): a SHIRO revisa
+hits_by_hand = 6
+hits_with_tool = 3
+hit_reset_seconds = 10.0

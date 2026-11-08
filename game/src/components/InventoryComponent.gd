@@ -1,3 +1,4 @@
+# gdlint: ignore=max-public-methods
 # SPDX-License-Identifier: MIT
 class_name InventoryComponent
 extends Node
@@ -139,6 +140,33 @@ func add_entry(entry: Dictionary) -> int:
 	return left
 
 
+## Retira até `amount` unidades da pilha do slot `index` (largar no chão) e devolve quantas saíram. Individual não sai por aqui.
+func take_from_slot(index: int, amount: int) -> int:
+	var slot := get_slot(index)
+	if slot.is_empty() or slot.has("iid") or amount <= 0:
+		return 0
+	return int(_take_from(index, amount)["count"])
+
+
+## Posição do item individual com este `iid` na grade, ou -1.
+func index_of_iid(iid: String) -> int:
+	return _index_of_iid(iid)
+
+
+## Guarda um individual no slot `index` se ele estiver vago (a troca de equipamento devolve o antigo ao lugar do novo);
+## senão no primeiro livre. Devolve se coube.
+func put_individual_at(index: int, entry: Dictionary) -> bool:
+	var item_id := SafeRead.text(entry.get("id"), "")
+	if index >= 0 and index < _slots.size() and _slots[index].is_empty() and accepts_individual and Items.is_individual(item_id) \
+			and entry.has("iid"):
+		var clean := _clean_individual(item_id, entry)
+		if not clean.is_empty():
+			_slots[index] = clean
+			changed.emit()
+			return true
+	return add_entry(entry) == 0
+
+
 ## Retira até `amount` (do fim para o começo) e devolve quanto saiu de fato.
 func remove(item_id: String, amount: int) -> int:
 	var total := 0
@@ -179,12 +207,14 @@ func transfer(destination: InventoryComponent, item_id: String, amount: int) -> 
 
 ## Move o conteúdo do slot `index` (o que couber no destino). Tira DESTE slot, não de
 ## outro da mesma pilha. Individual: 1 ou nada (o destino pode recusar equipamento).
-## Devolve quanto moveu; nada sai sem ter onde ficar.
-func transfer_slot(index: int, destination: InventoryComponent) -> int:
+## `amount` limita a pilha (-1 = todas; individual é sempre 1). Devolve quanto moveu; nada sai sem ter onde ficar.
+func transfer_slot(index: int, destination: InventoryComponent, amount: int = -1) -> int:
 	var slot := get_slot(index)
 	if slot.is_empty() or destination == null or destination == self:
 		return 0
 	var wanted := 1 if slot.has("iid") else int(slot["count"])
+	if amount >= 0 and not slot.has("iid"):
+		wanted = mini(wanted, amount)
 	var moving := mini(wanted, destination.room_for(slot["id"]))
 	if moving <= 0:
 		return 0

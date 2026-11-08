@@ -1,3 +1,4 @@
+# gdlint: ignore=max-public-methods
 # SPDX-License-Identifier: MIT
 class_name WorldAuthority
 extends Node
@@ -17,6 +18,11 @@ extends Node
 signal action_denied(actor_id: int, action: String, result: Enums.ActionResult)
 ## O alvo aceitou a interação; quem abre a tela ou colhe é o mundo (`Main`).
 signal interaction_granted(actor_id: int, target_id: int)
+## Algo que o jogador precisa saber aconteceu (log da HUD). `code` é estável (ver `GameMessages.EVENTS`); a UI traduz.
+## Toda recusa vira `action_refused` com `reason` (`GameMessages.REASONS`) e `action`.
+signal game_event(code: String, params: Dictionary)
+## Um item deve aparecer no chão (colheita por golpes derrubou, ou o jogador largou). Quem desenha o chão escuta.
+signal items_dropped(item_id: String, amount: int, at: Vector2, dropper_id: String)
 
 const ACTION_ATTACK := "attack"
 const ACTION_INTERACT := "interact"
@@ -26,6 +32,11 @@ const ACTION_USE_ITEM := "use_item"
 const ACTION_EQUIP := "equip"
 const ACTION_UNEQUIP := "unequip"
 const ACTION_GATHER := "gather"
+const ACTION_FACE := "face"
+const ACTION_PICKUP := "pickup"
+const ACTION_DROP := "drop"
+## Quantidade de `request_transfer_slot` que significa "a pilha toda".
+const TRANSFER_ALL := -1
 ## Tamanho máximo de `iid` e de nome de vaga aceitos (dado vindo de fora não é confiável).
 const ACTION_MOVE := "move"
 
@@ -37,6 +48,11 @@ const MAX_ORDER_NAME := 16
 
 @export var rules: ActionRules = preload("res://data/balance/action_rules.tres")
 
+## Itens soltos no chão (opcional: um teste sem chão não os tem). A `Main` o liga; a colheita por golpes e o largar o usam.
+## Itens soltos: a `Main` liga `items_dropped` ao campo de chão (`GroundItemField`) e marca `drops_enabled`. A autoridade
+## não conhece o campo (evita laço de referência entre scripts, que vaza ao sair).
+var drops_enabled: bool = false
+
 ## Relógio do mundo (ADR-006). Só esta autoridade o avança, em `_physics_process`; os sistemas recebem `clock.now`.
 var clock := WorldClock.new()
 
@@ -47,6 +63,9 @@ var ally_check: Callable = Callable()
 var pvp_enabled: bool = false
 
 var _entities: Dictionary = {}
+## Motivo e parâmetros específicos da recusa em andamento (senão vale o padrão do resultado). `_answer` os consome.
+var _reason: String = ""
+var _reason_params: Dictionary = {}
 var _next_id: int = 1
 
 
@@ -67,7 +86,35 @@ func register(node: Node, entity_id: int = 0) -> int:
 	_next_id = maxi(_next_id, used + 1)
 	if node is Dino:
 		(node as Dino).player_locator = player_body
+	if node is Dino or node is Player:
+		if node.is_node_ready():
+			_watch(node)
+		else:
+			node.ready.connect(_watch.bind(node), CONNECT_ONE_SHOT)
 	return used
+
+
+## Liga os avisos de jogo à morte e à domesticação (os componentes só emitem; quem anuncia é a autoridade).
+func _watch(node: Node) -> void:
+	var dino := node as Dino
+	if dino != null:
+		dino.health.died.connect(func() -> void:
+			announce("dino_killed", {"species": dino.stats.display_name}))
+		dino.taming.level_finalized.connect(func(_level: int) -> void:
+			announce("tame_done", {"species": dino.stats.display_name}))
+		dino.taming.food_consumed.connect(func(food: String) -> void:
+			announce("taming_meal", {"species": dino.stats.display_name, "item": Items.display_name(food),
+					"done": dino.taming.meals_eaten(), "total": dino.taming.meals_required()}))
+		dino.taming.taming_reset.connect(func() -> void:
+			announce("taming_lost", {"species": dino.stats.display_name}))
+	elif node is Player:
+		(node as Player).health.died.connect(func() -> void: announce("player_downed"))
+		(node as Player).weapon_broke.connect(func(item_id: String) -> void: announce("weapon_broke", {"item": Items.display_name(item_id)}))
+
+
+## Emite um evento de jogo (também usado pelo host para o que a autoridade não observa).
+func announce(code: String, params: Dictionary = {}) -> void:
+	game_event.emit(code, params)
 
 
 ## Próximo `entity_id` livre (vai no save: o contador nunca recua nem reutiliza id).
@@ -221,6 +268,13 @@ func choose_attack_target(origin: Vector2, facing: Vector2, candidates: Array[No
 	return AttackTargeting.choose(origin, facing, rules.reach_px(), candidates, current, rules.front_dot_min, rules.hysteresis_px)
 
 
+## O candidato está ao alcance do golpe e à frente de quem olha para `facing`? O jogador pergunta aqui: a regra única fica
+## na autoridade (o corpo do jogador não lê `rules` dela, o que também evita um laço de referência entre os scripts).
+func can_strike_toward(origin: Vector2, facing: Vector2, candidate: Node2D) -> bool:
+	return origin.distance_to(candidate.global_position) <= rules.reach_px() \
+			and AttackTargeting.is_in_front(origin, facing, candidate, rules.front_dot_min)
+
+
 ## Pede andar na `direction` neste quadro (comprimento no máximo 1; `wants_sprint` = correr). Nega NaN,
 ## infinito e vetor maior que 1. Jogador morto não anda, em silêncio (não é abuso e vem a cada quadro).
 func request_move(actor_id: int, direction: Vector2, wants_sprint: bool = false) -> Enums.ActionResult:
@@ -234,6 +288,104 @@ func request_move(actor_id: int, direction: Vector2, wants_sprint: bool = false)
 	if problem == Enums.ActionResult.OK:
 		actor.perform_move(direction, wants_sprint)
 	return _answer(actor_id, ACTION_MOVE, problem)
+
+
+## Vira o jogador para `direction` (unitária) sem andar: o golpe do mouse olha para o cursor antes de pedir o golpe.
+## Nega NaN, infinito, vetor nulo ou maior que 1. É o que a autoridade usa como "à frente" no `request_attack`.
+func request_face(actor_id: int, direction: Vector2) -> Enums.ActionResult:
+	var actor := _live_player(actor_id)
+	var problem := _actor_problem(actor_id, actor)
+	if problem == Enums.ActionResult.OK and (not is_finite(direction.x) or not is_finite(direction.y)
+			or direction.length() < 0.0001 or direction.length() > 1.0 + MOVE_LENGTH_TOLERANCE):
+		problem = Enums.ActionResult.INVALID_ARGUMENT
+	if problem == Enums.ActionResult.OK:
+		actor.perform_face(direction)
+	return _answer(actor_id, ACTION_FACE, problem)
+
+
+## Entidade interagível (criatura ou nó de recurso visível) sob o ponto do mundo `point`, a mais perto do ponto; null se nenhuma.
+## Só consulta (o cursor do mouse escolhe alvo por aqui; o que se faz com ele passa pelos `request_*`).
+func entity_at(point: Vector2) -> Node2D:
+	var best: Node2D = null
+	var best_distance := INF
+	for id: Variant in _entities:
+		var node := entity(int(id)) as Node2D
+		if node == null or node is Player or node.get("interactable") == null:
+			continue
+		if node is ResourceNode and not (node as ResourceNode).is_available():
+			continue
+		if node is Dino and (node as Dino).health.is_dead():
+			continue
+		if not _pick_rect(node).grow(rules.mouse_pick_radius_px).has_point(point):
+			continue
+		var distance := node.global_position.distance_to(point)
+		if distance < best_distance:
+			best_distance = distance
+			best = node
+	return best
+
+
+## Retângulo do mundo que "é" a entidade para o mouse: o sprite, ou o ponto dela se ainda não tem desenho.
+func _pick_rect(node: Node2D) -> Rect2:
+	var sprite := node.get("visual") as Sprite2D
+	if sprite != null and sprite.texture != null:
+		var local := sprite.get_rect()
+		return Rect2(sprite.to_global(local.position), local.size * sprite.global_scale.abs())
+	var resource := node as ResourceNode
+	if resource != null and resource.def != null and resource.def.texture != null:
+		var size := resource.def.texture.get_size()
+		return Rect2(node.global_position + Vector2(-size.x * 0.5, -size.y), size)
+	return Rect2(node.global_position, Vector2.ZERO)
+
+
+## Opções de interação (clique direito) do alvo, as mesmas ações do teclado: cada uma `{id, label, enabled, reason}`.
+## `reason` é o código de recusa quando desabilitada (`GameMessages.REASONS`); vazio quando pode. Lista vazia = nada a oferecer.
+## A validade é a mesma dos `request_*` (alcance, dono, estado), sem efeito colateral.
+func interaction_options(actor_id: int, target_id: int) -> Array[Dictionary]:
+	var options: Array[Dictionary] = []
+	var actor := _live_player(actor_id)
+	var target := entity(target_id)
+	if actor == null or target == null or target == actor:
+		return options
+	var dino := target as Dino
+	if dino != null:
+		_dino_options(options, actor, dino)
+	elif target is ResourceNode and (target as ResourceNode).is_available():
+		var node := target as ResourceNode
+		var in_range := _within(actor, node, node.def.reach)
+		options.append(_option("interact", _capital(node.def.prompt) if node.def.prompt != "" else "Coletar",
+				Enums.ActionResult.OK if in_range else Enums.ActionResult.OUT_OF_RANGE))
+	return options
+
+
+func _dino_options(options: Array[Dictionary], actor: Player, dino: Dino) -> void:
+	if dino.health.is_dead():
+		return
+	if dino.state_machine.is_tamed:
+		if dino.owner_player_id != actor.player_id:
+			return  # o domado de outro não oferece nada (o teclado também não)
+		var problem := _command_problem(actor, dino)
+		for entry: Array in [["follow", "Seguir", Enums.DinoOrder.FOLLOW], ["stay", "Ficar", Enums.DinoOrder.STAY]]:
+			var option := _option(entry[0], entry[1], problem)
+			if problem == Enums.ActionResult.OK and dino.state_machine.order == entry[2]:
+				option["enabled"] = false
+				option["reason"] = "already_ordered"
+			options.append(option)
+		options.append(_option("inventory", "Inventário", _interact_problem(actor, dino)))
+		return
+	var reach := Enums.ActionResult.OK if _within(actor, dino, rules.reach_px()) else Enums.ActionResult.OUT_OF_RANGE
+	options.append(_option("attack", "Atacar", reach))
+	if dino.can_interact():
+		options.append(_option("interact", "Abrir inventário", _interact_problem(actor, dino)))
+
+
+func _capital(text: String) -> String:
+	return text.substr(0, 1).to_upper() + text.substr(1)
+
+
+func _option(id: String, label: String, problem: Enums.ActionResult) -> Dictionary:
+	return {"id": id, "label": label, "enabled": problem == Enums.ActionResult.OK,
+			"reason": "" if problem == Enums.ActionResult.OK else GameMessages.reason_for(problem)}
 
 
 ## Interagir com `target_id`. Concedida, emite `interaction_granted`; o efeito é de quem a ouve.
@@ -251,7 +403,9 @@ func request_interact(actor_id: int, target_id: int) -> Enums.ActionResult:
 ## Move o slot `index` do inventário de `from_id` para o de `to_id`. Um dos lados é o ator e o outro, uma
 ## criatura selvagem inconsciente (a tela compartilhada): do ator para ela é ALIMENTAR (a comida ideal
 ## faz do ator o candidato a dono se ainda não há um: o primeiro reserva); dela para o ator é recolher. O que não couber fica onde estava.
-func request_transfer_slot(actor_id: int, from_id: int, index: int, to_id: int) -> Enums.ActionResult:
+## `amount`: `TRANSFER_ALL` (a pilha toda) ou 1 a o tamanho da pilha; fora disso é pedido inválido. Se o destino só comporta
+## parte, vai a parte e o resto fica na origem (nada se perde nem se duplica).
+func request_transfer_slot(actor_id: int, from_id: int, index: int, to_id: int, amount: int = TRANSFER_ALL) -> Enums.ActionResult:
 	var actor := _live_player(actor_id)
 	var feeding := from_id == actor_id and to_id != actor_id
 	var taking := to_id == actor_id and from_id != actor_id
@@ -260,15 +414,20 @@ func request_transfer_slot(actor_id: int, from_id: int, index: int, to_id: int) 
 	if problem == Enums.ActionResult.OK:
 		problem = Enums.ActionResult.OK if feeding or taking else Enums.ActionResult.INVALID_ARGUMENT
 	if problem == Enums.ActionResult.OK:
-		problem = _transfer_problem(actor, dino, index, feeding)
+		problem = _transfer_problem(actor, dino, index, feeding, amount)
 	if problem == Enums.ActionResult.OK:
 		var source := actor.inventory if feeding else dino.inventory
 		var item_id := str(source.get_slot(index).get("id", ""))
-		if source.transfer_slot(index, dino.inventory if feeding else actor.inventory) == 0:
+		if source.transfer_slot(index, dino.inventory if feeding else actor.inventory, amount) == 0:
 			problem = Enums.ActionResult.REFUSED
-		elif feeding and item_id == dino.taming.ideal_food and dino.feeder_player_id == "":
+			_reason = "no_space"
+		elif feeding and not dino.state_machine.is_tamed and item_id == dino.taming.ideal_food and dino.feeder_player_id == "":
 			# O primeiro a depositar a comida ideal reserva o dino; os seguintes não tomam a vaga.
 			dino.feeder_player_id = actor.player_id
+		if feeding and not dino.state_machine.is_tamed and item_id != dino.taming.ideal_food and problem == Enums.ActionResult.OK:
+			# Fica lá (não some, não reserva o dino), mas o jogador precisa saber que ele não come isso.
+			announce("wrong_food", {"species": dino.stats.display_name, "item": Items.display_name(item_id),
+					"ideal": Items.display_name(dino.taming.ideal_food)})
 	return _answer(actor_id, ACTION_TRANSFER, problem)
 
 
@@ -284,7 +443,27 @@ func request_command(actor_id: int, target_id: int, order: String) -> Enums.Acti
 		problem = _command_problem(actor, dino)
 	if problem == Enums.ActionResult.OK and not dino.state_machine.set_order(Enums.DinoOrder[order] as Enums.DinoOrder):
 		problem = Enums.ActionResult.WRONG_STATE
+	if problem == Enums.ActionResult.OK:
+		announce("order_given", {"species": dino.stats.display_name, "order": "seguindo" if order == "FOLLOW" else "ficando"})
 	return _answer(actor_id, ACTION_COMMAND, problem)
+
+
+## Domado do jogador `actor_id` mais perto, ao alcance de ordem (id da entidade, 0 se não há). Serve à tecla G.
+func nearest_own_tamed(actor_id: int) -> int:
+	var actor := _live_player(actor_id)
+	if actor == null:
+		return 0
+	var best := 0
+	var best_distance := rules.command_reach_px()
+	for entity_id: int in _entities:
+		var dino := entity(entity_id) as Dino
+		if dino == null or not dino.can_command() or dino.owner_player_id != actor.player_id:
+			continue
+		var distance := actor.global_position.distance_to(dino.global_position)
+		if distance <= best_distance:
+			best_distance = distance
+			best = entity_id
+	return best
 
 
 ## Usar o atalho `slot` (0 a 8) do inventário de `actor_id`: comer ou equipar/desequipar.
@@ -295,6 +474,8 @@ func request_use_item(actor_id: int, slot: int) -> Enums.ActionResult:
 		problem = Enums.ActionResult.INVALID_ARGUMENT
 	if problem == Enums.ActionResult.OK:
 		problem = actor.perform_use_item(slot)
+		if problem == Enums.ActionResult.REFUSED:
+			_reason = actor.last_refusal()
 	return _answer(actor_id, ACTION_USE_ITEM, problem)
 
 
@@ -329,14 +510,91 @@ func request_gather(actor_id: int, target_id: int) -> Enums.ActionResult:
 		problem = Enums.ActionResult.OK if node != null else Enums.ActionResult.UNKNOWN_TARGET
 	if problem == Enums.ActionResult.OK and not _within(actor, node, node.def.reach):
 		problem = Enums.ActionResult.OUT_OF_RANGE
+	if problem == Enums.ActionResult.OK and node.def.is_struck() \
+			and not AttackTargeting.is_in_front(actor.global_position, actor.facing, node, rules.front_dot_min):
+		problem = Enums.ActionResult.OUT_OF_RANGE  # colher por golpes pede o nó à frente, como o golpe
+		_reason = "behind"
+	if problem == Enums.ActionResult.OK and node.is_available() and not node.def.is_struck() and actor.gather_repeat_blocked(node):
+		problem = Enums.ActionResult.COOLDOWN  # anti-spam: o mesmo nó pedido de novo no mesmo instante
+		_reason = "cooldown"
 	if problem == Enums.ActionResult.OK:
-		problem = _gather_result(actor.perform_gather(node))
+		var life_before := actor.health.current_health
+		var reason := actor.perform_gather(node)
+		problem = _gather_result(reason)
+		_report_gather(actor, node, reason, life_before)
+		if reason == "":
+			actor.mark_gather(node, rules.gather_repeat_seconds)
 	return _answer(actor_id, ACTION_GATHER, problem)
+
+
+## Avisos da coleta: o que entrou, a vida que a mão custou e o motivo de não ter coletado.
+func _report_gather(actor: Player, node: ResourceNode, reason: String, life_before: float) -> void:
+	if drops_enabled:
+		for item_id: String in actor.last_drop:  # derrubou: o recurso cai ao redor do nó, não no inventário
+			items_dropped.emit(item_id, int(actor.last_drop[item_id]), node.global_position, actor.player_id)
+			announce("resource_dropped", {"item": Items.display_name(item_id), "amount": int(actor.last_drop[item_id])})
+	for item_id: String in actor.last_gather:
+		announce("item_collected", {"item": Items.display_name(item_id), "amount": int(actor.last_gather[item_id])})
+	var hurt := life_before - actor.health.current_health
+	if hurt > 0.0:
+		announce("hands_hurt", {"amount": snappedf(hurt, 0.1)})
+	match reason:
+		Player.GATHER_NEEDS_TOOL:
+			announce("action_refused", {"action": ACTION_GATHER, "reason": "needs_tool", "tool": node.def.tool_name})
+		Player.GATHER_FULL:
+			announce("inventory_full")
+
+
+## Recolher o item de chão `target_id`: vai ao inventário de `actor_id` o que couber; o resto fica no chão. Valida ator,
+## alcance, dono (gancho do co-op) e espaço (o Peso entra aqui quando existir). Dois pedidos do mesmo item: o primeiro leva.
+func request_pickup(actor_id: int, target_id: int) -> Enums.ActionResult:
+	var actor := _live_player(actor_id)
+	var item := entity(target_id) as GroundItem
+	var problem := _actor_problem(actor_id, actor)
+	if problem == Enums.ActionResult.OK:
+		problem = Enums.ActionResult.OK if item != null else Enums.ActionResult.UNKNOWN_TARGET
+	if problem == Enums.ActionResult.OK and not _within(actor, item, rules.reach_px()):
+		problem = Enums.ActionResult.OUT_OF_RANGE
+	if problem == Enums.ActionResult.OK and item.reserved_against(actor.player_id, clock.now()):
+		problem = Enums.ActionResult.NOT_OWNER
+	if problem == Enums.ActionResult.OK and actor.inventory.room_for(item.item_id) <= 0:
+		problem = Enums.ActionResult.REFUSED
+		_reason = "inventory_full"
+	if problem == Enums.ActionResult.OK:
+		var item_id := item.item_id
+		var taken := item.take(actor.inventory.room_for(item_id))
+		actor.inventory.add(item_id, taken)
+		announce("item_collected", {"item": Items.display_name(item_id), "amount": taken})
+	return _answer(actor_id, ACTION_PICKUP, problem)
+
+
+## Largar no chão `amount` (TRANSFER_ALL = tudo) do slot `index` do inventário de `actor_id`, aos pés dele. Só pilha
+## (equipamento individual não se larga por aqui). Nada some: o que sai do inventário vira item de chão.
+func request_drop(actor_id: int, index: int, amount: int = TRANSFER_ALL) -> Enums.ActionResult:
+	var actor := _live_player(actor_id)
+	var problem := _actor_problem(actor_id, actor)
+	if problem == Enums.ActionResult.OK and not drops_enabled:
+		problem = Enums.ActionResult.REFUSED
+	var slot := actor.inventory.get_slot(index) if problem == Enums.ActionResult.OK else {}
+	if problem == Enums.ActionResult.OK and (slot.is_empty() or slot.has("iid")):
+		problem = Enums.ActionResult.INVALID_ARGUMENT
+	if problem == Enums.ActionResult.OK and amount != TRANSFER_ALL and (amount < 1 or amount > int(slot["count"])):
+		problem = Enums.ActionResult.INVALID_ARGUMENT
+	if problem == Enums.ActionResult.OK:
+		var item_id := str(slot["id"])
+		var count := int(slot["count"]) if amount == TRANSFER_ALL else amount
+		var removed := actor.inventory.take_from_slot(index, count)
+		items_dropped.emit(item_id, removed, actor.global_position, actor.player_id)
+	return _answer(actor_id, ACTION_DROP, problem)
 
 
 func _equipment_result(reason: String) -> Enums.ActionResult:
 	if reason == "":
 		return Enums.ActionResult.OK
+	if reason == EquipmentComponent.REFUSED_FULL:
+		_reason = "inventory_full"
+	elif reason == EquipmentComponent.REFUSED_WRONG_SLOT:
+		_reason = "wrong_slot"
 	return Enums.ActionResult.COOLDOWN if reason == Player.COOLDOWN else Enums.ActionResult.REFUSED
 
 
@@ -347,9 +605,11 @@ func _gather_result(reason: String) -> Enums.ActionResult:
 		Player.COOLDOWN:
 			return Enums.ActionResult.COOLDOWN
 		Player.GATHER_DEPLETED:
+			_reason = "depleted"
 			return Enums.ActionResult.WRONG_STATE
 		Player.GATHER_NEEDS_TOOL:
 			return Enums.ActionResult.OK  # o toque aconteceu (a mão doeu); só não coletou: a recusa vai no sinal do jogador
+	_reason = "inventory_full" if reason == Player.GATHER_FULL else ""
 	return Enums.ActionResult.REFUSED
 
 
@@ -370,10 +630,13 @@ func _attack_problem(actor: Player, dino: Dino) -> Enums.ActionResult:
 		return Enums.ActionResult.UNKNOWN_TARGET
 	if dino.health.is_dead() or dino.state_machine.is_tamed:
 		return Enums.ActionResult.INVALID_TARGET
-	if not _within(actor, dino, rules.reach_px()):
+	var weapon := actor.current_weapon()
+	var reach := weapon.reach_tiles * rules.tile_size if weapon.reach_tiles > 0.0 else rules.reach_px()  # a arma, se tem alcance próprio
+	if not _within(actor, dino, reach):
 		return Enums.ActionResult.OUT_OF_RANGE
 	# "À frente" é regra da autoridade, pela direção do corpo que ELA mantém (a última aceita em `request_move`).
 	if not AttackTargeting.is_in_front(actor.global_position, actor.facing, dino, rules.front_dot_min):
+		_reason = "behind"
 		return Enums.ActionResult.OUT_OF_RANGE
 	return Enums.ActionResult.OK if actor.can_strike() else Enums.ActionResult.COOLDOWN
 
@@ -386,20 +649,38 @@ func _interact_problem(actor: Player, target: Node) -> Enums.ActionResult:
 		return Enums.ActionResult.INVALID_TARGET
 	if not _within(actor, target, rules.reach_px()):
 		return Enums.ActionResult.OUT_OF_RANGE
+	var pet := target as Dino
+	if pet != null and pet.state_machine.is_tamed:
+		# O domado abre o inventário (alforje) só para o dono; aliado e outro jogador levam NOT_OWNER.
+		return Enums.ActionResult.OK if pet.owner_player_id == actor.player_id else Enums.ActionResult.NOT_OWNER
 	return Enums.ActionResult.OK if area.can_interact() else Enums.ActionResult.WRONG_STATE
 
 
-func _transfer_problem(actor: Player, dino: Dino, index: int, feeding: bool) -> Enums.ActionResult:
+func _transfer_problem(actor: Player, dino: Dino, index: int, feeding: bool, amount: int) -> Enums.ActionResult:
 	if dino == null:
 		return Enums.ActionResult.UNKNOWN_TARGET
 	if dino.health.is_dead():
 		return Enums.ActionResult.INVALID_TARGET
 	if not _within(actor, dino, rules.reach_px()):
 		return Enums.ActionResult.OUT_OF_RANGE
-	if not dino.can_interact():  # só o selvagem inconsciente abre a tela
+	if not dino.can_interact() and not _is_owned_by(dino, actor):  # selvagem inconsciente, ou o domado do próprio jogador
 		return _closed_inventory_problem(dino, actor.player_id)
+	return _transfer_amount_problem(actor, dino, index, feeding, amount)
+
+
+## A posição e a quantidade pedidas existem na origem? (`TRANSFER_ALL` = o stack inteiro.)
+func _transfer_amount_problem(actor: Player, dino: Dino, index: int, feeding: bool, amount: int) -> Enums.ActionResult:
 	var source := actor.inventory if feeding else dino.inventory
-	return Enums.ActionResult.OK if index >= 0 and index < source.slot_count() else Enums.ActionResult.INVALID_ARGUMENT
+	if index < 0 or index >= source.slot_count():
+		return Enums.ActionResult.INVALID_ARGUMENT
+	var stack := int(source.get_slot(index).get("count", 0))
+	if amount != TRANSFER_ALL and (amount < 1 or amount > stack):
+		return Enums.ActionResult.INVALID_ARGUMENT
+	return Enums.ActionResult.OK
+
+
+func _is_owned_by(dino: Dino, actor: Player) -> bool:
+	return dino.state_machine.is_tamed and dino.owner_player_id == actor.player_id
 
 
 func _command_problem(actor: Player, dino: Dino) -> Enums.ActionResult:
@@ -432,4 +713,10 @@ func _within(actor: Node2D, target: Node, reach: float) -> bool:
 func _answer(actor_id: int, action: String, result: Enums.ActionResult) -> Enums.ActionResult:
 	if result != Enums.ActionResult.OK:
 		action_denied.emit(actor_id, action, result)
+		var params := _reason_params.duplicate()
+		params["action"] = action
+		params["reason"] = _reason if _reason != "" else GameMessages.reason_for(result)
+		game_event.emit("action_refused", params)
+	_reason = ""
+	_reason_params = {}
 	return result

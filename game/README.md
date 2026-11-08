@@ -6,20 +6,22 @@ Sandbox survival 2D top-down em pixel art, com exploração, construção e dome
 
 ## Controles
 
-| Ação | Tecla |
-|---|---|
-| Andar | WASD ou setas |
-| Correr | Shift |
-| Interagir (abrir a criatura inconsciente; num domado seu, a menos de 3 tiles, alterna Seguir e Ficar) | E |
-| Golpe com a arma equipada (dano + torpor) na criatura ao alcance | F ou Espaço |
-| Inventário próprio | I ou Tab |
-| Usar o atalho da barra (comida: o jogador come; equipamento: põe em mãos, de novo tira; Bastão na 4) | 1 a 9 |
-| Na tela de inventário: atribuir o item sob o cursor ao atalho | 1 a 9, ou botão direito (primeira posição livre; de novo, tira) |
-| Na tela de inventário | clique, ou setas + Enter/Espaço, transfere o slot inteiro; duplo clique ou Enter no Bastão o equipa (e, sem atalho, ele ganha o primeiro livre); duplo clique ou Enter na vaga "Arma" o tira; na tela compartilhada o clique simples NÃO move equipamento que o outro lado aceita (Shift+clique move); Esc, I ou E fecham |
-| Pausa (sem tela aberta) | Esc: Continuar ou Voltar ao menu (salva e volta direto, sem perguntar) |
-| Menu inicial | setas e Enter, ou mouse; Esc volta de Configurações e Créditos |
+| Ação | Teclado | Mouse |
+|---|---|---|
+| Andar / correr | WASD ou setas / Shift | |
+| Interagir (pega item no chão; senão nó de recurso, estrutura, criatura; num domado seu abre o menu; nunca dá ordem) | E | |
+| Golpear (criatura ao alcance, ou a árvore/rocha/minério à frente) | F ou Espaço | clique esquerdo |
+| Menu de opções do alvo (Atacar, Seguir, Ficar, Inventário) | Shift+E | clique direito no dino |
+| Alternar Seguir/Ficar do domado mais perto | G | |
+| Inventário próprio | I ou Tab | |
+| Usar o atalho (só baga e carne crua são comida; arma: equipa, de novo tira) | 1 a 9 | |
+| Atribuir ao atalho | 1 a 9 sobre o item, ou botão direito | arrastar o item para o atalho (entre atalhos troca; soltar fora limpa) |
+| Mover item entre grades | clique, ou setas + Enter | clique move o stack; Shift+clique move 1; clique direito num stack abre Mover (1, Quantidade, Todos) |
+| Equipar / tirar arma | duplo clique ou Enter no item / na vaga "Arma" | |
+| Histórico do log | L | |
+| Pausa | Esc | |
 
-Com a tela aberta o jogador não anda. O jogador começa com 10 bagas (a comida ideal do dino), 4 carnes e 3 samambaias. Só a baga avança a domesticação; as outras ficam no inventário.
+Com a tela aberta o jogador não anda. As armas (Lança de madeira, Bastão-de-sono) só entram no inventário em build de desenvolvimento (debug, o que inclui `godot --path game`, ou o argumento `--dev`); numa exportação release o jogador começa sem elas até a fabricação (M3). O jogador começa com 10 bagas (a comida ideal do dino), 4 carnes e 3 samambaias; só baga e carne crua são comida dele, a samambaia é de dino.
 
 ## Tela inicial, tela cheia e configurações
 

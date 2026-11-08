@@ -96,19 +96,19 @@ func _test_player_save_carries_hotbar() -> void:
 func _test_player_rules_data() -> void:
 	var player := _player()
 	var rules: PlayerRules = load("res://data/balance/player_rules.tres")
-	_check(player.rules == rules and is_equal_approx(rules.hunger_decay_per_second, 0.2) and rules.food_cooldown == 0.5
-			and rules.winded_ratio == 0.25, "dados: queda de fome 0,2/s, recarga 0,5 s, ofego 25%")
-	_check(is_equal_approx(player.hunger.decay_per_second, 0.2), "o jogador aplica a queda de fome dos dados")
+	_check(player.rules == rules and is_equal_approx(rules.hunger_decay_idle, 0.04) and rules.food_cooldown == 0.5
+			and rules.winded_ratio == 0.25, "dados: queda de fome parado 0,04/s, recarga 0,5 s, ofego 25%")
+	_check(is_equal_approx(player.hunger.decay_per_second, 0.04), "o jogador aplica a queda de fome dos dados")
 	var custom: Player = PlayerScene.instantiate()
 	custom.rules = rules.duplicate()
 	custom.rules.winded_ratio = 0.5
-	custom.rules.hunger_decay_per_second = 0.3
+	custom.rules.hunger_decay_idle = 0.3
 	_root.add_child(custom)
 	_track.call(custom)
 	custom.set_physics_process(false)
 	_check(custom.stamina.rules == custom.rules and custom.hunger.decay_per_second == 0.3,
 			"regras trocadas na cena chegam à stamina e à fome")
-	_check(rules.hunger_restore_of(Items.BERRY) == 25.0 and rules.hunger_restore_of("inexistente") == 0.0, "saciedade vem dos dados")
+	_check(rules.hunger_restore_of(Items.BERRY) == 10.0 and rules.hunger_restore_of("inexistente") == 0.0, "saciedade vem dos dados")
 	var stamina: StaminaComponent = _track.call(StaminaComponent.new())
 	stamina.rules = rules.duplicate()
 	stamina.rules.winded_ratio = 0.5
@@ -126,22 +126,25 @@ func _test_use_item_eating() -> void:
 	_check(player.inventory.count(Items.BERRY) == 10 and eaten.is_empty(), "nada foi consumido")
 	player.hunger.current_hunger = 50.0
 	_check(player.request_use_item(0), "come a baga do atalho 1")
-	_check(is_equal_approx(player.hunger.current_hunger, 75.0) and player.inventory.count(Items.BERRY) == 9
-			and eaten == [Items.BERRY], "baga: +25 de fome, -1 no estoque")
+	_check(is_equal_approx(player.hunger.pending, 10.0) and player.inventory.count(Items.BERRY) == 9
+			and eaten == [Items.BERRY], "baga: +10 de fome na fila, -1 no estoque")
 	_check(not player.request_use_item(1), "recarga de 0,5 s depois de comer")
 	player.tick(0.5)
-	_check(player.request_use_item(1) and is_equal_approx(player.hunger.current_hunger, 100.0),
-			"passada a recarga, come a carne (limitado a 100)")
+	_check(player.request_use_item(1) and is_equal_approx(player.hunger.current_hunger + player.hunger.pending, 90.0),
+			"passada a recarga, come a carne (a fila soma: 50 + 10 + 30)")
+	player.hunger.pending = 0.0
 	player.hunger.current_hunger = 10.0
 	player.tick(0.5)
-	_check(not player.request_use_item(4) and not player.request_use_item(-1) and not player.request_use_item(9),
+	_check(not player.request_use_item(8) and not player.request_use_item(-1) and not player.request_use_item(9),
 			"posição vazia ou fora da faixa não faz nada")
 	player.inventory.remove(Items.FERN, 3)
 	player.tick(0.5)
 	_check(not player.request_use_item(2) and player.hotbar.item_at(2) == Items.FERN,
 			"sem estoque: não usa e o atalho continua atribuído")
 	player.inventory.add(Items.FERN, 1)
-	_check(player.request_use_item(2) and is_equal_approx(player.hunger.current_hunger, 25.0), "estoque volta, o atalho volta a valer")
+	_check(not player.request_use_item(2) and player.inventory.count(Items.FERN) == 1, "samambaia não é comida do jogador: não gasta")
+	player.inventory.add(Items.BERRY, 1)
+	_check(player.request_use_item(0), "o atalho de baga segue valendo")
 	player.tick(0.5)
 	player.input_locked = true
 	_check(not player.request_use_item(0), "tela aberta: não usa")
@@ -158,7 +161,7 @@ func _test_use_item_with_sleeping_dino_in_reach() -> void:
 	_aim(player, dino)
 	_check(player.target == dino.interactable and dino.interactable.can_interact(), "preparo: dino dormindo é o alvo")
 	_check(player.request_use_item(0), "a tecla com dino dormindo no alvo come")
-	_check(is_equal_approx(player.hunger.current_hunger, 35.0) and player.inventory.count(Items.BERRY) == 9
+	_check(is_equal_approx(player.hunger.pending, 10.0) and player.inventory.count(Items.BERRY) == 9
 			and dino.inventory.count(Items.BERRY) == 0, "o jogador come a baga; nada vai para o dino")
 	player.tick(0.5)
 	_check(player.target == dino.interactable, "o alvo continua depois do tick")
@@ -179,7 +182,7 @@ func _test_use_item_with_sleeping_dino_in_reach() -> void:
 	var shared_rules := player.rules
 	player.rules = shared_rules.duplicate(true)
 	player.rules.hunger_restore.erase(Items.FERN)
-	_check(shared_rules.hunger_restore.has(Items.FERN), "o teste não altera o recurso compartilhado dos dados")
+	_check(not shared_rules.hunger_restore.has(Items.FERN), "a samambaia não está nos dados de comida do jogador")
 	player.hunger.current_hunger = 10.0
 	_check(not player.request_use_item(2) and player.inventory.count(Items.FERN) == 3 and player.hunger.current_hunger == 10.0,
 			"item não comestível não é gasto pela tecla")
@@ -191,7 +194,7 @@ func _test_hotbar_keys_and_input_map() -> void:
 	var controller := PlayerController.new()
 	controller.player = player
 	controller._unhandled_input(_action("hotbar_2"))
-	_check(player.inventory.count(Items.MEAT) == 3 and is_equal_approx(player.hunger.current_hunger, 50.0),
+	_check(player.inventory.count(Items.MEAT) == 3 and is_equal_approx(player.hunger.pending, 30.0),
 			"tecla 2 usa o atalho da posição 2 (carne)")
 	player.tick(0.5)
 	controller._unhandled_input(_action("hotbar_9"))
@@ -228,7 +231,7 @@ func _test_hud_layout_and_xp_hook() -> void:
 			bars.append(node)
 		if node is Control and (node as Control).tooltip_text == "Stamina":
 			stamina_tooltips += 1
-	_check(bars.size() == 3 and stamina_tooltips == 0 and not ("_stamina_bar" in hud), "HUD só tem 3 barras (vida, fome, XP): sem stamina")
+	_check(bars.size() == 4 and hud.stamina_bar() != null and stamina_tooltips == 0, "HUD tem 4 barras (vida, fome, stamina, XP)")
 	_check(hud.xp_label().text == "Nv 1" and hud.xp_bar().value() == 0.0, "XP: ponto de ligação mostra Nv 1 e XP 0")
 	hud.set_experience(3, 40.0, 100.0)
 	_check(hud.xp_label().text == "Nv 3" and hud.xp_bar().value() == 40.0 and hud.xp_bar().max_value() == 100.0,

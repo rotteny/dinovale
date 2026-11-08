@@ -237,6 +237,8 @@ Não faz diferença no MVP e **recomendo adiar**: não há montaria nem combate 
 
 ### 5.2 Barra de atalhos (teclas 1 a 9) [decisão do dono]
 
+> **Atualizado em 08/11 (dono):** o atalho também se atribui **arrastando** o item do inventário para a posição (preview; arrastar de uma posição para outra troca; soltar fora limpa); item que não pode ir à barra recusa com a posição em vermelho. **Mover quantidade no inventário:** Shift+clique move 1; clique direito num stack com a outra tela aberta abre "Mover" (1, Quantidade..., Todos); a autoridade valida 1 a N, espaço e (no Bloco C) Peso. Só a baga e a carne crua são comida do jogador; a samambaia é de dino.
+
 Nove posições na parte de baixo da tela. **Concordo com o M1**, porque resolve "comer do inventário" e a troca de arma; só a parte de dino (Ração e dardo) é M2.
 
 - **Fruta e preparado de sono:** ver 5.5. **Regra do dono (06/11): a tecla de atalho sempre faz o jogador consumir.** O Cochilo apertado **come no jogador** (pede segundo aperto em 1,5 s); a Ração **o jogador nunca consome** (decidido); **o preparado de sono também não (decidido 06/11): só vai ao dino pela tela dele**. Dar ao dino **nunca** é pela tecla (5.13).
@@ -263,6 +265,8 @@ Nove posições na parte de baixo da tela. **Concordo com o M1**, porque resolve
 **4. Tipos de Conduta na 0.2: 4 confirmados** (Passivo, Agressivo, Semi-agressivo, Covarde). O Medroso (foge ao avistar) é conduta futura, sem marco; o Temperamento (do domado) também. A conta de fuga fica só no Parassaurolofo (75 px/s, alcançável).
 
 ### 5.4 Armas, torpor contínuo e sono (decisão do dono, 06/11)
+
+> **Atualizado em 08/11 (dono):** a Lança de madeira e o Bastão-de-sono são **fabricáveis** (receita no M3: Lança 2 graveto + 3 madeira; o Bastão segue a receita do Saber 1), têm **barra de durabilidade** (Lança 80, Bastão 120), gastam 1 por golpe aceito e **quebram** em 0. No inventário só aparecem em build de desenvolvimento (debug ou `--dev`). A Lança tem alcance próprio de 1,8 tiles.
 
 **Regra do dono:** (1) **só dano, torpor zero:** flecha comum, besta, espada, lança; (2) **dano e torpor em valores próprios:** soco, porrete (o **Bastão-de-sono**) e flecha de sono; (3) **torpor contínuo:** a flecha de sono segue aplicando torpor por um tempo depois de acertar. **Rifle, Dardo e qualquer arma de fogo: adiados sem marco (decisão final do dono, 06/11).** Simulação: `armas_sim.py`.
 
@@ -374,6 +378,8 @@ Animal morto deixa **carcaça** coletável; os itens podem virar **sacolinha** n
 
 ### 5.7 HUD do jogador (decisão do dono, 06/11)
 
+> **Atualizado em 08/11 (dono): a barra de Stamina entra no HUD**, abaixo da Fome (tom diferente quando o fôlego está curto; cinza esgotada). O som e o ofegar seguem. A **durabilidade das armas** aparece como barra fina na base do ícone no inventário, na vaga e no atalho (verde, amarela, vermelha). Há também o **log do sistema** no canto de baixo à esquerda (tecla L abre o histórico).
+
 **Visíveis:** barra de **vida**, barra de **fome**, barra de **XP** e a **barra de atalhos 1 a 9** (5.2). **Sem sede** por agora, **sem barra de stamina**, sem temperatura. M1: vida, fome e atalhos; M2: XP e aviso de ponto.
 
 **Stamina por comportamento, sem barra.** O atributo existe e limita a corrida (dreno 25/s, regen 15/s, retoma com 20; sprint de 4 s, mais 0,24 s por ponto). Sinal em duas etapas [premissa]: (1) abaixo de **25%** (cerca de 1 s antes de zerar, a 25/s) começa um **ofegar** de som crescente; (2) ao **zerar**, o personagem **ofega e para de correr**, e golpes e coleta ficam mais lentos (5.8): anda a 70 até recuperar 20, o que leva **1,3 s** (20/15) [calculado], com som de fôlego e uma pequena nuvem de suor. Sem janela nem texto. Em co-op o estado "ofegante" é um bit replicado, para os outros jogadores ouvirem. O jogador aprende a duração do sprint pelo uso; a tela de atributos mostra "sprint X s" ao distribuir pontos. Golpes e coleta gastam fôlego (5.8) e o mesmo sinal vale.
@@ -458,6 +464,7 @@ O texto abaixo é o desenho anterior. **Não o implemente**; vale o resumo acima
 
 **Regras do dono:** (1) **Soco em árvore coleta recursos** e causa **1 de dano ao personagem**; (2) **Soco em pedra causa 1 de dano e não coleta nada**; (3) **pedras avulsas** ficam no chão, coletadas à mão sem ferramenta: são a base das primeiras ferramentas de pedra (Machado 2 pedra, Picareta 3).
 
+- **Atualizado em 08/11 (dono): golpes, não tempo.** Árvore e rocha pedem golpes (árvore 6 à mão e 3 com Machado; rocha 4 com Picareta; veio 6; 1 de vida na conclusão sem ferramenta; progresso zera em 10 s sem golpe) e o recurso cai no chão em pilhas de até 3, recolhido por E ou por cima (some em 300 s). Os números abaixo de 3 madeira em 8 s ficam como histórico.
 - **Soco na árvore [proposta de números]:** 3 madeira em 8 s (0,375/s, metade do Machado), Stamina 4/s, **1 de dano por colheita completa** (por golpe seriam ~13 por árvore). Arbusto à mão: coleta sem dano.
 - **Soco na pedra (nó):** 1 de dano por toque (tecla E), nada coletado, mensagem "só a Picareta quebra pedra". O nó ganha `ferramenta_minima`. **Isso revoga "mão em pedra 0,40/s" da tabela acima.**
 - **Pedra avulsa (`loose_stone`):** 1 pedra em 1 s, sem dano, sem ferramenta; volta em 300 s (núcleo) ou 600 s (trilha). **24 na ilha: 10 no núcleo e 14 na trilha até a Pedreira** (`mapa-ilha.md` 8). Sem softlock: o primeiro Machado e a primeira Picareta pedem 5 pedras avulsas, 6 madeira (2 árvores no Soco) e 2 fibra (1 arbusto rende 2); gastá-las antes em Fogueira ou Bancada só atrasa até 5 min.
@@ -547,6 +554,8 @@ Cada item tem a sua pilha; o que acumula bem é leve, o que pesa acumula pouco, 
 > **Histórico (superado em 07/11):** a conta de slots abaixo (21 e 26 de 40) é do desenho antigo. Com 4 slots e bolsa de até 12 (5.21), ver `shiro.md` 4.7. **Muda alguma conta?** [calculado, `slots_sim.py demanda` agora com pilha por item] **Inventário:** v0.2 meio 21 e pico 26 slots, **iguais**; 1.0 passa de 31 para 32 (minério de 20 vira 2 pilhas de 10). **Peso:** nenhuma, ele é por unidade (5.1). **Domesticação:** nenhuma; fome, Ração, Eficiência e bocado contam por unidade, não por pilha. **Validade:** a regra por pilha da 5.9 fica mais branda com a pilha de 10 da carne (juntar pilhas só dentro de 2 min). **Corrigido de passagem:** a 5.17 dizia "madeira até 30 (15 kg)", mas 1,0 kg por madeira dá 30 kg; a Forja não passa a pesar (o Peso dela é o do item).
 
 ### 5.10 Comida e fome do jogador (decisão do dono, 06/11)
+
+> **Atualizado em 08/11 (dono):** a queda depende do estado: **parado 0,04/s, andando 0,06/s, correndo 0,15/s**, mais **0,3 por golpe de coleta** e **0,4 por golpe de ataque** [premissa]. **Comer sobe aos poucos:** 4 pontos/s a partir de uma fila (`fome_pendente`); baga +10, carne crua +30 (samambaia não é comida do jogador); comer de novo soma na fila sem acelerar; não se come se fome + fila já enche; morrer zera a fila. Ver `corte-v02/montaria-vinculo-trabalho.md`, seção 9.
 
 > **Atualizado em 07/11 (decidido: fome leve, torpor como ameaça).** A fome existe, mas o jogo não gira em torno dela: **queda 0,1/s** **[provisório, aguarda o dono]** **zerada, não causa dano e não mata**; sobe o torpor do jogador até ele **desmaiar**, e o **jogador caído entra na lista de alvos dos carnívoros** (como o dormindo, 6.7) e **pode ser devorado**; a morte vem de dino, nunca da fome. Duração do desmaio: 8 s ou 20 s, o playtest define **[provisório, aguarda o dono]**. Os valores de 0,2/s, de dano por desmaio e do "9º desmaio" abaixo estão **superados**. **Carne podre, carniça e validade ficam fora da v0.2** **[provisório, aguarda o dono]** (a linha "Carne podre" da tabela não vale).
 
@@ -983,6 +992,8 @@ Ao concluir a domesticação abre um campo para **batizar**; **pular mantém o n
 - **Clareira-brasa sai do M4.** Perdeu a Seiva (trocada pelo Orvalho produzido por dino) e a Ração S (cortada); sobra só "bioma de nível alto", que a **Pedreira** cobre estendendo a faixa de 15 a 35 para 15 a 45. Fica com 3 biomas (Campina, Mata-baixa, Pedreira). **Custo:** MUN-11 e SOB-10 encolhem; o carnívoro territorial passa a viver na Pedreira. **Risco:** perde-se um destino de prestígio; compensa-se pelo ofício Produzir e pelo nível alto.
 
 ### 6.11 Menu de interação do domado, comandos e Postura (decisão do dono, 06/11)
+
+> **Atualizado em 08/11 (dono): o E nunca dá ordem a dino.** O E pega item no chão, depois nó de recurso, depois estrutura, depois criatura (num domado meu abre o menu de opções, que também sai por clique direito ou Shift+E, a até 2 tiles). As ordens Seguir/Ficar saem do menu e da tecla **G** (alterna o domado mais perto; o log diz "Rex: seguindo" ou "ficando"). Inventário do domado: pelo menu.
 
 > **Atualizado em 07/11:** na v0.2 só existe o modo **Neutro** (ajuda no combate, 6.11b), fixo; a Postura de 3 modos e o "Ir até aqui" seguem depois do playtest.
 

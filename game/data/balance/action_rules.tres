@@ -7,3 +7,5 @@ script = ExtResource("1_rules")
 tile_size = 16
 reach_tiles = 3.0
 command_reach_tiles = 3.0
+mouse_pick_radius_px = 12.0
+gather_repeat_seconds = 0.12

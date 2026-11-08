@@ -47,7 +47,7 @@ func iid_at(index: int) -> String:
 ## Atribui um TIPO empilhável a uma posição. Individual (equipamento) é recusado: use
 ## `assign_iid`. O mesmo tipo não fica em duas posições. Retorna true se mudou.
 func assign(index: int, item_id: String) -> bool:
-	if Items.get_def(item_id) == null or Items.is_individual(item_id):
+	if Items.get_def(item_id) == null or Items.is_individual(item_id) or not Items.hotbar_allowed(item_id):
 		return false
 	return _place(index, {"id": item_id})
 
@@ -63,6 +63,20 @@ func assign_iid(index: int, iid: String, item_id: String = "") -> bool:
 	if Items.is_individual(item_id):
 		entry["id"] = item_id
 	return _place(index, entry)
+
+
+## Troca o conteúdo de duas posições (arrastar de uma casa para outra). Falso se algum índice é inválido, se são a
+## mesma ou se as duas estão vazias.
+func swap(first: int, second: int) -> bool:
+	if first < 0 or first >= SLOT_COUNT or second < 0 or second >= SLOT_COUNT or first == second:
+		return false
+	if _slots[first].is_empty() and _slots[second].is_empty():
+		return false
+	var kept := _slots[first]
+	_slots[first] = _slots[second]
+	_slots[second] = kept
+	changed.emit()
+	return true
 
 
 func clear(index: int) -> bool:

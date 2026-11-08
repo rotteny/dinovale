@@ -15,9 +15,14 @@ respawn_seconds = 900.0
 prompt = "quebrar minério"
 color = Color(0.4, 0.7, 0.8, 1)
 tool_item_id = "pickaxe_stone"
+tool_name = "Picareta"
 tool_required = true
 hand_self_damage = 0.0
 touch_self_damage = 1.0
 texture = ExtResource("2_full")
 foot_size = Vector2(24, 12)
 blocks_when_full = true
+; [premissa] golpes provisórios (decisão do dono, 08/11): a SHIRO revisa
+hits_by_hand = 0
+hits_with_tool = 6
+hit_reset_seconds = 10.0

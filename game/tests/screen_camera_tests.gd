@@ -8,7 +8,7 @@ extends DinoLevelTests
 const TITLE_SCENE := preload("res://src/ui/TitleScreen.tscn")
 const VIEW := Vector2(320.0, 180.0)
 ## A HUD sempre ligada (barras e atalhos) ocupa menos que isto da tela; com todos os avisos juntos, o teto maior.
-const HUD_BASE_MAX_RATIO := 0.08
+const HUD_BASE_MAX_RATIO := 0.09  # 08/11: subiu de 8% com a barra de Stamina pedida pelo dono
 const HUD_WORST_MAX_RATIO := 0.14
 
 

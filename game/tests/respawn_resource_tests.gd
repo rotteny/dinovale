@@ -321,11 +321,15 @@ func _test_gather_rules() -> void:
 			"colheu 3 bagas e 2 fibras e esgotou o nó")
 	_check(main.hud.notice_label().text.contains("+3 Baga"), "a HUD avisa o ganho")
 	_check(not bush.interactable.can_interact() and not player.try_interact(), "esgotado não é interagível")
-	_check(player.request_gather() == Player.COOLDOWN, "ação de colher tem tempo (recarga)")
-	player.tick(BERRY_BUSH.gather_seconds)
+	_check(player.gather_cooldown_left() == 0.0, "nó de toque não deixa espera para o próximo (decisão de 08/11)")
 	player.target = bush.interactable  # o tick reavalia o alvo pelo detector (vazio no teste)
 	_check(player.request_gather() == Player.GATHER_DEPLETED, "nó esgotado: recusa")
-	# Espaço: sem espaço o nó NÃO é gasto.
+	# Espaço: sem espaço o nó NÃO é gasto. A árvore real cai no chão (golpes); aqui o nó vira de um toque, como o arbusto.
+	var touch_def: ResourceNodeDef = TREE.duplicate()
+	touch_def.hits_by_hand = 1
+	touch_def.hits_with_tool = 1
+	wood.def = touch_def
+	wood.component.def = touch_def
 	player.position = wood.position + Vector2(0, 10)
 	player.target = wood.interactable
 	var guard := 0

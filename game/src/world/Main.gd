@@ -30,6 +30,8 @@ const MAP_CHANGED_NOTICE := "O mapa mudou desde este save: recursos e selvagens 
 @export var death_screen: DeathScreen
 ## Nós de recurso do mundo (opcional); o estado deles vai no save.
 @export var resources: ResourceField
+## Controlador do jogador local (opcional): recebe o menu de opções do clique direito.
+@export var controller: PlayerController
 @export var respawn_rules: RespawnRules = preload("res://data/balance/respawn_rules.tres")
 ## Quais nós, cenário e níveis a ilha usa (dado). O mapa em si é `IslandMap` (estático, fora do save).
 @export var world_rules: WorldRules = preload("res://data/world/world_rules.tres")
@@ -57,6 +59,11 @@ var zone: DinoZone
 var wild: WildPopulation
 ## Carcaças dos dinos mortos (recorte do SOB-06).
 var carcasses: CarcassField
+## Itens soltos no chão (a colheita por golpes derruba aqui; o jogador também larga).
+var ground: GroundItemField
+## Log do sistema (eventos da autoridade traduzidos em um lugar só) e a vista dele no canto de baixo.
+var message_log: MessageLog
+var message_log_view: MessageLogView
 ## Consulta única de ocupação do chão (jogador e dinos hoje; a grade de construção depois).
 var occupancy := TileOccupancy.new()
 ## Música do jogo (canal `Music`): faixa de dia ou de noite conforme o `WorldClock`, com crossfade.
@@ -97,6 +104,7 @@ func _ready() -> void:
 	screen.unequip_requested.connect(func(slot_id: String) -> void: player.request_unequip(slot_id))
 	player.equip_refused.connect(screen.show_refusal)
 	screen.hotbar_assign_requested.connect(_on_hotbar_assign_requested)
+	_wire_mouse_ui()
 	screen.opened.connect(func() -> void: player.input_locked = true)
 	screen.closed.connect(func() -> void: player.input_locked = false)
 	_register_entities()
@@ -111,6 +119,7 @@ func _ready() -> void:
 	scheduler.field = resources
 	scheduler.wild = wild
 	scheduler.carcasses = carcasses
+	scheduler.ground = ground
 	scheduler.authority = authority
 	scheduler.saved.connect(_on_saved)
 	add_child(scheduler)
@@ -185,6 +194,17 @@ func _build_zone() -> void:
 	carcasses.occupancy = occupancy
 	carcasses.clock = authority.clock.now
 	add_child(carcasses)
+	ground = GroundItemField.new()
+	ground.name = "GroundItems"
+	ground.y_sort_enabled = true
+	ground.authority = authority
+	ground.clock = authority.clock.now
+	ground.world_seed = world_seed
+	ground.player = player
+	authority.drops_enabled = true
+	authority.items_dropped.connect(func(item_id: String, amount: int, at: Vector2, dropper_id: String) -> void:
+		ground.spawn_scatter(item_id, amount, at, dropper_id))
+	add_child(ground)
 	wild = WildPopulation.new()
 	wild.name = "Wild"
 	wild.y_sort_enabled = true
@@ -247,9 +267,10 @@ func save_game(reason: SaveManager.Reason) -> bool:
 
 func _continue_saved_game() -> void:
 	var outcome := save_manager.load_first(
-			func(data: Dictionary) -> bool: return WorldSnapshot.restore(data, player, dino, resources, wild, carcasses, authority))
+			func(data: Dictionary) -> bool: return WorldSnapshot.restore(data, player, dino, resources, wild, carcasses, authority, ground))
 	if outcome.status == SaveManager.Status.OK:
 		world_seed = wild.world_seed  # o save pode ter outra semente: a disposição dos bandos já foi refeita por ela
+		ground.world_seed = world_seed
 		_respawn_count = WorldSnapshot.respawn_count_of(outcome.data)
 		scheduler.respawn_count = _respawn_count
 		authority.ensure_next_id(WorldSnapshot.next_entity_id_of(outcome.data))
@@ -485,6 +506,26 @@ func _exit_tree() -> void:
 	get_tree().auto_accept_quit = true
 
 
+## Menu do clique direito (no CanvasLayer da UI) e o arrastar da barra de atalhos. O menu executa pelo `Player`.
+func _wire_mouse_ui() -> void:
+	if controller != null:
+		var menu := InteractionMenu.new()
+		screen.get_parent().add_child(menu)
+		controller.menu_opener = menu.open_for
+		controller.menu_closer = menu.close
+		menu.option_chosen.connect(func(option_id: String, target_id: int) -> void: player.run_option(option_id, target_id))
+	message_log = MessageLog.new()
+	message_log_view = MessageLogView.new()
+	message_log_view.messages = message_log
+	screen.get_parent().add_child(message_log_view)
+	authority.game_event.connect(message_log.push_event)
+	if hud != null:
+		var bar := hud.hotbar_bar()
+		bar.assign_requested.connect(_on_hotbar_assign_requested)
+		bar.swap_requested.connect(func(first: int, second: int) -> void: player.hotbar.swap(first, second))
+		bar.clear_requested.connect(func(slot: int) -> void: player.hotbar.clear(slot))
+
+
 ## A tela pede, o mundo muda a barra do jogador ("" limpa a posição).
 func _on_hotbar_assign_requested(slot: int, item_id: String, iid: String) -> void:
 	if item_id == "":
@@ -503,15 +544,29 @@ func _on_interaction_granted(actor_id: int, target_id: int) -> void:
 	var target_dino := target as Dino
 	if target_dino != null:
 		_screen_target_id = target_id
-		screen.open_with(player.inventory, target_dino.inventory, target_dino.interactable, "Criatura")
+		# Domado do jogador: a tela não segue a disponibilidade da área (ela é do selvagem inconsciente).
+		var tamed := target_dino.state_machine.is_tamed
+		screen.open_with(player.inventory, target_dino.inventory, null if tamed else target_dino.interactable,
+				target_dino.stats.display_name if tamed else _taming_title(target_dino))
+
+
+## Título da tela do selvagem derrubado: o que ele come e a doma em andamento ("Come: Carne - 3/8, próxima em 2s").
+func _taming_title(creature: Dino) -> String:
+	var taming := creature.taming
+	var text := "%s\nCome: %s" % [creature.stats.display_name, Items.display_name(taming.ideal_food)]
+	var wait := taming.seconds_to_next_meal()
+	text += "  %d/%d" % [taming.meals_eaten(), taming.meals_required()]
+	if wait > 0.0:
+		text += "  (próxima em %ds)" % ceili(wait)
+	return text
 
 
 ## A tela pede mover o slot; a autoridade valida e executa (alcance, estado da criatura, espaço).
-func _on_transfer_requested(from_player: bool, index: int) -> void:
+func _on_transfer_requested(from_player: bool, index: int, amount: int) -> void:
 	var player_id := authority.id_of(player)
 	var from_id := player_id if from_player else _screen_target_id
 	var to_id := _screen_target_id if from_player else player_id
-	authority.request_transfer_slot(player_id, from_id, index, to_id)
+	authority.request_transfer_slot(player_id, from_id, index, to_id, amount)
 
 
 func _on_action_denied(_actor_id: int, action: String, result: Enums.ActionResult) -> void:
@@ -519,5 +574,6 @@ func _on_action_denied(_actor_id: int, action: String, result: Enums.ActionResul
 		screen.show_transfer_refusal(result)
 	elif action == WorldAuthority.ACTION_GATHER and result == Enums.ActionResult.OUT_OF_RANGE:
 		_on_gather_refused(Player.GATHER_TOO_FAR)
-	elif action == WorldAuthority.ACTION_COMMAND and result == Enums.ActionResult.NOT_OWNER:
+	elif (action == WorldAuthority.ACTION_COMMAND or action == WorldAuthority.ACTION_INTERACT) \
+			and result == Enums.ActionResult.NOT_OWNER:
 		_notify("Esse dino não é seu.", 1.5)

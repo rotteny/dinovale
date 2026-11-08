@@ -773,15 +773,15 @@ func _test_hunger_and_warning() -> void:
 	var pair := _fresh_pair()
 	var player: Player = pair[0]
 	var rules: PlayerRules = player.rules
-	_check(is_equal_approx(rules.hunger_decay_per_second, 0.2) and is_equal_approx(player.hunger.decay_per_second, 0.2),
-			"fome do jogador a 0,2/s, vinda do dado")
-	player.hunger.tick(499.0)
-	_check(player.hunger.current_hunger > 0.0 and not player.hunger.is_starving(), "aos 499 s ainda há saciedade")
+	_check(is_equal_approx(rules.hunger_decay_idle, 0.04) and is_equal_approx(player.hunger.decay_per_second, 0.04),
+			"fome do jogador parado a 0,04/s, vinda do dado")
+	player.hunger.tick(2499.0)
+	_check(player.hunger.current_hunger > 0.0 and not player.hunger.is_starving(), "aos 2499 s parado ainda há saciedade")
 	player.hunger.tick(1.0)
-	_check(player.hunger.current_hunger <= 0.001, "barra cheia esvazia em 500 s")
+	_check(player.hunger.current_hunger <= 0.001, "barra cheia esvazia em 2500 s parado")
 	_check(rules.is_hungry(25.0, 100.0) and not rules.is_hungry(26.0, 100.0) and rules.is_hungry(0.0, 100.0) and not rules.is_hungry(5.0, 0.0),
 			"o limiar do aviso (25%) vem do dado")
-	_check(rules.hunger_warning_ratio * 100.0 / rules.hunger_decay_per_second >= 100.0, "o aviso vem ao menos 100 s antes do dano")
+	_check(rules.hunger_warning_ratio * 100.0 / rules.hunger_decay_run >= 100.0, "o aviso vem ao menos 100 s antes do dano")
 	var main := _main("hunger")
 	var label := main.hud.hunger_warning_label()
 	_check(not label.visible, "cheio: sem aviso")

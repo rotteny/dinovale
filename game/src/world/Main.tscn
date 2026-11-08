@@ -24,7 +24,7 @@
 [ext_resource type="AudioStream" path="res://assets/third_party/ninja-adventure/sounds/swing/whoosh.wav" id="12_attack"]
 [ext_resource type="Script" path="res://src/ui/PixelCursor.gd" id="97_cursor"]
 
-[node name="Main" type="Node2D" node_paths=PackedStringArray("player", "screen", "dino", "authority", "pause", "hud", "death_screen", "resources")]
+[node name="Main" type="Node2D" node_paths=PackedStringArray("player", "screen", "dino", "authority", "pause", "hud", "death_screen", "resources", "controller")]
 y_sort_enabled = true
 script = ExtResource("3_main")
 player = NodePath("Player")
@@ -35,6 +35,7 @@ pause = NodePath("UI/PauseMenu")
 hud = NodePath("UI/PlayerHud")
 death_screen = NodePath("UI/DeathScreen")
 resources = NodePath("Resources")
+controller = NodePath("PlayerController")
 menu_scene = "res://src/ui/TitleScreen.tscn"
 
 [node name="WorldAuthority" type="Node" parent="."]

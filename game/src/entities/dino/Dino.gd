@@ -16,6 +16,10 @@ const COORD_LIMIT := 1.0e6
 const LEVEL_SANITY := 1000000
 ## Tamanho máximo de um `player_id` vindo de save (maior que isso não é id: é lixo).
 const MAX_PLAYER_ID_LENGTH := 64
+## Grupo dos dinos e camada de física deles: o jogador enxerga a camada para poder atravessar quem o espreme.
+const GROUP := "dinos"
+const BODY_LAYER := 4
+const BODY_MASK := 1 | 4  # terreno e jogador (camada 1) e outros dinos (camada 4)
 
 @export var move_speed: float = 40.0
 @export var stats: DinoBaseStats = preload("res://data/dino/placeholder_dino.tres")
@@ -58,6 +62,9 @@ var _restoring: bool = false
 
 
 func _ready() -> void:
+	add_to_group(GROUP)
+	collision_layer = BODY_LAYER
+	collision_mask = BODY_MASK
 	_apply_hitbox()
 	health.died.connect(queue_free)
 	# Fase da pausa: valor definido na cena vale. Senão, deriva do ponto de nascimento.
@@ -124,6 +131,13 @@ func _is_dead_body(body: Node2D) -> bool:
 	return owner_health != null and owner_health.is_dead()
 
 
+## Retângulo do corpo no mundo (para testar sobreposição sem física).
+func body_rect() -> Rect2:
+	var size := stats.hitbox_size
+	var center: Vector2 = ($CollisionShape2D as Node2D).global_position
+	return Rect2(center - size * 0.5, size)
+
+
 ## Caixa de colisão vinda dos dados (`DinoBaseStats.hitbox_size`), nunca da cena.
 func _apply_hitbox() -> void:
 	var shape := RectangleShape2D.new()
@@ -131,7 +145,7 @@ func _apply_hitbox() -> void:
 	$CollisionShape2D.shape = shape
 
 
-## Tem dono e já é domesticado: a tecla de interação manda seguir ou ficar em vez de abrir a tela.
+## Tem dono e já é domesticado: o E abre o menu de opções dele (o Seguir/Ficar sai do menu ou da tecla G).
 func can_command() -> bool:
 	return state_machine.is_tamed and owner_player_id != "" and not health.is_dead()
 
@@ -221,11 +235,11 @@ func _on_order_changed(_order: Enums.DinoOrder) -> void:
 	_refresh_prompt()
 
 
-## Texto do prompt: o do domado diz a ordem que a tecla vai dar; o do selvagem fica o padrão.
+## Texto do prompt: o do domado diz o que o E faz de fato (abre o menu de opções; ordem nunca sai direto do E);
+## o do selvagem fica o padrão.
 func _refresh_prompt() -> void:
 	if can_command():
-		var verb := "ficar" if state_machine.order == Enums.DinoOrder.FOLLOW else "seguir"
-		interactable.prompt = "mandar %s %s" % [stats.display_name, verb]
+		interactable.prompt = "abrir opções de %s" % stats.display_name
 	else:
 		interactable.prompt = "interagir"
 

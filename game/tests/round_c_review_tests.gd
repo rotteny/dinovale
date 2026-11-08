@@ -94,13 +94,16 @@ func _test_target_awake_wild_nearer() -> void:
 	await _place(main, tamed, Vector2(0, -24))
 	await _place(main, wild_one, Vector2(0, 16))
 	_check(main.player.target == tamed.interactable, "selvagem acordado mais perto não tira o alvo do domado")
-	_check(_prompt(main) == "E para mandar Paquicéfalo seguir", "o prompt diz qual dino recebe a ordem, com o nome")
+	_check(_prompt(main) == "E para abrir opções de Paquicéfalo", "o prompt diz o que o E faz, com o nome")
 	var before := tamed.state_machine.order
 	_press("interact")
 	await _frames(2)
+	_check(tamed.state_machine.order == before and wild_one.state_machine.order == Enums.DinoOrder.STAY,
+			"tecla E nunca dá ordem (abre o menu); o selvagem não muda")
+	_press("toggle_follow")
+	await _frames(2)
 	_check(tamed.state_machine.order != before and wild_one.state_machine.order == Enums.DinoOrder.STAY,
-			"tecla E manda o domado, o selvagem não muda")
-	_check(_prompt(main) == "E para mandar Paquicéfalo ficar", "depois de seguir, o prompt oferece ficar")
+			"a tecla G manda o domado mais perto")
 
 
 func _test_target_sleeper_and_tamed() -> void:
@@ -108,11 +111,11 @@ func _test_target_sleeper_and_tamed() -> void:
 	var tamed := main.wild.creature_at(_wid(main, 0))
 	var sleeper := main.wild.creature_at(_wid(main, 1))
 	_tame_for(tamed, main.player.player_id)
-	await _place(main, tamed, Vector2(0, -18))
-	await _place(main, sleeper, Vector2(0, 26))
+	await _place(main, tamed, Vector2(0, -26))
+	await _place(main, sleeper, Vector2(0, 18))
 	_knock(sleeper)
 	await _frames(2)
-	_check(main.player.target == sleeper.interactable, "o selvagem desmaiado ganha do domado mais perto (a doma é a ação)")
+	_check(main.player.target == sleeper.interactable, "entre duas criaturas vale a mais perto: o desmaiado (a doma é a ação)")
 	_check(_prompt(main) == "E para interagir", "e o prompt é o da doma, sem oferecer ordem ao domado")
 	var before := tamed.state_machine.order
 	_press("interact")
@@ -337,7 +340,10 @@ func _test_target_foreign_tamed() -> void:
 	var mine := main.wild.creature_at(_wid(main, 2))
 	_tame_for(mine, main.player.player_id)
 	await _place(main, mine, Vector2(0, -12))
-	_check(main.player.target == mine.interactable, "o domado do próprio jogador continua sendo alvo")
+	_check(main.player.target == carcass.interactable, "recurso tem prioridade sobre criatura: a carcaça segue como alvo")
+	main.carcasses.nodes()[0].queue_free()
+	await _frames(3)
+	_check(main.player.target == mine.interactable, "sem recurso por perto, o domado do próprio jogador é o alvo")
 
 
 ## Mundo real: o selvagem acordado a 3 tiles ganha o seu `WildLevelTag` (pendurado na `Main`), que mostra o nível

@@ -13,6 +13,9 @@ const OUTLINE_SIZE := 2  # a Vale Mini em 8 px não desenha contorno de 1 px (ar
 var _label := Label.new()
 var _bar := ProgressBar.new()
 var _value_label: Label = null
+var _fill_color := Color.WHITE
+## Trecho mais claro à frente do valor atual (a parte que ainda vai subir). Filho da barra, por âncoras.
+var _pending_rect := ColorRect.new()
 
 
 ## Sem texto, a barra vem sem rótulo (versão compacta, ex.: sobre o dino). Com `icon`,
@@ -30,6 +33,7 @@ func _init(label_text: String = "", color: Color = Color.WHITE, bar_size: Vector
 	_bar.show_percentage = false
 	_bar.add_theme_stylebox_override("background", _framed(Color(0.1, 0.1, 0.1, 0.8)))
 	_bar.add_theme_stylebox_override("fill", _flat(color))
+	_fill_color = color
 	if icon != null:
 		var icon_rect := TextureRect.new()
 		icon_rect.texture = icon
@@ -44,6 +48,14 @@ func _init(label_text: String = "", color: Color = Color.WHITE, bar_size: Vector
 		add_child(_label)
 	else:
 		_label.free()  # nó solto não é de ninguém: evita vazar
+	_pending_rect.color = Color(1, 1, 1, 0.55)
+	_pending_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_pending_rect.anchor_top = 0.0
+	_pending_rect.anchor_bottom = 1.0
+	_pending_rect.offset_left = 0.0
+	_pending_rect.offset_right = 0.0
+	_pending_rect.visible = false
+	_bar.add_child(_pending_rect)
 	add_child(_bar)
 	if show_value:  # o número (valor atual) ao lado da barra
 		_value_label = Label.new()
@@ -65,6 +77,28 @@ func set_values(current: float, maximum: float) -> void:
 ## O número ao lado da barra (vazio sem `show_value`).
 func value_text() -> String:
 	return _value_label.text if _value_label != null else ""
+
+
+## Mostra `pending` (a parte que ainda vai subir) como um trecho mais claro logo à frente do valor atual.
+func set_pending(current: float, pending: float, maximum: float) -> void:
+	var span := maxf(maximum, 1.0)
+	_pending_rect.visible = pending > 0.0
+	_pending_rect.anchor_left = clampf(current / span, 0.0, 1.0)
+	_pending_rect.anchor_right = clampf((current + pending) / span, 0.0, 1.0)
+
+
+func pending_visible() -> bool:
+	return _pending_rect.visible
+
+
+## Troca a cor do preenchimento (estado da barra: fôlego curto, esgotado).
+func set_fill_color(color: Color) -> void:
+	_fill_color = color
+	_bar.add_theme_stylebox_override("fill", _flat(color))
+
+
+func fill_color() -> Color:
+	return _fill_color
 
 
 func value() -> float:

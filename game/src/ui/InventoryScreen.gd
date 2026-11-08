@@ -20,9 +20,9 @@ signal hotbar_assign_requested(slot: int, item_id: String, iid: String)
 ## Quem liga (a `Main`) pede ao `Player`, que valida; a tela não muda nada.
 signal equip_requested(iid: String)
 signal unequip_requested(slot_id: String)
-## Pede para mover o slot `index` para o outro lado (`from_player`: do jogador para a criatura).
-## A tela não muda nada; recusa volta por `show_transfer_refusal`.
-signal transfer_requested(from_player: bool, index: int)
+## Pede para mover o slot `index` para o outro lado (`from_player`: do jogador para a criatura). `amount` é a quantidade
+## (`WorldAuthority.TRANSFER_ALL` = a pilha toda). A tela não muda nada; recusa volta por `show_transfer_refusal`.
+signal transfer_requested(from_player: bool, index: int, amount: int)
 
 ## Medidas para o viewport de 320x180: células quadradas só com o ícone (nome, tecla e durabilidade
 ## vão na linha de detalhe sob a grade), 4 colunas por inventário. Painel total ~250x130.
@@ -32,7 +32,10 @@ const SLOT_FONT_SIZE := 8
 ## Folga interna extra além da moldura de madeira do painel (6 px do tema).
 const PANEL_PADDING := 1
 const OUTLINE_SIZE := 2  # a Vale Mini em 8 px não desenha contorno de 1 px (arredonda para 0)
-const HINT_TEXT := "Clique/Enter: passar  1-9: atalho  Esc: fechar\nDuplo clique/Enter: equipar  Shift+clique: passar equip."
+const HINT_TEXT := ("Clique: passar tudo  Shift+clique: passar 1  Botão direito: quantidade\n"
+		+ "Duplo clique/Enter: equipar  1-9 ou arrastar: atalho  Esc: fechar")
+## Quantas pilhas o menu do botão direito cobre: só pilha de mais de uma unidade.
+const MIN_STACK_FOR_MENU := 2
 
 @export var player_inventory: InventoryComponent
 ## Só leitura: marca na célula a tecla de atalho do item.
@@ -57,6 +60,9 @@ var _other_grid := GridContainer.new()
 var _player_buttons: Array[Button] = []
 var _other_buttons: Array[Button] = []
 var _hover_index := -1
+var _quantity_menu := QuantityMenu.new()
+## Slot a que o menu do botão direito se refere: {from_player, index}.
+var _menu_slot: Dictionary = {}
 var _equipment_column := VBoxContainer.new()
 var _equipment_buttons: Dictionary = {}
 var _notice := Label.new()
@@ -124,6 +130,9 @@ func _ready() -> void:
 	column.add_child(hint)
 	for label: Label in [_title, player_title, _other_title, hint, _notice, _detail]:
 		label.add_theme_color_override("font_color", UiTheme.INK)
+	add_child(_quantity_menu)
+	_quantity_menu.amount_chosen.connect(_on_quantity_chosen)
+	_quantity_menu.hotbar_chosen.connect(func() -> void: toggle_hotbar(int(_menu_slot.get("index", -1))))
 
 
 ## Abre o inventário próprio sozinho (ação `inventory`).
@@ -174,6 +183,7 @@ func close() -> void:
 		return
 	is_open = false
 	visible = false
+	_quantity_menu.close()
 	if player_inventory != null and player_inventory.changed.is_connected(_refresh):
 		player_inventory.changed.disconnect(_refresh)
 	if hotbar != null and hotbar.changed.is_connected(_refresh):
@@ -298,10 +308,11 @@ func _build_buttons(grid: GridContainer, buttons: Array[Button], inventory: Inve
 		button.focus_entered.connect(_show_detail.bind(button))
 		button.mouse_entered.connect(_show_detail.bind(button))
 		button.mouse_exited.connect(_restore_detail)
+		button.set_drag_forwarding(_drag_from.bind(from_player, i), _can_drop_on.bind(from_player), _drop_on.bind(from_player))
+		button.gui_input.connect((_on_slot_gui_input if from_player else _on_other_gui_input).bind(i))
 		if from_player:
 			button.mouse_entered.connect(func() -> void: _hover_index = i)
 			button.mouse_exited.connect(func() -> void: _hover_index = -1 if _hover_index == i else _hover_index)
-			button.gui_input.connect(_on_slot_gui_input.bind(i))
 		var swatch := ColorRect.new()
 		swatch.size = Vector2(8, 8)
 		swatch.position = Vector2(8, 8)
@@ -322,6 +333,7 @@ func _new_cell() -> Button:
 	button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	button.expand_icon = false
 	button.add_theme_font_size_override("font_size", SLOT_FONT_SIZE)
+	DurabilityBar.attach(button)
 	return button
 
 
@@ -401,7 +413,9 @@ func _refresh_equipment() -> void:
 			button.text = equipment.layout.slot_def(slot_id).display_name  # a silhueta cabe na célula
 			button.icon = null
 			button.modulate.a = 0.55
+			(button.get_node("Durab") as DurabilityBar).show_item({})
 		else:
+			(button.get_node("Durab") as DurabilityBar).show_item(item)
 			var full := "%s\n%d/%d" % [Items.display_name(item["id"]), item["durab"], item["durab_max"]]
 			button.set_meta(&"text", full)
 			button.text = ""
@@ -434,6 +448,7 @@ func _refresh_buttons(buttons: Array[Button], inventory: InventoryComponent) -> 
 		var swatch: ColorRect = buttons[i].get_node("Swatch")
 		var key_label: Label = buttons[i].get_node("Key")
 		var count_label: Label = buttons[i].get_node("Count")
+		(buttons[i].get_node("Durab") as DurabilityBar).show_item(slot if slot.has("iid") else {})
 		if slot.is_empty():
 			buttons[i].set_meta(&"text", "")
 			buttons[i].icon = null
@@ -458,24 +473,86 @@ func _refresh_buttons(buttons: Array[Button], inventory: InventoryComponent) -> 
 
 
 func _on_slot_gui_input(event: InputEvent, index: int) -> void:
-	if _is_activation(event):
+	_slot_gui(event, true, index)
+
+
+func _on_other_gui_input(event: InputEvent, index: int) -> void:
+	_slot_gui(event, false, index)
+
+
+func _slot_gui(event: InputEvent, from_player: bool, index: int) -> void:
+	var inventory := player_inventory if from_player else _other
+	if from_player and _is_activation(event):
 		var slot := player_inventory.get_slot(index)
 		if slot.has("iid") and Items.slot_of(slot["id"]) != "":
 			equip_requested.emit(slot["iid"])
 			accept_event()
 			return
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
-		toggle_hotbar(index)
+		var slot := inventory.get_slot(index)
+		if _other != null and not slot.has("iid") and int(slot.get("count", 0)) >= MIN_STACK_FOR_MENU:
+			open_quantity_menu(from_player, index, event.global_position)
+		elif from_player:
+			toggle_hotbar(index)
 		accept_event()
 
 
+## Abre o menu "1 / Quantidade... / Todos" da pilha (só com a criatura aberta e pilha de 2 ou mais). O máximo já é o que
+## cabe no destino. No lado do jogador o menu tem também "Atalho" (o antigo botão direito).
+func open_quantity_menu(from_player: bool, index: int, at: Vector2) -> void:
+	var source := player_inventory if from_player else _other
+	var destination := _other if from_player else player_inventory
+	var slot := source.get_slot(index)
+	if slot.is_empty() or destination == null:
+		return
+	_menu_slot = {"from_player": from_player, "index": index}
+	_quantity_menu.open_at(at, int(slot["count"]), mini(int(slot["count"]), destination.room_for(slot["id"])), from_player)
+
+
+## Menu do botão direito (teste).
+func quantity_menu() -> QuantityMenu:
+	return _quantity_menu
+
+
+func _on_quantity_chosen(amount: int) -> void:
+	_transfer(bool(_menu_slot.get("from_player", true)), int(_menu_slot.get("index", -1)), false, amount)
+
+
+## Arrastar: o payload leva o item (para o atalho) e de que lado e slot ele sai (para passar ao outro lado).
+func _drag_from(_at: Vector2, from_player: bool, index: int) -> Variant:
+	var inventory := player_inventory if from_player else _other
+	var slot := inventory.get_slot(index)
+	if slot.is_empty():
+		return null
+	var cell := slot_button(from_player, index)
+	if cell != null and cell.get_viewport().gui_is_dragging():  # o preview só existe com um arraste de verdade
+		var preview := TextureRect.new()
+		preview.texture = ItemIcons.icon_of(slot["id"])
+		preview.modulate.a = 0.8
+		preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		cell.set_drag_preview(preview)
+	return {"kind": HotbarBar.DRAG_INVENTORY, "from_player": from_player, "index": index,
+			"item_id": slot["id"], "iid": str(slot.get("iid", ""))}
+
+
+## Solta numa célula do OUTRO lado: passa a pilha toda (o arraste normal = todos). Equipamento só vai por arraste explícito.
+func _can_drop_on(_at: Vector2, data: Variant, from_player: bool) -> bool:
+	return data is Dictionary and data.get("kind") == HotbarBar.DRAG_INVENTORY and _other != null \
+			and bool(data.get("from_player", false)) != from_player
+
+
+func _drop_on(_at: Vector2, data: Variant, _from_player: bool) -> void:
+	_transfer(bool(data["from_player"]), int(data["index"]), true, WorldAuthority.TRANSFER_ALL)
+
+
 func _on_slot_pressed(from_player: bool, index: int) -> void:
-	_transfer(from_player, index, Input.is_key_pressed(KEY_SHIFT))
+	var shift := Input.is_key_pressed(KEY_SHIFT)
+	_transfer(from_player, index, shift, 1 if shift else WorldAuthority.TRANSFER_ALL)
 
 
 ## Transfere o slot para o outro lado. Equipamento que o destino aceita só vai com Shift: o clique
 ## simples é o primeiro de um duplo clique (equipar) e não pode mover o item antes.
-func _transfer(from_player: bool, index: int, forced: bool) -> void:
+func _transfer(from_player: bool, index: int, forced: bool, amount: int = WorldAuthority.TRANSFER_ALL) -> void:
 	if _other == null:
 		return
 	var source := player_inventory if from_player else _other
@@ -487,7 +564,7 @@ func _transfer(from_player: bool, index: int, forced: bool) -> void:
 	_notice.text = ""
 	_asked_slot = slot
 	_asked_destination = destination
-	transfer_requested.emit(from_player, index)
+	transfer_requested.emit(from_player, index, amount)
 
 
 ## A autoridade negou o último pedido de transferência: mostra o motivo certo para o `result`. Recusa

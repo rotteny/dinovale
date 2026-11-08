@@ -82,9 +82,10 @@ func equip(iid: String, slot_id: String = "") -> String:
 		return REFUSED_UNKNOWN_SLOT
 	if Items.slot_of(item["id"]) != target:
 		return REFUSED_WRONG_SLOT
+	var origin := inventory.index_of_iid(iid)
 	var entry := inventory.remove_iid(iid)
 	var old := item_in(target)
-	if not old.is_empty() and not inventory.add_entry(old) == 0:
+	if not old.is_empty() and not inventory.put_individual_at(origin, old):  # o antigo volta ao slot de onde o novo saiu
 		inventory.add_entry(entry)  # não deveria ocorrer: o slot do novo acabou de vagar
 		return REFUSED_FULL
 	_worn[target] = entry
@@ -104,6 +105,23 @@ func unequip(slot_id: String) -> String:
 	_worn.erase(slot_id)
 	changed.emit()
 	return ""
+
+
+## Gasta `amount` de durabilidade do item da vaga. Chegando a 0 ele QUEBRA: sai da vaga e some (não volta ao inventário).
+## Devolve o id do item que quebrou, ou "" (nada quebrou, vaga vazia ou item sem durabilidade).
+func wear(slot_id: String, amount: int = 1) -> String:
+	var entry: Variant = _worn.get(slot_id)
+	if entry == null or not (entry as Dictionary).has("durab") or amount <= 0:
+		return ""
+	var item: Dictionary = entry
+	item["durab"] = maxi(int(item["durab"]) - amount, 0)
+	if int(item["durab"]) > 0:
+		changed.emit()
+		return ""
+	var broken := str(item["id"])
+	_worn.erase(slot_id)
+	changed.emit()
+	return broken
 
 
 func to_dict() -> Dictionary:

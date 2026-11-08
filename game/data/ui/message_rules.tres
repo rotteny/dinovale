@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="MessageRules" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/core/MessageRules.gd" id="1_rules"]
+
+[resource]
+script = ExtResource("1_rules")
+visible_lines = 6
+hold_seconds = 6.0
+fade_seconds = 2.0
+history_max = 200

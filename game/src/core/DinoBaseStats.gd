@@ -37,6 +37,11 @@ const SEX_MALE := "m"
 @export_range(1.0, 4.0) var perception_vertical_weight: float = 1.6
 ## Velocidade da perseguição, em pixels por segundo (GDD 6.7: 90).
 @export_range(1.0, 400.0) var chase_speed: float = 90.0
+## Distância mínima, em pixels (centro a centro), que o perseguidor mantém do alvo: maior que a soma dos raios dos corpos
+## mais uma folga (corpos se encostam a ~22 px). Ao chegar nela o dino PARA em vez de empurrar o jogador.
+@export_range(0.0, 64.0) var chase_stop_px: float = 28.0
+## [premissa] Sem ataque ainda (M1), quem alcança o alvo desiste e fica em alerta por tanto tempo, para não virar um ímã.
+@export_range(0.0, 120.0) var reached_alert_seconds: float = 20.0
 ## Desiste com o alvo a mais de tantos tiles, ou depois de tantos segundos perseguindo (GDD 6.7: 20 tiles, 15 s).
 @export_range(1.0, 64.0) var chase_give_up_tiles: float = 20.0
 @export_range(1.0, 120.0) var chase_max_seconds: float = 15.0

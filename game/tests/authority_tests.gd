@@ -190,6 +190,13 @@ func _test_denied_intents_change_nothing() -> void:
 		["mover com comprimento 50", "request_move", [1, Vector2(50.0, 0.0)], RESULT.INVALID_ARGUMENT],
 		["mover na diagonal sem normalizar", "request_move", [1, Vector2(1.0, 1.0)], RESULT.INVALID_ARGUMENT],
 		["mover ator inexistente", "request_move", [42, Vector2.RIGHT], RESULT.UNKNOWN_ACTOR],
+		["virar com NaN", "request_face", [1, Vector2(NAN, 0.0)], RESULT.INVALID_ARGUMENT],
+		["virar com vetor nulo", "request_face", [1, Vector2.ZERO], RESULT.INVALID_ARGUMENT],
+		["virar com comprimento 50", "request_face", [1, Vector2(50.0, 0.0)], RESULT.INVALID_ARGUMENT],
+		["virar ator inexistente", "request_face", [42, Vector2.RIGHT], RESULT.UNKNOWN_ACTOR],
+		["transferir 0 unidades", "request_transfer_slot", [1, 1, food_slot, &"asleep", 0], RESULT.INVALID_ARGUMENT],
+		["transferir quantidade negativa", "request_transfer_slot", [1, 1, food_slot, &"asleep", -5], RESULT.INVALID_ARGUMENT],
+		["transferir mais que a pilha", "request_transfer_slot", [1, 1, food_slot, &"asleep", 9999], RESULT.INVALID_ARGUMENT],
 	]
 	for entry: Array in cases:
 		var before := _snapshot(world)
@@ -301,10 +308,10 @@ func _test_feeding_makes_the_owner() -> void:
 			"recolher da criatura dormindo também passa pela autoridade")
 	asleep.taming.tick(100.0)
 	_check(asleep.state_machine.is_tamed and asleep.owner_player_id == "local", "domesticou: o último a alimentar é o dono")
-	_check(asleep.can_command() and asleep.interactable.prompt == "mandar Paquicéfalo seguir" and asleep.interactable.can_prompt()
-			and not asleep.interactable.can_interact(), "domado seu: prompt de ordem, sem tela")
-	_check(authority.request_transfer_slot(1, 1, 0, asleep_id) == Enums.ActionResult.WRONG_STATE,
-			"domado acordado não recebe alimento pela tela")
+	_check(asleep.can_command() and asleep.interactable.prompt == "abrir opções de Paquicéfalo" and asleep.interactable.can_prompt()
+			and not asleep.interactable.can_interact(), "domado seu: o E abre o menu de opções, sem tela de doma")
+	_check(authority.request_transfer_slot(1, 1, 0, asleep_id) == Enums.ActionResult.OK,
+			"o dono abre o inventário do domado acordado e mexe nele (decisão de 08/11)")
 
 
 func _test_command_rules() -> void:
@@ -320,11 +327,11 @@ func _test_command_rules() -> void:
 			and changes == [Enums.DinoOrder.FOLLOW], "Seguir: aceito e avisado")
 	_check(authority.request_command(1, mine_id, "FOLLOW") == Enums.ActionResult.OK and changes.size() == 1,
 			"repetir a ordem não repete o aviso")
-	# A tecla de interação alterna pelo mesmo caminho (mira real do jogador).
+	# A tecla G alterna pelo mesmo caminho (domado seu mais perto); o E nunca dá ordem (decisão de 08/11).
 	player.target = mine.interactable
-	_check(player.try_interact() and mine.state_machine.order == Enums.DinoOrder.STAY and changes.size() == 2,
-			"interagir com o domado seu alterna para Ficar")
-	_check(player.try_interact() and mine.state_machine.order == Enums.DinoOrder.FOLLOW, "e de volta para Seguir")
+	_check(player.toggle_nearest_order() and mine.state_machine.order == Enums.DinoOrder.STAY and changes.size() == 2,
+			"G com o domado seu alterna para Ficar")
+	_check(player.toggle_nearest_order() and mine.state_machine.order == Enums.DinoOrder.FOLLOW, "e de volta para Seguir")
 	var foreign: Dino = world["foreign"]
 	player.target = foreign.interactable
 	_check(not player.try_interact() and foreign.state_machine.order == Enums.DinoOrder.STAY, "no domado de outro a tecla não ordena")
@@ -402,7 +409,7 @@ func _test_order_save() -> void:
 			and copy.feeder_player_id == "amigo" and copy.state_machine.is_tamed, "roundtrip: ordem, dono e quem alimentou")
 	_check(events[0] == 0 and copy.state_machine.speed_multiplier == copy.state_machine.order_rules.follow_speed_multiplier,
 			"restaurar não emite evento e já vale a velocidade do Seguir")
-	_check(copy.interactable.prompt == "mandar Paquicéfalo ficar", "o prompt acompanha a ordem restaurada")
+	_check(copy.interactable.prompt == "abrir opções de Paquicéfalo", "o prompt do domado restaurado é o do menu")
 	# Dado ruim não vira ordem nem dono.
 	var wild_data := _dino_at(Vector2.ZERO).to_dict()
 	wild_data["state_machine"]["order"] = "FOLLOW"

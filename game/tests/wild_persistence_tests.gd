@@ -38,7 +38,7 @@ func run() -> void:
 	_release_worlds()
 	await _test_views_bookkeeping()
 	_release_worlds()
-	await _test_partial_tree_costs_once()
+	await _test_full_inventory_tree_drops_to_ground()
 	_release_worlds()
 	await _test_partial_bush()
 	_release_worlds()
@@ -365,7 +365,7 @@ func _test_views_bookkeeping() -> void:
 	_check(not main._wild_views.has(creature), "selvagem morto não deixa chave em `_wild_views`")
 
 
-func _test_partial_tree_costs_once() -> void:
+func _test_full_inventory_tree_drops_to_ground() -> void:
 	var tree := _root.get_tree()
 	var main := _main("partial_tree", 20, true)
 	await tree.physics_frame
@@ -378,16 +378,13 @@ func _test_partial_tree_costs_once() -> void:
 	var wood := main.resources.node_by_id("n316")
 	_near(main, wood)
 	var hp := player.health.current_health
-	var rounds := 0
-	while wood.is_available() and rounds < 6:
-		rounds += 1
-		player.tick(60.0)
-		main.authority.request_gather(1, main.authority.id_of(wood))
-		inventory.remove("wood", 1)
-	_check(rounds == wood.def.yield_amount and not wood.is_available(),
-			"a árvore de %d sai em %d colheitas parciais" % [wood.def.yield_amount, rounds])
+	var rounds := wood.def.hits_by_hand
+	_strikes(main, wood, rounds)
+	_check(not wood.is_available() and main.ground.total_of("wood") == wood.def.yield_amount
+			and inventory.count("wood") == inventory.stack_limit("wood") - 1,
+			"inventário cheio não segura a árvore: ela cai no chão em %d golpes" % rounds)
 	_check(is_equal_approx(hp - player.health.current_health, wood.def.hand_self_damage),
-			"colheita em %d parciais custa 1 só (custou %s)" % [rounds, str(hp - player.health.current_health)])
+			"os %d golpes custam 1 só (custou %s)" % [rounds, str(hp - player.health.current_health)])
 
 
 func _test_taming_in_progress_survives_continue() -> void:

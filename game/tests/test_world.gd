@@ -22,9 +22,9 @@ static func arm(player: Player, others: Array, track: Callable) -> WorldAuthorit
 static func wire_screen(screen: InventoryScreen, authority: WorldAuthority, player: Player, target: Node) -> void:
 	var player_id := authority.id_of(player)
 	var target_id := authority.id_of(target)
-	screen.transfer_requested.connect(func(from_player: bool, index: int) -> void:
+	screen.transfer_requested.connect(func(from_player: bool, index: int, amount: int) -> void:
 		authority.request_transfer_slot(player_id, player_id if from_player else target_id, index,
-				target_id if from_player else player_id))
+				target_id if from_player else player_id, amount))
 	authority.action_denied.connect(func(_actor: int, action: String, result: Enums.ActionResult) -> void:
 		if action == WorldAuthority.ACTION_TRANSFER:
 			screen.show_transfer_refusal(result))

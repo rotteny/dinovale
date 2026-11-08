@@ -44,6 +44,9 @@ func _inventory(slots: int = 6, prefix: String = "t") -> InventoryComponent:
 func _player() -> Player:
 	var player := _spawn_player()
 	player.set_physics_process(false)
+	# Save antigo concede o Bastão (o equipamento inicial do formato v1); a Lança é só de desenvolvimento e fica de fora.
+	player.dev_items = false
+	player.starting_equipment = [STAFF]
 	return player
 
 

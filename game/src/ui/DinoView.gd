@@ -63,6 +63,7 @@ var _yawn_clock := 0.0
 func _ready() -> void:
 	z_index = 11
 	_audio.volume_db = volume_db
+	_audio.bus = GameSettings.BUS_SFX
 	add_child(_audio)
 	_sleep_icon.texture = SLEEP_ICON
 	_sleep_icon.position = SLEEP_ICON_POSITION
@@ -153,7 +154,7 @@ func _apply_pose(awake: bool) -> void:
 	dino.visual.rotation = 0.0
 	var moving := awake and dino.velocity.length_squared() > 1.0
 	if moving:
-		_facing = SpriteFacing.column_for(dino.velocity, _facing)
+		_facing = SpriteFacing.facing_for(dino.velocity, _facing, _sheet.rows)
 	var column := 0
 	if not awake:
 		column = _sheet.column_at(ANIM_SLEEP, 0.0)
@@ -167,7 +168,7 @@ func _apply_pose(awake: bool) -> void:
 ## Folha do JSON de outro tamanho que o sprite da cena: fica no primeiro quadro da direção, nunca fora da folha.
 func _show_frame(column: int) -> void:
 	var sprite := dino.visual
-	var usable := _sheet.is_valid() and _sheet.columns == sprite.hframes and _sheet.rows == sprite.vframes
+	var usable := SpriteFacing.fit_sheet(sprite, _sheet)
 	sprite.frame_coords = Vector2i(
 			clampi(column if usable else 0, 0, sprite.hframes - 1), clampi(_facing, 0, sprite.vframes - 1))
 

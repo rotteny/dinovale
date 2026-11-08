@@ -54,7 +54,8 @@ Formato:
   "respawn_protecao_s": 3.0,
   "respawn_fome_pct": 50,
   "eficiencia_fixa_ataque_jogador": 4.0,
-  "eficiencia_fixa_ataque_carnivoro": 8.0
+  "eficiencia_fixa_ataque_carnivoro": 8.0,
+  "pvp": false
 }
 ```
 
@@ -112,6 +113,7 @@ Regra de escopo: **a chave entra no `ServerRules` no mesmo commit em que ganha c
 | `respawn_fome_pct` | inteiro [10; 100] | `respawn_rules.tres` `hunger_ratio` x 100 | `Player.respawn_at` (`hunger_ratio = pct / 100`) | E1 |
 | `eficiencia_fixa_ataque_jogador` | número [0; 100] | `taming_rules.tres` `attack_fixed_loss["player"]` | `TamingComponent` | E1 |
 | `eficiencia_fixa_ataque_carnivoro` | número [0; 100] | `taming_rules.tres` `attack_fixed_loss["carnivore"]` | `TamingComponent` (o carnívoro só ataca na E3b; a perda já existe) | E1 |
+| `pvp` | booleano (`true` ou `false`) | `false` | `WorldAuthority.resolve_area_attack` (golpe em área acerta domados de outro jogador; o do mesmo dono, nunca) | decidido em 08/11 |
 | `raio_ronco_tiles` | inteiro [1; 32] | campo novo na Resource de regras do CRI-12 (8) | detecção do dormindo | E3b |
 | `respawn_dist_agressivo_tiles` | inteiro [0; 64] | campo novo em `RespawnRules` (16), substitui `min_distance_from_wild` | `RespawnPicker` | E5 |
 | `respawn_dist_semi_tiles` | inteiro [0; 64] | campo novo em `RespawnRules` (8) | `RespawnPicker` | E5 |

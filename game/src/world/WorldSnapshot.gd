@@ -27,6 +27,16 @@ static func new_player_id() -> String:
 	return Crypto.new().generate_random_bytes(16).hex_encode()
 
 
+## Semente do mundo novo (ADR-007, emenda de 07/11): 52 bits de 8 bytes do sistema, o que o JSON guarda sem perda (real de 64
+## bits). Fora da simulação, como o `player_id`.
+static func new_world_seed() -> int:
+	var bytes := Crypto.new().generate_random_bytes(8)
+	var value := 0
+	for byte in bytes:
+		value = (value << 8) | byte
+	return maxi(1, value & WildPopulation.MAX_SEED)
+
+
 ## Estado atual para gravar. Criatura morta ou já descartada não entra: é o que a cena faria
 ## (ela some quando morre), e restaurar uma morta só a removeria de novo.
 static func capture(player: Player, dino: Dino, game_version: String, saved_at: String,
@@ -51,9 +61,12 @@ static func capture(player: Player, dino: Dino, game_version: String, saved_at: 
 		"next_entity_id": maxi(next_entity_id, DINO_ENTITY_ID + 1),  # o contador real: id nunca é reutilizado
 		"resource_nodes": field.to_list() if field != null else [],
 		"wild": wild.to_list() if wild != null else [],  # delta dos selvagens: só quem mudou ou morreu
+		"wild_groups": wild.groups_to_list() if wild != null else [],  # vagas de bando não intactas (geração, centro, prazo)
 		"carcasses": carcasses.to_list() if carcasses != null else [],  # mundo: carcaças de dinos mortos
 		"respawn_count": respawn_count,
 	}
+	if wild != null:
+		world["seed"] = wild.world_seed  # semente do mundo: a disposição dos bandos
 	return SaveManager.make_envelope(world, players, entities, game_version, saved_at)
 
 
@@ -130,7 +143,12 @@ static func restore(data: Dictionary, player: Player, dino: Dino, field: Resourc
 	# de hoje não tem é ignorado. Domado e doma com comida não dependem do id do mapa (são entidades) e voltam sempre.
 	var same_map_id := SafeRead.text(SafeRead.dict(data.get("world")).get("map_id"), "") == MAP_ID  # outro mapa: os ids não valem
 	if wild != null:
-		if not wild.restore(SafeRead.dict(data.get("world")).get("wild") if same_map_id else [], SafeRead.list(data.get("entities"))):
+		var saved_world := SafeRead.dict(data.get("world"))
+		# Save anterior à emenda de 07/11 não tem `seed`: vale a semente do mapa (todos esses mundos ficam com a mesma disposição).
+		var saved_seed := SafeRead.integer(saved_world.get("seed"), IslandMap.default_map().seed_value, 0, WildPopulation.MAX_SEED)
+		var saved_time := SafeRead.number(saved_world.get("time"), 0.0, 0.0, MAX_TIME)
+		if not wild.restore(saved_world.get("wild") if same_map_id else [], SafeRead.list(data.get("entities")),
+				saved_world.get("wild_groups") if same_map_id else [], saved_seed, saved_time):
 			if is_instance_valid(dino) and saved_dino != null:
 				dino.from_dict(before_dino)  # a carga é tudo ou nada
 			player.from_dict(before_player)

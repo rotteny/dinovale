@@ -88,8 +88,8 @@ func _prompt(main: Main) -> String:
 
 func _test_target_awake_wild_nearer() -> void:
 	var main := await _quiet_world("d_awake")
-	var tamed := main.wild.creature_at("w0")
-	var wild_one := main.wild.creature_at("w1")
+	var tamed := main.wild.creature_at(_wid(main, 0))
+	var wild_one := main.wild.creature_at(_wid(main, 1))
 	_tame_for(tamed, main.player.player_id)
 	await _place(main, tamed, Vector2(0, -24))
 	await _place(main, wild_one, Vector2(0, 16))
@@ -105,8 +105,8 @@ func _test_target_awake_wild_nearer() -> void:
 
 func _test_target_sleeper_and_tamed() -> void:
 	var main := await _quiet_world("d_sleeper")
-	var tamed := main.wild.creature_at("w0")
-	var sleeper := main.wild.creature_at("w1")
+	var tamed := main.wild.creature_at(_wid(main, 0))
+	var sleeper := main.wild.creature_at(_wid(main, 1))
 	_tame_for(tamed, main.player.player_id)
 	await _place(main, tamed, Vector2(0, -18))
 	await _place(main, sleeper, Vector2(0, 26))
@@ -123,8 +123,8 @@ func _test_target_sleeper_and_tamed() -> void:
 
 func _test_target_carcass_with_awake_wild() -> void:
 	var main := await _quiet_world("d_gather")
-	var dead := main.wild.creature_at("w0")
-	var alive := main.wild.creature_at("w1")
+	var dead := main.wild.creature_at(_wid(main, 0))
+	var alive := main.wild.creature_at(_wid(main, 1))
 	await _place(main, dead, Vector2(20, 0))
 	await _place(main, alive, Vector2(0, 16))
 	_kill(dead)
@@ -139,7 +139,7 @@ func _test_target_carcass_with_awake_wild() -> void:
 
 func _test_prompt_released_when_carcass_expires() -> void:
 	var main := await _quiet_world("d_expire")
-	var dead := main.wild.creature_at("w0")
+	var dead := main.wild.creature_at(_wid(main, 0))
 	await _place(main, dead, Vector2(0, 14))
 	_kill(dead)
 	await _frames(3)
@@ -166,7 +166,7 @@ func _test_carcass_rules_and_oldest() -> void:
 		list.append({"species": "placeholder_dino", "level": 10, "x": float(i), "y": 0.0})
 	main.carcasses.restore_list(list)
 	_check(main.carcasses.count() == 8, "oito carcaças restauradas")
-	var victim := main.wild.creature_at("w0")
+	var victim := main.wild.creature_at(_wid(main, 0))
 	await _place(main, victim, Vector2(0, 30))
 	_kill(victim)
 	await _frames(2)
@@ -195,7 +195,7 @@ func _test_carcass_gather_time_and_recharge() -> void:
 	var player := main.player
 	var carcasses: Array[ResourceNode] = []
 	for i in 3:
-		var creature := main.wild.creature_at("w%d" % i)
+		var creature := main.wild.creature_at(_wid(main, i))
 		creature.level = 20  # 5 de carne
 		await _place(main, creature, Vector2(0, 10 + i))
 		_kill(creature)
@@ -229,11 +229,11 @@ func _test_carcass_gather_time_and_recharge() -> void:
 func _test_carcass_save_age_and_id() -> void:
 	var saved: Array = []
 	var after := await _save_and_continue("d_carcass_age", func(main: Main) -> void:
-		_kill(main.wild.creature_at("w0"))
+		_kill(main.wild.creature_at(_wid(main, 0)))
 		TestWorld.pass_time(main, 30.0)
-		_kill(main.wild.creature_at("w1"))
+		_kill(main.wild.creature_at(_wid(main, 1)))
 		TestWorld.pass_time(main, 50.0)
-		_kill(main.wild.creature_at("w2"))
+		_kill(main.wild.creature_at(_wid(main, 2)))
 		saved.append_array(main.carcasses.to_list()))
 	var now := after.carcasses.to_list()
 	_check(saved.size() == 3 and now.size() == 3, "três carcaças salvas e carregadas")
@@ -260,7 +260,7 @@ func _test_loaded_depleted_node_returns_by_frames() -> void:
 
 func _test_marker_follows_dino() -> void:
 	var main := await _quiet_world("d_marker")
-	var mine := main.wild.creature_at("w0")
+	var mine := main.wild.creature_at(_wid(main, 0))
 	_tame_for(mine, main.player.player_id)
 	await _place(main, mine, Vector2(0, 30))
 	await _root.get_tree().process_frame
@@ -324,8 +324,8 @@ func _test_carcass_restored_id_and_unregister() -> void:
 ## O domado de outro dono não disputa o alvo: nem toma o lugar da carcaça mais longe, nem vira alvo sozinho.
 func _test_target_foreign_tamed() -> void:
 	var main := await _quiet_world("d_foreign_target")
-	var foreign := main.wild.creature_at("w0")
-	var dead := main.wild.creature_at("w1")
+	var foreign := main.wild.creature_at(_wid(main, 0))
+	var dead := main.wild.creature_at(_wid(main, 1))
 	_tame_for(foreign, "outro")
 	await _place(main, foreign, Vector2(0, 10))
 	_check(main.player.target == null, "o domado de outro, sozinho ao lado, não é alvo")
@@ -334,7 +334,7 @@ func _test_target_foreign_tamed() -> void:
 	await _frames(3)
 	var carcass: ResourceNode = main.carcasses.nodes()[0]
 	_check(main.player.target == carcass.interactable, "o domado de outro, mais perto, não tira a carcaça do alvo")
-	var mine := main.wild.creature_at("w2")
+	var mine := main.wild.creature_at(_wid(main, 2))
 	_tame_for(mine, main.player.player_id)
 	await _place(main, mine, Vector2(0, -12))
 	_check(main.player.target == mine.interactable, "o domado do próprio jogador continua sendo alvo")
@@ -344,7 +344,7 @@ func _test_target_foreign_tamed() -> void:
 ## e acompanha o dino.
 func _test_wild_level_tag_in_world() -> void:
 	var main := await _quiet_world("d_level_tag")
-	var creature := main.wild.creature_at("w0")
+	var creature := main.wild.creature_at(_wid(main, 0))
 	creature.level = 23
 	await _place(main, creature, Vector2(48, 0))  # 3 tiles
 	await _root.get_tree().process_frame  # a etiqueta se atualiza no `_process`, não na física

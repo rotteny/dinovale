@@ -23,7 +23,10 @@ const START_NEW := "start_new"
 const NEW_GAME_WARNING := "Já existe um jogo salvo. O novo jogo o substitui no primeiro salvamento."
 const UNREADABLE_WARNING := "Há um save que não pôde ser lido; ele será guardado ao lado, não apagado."
 const FULLSCREEN := "fullscreen"
-const VOLUME := "volume"
+const VOLUME := GameSettings.LEVEL_MASTER
+const MUSIC := GameSettings.LEVEL_MUSIC
+const SFX := GameSettings.LEVEL_SFX
+const MUTE := "mute"
 const BACK := "back"
 const GAME_SCENE := "res://src/world/Main.tscn"
 const GAME_TITLE := "Dino Vale"
@@ -32,7 +35,15 @@ const SCROLL_STEP := 16
 ## Tamanhos para o viewport de 320x180.
 const TITLE_FONT_SIZE := 16
 const CREDITS_SIZE := Vector2(260, 108)
-const BACKGROUND := preload("res://src/world/Terrain.tscn")
+const LOGO: Texture2D = preload("res://assets/ui/menu/menu_logo.png")
+## Áreas seguras do fundo (`menu_fundo.json`): o título (logo) e a coluna de botões, em pixels de tela.
+const LOGO_POSITION := Vector2(81, 16)
+const MENU_POSITION := Vector2(106, 64)
+const MENU_WIDTH := 108.0
+## O aviso das telas sem painel cabe na faixa entre o logo e os botões.
+const NOTICE_RECT := Rect2(20, 50, 280, 12)
+## Telas com fundo livre (logo e botões sobre o fundo); as outras abrem num painel no centro.
+const BACKDROP_VIEWS: Array[String] = ["menu", "single", "confirm"]
 
 ## Desligue nos testes para só observar os sinais.
 @export var auto_perform: bool = true
@@ -52,6 +63,7 @@ var _single_menu := MenuColumn.new()
 var _confirm_menu := MenuColumn.new()
 var _single_box := VBoxContainer.new()
 var _confirm_box := VBoxContainer.new()
+var _confirm_panel := PanelContainer.new()
 var _confirm_label := Label.new()
 var _confirm_since: int = 0
 var _has_save_files: bool = false
@@ -62,6 +74,11 @@ var _credits_box := VBoxContainer.new()
 var _credits_scroll := ScrollContainer.new()
 var _credits_label := Label.new()
 var _notice := Label.new()
+var _panel_notice := Label.new()
+var _free_root := Control.new()
+var _panel_root := CenterContainer.new()
+var _logo := TextureRect.new()
+var _music := MusicPlayer.new()
 
 
 func _ready() -> void:
@@ -70,11 +87,58 @@ func _ready() -> void:
 	settings = GameSettings.load_from(settings_path)
 	settings.apply()
 	_build_background()
-	var center := CenterContainer.new()
-	center.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(center)
+	add_child(_music)
+	_music.play_track(MusicPlayer.TRACK_MENU)
+	_build_free_root()
+	_build_panel_root()
+	_build_menu()
+	_build_single()
+	_build_settings()
+	_build_credits()
+	_show("menu")
+	_set_notice(GameSession.take_notice())  # ex.: o Continuar falhou e a Main voltou para cá
+
+
+## Fundo: as 5 camadas do menu com parallax leve pelo mouse, só desenho (sem física nem lógica).
+func _build_background() -> void:
+	# Camada própria atrás da UI.
+	var layer := CanvasLayer.new()
+	layer.layer = -1
+	add_child(layer)
+	layer.add_child(MenuBackdrop.new())
+
+
+## Telas com o fundo livre: logo no alto e a coluna de botões na área segura, sem painel.
+func _build_free_root() -> void:
+	_free_root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_free_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_free_root)
+	_logo.texture = LOGO
+	_logo.position = LOGO_POSITION
+	_logo.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_free_root.add_child(_logo)
+	_notice.position = NOTICE_RECT.position
+	_notice.size = NOTICE_RECT.size
+	_style_notice(_notice, true)
+	_free_root.add_child(_notice)
+	var stack := VBoxContainer.new()
+	stack.position = MENU_POSITION
+	stack.custom_minimum_size.x = MENU_WIDTH
+	stack.add_theme_constant_override("separation", 2)
+	_free_root.add_child(stack)
+	stack.add_child(_menu_box)
+	stack.add_child(_single_box)
+	_confirm_panel.add_child(_confirm_box)
+	stack.add_child(_confirm_panel)
+
+
+## Configurações e Créditos: painel de madeira no centro (sem título: a lista de seis botões já ocupa quase a tela de 180).
+func _build_panel_root() -> void:
+	_panel_root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_panel_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_panel_root)
 	var panel := PanelContainer.new()
-	center.add_child(panel)
+	_panel_root.add_child(panel)
 	var margin := MarginContainer.new()
 	for side in ["left", "right", "top", "bottom"]:
 		margin.add_theme_constant_override("margin_" + side, 1)
@@ -82,48 +146,23 @@ func _ready() -> void:
 	var stack := VBoxContainer.new()
 	stack.add_theme_constant_override("separation", 3)
 	margin.add_child(stack)
-	var title := Label.new()
-	title.text = GAME_TITLE
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", TITLE_FONT_SIZE)
-	title.add_theme_color_override("font_color", UiTheme.INK)
-	stack.add_child(title)
-	stack.add_child(_menu_box)
-	stack.add_child(_single_box)
-	stack.add_child(_confirm_box)
 	stack.add_child(_settings_box)
 	stack.add_child(_credits_box)
-	_build_menu()
-	_build_single()
-	_build_settings()
-	_build_credits()
-	_notice.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_notice.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_notice.custom_minimum_size.x = 220
-	_notice.add_theme_color_override("font_color", UiTheme.INK)
-	stack.add_child(_notice)
-	_show("menu")
-	_notice.text = GameSession.take_notice()  # ex.: o Continuar falhou e a Main voltou para cá
+	_style_notice(_panel_notice, false)
+	_panel_notice.custom_minimum_size.x = 220
+	stack.add_child(_panel_notice)
 
 
-## Fundo: o terreno do jogo (a ilha, no ponto de início) escurecido, só desenho (sem física nem lógica).
-func _build_background() -> void:
-	# Camada própria atrás da UI: a folhagem do terreno tem `z_index` 5 e cobriria o painel do menu.
-	var layer := CanvasLayer.new()
-	layer.layer = -1
-	add_child(layer)
-	var terrain := BACKGROUND.instantiate()
-	terrain.process_mode = Node.PROCESS_MODE_DISABLED
-	layer.add_child(terrain)
-	# A ilha é grande: o fundo mostra o trecho do início, no centro da tela de 320x180.
-	var island := IslandMap.default_map()
-	if island.is_valid():
-		terrain.position = (Vector2(160, 90) - island.start_point()).round()
-	var dim := ColorRect.new()
-	dim.color = Color(0, 0, 0, 0.4)
-	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	layer.add_child(dim)
+func _style_notice(label: Label, on_backdrop: bool) -> void:
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if on_backdrop:  # sobre o fundo: texto claro com contorno escuro
+		label.add_theme_color_override("font_color", Color("#fce2ca"))
+		label.add_theme_color_override("font_outline_color", UiTheme.INK)
+		label.add_theme_constant_override("outline_size", 2)
+	else:
+		label.add_theme_color_override("font_color", UiTheme.INK)
 
 
 func _build_menu() -> void:
@@ -167,7 +206,7 @@ func _open_single() -> void:
 	_confirm_label.text = NEW_GAME_WARNING if outcome.status == SaveManager.Status.OK else UNREADABLE_WARNING
 	_show("single")
 	if outcome.status != SaveManager.Status.NONE:
-		_notice.text = outcome.message
+		_set_notice(outcome.message)
 
 
 func _build_settings() -> void:
@@ -175,11 +214,14 @@ func _build_settings() -> void:
 	_settings_menu.setup([
 		{"id": FULLSCREEN, "label": ""},
 		{"id": VOLUME, "label": ""},
+		{"id": MUSIC, "label": ""},
+		{"id": SFX, "label": ""},
+		{"id": MUTE, "label": ""},
 		{"id": BACK, "label": "Voltar"},
 	])
 	_settings_menu.activated.connect(_on_settings_activated)
 	var hint := Label.new()
-	hint.text = "Esquerda e direita ajustam o volume"
+	hint.text = "Esquerda e direita ajustam os volumes"
 	hint.add_theme_color_override("font_color", UiTheme.INK)
 	_settings_box.add_child(hint)
 	_refresh_settings()
@@ -204,12 +246,28 @@ func _show(which: String) -> void:
 	view = which
 	_menu_box.visible = which == "menu"
 	_single_box.visible = which == "single"
-	_confirm_box.visible = which == "confirm"
+	_confirm_panel.visible = which == "confirm"
+	_free_root.visible = which in BACKDROP_VIEWS
+	_panel_root.visible = not _free_root.visible
 	_settings_box.visible = which == "settings"
 	_credits_box.visible = which == "credits"
-	_notice.text = ""
+	_set_notice("")
 	if which == "credits":
 		_credits_scroll.scroll_vertical = 0
+	elif is_inside_tree():
+		_column_of(which).focus_selected()
+
+
+## Coluna de botões da tela da vez (a de créditos não tem).
+func _column_of(which: String) -> MenuColumn:
+	match which:
+		"single":
+			return _single_menu
+		"confirm":
+			return _confirm_menu
+		"settings":
+			return _settings_menu
+	return _menu
 
 
 ## Menu principal (para testes).
@@ -233,12 +291,22 @@ func settings_menu() -> MenuColumn:
 	return _settings_menu
 
 
+func music() -> MusicPlayer:
+	return _music
+
+
 func credits_scroll() -> ScrollContainer:
 	return _credits_scroll
 
 
 func credits_text() -> String:
 	return _credits_label.text
+
+
+## Aviso (o das telas com fundo livre e o do painel andam juntos).
+func _set_notice(text: String) -> void:
+	_notice.text = text
+	_panel_notice.text = text
 
 
 func notice_text() -> String:
@@ -275,12 +343,13 @@ func _settings_input(event: InputEvent) -> bool:
 	if event.is_action_pressed("ui_cancel"):
 		_show("menu")
 		return true
-	if _settings_menu.selected_id() == VOLUME:
+	var selected := _settings_menu.selected_id()
+	if selected in [VOLUME, MUSIC, SFX]:
 		if event.is_action_pressed("ui_left"):
-			_change_volume(-GameSettings.VOLUME_STEP)
+			_change_volume(selected, -GameSettings.VOLUME_STEP)
 			return true
 		if event.is_action_pressed("ui_right"):
-			_change_volume(GameSettings.VOLUME_STEP)
+			_change_volume(selected, GameSettings.VOLUME_STEP)
 			return true
 	return _settings_menu.handle_event(event)
 
@@ -346,28 +415,34 @@ func _on_settings_activated(id: String) -> void:
 		FULLSCREEN:
 			settings.fullscreen = not settings.fullscreen
 			_commit_settings()
-		VOLUME:
-			settings.cycle_volume()
+		MUTE:
+			settings.muted = not settings.muted
+			_commit_settings()
+		VOLUME, MUSIC, SFX:
+			settings.cycle_level(id)
 			_commit_settings()
 		BACK:
 			_show("menu")
 
 
-func _change_volume(step: float) -> void:
-	settings.set_volume(settings.volume + step)
+func _change_volume(id: String, step: float) -> void:
+	settings.set_level(id, settings.level(id) + step)
 	_commit_settings()
 
 
 func _commit_settings() -> void:
 	settings.apply()
 	if not settings.save_to(settings_path):
-		_notice.text = "Não foi possível gravar as configurações."
+		_set_notice("Não foi possível gravar as configurações.")
 	_refresh_settings()
 
 
 func _refresh_settings() -> void:
 	_settings_menu.set_label(FULLSCREEN, "Tela cheia: %s" % ("Sim" if settings.fullscreen else "Não"))
+	_settings_menu.set_label(MUTE, "Mudo: %s" % ("Sim" if settings.muted else "Não"))
 	_settings_menu.set_label(VOLUME, "Volume geral: %d%%" % roundi(settings.volume * 100.0))
+	_settings_menu.set_label(MUSIC, "Música: %d%%" % roundi(settings.music_volume * 100.0))
+	_settings_menu.set_label(SFX, "Efeitos: %d%%" % roundi(settings.sfx_volume * 100.0))
 
 
 func _choose(id: String) -> void:

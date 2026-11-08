@@ -6,6 +6,7 @@ extends Resource
 
 const ATTACKER_PLAYER := "player"
 const ATTACKER_CARNIVORE := "carnivore"
+const ATTACKER_HERBIVORE := "herbivore"
 
 ## Queda por segundo dormindo.
 @export var time_drain_per_second: float = 0.3

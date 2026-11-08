@@ -10,6 +10,17 @@ const TEXTURE: Texture2D = preload("res://assets/sprites/ui/cursor.png")
 const HOTSPOT := Vector2i.ZERO
 ## O sistema aceita cursor de até 256x256.
 const MAX_CURSOR_PIXELS := 256
+## Formas do cursor que recebem a seta em pixel art: qualquer `Control` com outra forma (mão, texto, ...) também a mostra.
+const SHAPES: Array[Input.CursorShape] = [
+	Input.CURSOR_ARROW, Input.CURSOR_IBEAM, Input.CURSOR_POINTING_HAND, Input.CURSOR_CROSS, Input.CURSOR_WAIT,
+	Input.CURSOR_BUSY, Input.CURSOR_DRAG, Input.CURSOR_CAN_DROP, Input.CURSOR_FORBIDDEN, Input.CURSOR_VSIZE,
+	Input.CURSOR_HSIZE, Input.CURSOR_BDIAGSIZE, Input.CURSOR_FDIAGSIZE, Input.CURSOR_MOVE, Input.CURSOR_VSPLIT,
+	Input.CURSOR_HSPLIT, Input.CURSOR_HELP,
+]
+
+## Última ampliação aplicada e quantas vezes `apply` rodou (para teste: o cursor do sistema não se lê de volta).
+var applied_scale: int = 0
+var apply_count: int = 0
 
 
 func _ready() -> void:
@@ -17,6 +28,14 @@ func _ready() -> void:
 	if window != null:
 		window.size_changed.connect(apply)
 	apply()
+	# De novo no fim do quadro: no Windows o tamanho final da janela (tela cheia) só vale depois do primeiro quadro.
+	apply.call_deferred()
+
+
+## O sistema pode zerar o cursor ao devolver o foco à janela: aplica de novo.
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_APPLICATION_FOCUS_IN or what == NOTIFICATION_WM_WINDOW_FOCUS_IN:
+		apply()
 
 
 ## Tamanho base do jogo, o do projeto (`display/window/size`).
@@ -47,4 +66,8 @@ func apply() -> void:
 	var factor := scale_for(window.size) if window != null else 1
 	var image := scaled_image(TEXTURE.get_image(), factor)
 	var used := image.get_width() / TEXTURE.get_width()
-	Input.set_custom_mouse_cursor(ImageTexture.create_from_image(image), Input.CURSOR_ARROW, HOTSPOT * used)
+	var texture := ImageTexture.create_from_image(image)
+	for shape in SHAPES:
+		Input.set_custom_mouse_cursor(texture, shape, HOTSPOT * used)
+	applied_scale = used
+	apply_count += 1

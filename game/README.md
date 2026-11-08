@@ -133,16 +133,16 @@ game/
 │       ├── ActivityZone.gd  # regra pura da zona ativa (ativo, distante, dormente)
 │       └── DinoZone.gd      # aplica a zona aos dinos (process_mode, passeio em dado)
 └── tests/
-    ├── run_tests.gd
-    ├── dino_level_tests.gd  # nível, Eficiência, combate, faixas, apresentação
-    ├── dino_review_tests.gd # regras de save e achados das revisões
-    ├── hud_hotbar_tests.gd  # HUD, atalhos 1 a 9, ofegar, dano recebido
-    ├── inventory_model_tests.gd # PRO-15 e PRO-22: pilha/individual, save v2, migração, vagas de equipamento
-    ├── menu_tests.gd            # apresentação, navegação, configurações, créditos e pausa
-    ├── save_tests.gd            # save: arquivo, fixture, gatilhos, Continuar/Novo jogo, fome do jogador
-    ├── fixtures/saves/v1.json   # save v1 congelado (nunca remover)
-    ├── fixtures/saves/v2.json   # save v2 congelado (nunca remover)
-    └── saveable_table.gd
+	├── run_tests.gd
+	├── dino_level_tests.gd  # nível, Eficiência, combate, faixas, apresentação
+	├── dino_review_tests.gd # regras de save e achados das revisões
+	├── hud_hotbar_tests.gd  # HUD, atalhos 1 a 9, ofegar, dano recebido
+	├── inventory_model_tests.gd # PRO-15 e PRO-22: pilha/individual, save v2, migração, vagas de equipamento
+	├── menu_tests.gd            # apresentação, navegação, configurações, créditos e pausa
+	├── save_tests.gd            # save: arquivo, fixture, gatilhos, Continuar/Novo jogo, fome do jogador
+	├── fixtures/saves/v1.json   # save v1 congelado (nunca remover)
+	├── fixtures/saves/v2.json   # save v2 congelado (nunca remover)
+	└── saveable_table.gd
 ```
 
 ### Componentes
@@ -177,9 +177,11 @@ A **Eficiência** (0 a 100) começa em 100 ao dormir e só cai: 0,3 por segundo,
 
 Tudo vem de `assets/third_party/ninja-adventure/` (caminhos, quadros e direções em `MAPA.md` da pasta; registro em `assets/CREDITS.md`). O filtro de textura é nearest (`project.godot`, sem mudança) e só há escala inteira.
 
-- **Mapa:** a ilha Lunata (256x256 tiles de 16 px) vem de `data/world/lunata.json`, exportado por `docs/design/mapa_export.py` a partir de `docs/design/mapa_sim.py` (determinístico, nunca gerado ao rodar; `python3 docs/design/mapa_export.py --check` falha se o arquivo divergir). `IslandMap` lê e valida o dado (arquivo ruim vira mapa vazio). `TerrainView` monta seis camadas `Ground0..5` (autotile blob 47 de `terreno.png` + `terreno.json`, uma por posto de terreno) e a camada `Scenery` (árvores decorativas e formações, colisão só nos pés, ordem por Y). O motor só desenha o que cabe na tela (quadrantes de 16 tiles). Praia e raso se andam sem lentidão; a água funda bloqueia, e só o anel de 2 tiles junto ao raso tem colisão. O limite da câmera é `data/world/map_bounds.tres`. Nós de recurso nascem de `lunata.json` (`ResourceField.populate`, ids `<tipo>_<n>`), com defs em `data/resources/` e as regras em `data/world/world_rules.tres`. O minério existe em dado e fica desligado na v0.2. Os selvagens (Paquicéfalo e, nas 6 tocas da Mata-baixa, Utahraptor, que persegue o jogador que avista; sem navegação ainda) nascem dos pontos do mapa e vivem na zona ativa (`data/world/zone_rules.tres`: ativo até 16 tiles, distante até 40, teto de 32 ativos; só os ativos têm `DinoView` e barras). O save leva o delta dos selvagens sem dono (`WildPopulation`, índice estável em `spawns`) e os domados como entidades `tamed_dino` e a colheita parcial dos nós (`leftover`).
-- **Regras do servidor (ADR-004):** `user://saves/<mundo>/server_rules.json` (ou `--server-rules=<caminho>` nos argumentos de usuário) é escrito pelo jogo uma vez, com os valores do momento, e depois é do operador: o jogo só lê, ao carregar o mundo. Chaves da E1: `multiplicador_coleta`, `respawn_recurso`, `faixas_de_nivel`, `respawn_protecao_s`, `respawn_fome_pct`, `eficiencia_fixa_ataque_jogador`, `eficiencia_fixa_ataque_carnivoro`. Valor inválido ou fora da faixa volta ao padrão da `.tres`, com aviso no log. Para pegar um padrão novo da `.tres` num mundo que já tem o arquivo, apague a chave ou o arquivo.
+- **Mapa:** a ilha Lunata (256x256 tiles de 16 px) vem de `data/world/lunata.json`, exportado por `docs/design/mapa_export.py` a partir de `docs/design/mapa_sim.py` (determinístico, nunca gerado ao rodar; `python3 docs/design/mapa_export.py --check` falha se o arquivo divergir). `IslandMap` lê e valida o dado (arquivo ruim vira mapa vazio). `TerrainView` monta seis camadas `Ground0..5` (autotile blob 47 de `terreno.png` + `terreno.json`, uma por posto de terreno) e a camada `Scenery` (árvores decorativas e formações, colisão só nos pés, ordem por Y). O motor só desenha o que cabe na tela (quadrantes de 16 tiles). Praia e raso se andam sem lentidão; a água funda bloqueia, e só o anel de 2 tiles junto ao raso tem colisão. O limite da câmera é `data/world/map_bounds.tres`. Nós de recurso nascem de `lunata.json` (`ResourceField.populate`, ids `<tipo>_<n>`), com defs em `data/resources/` e as regras em `data/world/world_rules.tres`. O minério existe em dado e fica desligado na v0.2. Os selvagens (Paquicéfalo e, na Mata-baixa, Utahraptor, que persegue o jogador que avista; sem navegação ainda) nascem em bandos, em posição sorteada pela semente do mundo dentro da região de cada vaga do mapa (`WildLayout`; o bando renasce em outro lugar quando o último selvagem morre ou é domado) e vivem na zona ativa (`data/world/zone_rules.tres`: ativo até 16 tiles, distante até 40, teto de 32 ativos; só os ativos têm `DinoView` e barras). O save leva o delta dos selvagens sem dono (`WildPopulation`, id do membro `<vaga>.<geração>.<k>`, e `world.wild_groups` para as vagas não intactas) e os domados como entidades `tamed_dino` e a colheita parcial dos nós (`leftover`).
+- **Regras do servidor (ADR-004):** `user://saves/<mundo>/server_rules.json` (ou `--server-rules=<caminho>` nos argumentos de usuário) é escrito pelo jogo uma vez, com os valores do momento, e depois é do operador: o jogo só lê, ao carregar o mundo. Chaves da E1: `multiplicador_coleta`, `respawn_recurso`, `faixas_de_nivel`, `respawn_protecao_s`, `respawn_fome_pct`, `eficiencia_fixa_ataque_jogador`, `eficiencia_fixa_ataque_carnivoro`, `pvp` (booleano, padrão `false`: golpe em área não acerta domados de outro jogador). Valor inválido ou fora da faixa volta ao padrão da `.tres`, com aviso no log. Para pegar um padrão novo da `.tres` num mundo que já tem o arquivo, apague a chave ou o arquivo.
 - **Sprites:** o jogador usa `characters/caveman.png` (linhas 0 a 3 andar, 4 ataque, 6 morto); o dino usa `animals/reptile.png` (4 direções x 4 quadros de andar), com o sprite girado 90 graus e o balão "zz" quando dorme. A escolha do quadro é só apresentação (`PlayerView`, `DinoView`); o corpo só expõe `visual`, `velocity` e o sinal `attacked`. O cambaleio é um deslocamento de 1 a 2 px (pixel art não gira em ângulo fracionário).
+- **8 direções (08/11):** o jogador e o Paquicéfalo têm folhas de 8 linhas (baixo, cima, esquerda, direita e as 4 diagonais; `linhas_direcao` no JSON). `SpriteFacing.facing_for` escolhe a linha pelo setor de 45 graus, com histerese de 8 graus, e cai no cardinal se a folha tem só 4 linhas; `SpriteFacing.fit_sheet` ajusta `hframes`/`vframes` do sprite ao JSON. Os outros dinos seguem com 4 linhas.
+- **Música e menu (08/11):** `MusicPlayer` toca a faixa do menu no título e, no jogo, a de dia ou a de noite conforme o `WorldClock` (divisão em `data/balance/music_rules.tres`, provisória até o ciclo de dia e noite), com crossfade, no barramento Music. O título usa o fundo em 5 camadas com parallax pelo mouse (`MenuBackdrop`), o logo e os botões 9-slice de `assets/ui/menu/`. Placas de dino mostram o símbolo de sexo (`SexIcon`).
 - **UI:** painéis 9-slice (`panel_a`, margem 6), células de inventário (`inventory_cell`), ícones de item (`ItemIcons.icon_of`) e da HUD (coração, pena, carne). As barras seguem coloridas por código.
 - **Sons:** `hit/hit1.wav` (dano no dino), `pickup/powerup1.wav` (domesticou) e `swing/whoosh.wav` (golpe do jogador), ligados em `cue_streams` das views na `Main.tscn` com `volume_db` +6 (o pacote tem pico de -10 dBFS). Sem som ainda: bocejo, dor, ronco.
 
@@ -198,16 +200,16 @@ Tudo em `src/ui/` é só apresentação, reage a sinais e pode ser removido sem 
 ### Máquina de estados da criatura
 
 ```text
-        tempo
+		tempo
  IDLE <-------> WANDER
    ^                |
    |   knocked_out  |  (de qualquer estado)
    |                v
    +----------- UNCONSCIOUS <-------+
-    acordou         |               | knocked_out
-    selvagem        | mark_tamed()  |
-                    v               |
-                  TAMED ------------+
+	acordou         |               | knocked_out
+	selvagem        | mark_tamed()  |
+					v               |
+				  TAMED ------------+
 ```
 
 - Um domesticado que desmaia acorda como `TAMED`, nunca como `IDLE`.

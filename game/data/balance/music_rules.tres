@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="MusicRules" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/core/MusicRules.gd" id="1_rules"]
+
+[resource]
+script = ExtResource("1_rules")
+day_length_seconds = 1200.0
+night_start_fraction = 0.6
+crossfade_seconds = 1.5

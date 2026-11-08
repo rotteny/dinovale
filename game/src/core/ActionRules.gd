@@ -14,6 +14,12 @@ extends Resource
 ## Alcance, em tiles, para mandar um domado seguir ou ficar (menu a 2 tiles, GDD 6.11, mais a folga acima).
 @export_range(1.0, 12.0) var command_reach_tiles: float = 3.0
 
+## Escolha do alvo do golpe (`AttackTargeting`). 0 = meio-plano da frente: quem está de lado a 90 graus ainda conta;
+## quem está atrás, não. A autoridade usa o mesmo valor para recusar golpe em quem está atrás.
+@export_range(-1.0, 1.0) var front_dot_min: float = 0.0
+## Vantagem de distância (px) que um candidato precisa ter sobre o alvo atual para tomar o lugar dele (destaque estável).
+@export_range(0.0, 32.0) var hysteresis_px: float = 6.0
+
 
 func reach_px() -> float:
 	return reach_tiles * tile_size
@@ -21,3 +27,4 @@ func reach_px() -> float:
 
 func command_reach_px() -> float:
 	return command_reach_tiles * tile_size
+

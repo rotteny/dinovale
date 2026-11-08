@@ -13,6 +13,8 @@ extends CharacterBody2D
 
 ## Alvo mudou (ou null). Serve ao prompt e ao painel da criatura.
 signal target_changed(target: InteractableArea)
+## O dino que o próximo golpe atinge mudou (ou null). A apresentação o destaca.
+signal attack_target_changed(dino: Dino)
 signal input_lock_changed(locked: bool)
 ## O golpe acertou uma criatura (a apresentação anima e toca o som).
 signal attacked
@@ -60,6 +62,10 @@ const LOCAL_PLAYER_ID := "local"
 @export var starting_items: Dictionary = {Items.BERRY: 10, Items.MEAT: 4, Items.FERN: 3}
 
 var target: InteractableArea = null
+## Dino que o golpe atinge agora (regra `AttackTargeting`); o destaque e `attack()` leem este mesmo valor.
+var attack_target: Dino = null
+## Direção do olhar (unitária): a última direção de movimento pedida. Começa para baixo.
+var facing: Vector2 = Vector2.DOWN
 ## `iid` do item na vaga Arma; "" = mãos livres (Soco). O item equipado NÃO está na grade.
 var equipped_iid: String:
 	get:
@@ -128,12 +134,15 @@ func tick(delta: float) -> void:
 	_gather_timer = maxf(_gather_timer - delta, 0.0)
 	health.tick(delta)
 	update_target()
+	_update_attack_target()
 
 
 ## Efeito do pedido de movimento: guarda a direção do quadro (já validada). Só a autoridade chama
 ## (`WorldAuthority.request_move`). A tela aberta trava o corpo: a direção vira zero.
 func perform_move(direction: Vector2, wants_sprint: bool) -> void:
 	_move_direction = Vector2.ZERO if input_locked else direction
+	if _move_direction.length_squared() > 0.0001:
+		facing = _move_direction.normalized()
 	_move_sprint = wants_sprint and not input_locked
 
 
@@ -174,18 +183,21 @@ func _is_others_tamed(area: InteractableArea) -> bool:
 	return dino != null and dino.can_command() and dino.owner_player_id != player_id
 
 
-## Criatura mais próxima no alcance (o golpe não depende de qual interagível é o alvo).
-func _nearest_dino() -> Dino:
-	var best: Dino = null
-	var best_distance := INF
+## Recalcula o alvo do golpe pela regra única (`AttackTargeting`) e avisa se mudou. Só entram dinos vivos e
+## selvagens (os que `request_attack` aceitaria), ao alcance da autoridade e do lado para onde o jogador olha.
+func _update_attack_target() -> Dino:
+	if authority == null:
+		return attack_target  # sem autoridade o jogador não age sobre o mundo: nada a destacar
+	var candidates: Array[Node2D] = []
 	for area in _in_range:
-		if not is_instance_valid(area) or not (area.entity is Dino):
-			continue
-		var distance := global_position.distance_squared_to(area.global_position)
-		if distance < best_distance:
-			best_distance = distance
-			best = area.entity as Dino
-	return best
+		var dino := area.entity as Dino if is_instance_valid(area) else null
+		if dino != null and not dino.health.is_dead() and not dino.state_machine.is_tamed:
+			candidates.append(dino)
+	var chosen := authority.choose_attack_target(global_position, facing, candidates, attack_target) as Dino
+	if chosen != attack_target:
+		attack_target = chosen
+		attack_target_changed.emit(attack_target)
+	return attack_target
 
 
 ## Intenção "interagir com o alvo": pede à autoridade (ou, num domado seu, troca a ordem Seguir/Ficar).
@@ -202,12 +214,12 @@ func try_interact() -> bool:
 	return authority.request_interact(actor_id, target_id) == Enums.ActionResult.OK
 
 
-## Intenção "golpear a criatura mais próxima ao alcance": a autoridade valida alcance, recarga e
+## Intenção "golpear o dino destacado" (`attack_target`): a autoridade valida alcance, recarga e
 ## alvo, e chama `strike`. Retorna true se acertou.
 func attack() -> bool:
 	if input_locked or health.is_dead() or authority == null:
 		return false
-	var dino := _nearest_dino()
+	var dino := _update_attack_target()
 	if dino == null:
 		return false
 	return authority.request_attack(authority.id_of(self), authority.id_of(dino)) == Enums.ActionResult.OK

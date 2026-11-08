@@ -33,26 +33,27 @@ func _test_map_ids() -> void:
 	var seen := {}
 	var unique := true
 	var total := 0
-	for lists: Dictionary in [map.node_ids, map.spawn_ids]:
+	for lists: Dictionary in [map.node_ids]:
 		for kind: String in lists:
 			for id: String in lists[kind]:
 				total += 1
 				unique = unique and id != "" and not seen.has(id)
 				seen[id] = true
-	_check(unique and total == 1029 + 91 + 40 + 142 + 24 + 18 + 108 + 10,
-			"todo spawn e todo nó do mapa tem id próprio, sem repetir (%d)" % total)
+	_check(unique and total == 1029 + 91 + 40 + 142 + 24 + 18, "todo nó do mapa tem id próprio, sem repetir (%d)" % total)
+	var slot_ids := {}
+	for slot in map.spawn_slots:
+		slot_ids[slot["id"]] = true
+	_check(slot_ids.size() == map.spawn_slots.size() and slot_ids.size() == 36, "toda vaga de bando tem id próprio (%d)" % slot_ids.size())
 	for kind: String in map.nodes:
 		_check((map.node_ids[kind] as Array).size() == (map.nodes[kind] as Array).size(), "ids de nó de %s alinhados com os pontos" % kind)
-	for kind: String in map.spawns:
-		_check((map.spawn_ids[kind] as Array).size() == (map.spawns[kind] as Array).size(), "ids de spawn de %s alinhados com os pontos" % kind)
 	_check(map.content_hash.length() == 16 and map.content_hash.is_valid_hex_number(false), "o mapa traz o hash do conteúdo (16 hex)")
 	# Mapa de teste sem ids (arquivo que não os traz): ids sintéticos e únicos, sem abortar.
 	var plain := IslandMap.new()
 	var rows: Array = []
 	for y in 16:
 		rows.append("3".repeat(16))
-	plain.load_dict({"format": 1, "size": 16, "rows": rows, "spawns": {"paquicefalo": [[1, 1], [2, 2]]}})
-	_check(plain.is_valid() and plain.spawn_ids["paquicefalo"] == ["wpaquicefalo:0", "wpaquicefalo:1"], "sem ids no arquivo: ids sintéticos")
+	plain.load_dict({"format": 2, "size": 16, "rows": rows, "nodes": {"tree": [[1, 1], [2, 2]]}})
+	_check(plain.is_valid() and plain.node_ids["tree"] == ["ntree:0", "ntree:1"], "sem ids no arquivo: ids sintéticos")
 
 
 func _test_wild_seed_streams() -> void:
@@ -147,16 +148,20 @@ func _test_map_rejects_bad_ids() -> void:
 	var rows: Array = []
 	for y in 16:
 		rows.append("3".repeat(16))
-	var base := {"format": 1, "size": 16, "rows": rows, "spawns": {"paquicefalo": [[1, 1], [2, 2]]},
-			"spawn_ids": {"paquicefalo": ["w0", "w1"]}, "nodes": {"tree": [[3, 3]]}, "node_ids": {"tree": ["n1"]}}
+	var region := {"terrains": [3], "runs": [[1, 1, 8]]}
+	var base := {"format": 2, "size": 16, "rows": rows, "spawn_regions": {"r": region},
+			"spawn_slots": [{"id": "g1", "species": "paquicefalo", "region": "r", "size": 3},
+			{"id": "g2", "species": "paquicefalo", "region": "r", "size": 3}],
+			"nodes": {"tree": [[3, 3]]}, "node_ids": {"tree": ["n1"]}}
 	var ok := IslandMap.new()
 	_check(ok.load_dict(base) and ok.is_valid(), "preparo: ids únicos e não vazios são aceitos")
-	for bad: Array in [[["w0", ""], "n1"], [["w0", "w0"], "n1"], [["w0", "w1"], "w1"]]:
+	for bad: Array in [[["g1", ""], "n1"], [["g1", "g1"], "n1"], [["g1", "g2"], ""]]:
 		var broken := base.duplicate(true)
-		broken["spawn_ids"]["paquicefalo"] = bad[0]
+		broken["spawn_slots"][0]["id"] = bad[0][0]
+		broken["spawn_slots"][1]["id"] = bad[0][1]
 		broken["node_ids"]["tree"] = [bad[1]]
 		var map := IslandMap.new()
-		_check(not map.load_dict(broken) and not map.is_valid() and map.spawn_ids.is_empty(),
+		_check(not map.load_dict(broken) and not map.is_valid() and map.spawn_slots.is_empty(),
 				"mapa com id vazio ou repetido (%s / %s) é recusado" % [bad[0], bad[1]])
 
 
@@ -286,7 +291,7 @@ func _test_deadlines_are_absolute() -> void:
 	node.component.respawn_rate = 4.0
 	_check(node.component.due_at == marked, "mudar a regra do servidor não move prazo já marcado")
 	# Idade da carcaça: nasce com born_at = relógio e some por diferença.
-	var dead := main.wild.creature_at("w0")
+	var dead := main.wild.creature_at(_wid(main, 0))
 	dead.health.take_damage(dead.health.max_health * 2.0)
 	await tree.physics_frame
 	_check(main.carcasses.count() == 1 and absf(float(main.carcasses.to_list()[0]["born_at"]) - main.authority.clock.now()) < 1.0,
@@ -297,7 +302,7 @@ func _test_deadlines_are_absolute() -> void:
 	TestWorld.pass_time(main, 2.0)
 	_check(main.carcasses.count() == 0, "passado fresh_seconds ela some")
 	# Selvagem distante segue congelado: o relógio andou 600 s e ele não mudou.
-	var far := main.wild.creature_at("w50")
+	var far := main.wild.creature_at(_wid(main, 50))
 	var hunger_like := far.to_dict()
 	TestWorld.pass_time(main, 600.0)
 	_check(far.to_dict() == hunger_like, "selvagem distante continua congelado enquanto o relógio anda")
@@ -316,39 +321,39 @@ func _test_wild_from_spawn_seed() -> void:
 	var ok := true
 	var males := 0
 	var checked := 0
-	for kind in WildPopulation.SPECIES:
-		var cells: Array = map.spawns.get(kind.spawn_key, [])
-		var ids: Array = map.spawn_ids.get(kind.spawn_key, [])
-		for i in cells.size():
-			var creature := main.wild.creature_at(ids[i])
-			if creature == null:
-				continue
-			checked += 1
-			var band := main.world_rules.level_band_of(map.terrain_at(cells[i]))
-			ok = ok and creature.level == WildPopulation.roll_level(band, map.seed_value, ids[i]) \
-					and creature.sex == kind.roll_sex(map.seed_value, ids[i]) and main.wild.spawn_id_of(creature) == ids[i]
-			males += 1 if creature.sex == "m" else 0
-	_check(checked >= 100 and ok, "nível e sexo de cada selvagem saem da semente do próprio spawn (%d conferidos)" % checked)
+	for id in main.wild.member_ids():
+		var creature := main.wild.creature_at(id)
+		if creature == null:
+			continue
+		checked += 1
+		var band := main.world_rules.level_band_of(map.terrain_at(map.cell_of(creature.position)))
+		ok = ok and creature.level == WildPopulation.roll_level(band, main.world_seed, id) \
+				and creature.sex == creature.stats.roll_sex(main.world_seed, id) and main.wild.spawn_id_of(creature) == id
+		males += 1 if creature.sex == "m" else 0
+	_check(checked >= 70 and ok, "nível e sexo de cada selvagem saem da semente do mundo e do id do membro (%d conferidos)" % checked)
 	_check(males > checked * 0.3 and males < checked * 0.7, "sexo meio a meio no mundo (%d de %d machos)" % [males, checked])
 	_check(main.dino.sex == "f" or main.dino.sex == "m", "o dino do tutorial também tem sexo")
 	# Mesmo mundo, mesmo resultado (a ordem de criação não pesa).
 	var twin := _main("seed_twin", 20, true)
 	await tree.physics_frame
 	var same := true
-	for kind in WildPopulation.SPECIES:
-		for id: String in map.spawn_ids.get(kind.spawn_key, []):
-			var a := main.wild.creature_at(id)
-			var b := twin.wild.creature_at(id)
-			same = same and ((a == null) == (b == null)) and (a == null or (a.level == b.level and a.sex == b.sex))
-	_check(same, "o mesmo spawn gera o mesmo dino em outro mundo")
+	for id in main.wild.member_ids():
+		var a := main.wild.creature_at(id)
+		var b := twin.wild.creature_at(id)
+		same = same and ((a == null) == (b == null)) and (a == null or (a.level == b.level and a.sex == b.sex and a.position == b.position))
+	_check(same and main.wild.member_ids() == twin.wild.member_ids(), "a mesma semente gera os mesmos dinos, nos mesmos lugares")
 
 
 func _test_wild_delta_species_mismatch() -> void:
 	var tree := _root.get_tree()
 	var source := _main("mismatch_src", 20, true)
 	await tree.physics_frame
-	var raptor_id: String = source.map.spawn_ids["utahraptor"][0]
-	var wild := source.wild.creature_at("w0")
+	var raptor_id := ""
+	for id in source.wild.member_ids():
+		if source.wild.creature_at(id).stats.spawn_key == "utahraptor":
+			raptor_id = id
+			break
+	var wild := source.wild.creature_at(_wid(source, 0))
 	wild.torpor.add_torpor(wild.torpor.max_torpor)
 	var envelope := WorldSnapshot.capture(source.player, source.dino, "t", "now", source.resources, 0, 10, source.wild)
 	# O estado de um paquicéfalo cai no ponto de um utahraptor: a entrada é ignorada e o utahraptor nasce novo.
@@ -361,7 +366,8 @@ func _test_wild_delta_species_mismatch() -> void:
 	var raptor_before := raptor.to_dict()
 	_check(WorldSnapshot.restore(envelope, target.player, target.dino, target.resources, target.wild),
 			"estado de outra espécie no delta não derruba a carga")
-	_check(raptor.to_dict() == raptor_before and not raptor.torpor.is_unconscious and target.wild.creature_at("w0").torpor.is_unconscious,
+	_check(raptor.to_dict() == raptor_before and not raptor.torpor.is_unconscious and target.wild.creature_at(_wid(target,
+			0)).torpor.is_unconscious,
 			"o utahraptor nasce novo e o paquicéfalo certo recebe o dele")
 
 

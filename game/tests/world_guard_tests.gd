@@ -33,7 +33,7 @@ func _test_zone_pinning() -> void:
 	await tree.physics_frame
 	main.player.position = Vector2(8, 8)  # no mar, longe de todos: quem não é fixado dorme
 	main.zone.reclassify()
-	var idle := main.wild.creature_at("w10")
+	var idle := main.wild.creature_at(_wid(main, 10))
 	_check(main.zone.mode_of(idle) == ActivityZone.Mode.DORMANT and not main.zone.is_pinned(idle), "preparo: o selvagem comum longe dorme")
 	var cases := {
 		"só progresso de doma": func(c: Dino) -> void: c.taming.taming_progress = 10.0,
@@ -44,7 +44,7 @@ func _test_zone_pinning() -> void:
 	}
 	var index := 11
 	for label: String in cases:
-		var creature := main.wild.creature_at("w%d" % index)
+		var creature := main.wild.creature_at(_wid(main, index))
 		index += 1
 		(cases[label] as Callable).call(creature)
 		main.zone.reclassify()
@@ -56,18 +56,18 @@ func _test_wild_through_authority() -> void:
 	var tree := _root.get_tree()
 	var main := _main("wild_auth", 20, true)
 	await tree.physics_frame
-	var creature := main.wild.creature_at("w20")
+	var creature := main.wild.creature_at(_wid(main, 20))
 	var id := main.authority.id_of(creature)
 	_check(id != 0, "o selvagem do mapa está registrado na autoridade")
-	main.player.position = creature.position + Vector2(0, 12)
+	main.player.position = creature.position - Vector2(0, 12)  # o jogador olha para baixo: o selvagem fica à frente
 	main.player.tick(60.0)
 	_check(main.authority.request_attack(1, id) == RESULT.OK, "o golpe no selvagem passa pela autoridade")
-	var sleeper := main.wild.creature_at("w21")
+	var sleeper := main.wild.creature_at(_wid(main, 21))
 	sleeper.torpor.add_torpor(sleeper.torpor.max_torpor)
 	main.player.position = sleeper.position + Vector2(0, 12)
 	_check(main.authority.request_interact(1, main.authority.id_of(sleeper)) == RESULT.OK,
 			"a interação com o selvagem inconsciente passa pela autoridade")
-	var far := main.wild.creature_at("w22")
+	var far := main.wild.creature_at(_wid(main, 22))
 	main.player.position = far.position + Vector2(2000, 0)
 	_check(main.authority.request_attack(1, main.authority.id_of(far)) != RESULT.OK, "longe demais: a autoridade nega")
 
@@ -145,7 +145,7 @@ func _test_far_dino_stays_on_land() -> void:
 		if coast.x >= 0:
 			break
 	_check(coast.x >= 0, "preparo: há terra encostada na água rasa a 25 a 35 tiles do jogador")
-	var creature := main.wild.creature_at("w30")
+	var creature := main.wild.creature_at(_wid(main, 30))
 	creature.position = map.center_of(coast)
 	main.zone.reclassify()
 	_check(main.zone.mode_of(creature) == ActivityZone.Mode.FAR, "preparo: o dino da costa é distante")

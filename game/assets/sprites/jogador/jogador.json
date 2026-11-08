@@ -1,5 +1,5 @@
 {
-	"ancora": "base do quadro (pes em y=30, folha 32x32 de IA-placeholder)",
+	"ancora": "base do quadro (pes em y=30, folha 32x32); prototipo por script, partes 3D",
 	"animacoes": {
 		"fall": {
 			"colunas": [
@@ -37,19 +37,23 @@
 		}
 	},
 	"arquivo": "jogador.png",
-	"caido": "sprite parado girado 90 graus (placeholder)",
+	"caido": "deitado de costas, cabeca no sentido oposto ao que olhava; uma pose por direcao",
 	"colisao_pes": [
 		12,
 		8
 	],
 	"colunas": 10,
-	"direita": "arte de IA (PixelLab), direcao propria, nao e espelho",
-	"linhas": 4,
+	"direita": "desenhada por script (nao e espelho)",
+	"linhas": 8,
 	"linhas_direcao": [
 		"down",
 		"up",
 		"left",
-		"right"
+		"right",
+		"down_left",
+		"down_right",
+		"up_left",
+		"up_right"
 	],
 	"quadro": [
 		32,

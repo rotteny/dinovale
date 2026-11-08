@@ -63,9 +63,11 @@ var _popups := Node2D.new()
 func _ready() -> void:
 	z_index = 11
 	_audio.volume_db = volume_db
+	_audio.bus = GameSettings.BUS_SFX
 	add_child(_audio)
 	add_child(_popups)
 	_breath.volume_db = volume_db
+	_breath.bus = GameSettings.BUS_SFX
 	add_child(_breath)
 	_setup_cloud()
 	add_child(_cloud)
@@ -100,7 +102,7 @@ func tick(delta: float) -> void:
 		return
 	var moving := player.velocity.length_squared() > MOVING_SPEED_SQUARED
 	if moving:
-		_facing = SpriteFacing.column_for(player.velocity, _facing)
+		_facing = SpriteFacing.facing_for(player.velocity, _facing, _sheet.rows)
 	var column := 0
 	if _attack_left > 0.0:
 		column = _sheet.column_at(ANIM_HIT, _attack_seconds - _attack_left)
@@ -120,7 +122,7 @@ func use_sheet(sheet: SpriteSheetDef) -> void:
 
 
 func _show_frame(sprite: Sprite2D, column: int) -> void:
-	var usable := _sheet.is_valid() and _sheet.columns == sprite.hframes and _sheet.rows == sprite.vframes
+	var usable := SpriteFacing.fit_sheet(sprite, _sheet)
 	sprite.frame_coords = Vector2i(
 			clampi(column if usable else 0, 0, sprite.hframes - 1), clampi(_facing, 0, sprite.vframes - 1))
 
@@ -232,7 +234,7 @@ func _setup_cloud() -> void:
 func _on_attacked() -> void:
 	_attack_left = _attack_seconds
 	if player.target != null and is_instance_valid(player.target):
-		_facing = SpriteFacing.column_for(player.target.global_position - player.global_position, _facing)
+		_facing = SpriteFacing.facing_for(player.target.global_position - player.global_position, _facing, _sheet.rows)
 	sound_cue.emit(CUE_ATTACK)
 	var stream: AudioStream = cue_streams.get(CUE_ATTACK)
 	if stream != null:

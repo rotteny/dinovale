@@ -2,7 +2,10 @@
 """Testes dos ids estaveis e do hash de conteudo do exportador (ADR-007). So biblioteca padrao.
 Rodar: python3 docs/design/mapa_export_test.py"""
 import copy
+import json
+import math
 import os
+import random
 import sys
 import unittest
 
@@ -17,7 +20,6 @@ def base_data():
         "scenery": {"formation_a": [[9, 9], [3, 3]]},
         "rows": [[0, 1], [1, 0]],
         "nodes": {"tree": [[10, 10], [20, 20], [30, 30]], "rock": [[40, 40]]},
-        "spawns": {"paquicefalo": [[50, 50], [60, 60], [1, 1]], "utahraptor": [[70, 70]]},
     }
 
 
@@ -35,17 +37,17 @@ def regen(previous, mutate):
 
 
 class IdsEstaveis(unittest.TestCase):
-    def test_primeira_geracao_ids_unicos_e_pula_tutorial(self):
+    def test_primeira_geracao_ids_unicos_sem_spawn_ids(self):
         d = first()
-        todos = [i for g in ("spawn_ids", "node_ids") for v in d[g].values() for i in v]
+        todos = [i for v in d["node_ids"].values() for i in v]
         self.assertEqual(len(todos), len(set(todos)))
-        self.assertEqual(d["spawn_ids"]["paquicefalo"][:2], ["w0", "w1"])
-        self.assertEqual(d["spawn_ids"]["utahraptor"][0], "w2")  # o do tutorial fica depois dos indices do jogo
+        self.assertEqual(d["node_ids"]["rock"], ["n1"])
+        self.assertNotIn("spawn_ids", d)
+        self.assertEqual(d["id_counter"]["w"], 0)  # historico, sem uso
 
     def test_reexportar_igual_mantem_tudo(self):
         prev = first()
         d, rep = regen(prev, lambda x: None)
-        self.assertEqual(d["spawn_ids"], prev["spawn_ids"])
         self.assertEqual(d["node_ids"], prev["node_ids"])
         self.assertEqual((rep["new"], rep["retired"]), ([], []))
 
@@ -87,7 +89,7 @@ class HashDeConteudo(unittest.TestCase):
         h = ex.content_hash(self.d)
         for mutate in (lambda x: x["nodes"]["tree"][0].__setitem__(0, 99),
                        lambda x: x["rows"][0].__setitem__(0, 5),
-                       lambda x: x["spawn_ids"]["utahraptor"].__setitem__(0, "w999")):
+                       lambda x: x["node_ids"]["rock"].__setitem__(0, "n999")):
             d = copy.deepcopy(self.d)
             mutate(d)
             self.assertNotEqual(h, ex.content_hash(d))
@@ -95,7 +97,7 @@ class HashDeConteudo(unittest.TestCase):
     def test_nao_muda_so_com_a_ordem(self):
         h = ex.content_hash(self.d)
         d = copy.deepcopy(self.d)
-        for g, k in (("nodes", "node_ids"), ("spawns", "spawn_ids")):
+        for g, k in (("nodes", "node_ids"),):
             for kind in d[g]:
                 d[g][kind].reverse()
                 d[k][kind].reverse()
@@ -108,6 +110,152 @@ class HashDeConteudo(unittest.TestCase):
         self.d["revision"] = 7
         self.d["content_hash"] = "x"
         self.assertEqual(h, ex.content_hash(self.d))
+
+
+def with_slots(data):
+    data["spawn_slots"] = ex.build_slots()
+    return data
+
+
+class VagasDeBando(unittest.TestCase):
+    def prev(self):
+        d = with_slots(base_data())
+        ex.assign_ids(d, None, True)
+        return d
+
+    def regen(self, previous, mutate=lambda s: None):
+        d = with_slots(base_data())
+        mutate(d["spawn_slots"])
+        return d, ex.assign_ids(d, previous, False)
+
+    def test_totais_por_especie(self):
+        contagem = {}
+        for s in self.prev()["spawn_slots"]:
+            contagem[s["species"]] = contagem.get(s["species"], 0) + 1
+        self.assertEqual(contagem, {"dodo": 8, "paquicefalo": 20, "utahraptor": 4, "triceratops": 4})
+
+    def test_ids_de_vaga_estaveis_ao_reexportar(self):
+        prev = self.prev()
+        d, rep = self.regen(prev)
+        self.assertEqual(d["spawn_slots"], prev["spawn_slots"])
+        self.assertEqual((rep["new"], rep["retired"]), ([], []))
+        self.assertEqual(d["id_counter"]["g"], 36)
+
+    def test_tamanho_diferente_mantem_id(self):
+        prev = self.prev()
+        d, _ = self.regen(prev, lambda sl: sl[0].__setitem__("size", 4))
+        self.assertEqual([s["id"] for s in d["spawn_slots"]], [s["id"] for s in prev["spawn_slots"]])
+
+    def test_id_aposentado_nao_volta(self):
+        prev = self.prev()
+        retirado = prev["spawn_slots"][-1]["id"]
+        d2, rep = self.regen(prev, lambda sl: sl.pop())
+        self.assertEqual(rep["retired"], [retirado])
+        d3, _ = self.regen(d2)  # vaga de volta na tabela: ganha id novo, nao o antigo
+        self.assertNotIn(retirado, [s["id"] for s in d3["spawn_slots"]])
+        self.assertEqual(d3["spawn_slots"][-1]["id"], "g37")
+
+    def test_hash_cobre_vagas(self):
+        d = self.prev()
+        h = ex.content_hash(d)
+        d["spawn_slots"][0]["size"] = 4
+        self.assertNotEqual(h, ex.content_hash(d))
+
+
+ROWS = ["0233344", "0553345", "0000000"]
+
+
+class MascaraDeRegiao(unittest.TestCase):
+    def test_so_tiles_do_bioma_certo_e_sem_bloqueados(self):
+        masks = ex.region_masks(ROWS, {(4, 0)})
+        tiles = lambda name: {(x, y) for y, a, b in masks[name]["runs"] for x in range(a, b + 1)}
+        self.assertEqual(tiles("r_campina"), {(2, 0), (3, 0), (3, 1), (4, 1)})
+        self.assertEqual(tiles("r_mata"), {(5, 0), (6, 0), (5, 1)})
+        self.assertEqual(tiles("r_pedreira"), {(1, 1), (2, 1), (6, 1)})
+        self.assertEqual(tiles("r_campina_mata"), tiles("r_campina") | tiles("r_mata"))
+
+    def test_mascara_muda_o_hash(self):
+        d = first()
+        d["spawn_regions"] = ex.region_masks(ROWS, set())
+        h = ex.content_hash(d)
+        d["spawn_regions"] = ex.region_masks(ROWS, {(3, 0)})
+        self.assertNotEqual(h, ex.content_hash(d))
+
+    def test_ordem_das_runs_nao_muda_o_hash(self):
+        d = first()
+        d["spawn_regions"] = ex.region_masks(ROWS, set())
+        h = ex.content_hash(d)
+        for r in d["spawn_regions"].values():
+            r["runs"].reverse()
+        self.assertEqual(h, ex.content_hash(d))
+
+
+LUNATA = ex.os.path.normpath(ex.OUT)
+SPACING_BY_SPECIES = {"dodo": 20, "paquicefalo": 24, "utahraptor": 40, "triceratops": 30}
+GLOBAL_SPACING, START_CLEARANCE = 16, 12
+SPECIES_ORDER = ["utahraptor", "triceratops", "paquicefalo", "dodo"]
+
+
+def region_tiles(region):
+    return [(x, y) for y, x0, x1 in region["runs"] for x in range(x0, x1 + 1)]
+
+
+def lay_out(world, seed):
+    """Amostragem simples: por vaga, tiles da mascara em ordem aleatoria; fica com o primeiro que respeita a
+    distancia de todo centro ja posto, do inicio e do tutorial. Devolve vagas sem lugar."""
+    rng = random.Random(seed)
+    placed = [(tuple(world["landmarks"]["paquicefalo_tutorial"]), 0)]
+    masks = {n: region_tiles(r) for n, r in world["spawn_regions"].items()}
+    start = tuple(world["start"])
+    failed = []
+    order = sorted(world["spawn_slots"], key=lambda s: (SPECIES_ORDER.index(s["species"]), int(s["id"][1:])))
+    for slot in order:
+        need = max(GLOBAL_SPACING, SPACING_BY_SPECIES[slot["species"]])
+        pool = list(masks[slot["region"]])
+        rng.shuffle(pool)
+        for (x, y) in pool:
+            if math.hypot(x - start[0], y - start[1]) < START_CLEARANCE:
+                continue
+            if all(math.hypot(x - px, y - py) >= max(GLOBAL_SPACING, need if sp == slot["species"] else 0)
+                   for (px, py), sp in ((c, s) for c, s in placed)):
+                placed.append(((x, y), slot["species"]))
+                break
+        else:
+            failed.append(slot["id"])
+    return failed
+
+
+class MapaGravado(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        with open(LUNATA, encoding="utf-8") as f:
+            cls.world = json.load(f)
+
+    def test_hash_gravado_confere(self):
+        self.assertEqual(self.world["content_hash"], ex.content_hash(self.world))
+
+    def test_mascara_dodo_so_campina(self):
+        slot = next(s for s in self.world["spawn_slots"] if s["species"] == "dodo")
+        region = self.world["spawn_regions"][slot["region"]]
+        self.assertEqual(region["terrains"], [3])
+        codes = {self.world["rows"][y][x] for x, y in region_tiles(region)}
+        self.assertEqual(codes, {"3"})  # nada de pedreira (5), mata (4) nem praia (2)
+
+    def test_mascaras_respeitam_terrenos_e_bloqueio(self):
+        for name, region in self.world["spawn_regions"].items():
+            allowed = {str(t) for t in region["terrains"]}
+            for x, y in region_tiles(region):
+                self.assertIn(self.world["rows"][y][x], allowed, name)
+
+    def test_vagas_apontam_para_regioes_existentes(self):
+        for s in self.world["spawn_slots"]:
+            self.assertIn(s["region"], self.world["spawn_regions"])
+            self.assertLessEqual(s["size_min"], s["size"])
+            self.assertLessEqual(s["size"], s["size_max"])
+
+    def test_viabilidade_36_vagas_em_100_sementes(self):
+        falhas = {seed: f for seed in range(100) if (f := lay_out(self.world, seed))}
+        self.assertEqual(falhas, {}, "sementes com vaga sem lugar: %d de 100" % len(falhas))
 
 
 if __name__ == "__main__":

@@ -10,6 +10,7 @@ meal_drain = Dictionary[String, float]({
 })
 attack_fixed_loss = Dictionary[String, float]({
 "carnivore": 8.0,
+"herbivore": 6.0,
 "player": 4.0
 })
 loss_per_health_percent = 0.5

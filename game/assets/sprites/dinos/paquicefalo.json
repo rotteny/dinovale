@@ -53,13 +53,17 @@
 	"especie": "paquicefalo",
 	"filhote": "nao incluso (M4)",
 	"golpe": "cabecada desenhada nos quadros 6-8 (cabeca e tronco avancam 2 a 3 px); sem deslocamento extra em codigo",
-	"layout": "igual nas cinco especies: colunas 0-1 idle, 2-5 walk, 6-8 attack, 9 sleep, 10 dead; linhas down, up, left, right",
-	"linhas": 4,
+	"layout": "igual nas cinco especies: colunas 0-1 idle, 2-5 walk, 6-8 attack, 9 sleep, 10 dead; linhas down, up, left, right, down_left, down_right, up_left, up_right",
+	"linhas": 8,
 	"linhas_direcao": [
 		"down",
 		"up",
 		"left",
-		"right"
+		"right",
+		"down_left",
+		"down_right",
+		"up_left",
+		"up_right"
 	],
 	"luz": "cima-esquerda",
 	"porte": "Pequeno",

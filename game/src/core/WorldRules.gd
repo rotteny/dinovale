@@ -16,8 +16,23 @@ extends Resource
 @export_range(1.0, 64.0) var core_radius_tiles: float = 16.0
 ## Faixa de nível dos dinos nascidos em cada bioma (índice do terreno do `IslandMap` -> mínimo e máximo).
 @export var level_bands: Dictionary[int, Vector2i] = {}
-## Teto de dinos selvagens que o jogo coloca no mundo nesta etapa (só há uma espécie; os 360 vêm com as espécies).
-@export_range(0, 400) var wild_population_max: int = 108
+@export_group("Bandos selvagens")
+## Distância mínima, em tiles, entre os centros de QUAISQUER dois bandos (a da espécie vale se maior, entre bandos dela).
+@export_range(0.0, 100.0) var min_group_spacing_any_tiles: float = 16.0
+## Nenhum centro de bando nasce a menos de tantos tiles do início do jogador.
+@export_range(0.0, 100.0) var group_start_clearance_tiles: float = 12.0
+## Tentativas de sortear o centro de um bando antes de varrer a máscara inteira a partir de um ponto sorteado.
+@export_range(1, 500) var group_spawn_attempts: int = 40
+## Tentativas de sortear a posição de cada membro dentro do raio de coesão.
+@export_range(1, 200) var group_member_attempts: int = 20
+## O bando que renasce nasce a pelo menos tantos tiles de todo jogador (não menos que o raio distante da zona: nasce dormente).
+@export_range(0.0, 200.0) var group_respawn_player_clearance_tiles: float = 40.0
+## Distância do jogador depois de `group_respawn_relax_after_tries` falhas seguidas (só ela relaxa: bando e região nunca).
+@export_range(0.0, 200.0) var group_respawn_relaxed_clearance_tiles: float = 24.0
+## Sem lugar para o bando renascer: espera isto e tenta de novo.
+@export_range(1.0, 3600.0) var group_respawn_retry_seconds: float = 60.0
+@export_range(1, 100) var group_respawn_relax_after_tries: int = 3
+@export_group("")
 
 
 func scenery_by_id(scenery_id: String) -> SceneryDef:

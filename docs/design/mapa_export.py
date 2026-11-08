@@ -3,7 +3,7 @@
 
 A FORMA vem de `mapa_sim.py` (diferenca de dois discos + ruido fractal, semente fixa). Este script
 junta o que o jogo precisa e o simulador so contava: o terreno por tile, o inicio, os marcos, a
-posicao dos nos de recurso (toda arvore e coletavel; so as formacoes rochosas sao cenario) e os pontos de nascimento.
+posicao dos nos de recurso (toda arvore e coletavel; so as formacoes rochosas sao cenario) e as vagas de bando.
 O jogo NAO gera o mapa ao rodar: le `game/data/world/lunata.json`, que sai daqui.
 Biblioteca padrao apenas. Mesma semente, mesmo arquivo (byte a byte).
 
@@ -12,11 +12,19 @@ Uso (da raiz do repositorio):
     python3 docs/design/mapa_export.py --check    # falha se o arquivo gravado difere do que sairia daqui
     python3 docs/design/mapa_export.py --primeira-geracao   # so quando nao ha arquivo anterior com ids
 
-Ids estaveis (ADR-007): cada spawn e cada no de recurso ganha um id opaco, gravado em campos PARALELOS
-(`spawn_ids`, `node_ids`, mesma ordem das listas de `spawns` e `nodes`; o formato das listas nao muda).
-Ao reexportar, le o arquivo anterior e herda o id do ponto do mesmo tipo que ficou igual ou andou ate
-ID_RADIUS tiles. Ponto novo ganha id novo; o contador (`id_counter`) nunca volta, entao id aposentado
-nao e reaproveitado. `content_hash` e o SHA-256 (16 hex) do conteudo canonico, sem `revision` nem ele mesmo.
+Ids estaveis (ADR-007): cada no de recurso ganha um id opaco, gravado em campo PARALELO (`node_ids`, mesma ordem
+das listas de `nodes`; o formato das listas nao muda). Ao reexportar, le o arquivo anterior e herda o id do ponto
+do mesmo tipo que ficou igual ou andou ate ID_RADIUS tiles. Ponto novo ganha id novo; o contador (`id_counter`)
+nunca volta, entao id aposentado nao e reaproveitado. `content_hash` e o SHA-256 (16 hex) do conteudo canonico,
+sem `revision` nem ele mesmo.
+Vagas de bando e regioes (ADR-007, emenda de 07/11): `spawn_slots` (id `g<n>`, especie, regiao, tamanho) e
+`spawn_regions` (mascara de tiles validos por regiao, runs `[y, x0, x1]` com x1 INCLUSIVO, ordenadas por y e x, ja
+filtradas por bioma e sem os tiles bloqueados por no/cenario). A posicao do bando NAO esta no mapa: o jogo sorteia.
+Os pontos antigos (`spawns`, `spawn_ids`) SAIRAM do arquivo em 07/11: o jogo le so `spawn_slots`/`spawn_regions`.
+`id_counter.w` (contador dos ids `w<n>` dos pontos antigos) fica no arquivo so como HISTORICO, sem uso: o jogo nao
+o le e nada mais o incrementa; nao reutilize o prefixo `w`. Id `g` nunca e reaproveitado (`id_counter.g`). Vaga
+corresponde por (especie, regiao), na ordem dos ids; tamanho diferente mantem o id. Dodo e Triceratops ainda nao
+existem em `game/data/`: as vagas saem mesmo assim e o jogo ignora especie desconhecida.
 Testes: python3 -m unittest docs/design/mapa_export_test.py (ou rode o arquivo de teste direto).
 """
 import hashlib
@@ -32,7 +40,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import mapa_sim as m  # noqa: E402
 
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "game", "data", "world", "lunata.json")
-FORMAT = 1
+FORMAT = 2  # 2: vagas de bando com size_min/size_max (o jogo recusa o formato 1)
 REVISION = 2  # 2: todas as arvores coletaveis, sem arvore de cenario (os ids dos nos mudaram)
 TILE = 16
 # Indices 0 a 5 sao os terrenos de `terreno.json`; 6 e a agua funda do anel de 2 tiles junto ao raso (unica com colisao).
@@ -43,8 +51,16 @@ FEET = {"tree": (12, 8), "rock": (24, 12), "bush": (10, 6), "formation_a": (52, 
         "formation_c": (48, 12)}
 START_CLEAR = 8        # tiles sem arvore nem rocha em volta do inicio
 ID_RADIUS = 2.0        # tiles: ponto do mesmo tipo ate aqui do anterior herda o id
-SPAWN_ORDER = ["paquicefalo", "utahraptor"]  # ordem das especies no populate do jogo
 TUTORIAL_KEY = "paquicefalo_tutorial"
+# Regioes: nome -> terrenos (codigos de TERRAINS) cujos tiles entram na mascara.
+REGIONS = {"r_campina": [3], "r_mata": [4], "r_pedreira": [5], "r_campina_mata": [3, 4]}
+# Vagas de bando (bandos-e-dano-em-area.md 3 e 3.1): especie -> (regiao, tamanho_min, tamanho_max, tamanhos de cada vaga).
+SLOT_TABLE = [
+    ("dodo", "r_campina", 2, 4, [2, 3, 4, 3, 3, 2, 4, 3]),
+    ("paquicefalo", "r_campina_mata", 3, 4, [3, 4] * 10),
+    ("utahraptor", "r_mata", 2, 3, [3, 3, 2, 2]),
+    ("triceratops", "r_pedreira", 1, 2, [2, 2, 1, 1]),
+]
 SPACING = {"tree": 3.0, "rock": 3.0, "bush": 2.0, "formation": 4.0}
 
 
@@ -290,77 +306,53 @@ def reachable_ratio(placer, start):
     return ok / total, seen
 
 
-# Ponto reserva do respawn na Campina (mapa-ilha.md 12): celula do mapa; o jogo usa o centro dela em pixels.
-RESERVE_CAMPINA = (124, 200)
+def build_slots():
+    """Vagas sem id, na ordem da tabela. O id sai de `assign_slot_ids`."""
+    return [{"species": sp, "region": reg, "size": size, "size_min": lo, "size_max": hi}
+            for sp, reg, lo, hi, sizes in SLOT_TABLE for size in sizes]
 
 
-def spawns(site, rng, placer):
-    """Paquicefalos (108): nucleo 20 (o do tutorial primeiro), Campina 40, Limiar 12, Mata-baixa 36; grupos de 1 a 3."""
-    start = site["inicio"]
-    out = []
-
-    used = set()
-
-    def ok(x, y):
-        # celula livre, ainda sem paquicefalo e fora de 8 tiles do ponto reserva (a regra do respawn)
-        return (x, y) in m.MAIN and m.DSEA[y][x] >= 3 and (x, y) not in placer.blocked and (x, y) not in used \
-            and math.hypot(x - RESERVE_CAMPINA[0], y - RESERVE_CAMPINA[1]) > 8
-
-    def group(count, picker):
-        left = count
-        guard = 0
-        while left > 0 and guard < count * 400:
-            guard += 1
-            cx, cy = picker()
-            n = min(left, rng.randint(1, 3))
-            for _ in range(n):
-                for _t in range(20):
-                    x, y = cx + rng.randint(-2, 2), cy + rng.randint(-2, 2)
-                    if 0 <= x < m.S and 0 <= y < m.S and ok(x, y):
-                        out.append((x, y))
-                        used.add((x, y))
-                        left -= 1
-                        break
-
-    tut = site["paq_tutorial"]
-    out.append(tut)
-    used.add(tut)
-    nuc = [(x, y) for y in range(m.S) for x in range(m.S) if ok(x, y) and 6 <= math.hypot(x - start[0], y - start[1]) <= 16]
-    group(19, lambda: rng.choice(nuc))
-    camp = [(x, y) for (x, y) in land_tiles("C") if math.hypot(x - start[0], y - start[1]) > 16 and (x, y) not in placer.blocked]
-    group(40, lambda: rng.choice(camp))
-    lim = site["paq_limiar"]
-    group(12, lambda: (lim[0] + rng.randint(-3, 3), lim[1] + rng.randint(-3, 3)))
-    mata = [(x, y) for (x, y) in land_tiles("M") if (x, y) not in placer.blocked]
-    group(36, lambda: rng.choice(mata))
+def region_masks(rows, blocked):
+    """Mascara por regiao: runs [y, x0, x1] (x1 inclusivo) dos tiles cujo terreno esta em `terrains` e que nao
+    estao em `blocked`. Ordem fixa: y crescente, x crescente."""
+    out = {}
+    for name, terrains in REGIONS.items():
+        codes = {str(t) for t in terrains}
+        runs = []
+        for y, row in enumerate(rows):
+            x = 0
+            while x < len(row):
+                if row[x] in codes and (x, y) not in blocked:
+                    x0 = x
+                    while x + 1 < len(row) and row[x + 1] in codes and (x + 1, y) not in blocked:
+                        x += 1
+                    runs.append([y, x0, x])
+                x += 1
+        out[name] = {"terrains": list(terrains), "runs": runs}
     return out
 
 
-# Utahraptores por toca (mapa-ilha.md 5: U1 sentinela com 1; U2 a U6 bandos de 1 a 2; 10 no total, como na
-# tabela de 360 dinos). [premissa] quais bandos tem 1 e quais tem 2: U4 e a sentinela U1 ficam com 1.
-UTAHRAPTOR_PER_DEN = {"U1": 1, "U2": 2, "U3": 2, "U4": 1, "U5": 2, "U6": 2}
-UTAHRAPTOR_RADIUS = 5  # tiles em volta da toca (a ronda do CRI-12 e de 10; nascer perto basta)
-
-
-def utahraptor_spawns(site, placer, taken):
-    """Celulas dos Utahraptores, na ordem das tocas (U1..U6). Semente propria: nao mexe no sorteio dos
-    paquicefalos (os indices deles no save continuam valendo)."""
-    rng = random.Random(m.SEED * 104729 + 7)
+def assign_slot_ids(slots, previous_slots, counter, report):
+    """Poe `id` nas vagas. Por (especie, regiao), as anteriores em ordem de id herdam o id; excedente e aposentado;
+    falta ganha id novo (contador `counter["g"]`, nunca volta). Devolve as vagas novas com `id` em primeiro."""
+    def num(slot):
+        return int(slot["id"][1:])
+    olds = {}
+    for o in sorted(previous_slots, key=num):
+        olds.setdefault((o["species"], o["region"]), []).append(o["id"])
     out = []
-    used = set(taken)
-    for name in sorted(UTAHRAPTOR_PER_DEN):
-        den = site["tocas"][name]
-        near = [(x, y) for y in range(den[1] - UTAHRAPTOR_RADIUS, den[1] + UTAHRAPTOR_RADIUS + 1)
-                for x in range(den[0] - UTAHRAPTOR_RADIUS, den[0] + UTAHRAPTOR_RADIUS + 1)
-                if 0 <= x < m.S and 0 <= y < m.S and (x, y) in m.MAIN and m.DSEA[y][x] >= 5
-                and biome_of(x, y) == "M" and (x, y) not in placer.blocked and (x, y) not in used
-                and 2 <= math.hypot(x - den[0], y - den[1]) <= UTAHRAPTOR_RADIUS]
-        for _ in range(UTAHRAPTOR_PER_DEN[name]):
-            cell = near.pop(rng.randrange(len(near)))
-            used.add(cell)
-            out.append(cell)
+    for slot in slots:
+        queue = olds.get((slot["species"], slot["region"]), [])
+        if queue:
+            sid = queue.pop(0)
+            report["kept"].append(sid)
+        else:
+            counter["g"] += 1
+            sid = "g%d" % counter["g"]
+            report["new"].append(sid)
+        out.append({"id": sid, **slot})
+    report["retired"] += [i for q in olds.values() for i in q]
     return out
-
 
 
 def match_ids(old_points, new_points, old_ids):
@@ -382,40 +374,23 @@ def match_ids(old_points, new_points, old_ids):
     return out
 
 
-def first_spawn_ids(spawns, tutorial):
-    """Primeira geracao: o indice do `populate` do jogo (w<i>) para quem ele cria; os demais seguem depois."""
-    ids, index, extra = {}, 0, 0
-    for kind in SPAWN_ORDER:
-        ids[kind] = [None] * len(spawns[kind])
-        seen = set()
-        for i, p in enumerate(spawns[kind]):
-            if tuple(p) == tuple(tutorial) or tuple(p) in seen or sum(x is not None for x in ids[kind]) >= 107:
-                continue
-            seen.add(tuple(p))
-            ids[kind][i] = "w%d" % index
-            index += 1
-    for kind in SPAWN_ORDER:
-        for i, v in enumerate(ids[kind]):
-            if v is None:
-                ids[kind][i] = "w%d" % (index + extra)
-                extra += 1
-    return ids, index + extra
-
-
 def assign_ids(data, previous, first_generation):
-    """Poe `spawn_ids`, `node_ids` e `id_counter` em `data`. Devolve o relatorio {mantidos, novos, aposentados}."""
+    """Poe `node_ids` e `id_counter` em `data`. Devolve o relatorio {mantidos, novos, aposentados}."""
     report = {"kept": [], "new": [], "retired": []}
     if first_generation:
-        spawn_ids, wc = first_spawn_ids(data["spawns"], data["landmarks"]["paquicefalo_tutorial"])
         node_ids, nc = {}, 0
         for kind in sorted(data["nodes"]):
             node_ids[kind] = ["n%d" % (nc + i + 1) for i in range(len(data["nodes"][kind]))]
             nc += len(data["nodes"][kind])
-        report["new"] = [i for v in list(spawn_ids.values()) + list(node_ids.values()) for i in v]
-        data["spawn_ids"], data["node_ids"], data["id_counter"] = spawn_ids, node_ids, {"w": wc, "n": nc}
+        report["new"] = [i for v in list(node_ids.values()) for i in v]
+        counter = {"w": 0, "n": nc, "g": 0}
+        if "spawn_slots" in data:
+            data["spawn_slots"] = assign_slot_ids(data["spawn_slots"], [], counter, report)
+        data["node_ids"], data["id_counter"] = node_ids, counter
         return report
     counter = dict(previous["id_counter"])
-    for group, prefix, key in (("spawns", "w", "spawn_ids"), ("nodes", "n", "node_ids")):
+    counter.setdefault("g", 0)
+    for group, prefix, key in (("nodes", "n", "node_ids"),):
         data[key] = {}
         for kind, pts in data[group].items():
             old = previous[group].get(kind, [])
@@ -429,10 +404,12 @@ def assign_ids(data, previous, first_generation):
                 else:
                     report["kept"].append(v)
             data[key][kind] = got
-    data["id_counter"] = counter
     still = set(report["kept"])
-    old_all = [i for k in ("spawn_ids", "node_ids") for v in previous[k].values() for i in v]
+    old_all = [i for k in ("node_ids",) for v in previous[k].values() for i in v]
     report["retired"] = [i for i in old_all if i not in still]
+    if "spawn_slots" in data:
+        data["spawn_slots"] = assign_slot_ids(data["spawn_slots"], previous.get("spawn_slots", []), counter, report)
+    data["id_counter"] = counter
     return report
 
 
@@ -440,12 +417,17 @@ def canonical(data):
     """Copia do conteudo sem `revision` e `content_hash`, com listas de pontos ordenadas (id, x, y) para a
     ordem nao mexer no hash. Os terrenos (`rows`) mantem a ordem: ela e o conteudo."""
     c = {k: v for k, v in data.items() if k not in ("revision", "content_hash")}
-    for group, key in (("spawns", "spawn_ids"), ("nodes", "node_ids")):
+    for group, key in (("nodes", "node_ids"),):
         merged = {}
         for kind, pts in data[group].items():
             merged[kind] = sorted([i, p[0], p[1]] for i, p in zip(data[key][kind], pts))
         c[group] = merged
         del c[key]
+    if "spawn_slots" in data:
+        c["spawn_slots"] = sorted(data["spawn_slots"], key=lambda sl: int(sl["id"][1:]))
+    if "spawn_regions" in data:
+        c["spawn_regions"] = {n: {"terrains": sorted(r["terrains"]), "runs": sorted(r["runs"])}
+                              for n, r in data["spawn_regions"].items()}
     c["portal_pieces"] = sorted(data["portal_pieces"])
     c["scenery"] = {k: sorted(v) for k, v in data["scenery"].items()}
     return c
@@ -462,7 +444,7 @@ def load_previous(path):
         return None
     with open(path, encoding="utf-8") as f:
         prev = json.load(f)
-    return prev if all(k in prev for k in ("spawn_ids", "node_ids", "id_counter")) else None
+    return prev if all(k in prev for k in ("node_ids", "id_counter")) else None
 
 
 def export():
@@ -475,8 +457,6 @@ def export():
     for kind, x, y, _ in marks:
         placer.add(kind, x, y)
     ratio, seen = reachable_ratio(placer, start)
-    sp = spawns(site, rng, placer)
-    ut = utahraptor_spawns(site, placer, sp)
     scenery = {"formation_a": [], "formation_b": [], "formation_c": []}
     for kind, x, y in forms:
         scenery[kind].append((x, y))
@@ -484,6 +464,7 @@ def export():
         scenery[kind].append((x, y))
     for k in ("formation_a", "formation_b", "formation_c"):
         scenery[k] = sorted(set(scenery[k]))
+    rows = build_terrain()
     data = {
         "format": FORMAT,
         "revision": REVISION,
@@ -494,7 +475,7 @@ def export():
         "size": m.S,
         "seed": m.SEED,
         "terrains": TERRAINS,
-        "rows": build_terrain(),
+        "rows": rows,
         "start": list(start),
         "landmarks": {
             "arco_da_enseada": list(site["arco"]),
@@ -509,7 +490,8 @@ def export():
         "nodes": {k: [list(p) for p in sorted(v)] for k, v in nodes.items()},
         "loose_stone_respawn": {"core": 300, "trail": 600, "core_count": len(loose_core)},
         "scenery": {k: [list(p) for p in v] for k, v in scenery.items()},
-        "spawns": {"paquicefalo": [list(p) for p in sp], "utahraptor": [list(p) for p in ut]},
+        "spawn_slots": build_slots(),
+        "spawn_regions": region_masks(rows, placer.blocked),
     }
     return data, ratio
 
@@ -545,8 +527,8 @@ def main():
     n = data["nodes"]
     print("gravado %s (%d bytes)" % (path, len(text.encode())))
     print("nos:", {k: len(v) for k, v in n.items()}, "| cenario:", {k: len(v) for k, v in data["scenery"].items()},
-          "| paquicefalos:", len(data["spawns"]["paquicefalo"]),
-          "| utahraptores:", len(data["spawns"]["utahraptor"]))
+)
+    print("vagas:", len(data["spawn_slots"]), "| runs:", {k: len(v["runs"]) for k, v in data["spawn_regions"].items()})
     print("terra firme alcancavel a pe, com obstaculos: %.2f%%" % (ratio * 100))
     print("ids: %d mantidos, %d novos, %d aposentados | content_hash %s" % (
         len(report["kept"]), len(report["new"]), len(report["retired"]), data["content_hash"]))

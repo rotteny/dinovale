@@ -682,8 +682,33 @@ func _test_sprite_facing() -> void:
 	_check(SpriteFacing.column_for(Vector2.RIGHT, 9) == SpriteFacing.RIGHT, "direita = coluna 3")
 	_check(SpriteFacing.column_for(Vector2(1.0, 0.4), 9) == SpriteFacing.RIGHT, "diagonal: eixo dominante")
 	_check(SpriteFacing.column_for(Vector2.ZERO, 2) == 2, "sem direção: mantém o fallback")
+	_test_facing_for()
 	_check(SpriteFacing.walk_row(0.0) == 0 and SpriteFacing.walk_row(0.13) == 1 and SpriteFacing.walk_row(0.26) == 2
 			and SpriteFacing.walk_row(0.38) == 3 and SpriteFacing.walk_row(0.5) == 0, "ciclo de 4 quadros a 8 por segundo")
+
+
+## 8 direções: setor de 45 graus, histerese de 8 graus e folha de 4 linhas caindo no cardinal.
+func _test_facing_for() -> void:
+	var cases := {
+		Vector2.DOWN: SpriteFacing.DOWN, Vector2.UP: SpriteFacing.UP, Vector2.LEFT: SpriteFacing.LEFT,
+		Vector2.RIGHT: SpriteFacing.RIGHT, Vector2(-1, 1): SpriteFacing.DOWN_LEFT, Vector2(1, 1): SpriteFacing.DOWN_RIGHT,
+		Vector2(-1, -1): SpriteFacing.UP_LEFT, Vector2(1, -1): SpriteFacing.UP_RIGHT,
+	}
+	for direction: Vector2 in cases:
+		_check(SpriteFacing.facing_for(direction, 99, 8) == cases[direction], "facing_for 8 linhas: %s" % direction)
+	_check(SpriteFacing.facing_for(Vector2.ZERO, 5, 8) == 5, "facing_for: sem direção mantém a linha")
+	# histerese: de DOWN (centro 90 graus) o limite é 22,5 + 8 = 30,5 graus; 40 graus de 90 é setor de baixo-direita
+	var near_edge := Vector2.from_angle(deg_to_rad(90.0 - 27.0))  # já no setor de baixo-direita, dentro da folga
+	_check(SpriteFacing.facing_for(near_edge, SpriteFacing.DOWN, 8) == SpriteFacing.DOWN, "histerese: dentro da folga, não troca")
+	_check(SpriteFacing.facing_for(near_edge, SpriteFacing.DOWN_RIGHT, 8) == SpriteFacing.DOWN_RIGHT,
+			"histerese: do outro lado, também fica")
+	var past := Vector2.from_angle(deg_to_rad(90.0 - 33.0))
+	_check(SpriteFacing.facing_for(past, SpriteFacing.DOWN, 8) == SpriteFacing.DOWN_RIGHT, "histerese: passou da folga, troca")
+	_check(SpriteFacing.facing_for(Vector2(-1, 1.2), 9, 4) == SpriteFacing.DOWN,
+			"folha de 4 linhas: diagonal vira o cardinal dominante")
+	_check(SpriteFacing.facing_for(Vector2(-3, 1), SpriteFacing.UP_LEFT, 4) == SpriteFacing.LEFT, "folha de 4 linhas nunca devolve diagonal")
+	_check(SpriteFacing.facing_for(Vector2.ZERO, SpriteFacing.UP_LEFT, 4) == SpriteFacing.DOWN,
+			"folha de 4 linhas, sem direção e linha de 8: de frente")
 
 
 func _test_dino_view_sprite_frames() -> void:
@@ -693,7 +718,7 @@ func _test_dino_view_sprite_frames() -> void:
 	var view := _spawn_view(dino)
 	var sheet := SpriteSheetDef.from_json_file(dino.stats.sheet_path)
 	_check(sheet.is_valid() and dino.visual.hframes == sheet.columns and dino.visual.vframes == sheet.rows
-			and dino.visual.hframes == 11 and dino.visual.vframes == 4, "sprite do dino: folha 11x4 lida do JSON")
+			and dino.visual.hframes == 11 and dino.visual.vframes == 8, "sprite do dino: folha 11x8 lida do JSON")
 	_check(dino.visual.texture.get_size() == Vector2(sheet.frame_size * Vector2i(sheet.columns, sheet.rows)), "o PNG tem o tamanho do JSON")
 	view.tick(0.01)
 	_check(dino.visual.frame_coords == Vector2i(0, SpriteFacing.DOWN), "parado: de frente, coluna 0 do idle")
@@ -722,7 +747,7 @@ func _test_player_view_frames() -> void:
 	view.player = player
 	_root.add_child(view)
 	_track.call(view)
-	_check(player.visual.hframes == 10 and player.visual.vframes == 4, "sprite do jogador: folha 10x4 (quadros 32x32)")
+	_check(player.visual.hframes == 10 and player.visual.vframes == 8, "sprite do jogador: folha 10x8 (quadros 32x32)")
 	var sheet := SpriteSheetDef.from_json_file(PlayerView.SHEET_PATH)
 	view.tick(0.01)
 	_check(player.visual.frame_coords == Vector2i(0, SpriteFacing.DOWN), "parado de frente: coluna 0 do idle")

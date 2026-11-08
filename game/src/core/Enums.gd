@@ -6,6 +6,9 @@ extends RefCounted
 
 enum DinoStateId { IDLE, WANDER, UNCONSCIOUS, TAMED, CHASE }
 
+## Porte da espécie. Em dado, o NOME (`DinoBaseStats.size`); só Grande pode ter dano em área.
+enum DinoSize { SMALL, MEDIUM, LARGE }
+
 ## Ordem de movimento do dino domado (GDD 6.11). STAY é o padrão de quem acabou de ser domado.
 enum DinoOrder { STAY, FOLLOW }
 

@@ -84,24 +84,21 @@ func _test_island_map_data() -> void:
 	_check(map.nearest_walkable_point(map.start_point(), 3, Vector2.ZERO) == map.start_point(), "em chão caminhável fica onde está")
 
 
-## Dados do mapa que o jogo usa: paquicéfalo sem célula repetida e a reserva do respawn livre e em terra.
+## Dados do mapa que o jogo usa: 36 vagas de bando (ids únicos, região conhecida) e a reserva do respawn livre e em terra.
 func _test_map_spawns_and_reserve() -> void:
 	var map := IslandMap.default_map()
-	var seen := {}
-	var repeated := 0
-	for cell: Vector2i in map.spawns.get("paquicefalo", []):
-		if seen.has(cell):
-			repeated += 1
-		seen[cell] = true
-	_check(repeated == 0 and seen.size() == WORLD_RULES.wild_population_max,
-			"108 paquicéfalos, nenhum na mesma célula (%d repetidos)" % repeated)
+	var by_species := {}
+	var ids := {}
+	for slot in map.spawn_slots:
+		by_species[slot["species"]] = int(by_species.get(slot["species"], 0)) + 1
+		ids[slot["id"]] = true
+	_check(map.spawn_slots.size() == 36 and ids.size() == 36 and by_species == {"dodo": 8, "paquicefalo": 20, "utahraptor": 4,
+			"triceratops": 4},
+			"o mapa traz 36 vagas de bando, de id único (%s)" % str(by_species))
+	_check(map.spawn_regions.size() == 4 and not map.region_cells("r_campina_mata").is_empty(), "as quatro regiões de nascimento carregaram")
 	var reserve := map.cell_of(RESPAWN_RULES.default_fallback_point)
 	_check(map.terrain_at(reserve) == IslandMap.GRASSLAND and map.cell_of(RESPAWN_RULES.regions[0].fallback_point) == reserve,
 			"o ponto reserva do respawn é a Campina do mapa-ilha.md (%s)" % str(reserve))
-	var nearest := INF
-	for cell: Vector2i in seen:
-		nearest = minf(nearest, Vector2(cell - reserve).length())
-	_check(nearest * map.tile >= RESPAWN_RULES.min_distance_from_wild, "nenhum paquicéfalo nasce a menos da folga do ponto reserva")
 
 
 func _test_island_map_rejects_bad_data() -> void:
@@ -120,6 +117,11 @@ func _test_island_map_rejects_bad_data() -> void:
 	var wrong_format: Dictionary = good.duplicate(true)
 	wrong_format["format"] = 99
 	_check(not map.load_dict(wrong_format), "formato desconhecido: recusa")
+	var old_format: Dictionary = good.duplicate(true)
+	old_format["format"] = 1
+	_check(not map.load_dict(old_format) and not map.is_valid() and map.load_error.contains("formato 1")
+			and map.load_error.contains("mapa_export.py"), "formato 1: recusa com erro claro (%s)" % map.load_error)
+	_check(map.load_dict(good) and map.load_error == "", "formato atual: carrega e limpa o erro")
 	var junk: Dictionary = good.duplicate(true)
 	junk["nodes"] = {"tree": [[1, 2], "x", [999999, 4], [3], null], "rock": 7}
 	junk["start"] = "no meio"
@@ -348,7 +350,7 @@ func _test_world_rules() -> void:
 			"minério existe em dado, desligado na v0.2 (sem coleta)")
 	_check(rules.loose_core_respawn_seconds == 300.0 and rules.core_radius_tiles == 16.0,
 			"pedra avulsa do núcleo volta em 300 s, raio de 16 tiles")
-	_check(rules.wild_population_max == 108 and rules.level_band_of(IslandMap.QUARRY) == Vector2i(15, 35),
+	_check(rules.level_band_of(IslandMap.QUARRY) == Vector2i(15, 35),
 			"população e faixa de nível vêm do dado")
 	_check(rules.scenery_by_id("formation_a") != null and rules.scenery_by_id("nada") == null, "cenário por id")
 
@@ -681,10 +683,11 @@ func _test_zone_in_main() -> void:
 		var right := again.wild.get_child(i) as Dino
 		same = same and left.position == right.position and left.level == right.level
 	_check(same, "o mesmo mapa dá os mesmos selvagens, nos mesmos lugares e níveis")
-	var predators: int = main.map.spawns["utahraptor"].size()
-	_check(predators == 10 and zone.dino_count() == main.world_rules.wild_population_max + predators
-		and main.wild.get_child_count() == main.world_rules.wild_population_max - 1 + predators,
-			"a ilha nasce com 108 paquicéfalos (o do tutorial e 107 pelo mapa) e 10 utahraptores (%d)" % zone.dino_count())
+	var raptors := 0
+	for creature in main.wild.get_children():
+		raptors += 1 if (creature as Dino).stats.spawn_key == "utahraptor" else 0
+	_check(raptors == 10 and zone.dino_count() == main.wild.get_child_count() + 1 and main.wild.get_child_count() == 80,
+			"a ilha nasce com 24 bandos conhecidos (70 paquicéfalos e 10 utahraptores) mais o do tutorial (%d)" % zone.dino_count())
 	_check(zone.active_count + zone.far_count + zone.dormant_count == zone.dino_count() and zone.active_count <= 32,
 			"todo dino tem modo e o teto vale")
 	_check(zone.far_count > 0 and zone.dormant_count > 0, "do início há dino distante e dormindo")
@@ -697,18 +700,14 @@ func _test_zone_in_main() -> void:
 	_check(levels_ok, "todo selvagem nasce em terra e com nível da faixa do bioma")
 	# Dormente: sem processamento e sem desenho. Ativo: processa.
 	var dormant: Dino = null
-	var active: Dino = null
 	for creature in zone.dinos():
 		if creature == main.dino:
 			continue  # o do tutorial a `_main` deixa ligado de propósito
 		match zone.mode_of(creature):
 			ActivityZone.Mode.DORMANT:
 				dormant = creature if dormant == null else dormant
-			ActivityZone.Mode.ACTIVE:
-				active = creature if active == null else active
 	_check(dormant != null and dormant.process_mode == Node.PROCESS_MODE_DISABLED and not dormant.visible,
 			"dormente: sem processamento e sem desenho")
-	_check(active != null and active.process_mode == Node.PROCESS_MODE_INHERIT and active.visible, "ativo: pensa e desenha")
 	# Distante: só dado. Passeia no tempo do dado e só por terra.
 	var distant: Dino = null
 	for creature in zone.dinos():
@@ -731,7 +730,7 @@ func _test_zone_in_main() -> void:
 	main.player.position = target
 	zone.tick(zone.rules.reevaluate_seconds)
 	_check(zone.mode_of(dormant) == ActivityZone.Mode.ACTIVE and dormant.process_mode == Node.PROCESS_MODE_INHERIT and dormant.visible,
-			"o jogador chega perto: o dormente acorda")
+			"o jogador chega perto: o dormente acorda, e ativo pensa e desenha")
 	main.player.position = Vector2(8, 8)  # no mar, longe de tudo
 	zone.tick(zone.rules.reevaluate_seconds)
 	_check(zone.active_count == 0 and zone.far_count == 0 and zone.dormant_count == zone.dino_count(), "longe de todos, todos dormem")
@@ -744,10 +743,11 @@ func _test_zone_in_main() -> void:
 			"o domado fica ativo longe do dono (o relógio dele corre)")
 	_check(zone.active_count == 1, "só o domado ficou ativo")
 	# Quem sai do mundo sai da zona.
+	var before := zone.dino_count()
 	var gone: Dino = main.wild.get_child(0)
 	gone.free()
 	zone.reclassify()
-	_check(zone.dino_count() == main.world_rules.wild_population_max + 10 - 1, "dino removido sai da zona")
+	_check(zone.dino_count() == before - 1, "dino removido sai da zona")
 
 
 func _test_zone_load_360() -> void:
@@ -761,7 +761,9 @@ func _test_zone_load_360() -> void:
 	var map := main.map
 	var rng := SeededRng.new()
 	rng.seed_from(["carga"])
-	var spawns: Array = map.spawns["paquicefalo"]
+	var spawns: Array = []
+	for creature in main.wild.get_children():
+		spawns.append(map.cell_of((creature as Dino).position))
 	var guard := 0
 	while main.zone.dino_count() < 360 and guard < 5000:
 		guard += 1
@@ -800,9 +802,9 @@ func _test_save_v5() -> void:
 	_check(outcome.status == SaveManager.Status.OK and outcome.data.get("format_version") == 5 and SaveMigrations.CURRENT_VERSION == 5,
 			"fixture v5 carrega sem migrar")
 	var world: Dictionary = outcome.data.get("world", {})
-	_check(world.get("map_id") == "lunata" and world.get("map_revision") == IslandMap.default_map().content_hash
+	_check(world.get("map_id") == "lunata" and world.get("map_revision") == SaveMigrations.FIRST_ID_MAP_HASH
 			and not world.has("rows") and not world.has("nodes"),
-			"o save leva o id e o hash do mapa, nunca o mapa")
+			"o save leva o id e o hash do mapa (o da exportação em que a fixture foi gravada), nunca o mapa")
 	_check(FileAccess.get_file_as_string(FIXTURE_V5).length() < 8000, "o save é pequeno: o mapa estático fica fora dele")
 	var main := _main("fixture_v5", 20, true)
 	await tree.physics_frame
@@ -811,8 +813,10 @@ func _test_save_v5() -> void:
 			"fixture v5 é aplicada ao mundo")
 	_check(main.player.player_id == world["local_player_id"] and main.authority.clock.now() == 1000.0,
 			"o jogador local vem de world.local_player_id e o relógio do mundo é reposto")
-	_check(main.wild.creature_at("w3") == null and main.wild.is_dead("w3") and main.wild.creature_at("w4") != null,
-			"o selvagem morto do save não volta; o vizinho segue")
+	_check(main.wild.creature_at(_wid(main, 3)) != null and not main.wild.is_dead(_wid(main, 3))
+			and main.wild.creature_at(_wid(main, 4)) != null
+			and main.wild.world_seed == IslandMap.default_map().seed_value,
+			"save anterior à emenda: o id w3 do delta é ignorado (ninguém some) e, sem world.seed, vale a semente do mapa")
 	var stone := main.resources.node_by_id("n160")
 	var wood := main.resources.node_by_id("n318")
 	_check(not stone.is_available() and stone.component.due_at == 1500.0 and not wood.is_available()
@@ -909,16 +913,23 @@ func _test_migration_v4_to_v5() -> void:
 	junk["world"]["wild"] = [{"index": -3, "dead": true}, {"index": "x", "dead": true}, 5]
 	var junk_out: Array = SaveMigrations.v4_to_v5(junk, fixed_id)["world"]["wild"]
 	_check(junk_out == [{"index": -3, "dead": true}, {"index": "x", "dead": true}, 5], "índice inválido não vira id")
-	# A numeração congelada confere com a primeira exportação (só enquanto o mapa for ela).
+	# A numeração congelada é a da primeira exportação com ids, e a migração não lê o arquivo de hoje (o hash dele muda a cada
+	# exportação): confere a tabela contra si mesma e com os nós do mapa só quando ele ainda tem aquele bloco.
 	var map := IslandMap.default_map()
-	if map.content_hash == SaveMigrations.FIRST_ID_MAP_HASH:
-		for kind: String in SaveMigrations.V4_NODE_BLOCKS:
-			var block: Array = SaveMigrations.V4_NODE_BLOCKS[kind]
-			var ids: Array = map.node_ids[kind]
-			_check(ids.size() == int(block[1]) and ids[0] == "n%d" % (int(block[0]) + 1) and ids[-1] == "n%d" % (int(block[0]) + int(block[1])),
-					"a tabela congelada de %s bate com os ids do mapa" % kind)
-		_check(map.spawn_ids["paquicefalo"][1] == "w0" and map.spawn_ids["utahraptor"][0] == "w107",
-				"os spawns seguem a numeração do populate de então (w0 no 2º ponto, w107 no 1º utahraptor)")
+	var next_free := 0
+	for kind: String in SaveMigrations.V4_NODE_BLOCKS:  # as chaves já estão em ordem alfabética: os blocos são contíguos
+		var block: Array = SaveMigrations.V4_NODE_BLOCKS[kind]
+		_check(int(block[0]) == next_free, "a tabela congelada de %s começa onde a anterior terminou" % kind)
+		next_free += int(block[1])
+		var ids: Array = map.node_ids.get(kind, [])
+		if ids.size() == int(block[1]):
+			_check(ids[0] == "n%d" % (int(block[0]) + 1) and ids[-1] == "n%d" % (int(block[0]) + int(block[1])),
+					"os ids de nó de %s no mapa seguem a tabela congelada" % kind)
+	_check(next_free == 1344 and SaveMigrations.V4_SPAWN_COUNT == 117, "a tabela congelada: 1344 nós e 117 selvagens")
+	var edge_wild: Array = SaveMigrations.v4_to_v5({"world": {"map_id": "lunata", "map_revision": 2, "wild": [
+			{"index": 0, "dead": true}, {"index": 116, "dead": true}, {"index": 117, "dead": true}]}}, fixed_id)["world"]["wild"]
+	_check(edge_wild[0]["id"] == "w0" and edge_wild[1]["id"] == "w116" and edge_wild[2].has("index"),
+			"índice 0 a 116 do v4 vira w0 a w116; o 117 (fora da lista de então) não vira id")
 	# Mesmo segundo de jogo antes e depois: o nó (230 s) e a carcaça (idade 100 de 600) vencem como venceriam no v4.
 	var aged := v4.duplicate(true)
 	aged["world"]["carcasses"] = [{"id": 570, "species": "placeholder_dino", "level": 12, "x": 2000.0, "y": 3000.0, "age": 100.0}]
@@ -950,7 +961,8 @@ func _test_migration_v4_to_v5() -> void:
 	_check(loaded.player.player_id.length() == 32 and loaded.player.player_id != "local"
 			and loaded.player.player_id.is_valid_hex_number(false),
 			"Continuar de um v4: o jogador ganha um id aleatório de 32 hex")
-	_check(loaded.wild.is_dead("w3") and not loaded.resources.node_by_id("n318").is_available(), "Continuar de um v4: o delta vale por id")
+	_check(not loaded.wild.is_dead(_wid(loaded, 3)) and not loaded.resources.node_by_id("n318").is_available(),
+			"Continuar de um v4: o delta de nó vale por id; o de selvagem w<n> é de outro modelo e é ignorado")
 
 
 func _test_continue_from_v3() -> void:

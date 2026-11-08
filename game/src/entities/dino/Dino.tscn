@@ -27,7 +27,7 @@ shape = SubResource("RectangleShape2D_body")
 texture = ExtResource("8_sprite")
 offset = Vector2(0, -6)
 hframes = 11
-vframes = 4
+vframes = 8
 
 [node name="HealthComponent" type="Node" parent="."]
 script = ExtResource("2_health")

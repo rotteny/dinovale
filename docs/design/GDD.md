@@ -1303,7 +1303,7 @@ M2 (Cama e Saco com a construção; o respawn mínimo do M1 fica como está, só
 
 Co-op é **M3** (plano), não Must da 0.2; o design já assume 2 a 8 jogadores. Servidor autoritativo (ADR-001); single-player é host local. Servidor pequeno, imagem Docker, uma porta UDP.
 
-Regras configuráveis por servidor. **Atualizado em 07/11:** o formato é o **`server_rules.json`** do ADR-004 (`user://saves/<mundo>/server_rules.json`, ou `--server-rules=<caminho>` no servidor dedicado), lido pelo `ServerRules` no carregamento do mundo; as `.tres` dão o padrão. **Já existem 7 chaves:** `multiplicador_coleta`, `respawn_recurso`, `faixas_de_nivel`, `respawn_protecao_s`, `respawn_fome_pct`, `eficiencia_fixa_ataque_jogador` e `eficiencia_fixa_ataque_carnivoro`; as demais da tabela entram quando a etapa que as usa chegar. **`dano_fome` fica obsoleta** (fome sem dano, 5.10). Duração do ciclo de dia e frequência da chuva entram como chaves novas **[provisório, aguarda o dono]**.
+Regras configuráveis por servidor. **Atualizado em 07/11:** o formato é o **`server_rules.json`** do ADR-004 (`user://saves/<mundo>/server_rules.json`, ou `--server-rules=<caminho>` no servidor dedicado), lido pelo `ServerRules` no carregamento do mundo; as `.tres` dão o padrão. **Já existem 8 chaves:** `multiplicador_coleta`, `respawn_recurso`, `faixas_de_nivel`, `respawn_protecao_s`, `respawn_fome_pct`, `eficiencia_fixa_ataque_jogador`, `eficiencia_fixa_ataque_carnivoro` e `pvp` (08/11); as demais da tabela entram quando a etapa que as usa chegar. **`dano_fome` fica obsoleta** (fome sem dano, 5.10). Duração do ciclo de dia e frequência da chuva entram como chaves novas **[provisório, aguarda o dono]**.
 
 | Chave | Padrão | O que muda |
 |---|---|---|
@@ -1324,6 +1324,7 @@ Regras configuráveis por servidor. **Atualizado em 07/11:** o formato é o **`s
 | `eficiencia_fixa_ataque_jogador` / `_carnivoro` | 4 / 8 | Perda de Eficiência por ataque ao dormindo |
 | `raio_ronco_tiles` | 8 | Detecção do dormindo pelo carnívoro |
 | `faixas_de_nivel` | 10.3 | Níveis por bioma |
+| `pvp` | desligado | Golpe em área acerta domados de outro jogador |
 | `eficiencia_drena_tempo` | **0,15/s (decidido; era 0,3)** | Pressão de domar demorado |
 | `domar_velocidade` | 1,0 | Taxa de domar: tempo / taxa (5.14) |
 | `pontos_por_nivel` / `valor_ponto` | 1 / 6% | Pontos por nível e valor de cada um |

@@ -27,6 +27,7 @@ const CUSTOM_FILE := {
 	"respawn_fome_pct": 80,
 	"eficiencia_fixa_ataque_jogador": 20.0,
 	"eficiencia_fixa_ataque_carnivoro": 30.0,
+	"pvp": true,
 }
 
 var _case_dir: String = ""
@@ -40,6 +41,7 @@ func run() -> void:
 	_test_absent_file()
 	_test_unknown_key()
 	_test_level_bands()
+	_test_pvp()
 	_test_no_leak_into_preload()
 	_test_path()
 	await _test_consumers()
@@ -226,6 +228,17 @@ func _test_level_bands() -> void:
 	_check(wrong_type.problems.size() == 1 and fractional.problems.size() == 1, "faixas fora de forma e nível fracionário avisam")
 
 
+## `pvp` é booleano: só `true`/`false` valem; qualquer outro tipo volta a falso com um aviso.
+func _test_pvp() -> void:
+	_check(not ServerRules.parse("{}", _defaults()).pvp, "pvp: padrão falso")
+	var on := ServerRules.parse('{"pvp": true}', _defaults())
+	_check(on.pvp and on.problems.is_empty(), "pvp: true liga")
+	for bad in ['null', '"true"', '1', '0', '[true]', '{"a": 1}']:
+		var rules := ServerRules.parse('{"pvp": %s}' % bad, _defaults())
+		_check(not rules.pvp and rules.problems.size() == 1, "pvp: %s cai em falso com um aviso" % bad)
+	_check(ServerRules.parse("{}", _defaults()).as_file_data().get("pvp", null) == false, "pvp: o arquivo novo traz a chave, falsa")
+
+
 func _test_no_leak_into_preload() -> void:
 	var rules := ServerRules.parse(JSON.stringify(CUSTOM_FILE), _defaults())
 	var before_protection := RESPAWN_RULES.protection_seconds
@@ -372,6 +385,8 @@ func _test_consumers() -> void:
 		),
 		"ataque de carnívoro no dormindo: -8 no padrão, -30 trocado"
 	)
+	# pvp
+	_check(not plain.authority.pvp_enabled and custom.authority.pvp_enabled, "pvp: a autoridade recebe a chave do mundo")
 	# os selvagens do mapa recebem as regras de doma do mundo
 	_check(
 		(

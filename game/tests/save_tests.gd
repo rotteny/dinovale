@@ -103,10 +103,11 @@ func _fresh_pair() -> Array:
 	return [player, dino]
 
 
-func _main(world: String, level: int = 20, no_menu: bool = false) -> Main:
+func _main(world: String, level: int = 20, no_menu: bool = false, seed_value: int = 0) -> Main:
 	var main: Main = MAIN_SCENE.instantiate()
 	main.world_id = world
 	main.dino_level = level
+	main.world_seed = seed_value  # 0 = a semente fixa dos testes (`GameSession.world_seed_override`)
 	if no_menu:
 		main.menu_scene = ""  # a carga que falha trocaria a cena do teste
 	_root.add_child(main)
@@ -119,6 +120,11 @@ func _main(world: String, level: int = 20, no_menu: bool = false) -> Main:
 	main.dino.process_mode = Node.PROCESS_MODE_INHERIT
 	main.dino.visible = true
 	return main
+
+
+## Id do `index`-ésimo membro selvagem do mundo (ordem de vaga e de `k`): os ids dependem da semente, os testes não.
+func _wid(main: Main, index: int) -> String:
+	return main.wild.member_ids()[index]
 
 
 func _canonical(data: Dictionary) -> String:

@@ -1,0 +1,41 @@
+{
+	"area_segura_botoes": [
+		108,
+		64,
+		104,
+		108
+	],
+	"area_segura_titulo": [
+		56,
+		8,
+		208,
+		48
+	],
+	"camadas": [
+		"ceu",
+		"longe",
+		"meio",
+		"perto",
+		"frente"
+	],
+	"observacao": "camada comeca em (-16,-16) da tela; deslocar no maximo 16 px; nearest; sem escala fracionada",
+	"origem_camada": [
+		-16,
+		-16
+	],
+	"parallax_sugerido": {
+		"ceu": 0.1,
+		"frente": 1.0,
+		"longe": 0.2,
+		"meio": 0.4,
+		"perto": 0.7
+	},
+	"tamanho_camada": [
+		352,
+		212
+	],
+	"tela": [
+		320,
+		180
+	]
+}

@@ -2,12 +2,18 @@
 class_name IslandMap
 extends RefCounted
 ## O mapa estático da ilha Lunata (`res://data/world/lunata.json`, gerado por `docs/design/mapa_export.py`):
-## terreno por tile, início, marcos, posição dos nós de recurso, do cenário e dos nascimentos. Lógica pura,
+## terreno por tile, início, marcos, posição dos nós de recurso e do cenário e as vagas de bando selvagem (ADR-007,
+## emenda de 07/11: o mapa diz ONDE cada espécie pode nascer, não o ponto). Lógica pura,
 ## sem nó nem física: o jogo o LÊ, nunca o gera ao rodar, e ele NÃO vai ao save (só o estado dos nós).
 ## Dado externo: lido só com `JSON`, validado ao carregar; arquivo ruim vira mapa vazio (`is_valid()` falso).
 
 const DEFAULT_PATH := "res://data/world/lunata.json"
-const FORMAT := 1
+const FORMAT := 2
+## Tetos do que se lê do arquivo (dado de fora não é confiável).
+const MAX_RUNS := 100000
+const MAX_SLOTS := 1024
+const MAX_SLOT_ID_LENGTH := 32
+const MAX_GROUP_SIZE := 16
 
 ## Índices do terreno (a mesma ordem do `terreno.json`; 6 é a água funda do anel com colisão).
 const DEEP := 0
@@ -34,11 +40,17 @@ var dens: Dictionary = {}
 ## Posições (em tiles) por tipo de nó: `{"tree": [Vector2i, ...], ...}`.
 var nodes: Dictionary = {}
 var scenery: Dictionary = {}
-var spawns: Dictionary = {}
-## Ids estáveis (ADR-007), alinhados índice a índice com `nodes[tipo]` e `spawns[tipo]`: `{"tipo": [String]}`.
+## Ids estáveis (ADR-007), alinhados índice a índice com `nodes[tipo]`: `{"tipo": [String]}`.
 var node_ids: Dictionary = {}
-var spawn_ids: Dictionary = {}
+## Vagas de bando, em ordem crescente do número do id: `{id, species, region, size, size_min, size_max}`. A posição não está
+## no mapa: a autoridade a sorteia (`WildLayout`). Vaga de região desconhecida é descartada na carga.
+var spawn_slots: Array[Dictionary] = []
+## Regiões de nascimento: `{id: {"terrains": Array[int], "cells": PackedInt32Array, "mask": PackedByteArray}}`.
+## `cells` guarda `y * size + x` na ordem das runs do arquivo; `mask` tem 1 nos tiles da região (tile fora do `terrains` é recusado).
+var spawn_regions: Dictionary = {}
 var loose_core_count: int = 0
+## Por que a última carga recusou o arquivo ("" = nenhuma recusa). `default_map` o escreve no log.
+var load_error: String = ""
 
 var _terrain: PackedByteArray = PackedByteArray()
 var _valid: bool = false
@@ -48,6 +60,9 @@ var _valid: bool = false
 static func default_map() -> IslandMap:
 	if _default == null:
 		_default = IslandMap.from_file(DEFAULT_PATH)
+		if not _default.is_valid():  # o jogo não anda sem o mapa: erro claro no log (formato velho, arquivo ruim)
+			var reason := _default.load_error if _default.load_error != "" else "arquivo ausente ou inválido"
+			push_error("IslandMap: %s recusado (%s)" % [DEFAULT_PATH, reason])
 	return _default
 
 
@@ -64,7 +79,10 @@ static func from_file(path: String) -> IslandMap:
 ## ou caractere de terreno desconhecido: nunca carga parcial.
 func load_dict(data: Dictionary) -> bool:
 	_valid = false
-	if SafeRead.integer(data.get("format"), 0, 0, 1 << 20) != FORMAT:
+	load_error = ""
+	var format := SafeRead.integer(data.get("format"), 0, 0, 1 << 20)
+	if format != FORMAT:
+		load_error = "mapa em formato %d, o jogo lê o formato %d: regere com docs/design/mapa_export.py" % [format, FORMAT]
 		return false
 	var side := SafeRead.integer(data.get("size"), 0, 0, 4096)
 	var rows := SafeRead.list(data.get("rows"))
@@ -84,8 +102,9 @@ func load_dict(data: Dictionary) -> bool:
 			cells[y * side + x] = code
 	size = side  # `in_bounds` lê o tamanho
 	var node_points := _read_points(SafeRead.dict(data.get("nodes")), SafeRead.dict(data.get("node_ids")), "n")
-	var spawn_points := _read_points(SafeRead.dict(data.get("spawns")), SafeRead.dict(data.get("spawn_ids")), "w")
-	if not _ids_are_unique([node_points[1], spawn_points[1]]):
+	var regions := _read_regions(SafeRead.dict(data.get("spawn_regions")), side, cells)
+	var slots := _read_slots(SafeRead.list(data.get("spawn_slots")), regions)
+	if not _ids_are_unique([node_points[1]]) or _slot_ids_repeat(SafeRead.list(data.get("spawn_slots"))):
 		size = 0
 		return false  # id vazio ou repetido: o save apontaria para dois lugares (ADR-007)
 	_terrain = cells
@@ -100,8 +119,8 @@ func load_dict(data: Dictionary) -> bool:
 	nodes = node_points[0]
 	node_ids = node_points[1]
 	scenery = _cell_lists(SafeRead.dict(data.get("scenery")))
-	spawns = spawn_points[0]
-	spawn_ids = spawn_points[1]
+	spawn_regions = regions
+	spawn_slots = slots
 	loose_core_count = SafeRead.integer(SafeRead.dict(data.get("loose_stone_respawn")).get("core_count"), 0, 0, 1000)
 	_valid = true
 	return true
@@ -224,7 +243,7 @@ func _read_points(raw: Dictionary, raw_ids: Dictionary, prefix: String) -> Array
 	return [all_cells, all_ids]
 
 
-## Nenhum id vazio e nenhum repetido, entre nós e nascimentos juntos (`[{tipo: [ids]}, ...]`).
+## Nenhum id vazio e nenhum repetido (`[{tipo: [ids]}, ...]`).
 func _ids_are_unique(groups: Array) -> bool:
 	var seen: Dictionary = {}
 	for group: Dictionary in groups:
@@ -236,13 +255,91 @@ func _ids_are_unique(groups: Array) -> bool:
 	return true
 
 
-## Id do primeiro ponto de `spawns[kind]` nesta célula ("" se não há).
-func spawn_id_at(kind: String, cell: Vector2i) -> String:
-	var cells: Array = spawns.get(kind, [])
-	for i in cells.size():
-		if cells[i] == cell:
-			return (spawn_ids.get(kind, []) as Array)[i]
-	return ""
+## Região de nascimento `region_id` (vazia se não existe).
+func region_cells(region_id: String) -> PackedInt32Array:
+	return (spawn_regions.get(region_id, {}) as Dictionary).get("cells", PackedInt32Array())
+
+
+## O tile pertence à região (máscara)?
+func region_has(region_id: String, cell: Vector2i) -> bool:
+	if not in_bounds(cell) or not spawn_regions.has(region_id):
+		return false
+	return (spawn_regions[region_id]["mask"] as PackedByteArray)[cell.y * size + cell.x] == 1
+
+
+## Regiões do arquivo, com o terreno de cada tile conferido: `runs` = `[y, x0, x1]` (x1 inclusivo). Run mal formada ou fora do
+## mapa é descartada; tile de terreno que a região não declara também (nunca entra tile fora do bioma).
+func _read_regions(raw: Dictionary, side: int, terrain_bytes: PackedByteArray) -> Dictionary:
+	var result: Dictionary = {}
+	for key: Variant in raw:
+		var entry := SafeRead.dict(raw[key])
+		var terrains: Array[int] = []
+		for code: Variant in SafeRead.list(entry.get("terrains")):
+			terrains.append(SafeRead.integer(code, -1, -1, TERRAIN_COUNT))
+		var allowed := PackedByteArray()
+		allowed.resize(TERRAIN_COUNT)
+		for code in terrains:
+			if code >= 0 and code < TERRAIN_COUNT:
+				allowed[code] = 1
+		var mask := PackedByteArray()
+		mask.resize(side * side)
+		var cells := PackedInt32Array()
+		for run: Variant in SafeRead.list(entry.get("runs")).slice(0, MAX_RUNS):
+			var triple := SafeRead.list(run)
+			if triple.size() != 3:
+				continue
+			var y := SafeRead.integer(triple[0], -1, 0, side - 1)
+			var x0 := SafeRead.integer(triple[1], -1, 0, side - 1)
+			var x1 := SafeRead.integer(triple[2], -1, 0, side - 1)
+			if y < 0 or x0 < 0 or x1 < x0:
+				continue
+			for x in range(x0, x1 + 1):
+				var index := y * side + x
+				if allowed[terrain_bytes[index]] == 1 and mask[index] == 0:
+					mask[index] = 1
+					cells.append(index)
+		result[str(key)] = {"terrains": terrains, "cells": cells, "mask": mask}
+	return result
+
+
+## Vagas do arquivo em ordem crescente do número do id; sem id, sem espécie, de região desconhecida ou com id repetido, caem.
+func _read_slots(raw: Array, regions: Dictionary) -> Array[Dictionary]:
+	var slots: Array[Dictionary] = []
+	var seen := {}
+	for item: Variant in raw.slice(0, MAX_SLOTS):
+		var entry := SafeRead.dict(item)
+		var id := SafeRead.text(entry.get("id"), "")
+		var species := SafeRead.text(entry.get("species"), "")
+		var region := SafeRead.text(entry.get("region"), "")
+		if id == "" or id.length() > MAX_SLOT_ID_LENGTH or species == "" or not regions.has(region) or seen.has(id):
+			continue
+		seen[id] = true
+		var amount := SafeRead.integer(entry.get("size"), 1, 1, MAX_GROUP_SIZE)
+		slots.append({"id": id, "species": species, "region": region, "size": amount,
+				"size_min": SafeRead.integer(entry.get("size_min"), 1, 1, MAX_GROUP_SIZE),
+				"size_max": SafeRead.integer(entry.get("size_max"), MAX_GROUP_SIZE, 1, MAX_GROUP_SIZE)})
+	slots.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		var left := slot_number(a["id"])
+		var right := slot_number(b["id"])
+		return left < right if left != right else str(a["id"]) < str(b["id"]))
+	return slots
+
+
+## Id de vaga repetido ou vazio no arquivo (o save apontaria para duas vagas).
+func _slot_ids_repeat(raw: Array) -> bool:
+	var seen := {}
+	for item: Variant in raw:
+		var id := SafeRead.text(SafeRead.dict(item).get("id"), "")
+		if id == "" or seen.has(id):
+			return true
+		seen[id] = true
+	return false
+
+
+## Número do id da vaga (`g12` -> 12); sem número, vai para o fim.
+static func slot_number(id: String) -> int:
+	var digits := id.trim_prefix("g")
+	return digits.to_int() if digits.is_valid_int() else 1 << 30
 
 
 func _cells_dict(raw: Dictionary) -> Dictionary:

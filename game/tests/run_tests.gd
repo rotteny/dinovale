@@ -4,6 +4,9 @@ extends SceneTree
 ##   godot --headless --path . --script res://tests/run_tests.gd [-- --suite=<nome>]
 ## Com `--suite=<nome>` (ex.: `ServerRules` ou `ServerRulesTests`) roda só essa suíte.
 
+## Semente dos mundos novos dos testes (um teste que quer outra a fixa em `Main.world_seed`).
+const TEST_WORLD_SEED := 424242
+
 var _checks := 0
 var _failures := 0
 var _nodes: Array[Node] = []
@@ -19,6 +22,7 @@ func _initialize() -> void:
 func _run() -> void:
 	# Nenhum teste grava em user://saves: tudo vai para uma pasta descartável.
 	GameSession.save_root = SaveTests.root_dir
+	GameSession.world_seed_override = TEST_WORLD_SEED  # mundo reproduzível: os ids dos selvagens são os mesmos em toda execução
 	SaveTests.remove_tree(SaveTests.base_dir)
 	var selected := _selected_suite()
 	var timings: Array = []
@@ -65,12 +69,15 @@ func _suites() -> Array:
 		["UtahraptorTests", UtahraptorTests.new, true],
 		["WildPersistenceTests", WildPersistenceTests.new, true],
 		["SaveV5Tests", SaveV5Tests.new, true],
+		["WildGroupsTests", WildGroupsTests.new, true],
 		["WorldGuardTests", WorldGuardTests.new, true],
 		["RoundCTests", RoundCTests.new, true],
 		["RoundCReviewTests", RoundCReviewTests.new, true],
 		["ScreenCameraTests", ScreenCameraTests.new, true],
 		["IntegrationTests", IntegrationTests.new, false],
+		["AttackTargetTests", AttackTargetTests.new, true],
 		["AuthorityTests", AuthorityTests.new, true],
+		["AreaAttackTests", AreaAttackTests.new, true],
 		["NetFlowTests", NetFlowTests.new, false],
 	]
 

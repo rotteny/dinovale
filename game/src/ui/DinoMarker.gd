@@ -23,6 +23,7 @@ const LABEL_WIDTH := 80.0
 
 var _copies: Array[Sprite2D] = []
 var _label := Label.new()
+var _sex_icon := Sprite2D.new()
 var _bar := StatBar.new("", BAR_COLOR, BAR_SIZE)
 
 
@@ -37,6 +38,7 @@ func _ready() -> void:
 	_label.add_theme_constant_override("outline_size", 2)
 	_bar.position = BAR_OFFSET
 	add_child(_label)
+	add_child(_sex_icon)
 	add_child(_bar)
 	visible = false
 	if dino != null:
@@ -63,6 +65,10 @@ func plate_text() -> String:
 	return _label.text
 
 
+func sex_icon_texture() -> Texture2D:
+	return _sex_icon.texture if _sex_icon.visible else null
+
+
 func _sync() -> void:
 	if not is_instance_valid(dino) or dino.is_queued_for_deletion():
 		queue_free()
@@ -80,6 +86,7 @@ func _sync() -> void:
 
 func _refresh_label() -> void:
 	_label.text = "%s Nv %d" % [dino.stats.display_name, dino.level]
+	SexIcon.place(_sex_icon, _label, dino.sex)
 
 
 ## O contorno é de 4 cópias da silhueta, uma para cada lado, atrás do sprite (filhas dele: giram com ele).

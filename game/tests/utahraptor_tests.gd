@@ -1,14 +1,12 @@
 # SPDX-License-Identifier: MIT
 class_name UtahraptorTests
 extends WildPersistenceTests
-## Utahraptor nas 6 tocas da Mata-baixa (MUN-03 parte 2): o dado da espécie, onde nasce, a perseguição do Agressivo
+## Utahraptor em matilhas na Mata-baixa (MUN-03 parte 2): o dado da espécie, onde nasce (4 vagas na região da
+## mata), a perseguição do Agressivo
 ## (percepção em elipse, desistência, alerta), a doma pela comida da espécie e o save que lembra a espécie.
 ## Chamado por `run_tests.gd`.
 
 const UTAHRAPTOR: DinoBaseStats = preload("res://data/dino/utahraptor.tres")
-const PER_DEN: Dictionary = {"U1": 1, "U2": 2, "U3": 2, "U4": 1, "U5": 2, "U6": 2}
-## Raio de nascimento do exportador, em tiles em volta da toca.
-const DEN_RADIUS_TILES := 5.0
 
 
 func run() -> void:
@@ -54,32 +52,17 @@ func _test_species_data() -> void:
 
 func _test_map_spawns() -> void:
 	var map := IslandMap.default_map()
-	var cells: Array = map.spawns.get("utahraptor", [])
-	var expected := 0
-	for count: int in PER_DEN.values():
-		expected += count
-	_check(cells.size() == expected and expected == 10, "10 utahraptores no mapa")
-	var next := 0
-	var all_ok := true
-	var seen := {}
-	var paquicefalos: Array = map.spawns["paquicefalo"]
-	for den_name: String in PER_DEN:
-		var den: Vector2i = map.dens[den_name]
-		for i in PER_DEN[den_name]:
-			var cell: Vector2i = cells[next]
-			next += 1
-			all_ok = (
-				all_ok
-				and map.terrain_at(cell) == IslandMap.WOODLAND
-				and Vector2(cell - den).length() <= DEN_RADIUS_TILES
-				and not seen.has(cell)
-				and not paquicefalos.has(cell)
-			)
-			seen[cell] = true
-	_check(
-		all_ok,
-		"cada utahraptor nasce em Mata-baixa, a até 5 tiles da própria toca (U1 com 1; U2 a U6 com 1 ou 2), sem repetir célula"
-	)
+	var sizes: Array[int] = []
+	var in_woodland := true
+	for slot in map.spawn_slots:
+		if slot["species"] == "utahraptor":
+			sizes.append(slot["size"])
+			in_woodland = in_woodland and slot["region"] == "r_mata"
+	_check(sizes == [3, 3, 2, 2] and in_woodland, "4 matilhas de utahraptor (3, 3, 2 e 2), todas na região da Mata-baixa")
+	var terrains_ok := true
+	for index in map.region_cells("r_mata"):
+		terrains_ok = terrains_ok and map.terrain_at(Vector2i(index % map.size, index / map.size)) == IslandMap.WOODLAND
+	_check(terrains_ok and not map.region_cells("r_mata").is_empty(), "todo tile da região do utahraptor é Mata-baixa")
 
 
 func _make_machine() -> DinoStateMachine:
@@ -171,6 +154,14 @@ func _test_chase_rules() -> void:
 	_check(chaser.current_id == Enums.DinoStateId.UNCONSCIOUS, "dormindo não percebe nem persegue")
 
 
+## Id do primeiro utahraptor do mundo (os ids dependem da semente; a ordem de vaga põe os paquicéfalos antes).
+func _raptor_id(main: Main) -> String:
+	for id in main.wild.member_ids():
+		if main.wild.creature_at(id).stats.spawn_key == "utahraptor":
+			return id
+	return ""
+
+
 func _utahraptor_body(at: Vector2, targets: Array) -> Dino:
 	var creature: Dino = DinoScene.instantiate()
 	creature.stats = UTAHRAPTOR
@@ -208,9 +199,9 @@ func _test_population_and_chase() -> void:
 		(
 			raptors.size() == 10
 			and (main.wild.get_child(0) as Dino).stats.id == "placeholder_dino"
-			and main.wild.creature_at("w107") == raptors[0]
+			and main.wild.creature_at(_raptor_id(main)) == raptors[0]
 		),
-		"10 utahraptores depois dos 107 paquicéfalos do mapa (índices dos paquicéfalos intactos)"
+		"10 utahraptores nas 4 matilhas, depois dos paquicéfalos na ordem das vagas"
 	)
 	var levels_ok := true
 	for raptor in raptors:
@@ -223,7 +214,10 @@ func _test_population_and_chase() -> void:
 		levels_ok = levels_ok and raptor.target_locator.is_valid()
 	_check(levels_ok, "nível na faixa da Mata-baixa e vida pela fórmula do nível")
 	var sentinel := raptors[0]
-	main.player.position = sentinel.position + Vector2(-6.0 * 16.0, 0.0)
+	# O sentinela vai para o chão aberto do início (o corpo dele não pode esbarrar numa árvore no caminho): o sorteio dos bandos
+	# o põe em qualquer lugar da mata.
+	main.player.position = main.map.start_point()
+	sentinel.position = main.player.position + Vector2(6.0 * 16.0, 0.0)
 	main.wild.process_mode = Node.PROCESS_MODE_INHERIT
 	main.zone.reclassify()
 	var before := sentinel.position.distance_to(main.player.position)
@@ -245,7 +239,7 @@ func _test_taming_and_save() -> void:
 	var after := await _save_and_continue(
 		"utahraptor_tamed",
 		func(main: Main) -> void:
-			var raptor := main.wild.creature_at("w107")
+			var raptor := main.wild.creature_at(_raptor_id(main))
 			raptor.level = 10
 			raptor.feeder_player_id = main.player.player_id
 			raptor.torpor.add_torpor(raptor.torpor.max_torpor)

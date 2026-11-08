@@ -20,6 +20,7 @@ const KEY_PROTECTION := "respawn_protecao_s"
 const KEY_HUNGER := "respawn_fome_pct"
 const KEY_PLAYER_LOSS := "eficiencia_fixa_ataque_jogador"
 const KEY_CARNIVORE_LOSS := "eficiencia_fixa_ataque_carnivoro"
+const KEY_PVP := "pvp"
 
 ## Tipo e faixa válida de cada chave de número (contrato, não balanceamento): [mínimo, máximo].
 const NUMBER_RANGES: Dictionary = {
@@ -50,6 +51,8 @@ var respawn_protection_seconds: float = 0.0
 var respawn_hunger_pct: int = 50
 var player_attack_fixed_loss: float = 0.0
 var carnivore_attack_fixed_loss: float = 0.0
+## PvP: golpe em área de criatura domada acerta domados de OUTRO jogador (o do mesmo dono, nunca). Padrão: desligado.
+var pvp: bool = false
 ## Avisos da leitura (chave inválida, desconhecida, arquivo ruim). O host os imprime uma vez com `push_warning`.
 var problems: PackedStringArray = PackedStringArray()
 
@@ -151,6 +154,7 @@ func as_file_data() -> Dictionary:
 		KEY_HUNGER: respawn_hunger_pct,
 		KEY_PLAYER_LOSS: player_attack_fixed_loss,
 		KEY_CARNIVORE_LOSS: carnivore_attack_fixed_loss,
+		KEY_PVP: pvp,
 	}
 
 
@@ -185,11 +189,12 @@ func _read(data: Dictionary) -> void:
 	player_attack_fixed_loss = _number(data, KEY_PLAYER_LOSS, player_attack_fixed_loss)
 	carnivore_attack_fixed_loss = _number(data, KEY_CARNIVORE_LOSS, carnivore_attack_fixed_loss)
 	respawn_hunger_pct = _integer(data, KEY_HUNGER, respawn_hunger_pct)
+	pvp = _boolean(data, KEY_PVP, pvp)
 	_read_bands(data)
 
 
 static func _is_known(key: String) -> bool:
-	return NUMBER_RANGES.has(key) or INTEGER_RANGES.has(key) or key == KEY_LEVEL_BANDS
+	return NUMBER_RANGES.has(key) or INTEGER_RANGES.has(key) or key == KEY_LEVEL_BANDS or key == KEY_PVP
 
 
 func _number(data: Dictionary, key: String, fallback: float) -> float:
@@ -208,6 +213,15 @@ func _number(data: Dictionary, key: String, fallback: float) -> float:
 		_warn("%s: %s fora de [%s, %s]; mantido o padrão" % [key, value, limits[0], limits[1]])
 		return fallback
 	return value
+
+
+func _boolean(data: Dictionary, key: String, fallback: bool) -> bool:
+	if not data.has(key):
+		return fallback
+	if typeof(data[key]) != TYPE_BOOL:
+		_warn("%s: precisa ser true ou false; mantido o padrão" % key)
+		return fallback
+	return data[key]
 
 
 func _integer(data: Dictionary, key: String, fallback: int) -> int:

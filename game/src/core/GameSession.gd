@@ -11,6 +11,8 @@ const DEFAULT_WORLD := "main"
 ## Pasta que contém uma subpasta por mundo. Os testes apontam para um caminho descartável.
 static var save_root: String = DEFAULT_SAVE_ROOT
 static var continue_requested: bool = false
+## Semente de mundo fixa para o mundo novo (0 = sorteia). Só testes e servidor dedicado a usam.
+static var world_seed_override: int = 0
 ## Recado para o título mostrar uma vez (ex.: o Continuar falhou e a Main voltou ao menu).
 static var notice: String = ""
 

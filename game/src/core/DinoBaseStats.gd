@@ -25,7 +25,7 @@ const SEX_MALE := "m"
 @export var carcass_texture: Texture2D
 ## Caixa de colisão do corpo, em pixels (largura, altura). O corpo a lê ao nascer.
 @export var hitbox_size: Vector2 = Vector2(24.0, 16.0)
-## Chave desta espécie em `IslandMap.spawns` (onde ela nasce no mapa).
+## Chave desta espécie nas vagas de bando do mapa (`IslandMap.spawn_slots[].species`).
 @export var spawn_key: String = "paquicefalo"
 ## Comida ideal da doma (id de `Items`).
 @export var ideal_food: String = "berry"
@@ -45,10 +45,34 @@ const SEX_MALE := "m"
 ## Chance de nascer macho (`sexo_proporcao_macho` do desenho, `docs/design/corte-v02/montaria-vinculo-trabalho.md`): 0,5 = 50/50
 ## em toda espécie. Sexo não muda atributo, torpor, dieta nem velocidade.
 @export_range(0.0, 1.0) var male_ratio: float = 0.5
+## Porte (v0.2: Dodo pequeno, Paquicéfalo e Utahraptor médios, Triceratops grande).
+@export var size: Enums.DinoSize = Enums.DinoSize.MEDIUM
+## Tipo de atacante desta espécie perante a doma (`TamingRules.ATTACKER_*`): é a chave de `attack_fixed_loss`.
+@export var attacker_kind: String = TamingRules.ATTACKER_CARNIVORE
+## Dano em área (null = golpe só no alvo). Só vale se `size` for Grande: veja `area_rules`.
+@export var area_attack: AreaAttackRules
+@export_group("Bando")
+## Terrenos (índice do `IslandMap`) onde o bando desta espécie pode nascer. A região da vaga é a máscara; isto a restringe.
+@export var spawn_terrains: Array[int] = [3]
+## Limites do tamanho do bando: o mapa só escolhe dentro deles (fora, a carga satura).
+@export_range(1, 8) var group_size_min: int = 1
+@export_range(1, 8) var group_size_max: int = 4
+## Os membros nascem a até tantos tiles do centro do bando.
+@export_range(0.0, 16.0) var cohesion_radius_tiles: float = 3.0
+## Distância mínima, em tiles, entre os centros de dois bandos DESTA espécie (vale se maior que a global do mundo).
+@export_range(0.0, 200.0) var min_group_spacing_tiles: float = 24.0
+## Segundos de jogo entre o último membro selvagem sair (morte ou doma) e o bando renascer em outro lugar.
+@export_range(1.0, 86400.0) var group_respawn_seconds: float = 1200.0
+@export_group("")
 
 
-## Sexo do selvagem que nasce do ponto `spawn_id` (ADR-007): fluxo próprio, `["wild", semente, spawn_id, "sex"]`, separado do
-## do nível para um sorteio novo nunca deslocar o outro. O mesmo ponto dá o mesmo sexo em qualquer revisão do mapa.
+## Regras de dano em área que valem para esta espécie, ou null. Porte que não é Grande nunca tem, mesmo com o dado preenchido.
+func area_rules() -> AreaAttackRules:
+	return area_attack if size == Enums.DinoSize.LARGE else null
+
+
+## Sexo do selvagem de id `spawn_id` (`<vaga>.<geração>.<k>`, ADR-007): fluxo próprio, `["wild", semente do mundo, id, "sex"]`,
+## separado do do nível para um sorteio novo nunca deslocar o outro. O mesmo id dá o mesmo sexo na mesma semente.
 func roll_sex(map_seed: int, spawn_id: String) -> String:
 	var rng := SeededRng.new()
 	rng.seed_from(["wild", map_seed, spawn_id, "sex"])

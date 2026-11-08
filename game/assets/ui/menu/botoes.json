@@ -1,0 +1,54 @@
+{
+	"altura_minima": 20,
+	"axis_stretch": "stretch (miolo liso)",
+	"content_margin_sugerida": {
+		"disabled": {
+			"base": 3,
+			"topo": 0
+		},
+		"hover": {
+			"base": 3,
+			"topo": 0
+		},
+		"normal": {
+			"base": 3,
+			"topo": 0
+		},
+		"pressed": {
+			"base": 1,
+			"topo": 2
+		}
+	},
+	"cor_texto": {
+		"disabled": {
+			"sombra": "#b3957f",
+			"texto": "#4e484a"
+		},
+		"hover": {
+			"sombra": "#965340",
+			"texto": "#ffffff"
+		},
+		"normal": {
+			"sombra": "#965340",
+			"texto": "#fce2ca"
+		},
+		"pressed": {
+			"sombra": "#4e484a",
+			"texto": "#fce2ca"
+		}
+	},
+	"espacamento_sugerido": 4,
+	"filtro": "nearest",
+	"fonte": "ValeMini 8 px (a do jogo); sombra de texto com offset (0,1)",
+	"largura_sugerida": 96,
+	"nine_slice_margens": {
+		"base": 6,
+		"direita": 6,
+		"esquerda": 6,
+		"topo": 5
+	},
+	"tamanho_textura": [
+		24,
+		20
+	]
+}

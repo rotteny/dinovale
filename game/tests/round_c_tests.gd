@@ -49,8 +49,8 @@ func _tame_for(creature: Dino, owner_id: String) -> void:
 
 func _test_tamed_level_text_once() -> void:
 	var main := await _world("c_level_text")
-	var mine := main.wild.creature_at("w0")
-	var theirs := main.wild.creature_at("w1")
+	var mine := main.wild.creature_at(_wid(main, 0))
+	var theirs := main.wild.creature_at(_wid(main, 1))
 	for creature: Dino in [mine, theirs]:
 		creature.global_position = main.player.global_position + Vector2(randf_range(-40.0, 40.0), randf_range(20.0, 40.0))
 	main.zone.reclassify()
@@ -176,18 +176,18 @@ func _test_occupancy_shape_box() -> void:
 func _test_command_denials() -> void:
 	var main := await _world("c_command")
 	var player := main.player
-	var wild_awake := main.wild.creature_at("w0")
+	var wild_awake := main.wild.creature_at(_wid(main, 0))
 	player.position = wild_awake.position + Vector2(10, 0)
 	var id := main.authority.id_of(wild_awake)
 	_check(main.authority.request_command(1, id, "FOLLOW") == RESULT.WRONG_STATE and wild_awake.state_machine.order == Enums.DinoOrder.STAY,
 			"selvagem acordado: ordem negada")
-	var sleeper := main.wild.creature_at("w1")
+	var sleeper := main.wild.creature_at(_wid(main, 1))
 	sleeper.position = player.position + Vector2(12, 0)
 	sleeper.torpor.add_torpor(sleeper.torpor.max_torpor)
 	await _root.get_tree().physics_frame
 	_check(sleeper.can_interact() and main.authority.request_command(1, main.authority.id_of(sleeper), "FOLLOW") == RESULT.WRONG_STATE,
 			"selvagem desacordado, sem dono: ordem negada")
-	var foreign := main.wild.creature_at("w2")
+	var foreign := main.wild.creature_at(_wid(main, 2))
 	_tame_for(foreign, "outro")
 	foreign.position = player.position + Vector2(-12, 0)
 	var foreign_id := main.authority.id_of(foreign)
@@ -203,7 +203,7 @@ func _test_command_denials() -> void:
 	main.hud._on_target_changed(foreign.interactable)
 	_check(not main.hud.prompt_label().visible, "a HUD não oferece ordem no domado de outro")
 	# O próprio domado aceita.
-	var mine := main.wild.creature_at("w3")
+	var mine := main.wild.creature_at(_wid(main, 3))
 	_tame_for(mine, player.player_id)
 	mine.position = player.position + Vector2(0, 14)
 	_check(main.authority.request_command(1, main.authority.id_of(mine), "FOLLOW") == RESULT.OK, "o próprio domado aceita a ordem")
@@ -251,9 +251,9 @@ func _test_highlight_and_markers() -> void:
 	tree_node.harvest()
 	_check(not view.is_highlighted(), "esgotado não tem destaque (nem desenho)")
 	# Placa do domado: só no do jogador.
-	var mine := main.wild.creature_at("w0")
-	var theirs := main.wild.creature_at("w1")
-	var wild_one := main.wild.creature_at("w2")
+	var mine := main.wild.creature_at(_wid(main, 0))
+	var theirs := main.wild.creature_at(_wid(main, 1))
+	var wild_one := main.wild.creature_at(_wid(main, 2))
 	_tame_for(mine, main.player.player_id)
 	_tame_for(theirs, "outro")
 	for creature: Dino in [mine, theirs, wild_one]:  # perto do jogador: na zona ativa, com view e placa
@@ -281,7 +281,7 @@ func _kill(creature: Dino) -> void:
 
 func _test_carcass_from_death() -> void:
 	var main := await _world("c_carcass")
-	var creature := main.wild.creature_at("w0")
+	var creature := main.wild.creature_at(_wid(main, 0))
 	var point := creature.global_position
 	var level := creature.level
 	var expected := main.carcasses.LEVEL_RULES.carcass_meat(4, level)
@@ -293,9 +293,9 @@ func _test_carcass_from_death() -> void:
 			"no lugar do corpo, e registrada na autoridade")
 	_check(carcass.def.yield_amount == expected and carcass.def.item_id == "meat" and carcass.def.hand_damage_per_item,
 			"rende a carne da espécie no nível (%d)" % expected)
-	_check(main.wild.creature_at("w0") == null or main.wild.is_dead("w0"), "o morto não renasce em cima")
+	_check(main.wild.creature_at(_wid(main, 0)) == null or main.wild.is_dead(_wid(main, 0)), "o morto não renasce em cima")
 	# Domado também.
-	var mine := main.wild.creature_at("w1")
+	var mine := main.wild.creature_at(_wid(main, 1))
 	_tame_for(mine, main.player.player_id)
 	_kill(mine)
 	await _root.get_tree().physics_frame
@@ -315,7 +315,7 @@ func _test_carcass_from_death() -> void:
 func _test_carcass_hand_cost_and_partial() -> void:
 	var main := await _world("c_carcass_cost")
 	var player := main.player
-	var creature := main.wild.creature_at("w0")
+	var creature := main.wild.creature_at(_wid(main, 0))
 	creature.level = 20  # 4 x 1,3 = 5 de carne: mais de 1 item
 	_kill(creature)
 	await _root.get_tree().physics_frame
@@ -343,7 +343,7 @@ func _test_carcass_hand_cost_and_partial() -> void:
 	await _root.get_tree().physics_frame
 	_check(main.carcasses.count() == 0 and main.authority.entity(id) == null, "esvaziada, a carcaça some e sai do registro")
 	# Com mais itens que o piso de vida: o Soco não mata.
-	var big := main.wild.creature_at("w1")
+	var big := main.wild.creature_at(_wid(main, 1))
 	big.level = 60
 	_kill(big)
 	await _root.get_tree().physics_frame
@@ -360,8 +360,8 @@ func _test_carcass_hand_cost_and_partial() -> void:
 func _test_carcass_save_and_limits() -> void:
 	var saved_entries: Array = []
 	var after := await _save_and_continue("c_carcass_save", func(main: Main) -> void:
-		_kill(main.wild.creature_at("w0"))
-		_kill(main.wild.creature_at("w1"))
+		_kill(main.wild.creature_at(_wid(main, 0)))
+		_kill(main.wild.creature_at(_wid(main, 1)))
 		var half: ResourceNode = main.carcasses.nodes()[0]
 		half.component.leave({"meat": 2})
 		TestWorld.pass_time(main, 30.0)
@@ -372,7 +372,7 @@ func _test_carcass_save_and_limits() -> void:
 	var spot := Vector2(saved_entries[0]["x"], saved_entries[0]["y"])
 	_check(back[0].component.pending_yields() == {"meat": 2} and back[0].global_position.distance_to(spot) < 0.01,
 			"posição e o que resta voltam")
-	_check(after.wild.is_dead("w0"), "o morto continua morto (não renasce)")
+	_check(after.wild.is_dead(_wid(after, 0)), "o morto continua morto (não renasce)")
 	_check(after.authority.id_of(back[0]) == int(saved_entries[0]["id"]), "o id da entidade se mantém")
 	# Dado hostil: espécie desconhecida, número louco e excesso.
 	var crazy := {"species": "placeholder_dino", "level": 99999, "x": 1e30, "y": "a", "born_at": 1.0e30, "left": {"meat": 999, "x": 4}}
@@ -387,7 +387,7 @@ func _test_carcass_save_and_limits() -> void:
 	after.carcasses.restore_list(many)
 	_check(after.carcasses.count() == 8, "no máximo 8 carcaças (GDD 5.6)")
 	for i in 5:
-		_kill(after.wild.creature_at("w%d" % (10 + i)))
+		_kill(after.wild.creature_at(_wid(after, 10 + i)))
 	_check(after.carcasses.count() == 8, "a mais antiga sai quando passa de 8")
 
 

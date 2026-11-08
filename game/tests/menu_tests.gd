@@ -180,24 +180,36 @@ func _test_title_menu() -> void:
 			and labels[1].begins_with("Multijogador"), "cinco itens, na ordem pedida")
 	_check(menu.button_of(TitleScreen.MULTIPLAYER).disabled and labels[1].contains(TitleScreen.SOON),
 			"Multijogador visível, desabilitado e com aviso de que chega depois")
+	_check(title.music().current_track() == MusicPlayer.TRACK_MENU and title.music().is_playing(), "título: toca a faixa do menu")
 	_check(menu.selected_id() == TitleScreen.SINGLE_PLAYER, "começa em Um jogador")
+	var first := menu.button_of(TitleScreen.SINGLE_PLAYER)
+	var off := menu.button_of(TitleScreen.MULTIPLAYER)
+	_check(first is Button and first.has_focus() and first.theme_type_variation == UiTheme.MENU_BUTTON,
+			"o foco inicial está no primeiro botão habilitado, que é um Button do tema do jogo")
+	_check(off.disabled and off.focus_mode == Control.FOCUS_NONE, "botão desabilitado não recebe foco")
 	var chosen: Array[String] = []
 	title.action_chosen.connect(func(id: String) -> void: chosen.append(id))
 	title._input(_key("ui_down"))
-	_check(menu.selected_id() == TitleScreen.SETTINGS, "descer pula Multijogador")
+	_check(menu.selected_id() == TitleScreen.SETTINGS and menu.button_of(TitleScreen.SETTINGS).has_focus(),
+			"descer pula Multijogador e leva o foco")
 	title._input(_key("ui_up"))
 	title._input(_key("ui_up"))
 	_check(menu.selected_id() == TitleScreen.QUIT, "subir do primeiro dá a volta até Sair")
 	title._input(_key("ui_down"))
 	title._input(_key("ui_accept"))
 	_check(chosen.is_empty() and title.view == "single", "Enter em Um jogador abre Continuar e Novo jogo (não começa sozinho)")
+	var single := title.single_menu()
+	_check(single.button_of(TitleScreen.CONTINUE).disabled and single.selected_id() == TitleScreen.NEW_GAME
+			and single.button_of(TitleScreen.NEW_GAME).has_focus(), "sem save: Continuar desabilitado e o foco vai a Novo jogo")
 	title._input(_key("ui_cancel"))
 	_check(title.view == "menu", "Esc volta ao menu principal")
 	chosen.clear()
 	menu.button_of(TitleScreen.MULTIPLAYER).pressed.emit()
 	_check(chosen.is_empty() and menu.selected_id() == TitleScreen.SINGLE_PLAYER, "clique em Multijogador não faz nada")
 	menu.button_of(TitleScreen.QUIT).mouse_entered.emit()
-	_check(menu.selected_id() == TitleScreen.QUIT, "o mouse seleciona o item")
+	_check(menu.selected_id() == TitleScreen.QUIT and menu.button_of(TitleScreen.QUIT).has_focus(), "o mouse seleciona e foca o botão")
+	off.mouse_entered.emit()
+	_check(menu.selected_id() == TitleScreen.QUIT and not off.has_focus(), "o mouse sobre o desabilitado não muda o foco")
 	menu.button_of(TitleScreen.QUIT).pressed.emit()
 	_check(chosen == [TitleScreen.QUIT], "clique em Sair pede para sair")
 	title._input(_key("ui_cancel"))
@@ -305,12 +317,12 @@ func _test_pause() -> void:
 	_check(not pause.is_open and not tree.paused and events == ["resumed"], "Esc fecha e retoma")
 	pause.open()
 	pause._input(_key("ui_down"))
-	_check(pause.column().marker_of(PauseMenu.MENU) == MenuColumn.MARKER and pause.column().marker_of(PauseMenu.RESUME) == "",
-			"marcador acompanha a seleção")
+	_check(pause.column().button_of(PauseMenu.MENU).has_focus() and not pause.column().button_of(PauseMenu.RESUME).has_focus(),
+			"o foco visível acompanha a seleção")
 	pause.close()
 	pause.open()
-	_check(pause.column().selected_id() == PauseMenu.RESUME and pause.column().marker_of(PauseMenu.RESUME) == MenuColumn.MARKER
-			and pause.column().marker_of(PauseMenu.MENU) == "", "reabrir: seleção e marcador voltam ao primeiro item")
+	_check(pause.column().selected_id() == PauseMenu.RESUME and pause.column().button_of(PauseMenu.RESUME).has_focus(),
+			"reabrir: seleção e foco voltam ao primeiro botão")
 	events.clear()
 	pause._input(_key("ui_down"))
 	pause._input(_key("ui_accept"))

@@ -1,25 +1,29 @@
 # SPDX-License-Identifier: MIT
 class_name WildPopulation
 extends Node2D
-## Os dinos selvagens do mapa (além do do tutorial): nascem dos pontos de `spawns` do mapa, com o nível da
-## faixa do bioma. O save tem duas partes:
-## - DELTA por id de spawn (`world.wild`, ids do mapa, ADR-007), só do selvagem SEM dono: `{id, state}` se mudou (torpor,
-##   comida, doma em andamento, ferido), `{id, dead: true}` se morreu, `{id, tamed: true}` se virou domado ou ganhou
-##   dono (o id fica consumido: não nasce de novo). Vale por id de qualquer revisão do mapa; id que o mapa não tem é
-##   ignorado, e estado de OUTRA espécie também (o selvagem nasce novo).
-## - ENTIDADES (`entities`, tipo `tamed_dino`): domado ou com dono, e o recriado por outra revisão do mapa
-##   (doma em andamento com comida). Não dependem de índice: são recriados ao carregar com o estado salvo.
+## Os dinos selvagens do mapa (além do do tutorial): bandos que nascem das VAGAS do mapa (`IslandMap.spawn_slots`), em posição
+## sorteada pela semente do mundo (`WildLayout`, ADR-007 emenda de 07/11), com o nível da faixa do bioma. Cada membro tem o id
+## `<vaga>.<geração>.<k>`. Quando o último membro selvagem de um bando morre ou é domado, o bando espera
+## `group_respawn_seconds` e renasce inteiro em outro lugar (`tick`, só a autoridade). O save tem três partes:
+## - DELTA por id de membro (`world.wild`), só do selvagem SEM dono: `{id, state}` se mudou (torpor, comida, doma em andamento,
+##   ferido), `{id, dead: true}` se morreu, `{id, tamed: true}` se virou domado ou ganhou dono (o id fica consumido). Id que o mapa
+##   de hoje não gera (outra semente, geração, vaga aposentada) é ignorado, e estado de OUTRA espécie também.
+## - GRUPOS (`world.wild_groups`), só das vagas não intactas: `{slot, gen, center, due_at, tries}`; a vaga intacta é recalculada.
+## - ENTIDADES (`entities`, tipo `tamed_dino`): domado ou com dono, e o recriado por outra revisão do mapa (doma em andamento com
+##   comida). Não dependem de id de vaga: são recriados ao carregar com o estado salvo.
 ## `restore` é tudo ou nada: dado malformado devolve false e nada fica mudado (o `SaveManager` tenta a cópia
 ## anterior). Não dispara evento de jogo.
 
 ## Um selvagem morreu; `tamed` diz se era domado (gatilho de save `TAMED_DINO_DEATH`).
 signal creature_died(creature: Dino, tamed: bool)
+## Um bando renasceu (respawn, só na autoridade): o mundo registra os membros e os põe na zona.
+signal group_spawned(creatures: Array[Dino])
 
 const DINO_SCENE: PackedScene = preload("res://src/entities/dino/Dino.tscn")
 const TYPE_TAMED := "tamed_dino"
 ## Teto de entradas lidas de um save (dado de fora não é confiável).
 const MAX_ENTRIES := 1024
-## Espécies do mapa, na ordem em que nascem (a ordem não importa mais para o save: o id vem do mapa).
+## Espécies que o jogo conhece (a vaga de espécie fora daqui, como Dodo e Triceratops hoje, é ignorada sem erro).
 const SPECIES: Array[DinoBaseStats] = [
 	preload("res://data/dino/placeholder_dino.tres"),
 	preload("res://data/dino/utahraptor.tres"),
@@ -27,6 +31,33 @@ const SPECIES: Array[DinoBaseStats] = [
 const FALLBACK_ID_BASE := 1 << 20
 ## Tamanho máximo do id de spawn aceito de um save (o do mapa tem poucos caracteres).
 const MAX_ID_LENGTH := 32
+## Semente de mundo: 52 bits (o JSON guarda número como real de 64 bits, que só é exato até 2^53).
+const MAX_SEED := (1 << 52) - 1
+const MAX_GENERATION := 1 << 31
+
+
+## O estado de uma vaga de bando neste mundo.
+class Slot extends RefCounted:
+	var def: Dictionary = {}
+	var kind: DinoBaseStats = null
+	var gen: int = 0
+	## Centro do bando da geração atual (`WildLayout.NO_CELL` = a vaga não achou lugar neste mundo).
+	var center: Vector2i = WildLayout.NO_CELL
+	## Ids dos membros da geração atual (os que nasceram; vivos ou não).
+	var member_ids: Array[String] = []
+	## Esperando renascer: o último membro selvagem saiu. `due_at` é o instante do relógio do mundo; `tries` conta as falhas.
+	var waiting: bool = false
+	var due_at: float = 0.0
+	var tries: int = 0
+
+## Semente do mundo (sorteio de bandos). Fora do save de mundos antigos, vale a semente do mapa.
+var world_seed: int = 0
+## Centros fixos que contam para a distância dos bandos (o do tutorial): `WildLayout.placed_center`.
+var fixed_centers: Array[Dictionary] = []
+## Relógio do mundo (`authority.clock.now`); sem ele o respawn não corre sozinho.
+var clock: Callable = Callable()
+## Os que o último `restore` criou por mudar a vaga (outra semente ou geração): o chamador os registra e põe na zona.
+var last_created: Array[Dino] = []
 
 ## Para registrar quem é recriado (a criatura registrada acha o dono por aqui).
 var authority: WorldAuthority
@@ -40,6 +71,12 @@ var target_locator: Callable = Callable()
 ## Regras de doma deste mundo (cópia com as chaves do `ServerRules`); null = as do `preload` de cada dino.
 var taming_rules: TamingRules = null
 
+var _map: IslandMap = null
+var _rules: WorldRules = null
+var _layout: WildLayout = null
+var _layout0: Dictionary = {}  # id da vaga -> centro da geração 0 (com a semente atual)
+var _slots: Dictionary = {}  # id da vaga -> Slot
+var _order: Array[String] = []  # ids das vagas, em ordem crescente
 var _by_id: Dictionary = {}  # id de spawn -> Dino
 var _id_of: Dictionary = {}  # Dino -> id de spawn
 var _dead: Dictionary = {}  # id de spawn -> true
@@ -48,44 +85,184 @@ var _adopted: Array = []  # Dino (pode ter sido liberado: sempre passar por `ado
 var _ids: Dictionary = {}  # Dino -> id gravado na entidade (0 = qualquer livre)
 
 
-## Cria os selvagens de cada espécie (no máximo `limit` por espécie), pulando a célula do tutorial e as repetidas.
-## Cada um leva o id do ponto no mapa (`map.spawn_ids`); nível e sexo saem de fluxos próprios semeados por esse id
-## (ADR-007): acrescentar ou tirar um ponto nunca muda os outros. Devolve a lista.
-func populate(map: IslandMap, rules: WorldRules, skip_cell: Vector2i, limit: int) -> Array[Dino]:
+## Cria os bandos da geração 0: o centro de cada vaga sai de `WildLayout` com `seed_value` e os membros dentro do raio de
+## coesão. Vaga de espécie desconhecida é ignorada; vaga sem lugar fica vazia (aviso, sem relaxar nada). Nível e sexo saem de
+## fluxos próprios semeados pelo id do membro (ADR-007): acrescentar ou tirar uma vaga nunca muda as outras. Devolve a lista.
+func populate(map: IslandMap, rules: WorldRules, seed_value: int) -> Array[Dino]:
+	_map = map
+	_rules = rules
+	world_seed = seed_value
+	_layout = WildLayout.new(map, rules, seed_value, SPECIES)
+	var empty: Array[String] = []
+	_layout0 = _layout.layout(fixed_centers, empty)
+	for id in empty:
+		push_warning("WildPopulation: a vaga %s não achou lugar neste mundo." % id)
 	var created: Array[Dino] = []
-	for kind in SPECIES:
-		var cells: Array = map.spawns.get(kind.spawn_key, [])
-		var ids: Array = map.spawn_ids.get(kind.spawn_key, [])
-		var seen := {}
-		var count := 0
-		for i in cells.size():
-			var cell: Vector2i = cells[i]
-			if count >= limit:
-				break
-			if cell == skip_cell or seen.has(cell):
-				continue
-			seen[cell] = true
-			var spawn_id: String = ids[i]
-			var band := rules.level_band_of(map.terrain_at(cell))
-			var creature := _make_creature(kind)
-			creature.level = roll_level(band, map.seed_value, spawn_id)
-			creature.sex = kind.roll_sex(map.seed_value, spawn_id)
-			creature.position = map.center_of(cell)
-			add_child(creature)
-			_apply_rules(creature)
-			_by_id[spawn_id] = creature
-			_id_of[creature] = spawn_id
-			creature.health.died.connect(_on_died.bind(creature))
-			created.append(creature)
-			count += 1
+	_slots.clear()
+	_order.clear()
+	for def in map.spawn_slots:
+		var kind := _layout.species_of(def)
+		if kind == null:
+			continue
+		var slot := Slot.new()
+		slot.def = def
+		slot.kind = kind
+		_slots[def["id"]] = slot
+		_order.append(def["id"])
+		if _layout0.has(def["id"]):
+			slot.center = _layout0[def["id"]]
+			created.append_array(_spawn_group(slot))
 	return created
 
 
-## Nível do selvagem do ponto `spawn_id` na faixa `band` (x = mínimo, y = máximo): fluxo `["wild", semente, id, "level"]`.
-static func roll_level(band: Vector2i, map_seed: int, spawn_id: String) -> int:
+## Cria e registra os membros da geração atual da vaga (centro já definido).
+func _spawn_group(slot: Slot) -> Array[Dino]:
+	var created: Array[Dino] = []
+	var cells := _layout.members_of(slot.def, slot.gen, slot.center)
+	var ks: Array = cells.keys()
+	ks.sort()
+	for k: int in ks:
+		var member_id := member_id_of(slot.def["id"], slot.gen, k)
+		var creature := _build_member(slot.kind, _layout, member_id, cells[k])
+		_register_member(slot, member_id, creature)
+		created.append(creature)
+	return created
+
+
+func _build_member(kind: DinoBaseStats, layout: WildLayout, member_id: String, cell: Vector2i) -> Dino:
+	var band := _rules.level_band_of(_map.terrain_at(cell))
+	var creature := _make_creature(kind)
+	creature.level = roll_level(band, layout.world_seed, member_id)
+	creature.sex = kind.roll_sex(layout.world_seed, member_id)
+	creature.position = _map.center_of(cell)
+	add_child(creature)
+	_apply_rules(creature)
+	return creature
+
+
+func _register_member(slot: Slot, member_id: String, creature: Dino) -> void:
+	slot.member_ids.append(member_id)
+	_by_id[member_id] = creature
+	_id_of[creature] = member_id
+	creature.health.died.connect(_on_died.bind(creature))
+
+
+## Id do membro `k` da geração `gen` da vaga: `g7.0.2`.
+static func member_id_of(slot_id: String, gen: int, k: int) -> String:
+	return "%s.%d.%d" % [slot_id, gen, k]
+
+
+## Nível do selvagem de id `member_id` na faixa `band` (x = mínimo, y = máximo): fluxo `["wild", semente, id, "level"]`.
+static func roll_level(band: Vector2i, world_seed_value: int, member_id: String) -> int:
 	var rng := SeededRng.new()
-	rng.seed_from(["wild", map_seed, spawn_id, "level"])
+	rng.seed_from(["wild", world_seed_value, member_id, "level"])
 	return band.x + rng.next_below(band.y - band.x + 1)
+
+
+## Ids de todos os membros da geração atual, em ordem de vaga e de `k` (testes e relatórios).
+func member_ids() -> Array[String]:
+	var ids: Array[String] = []
+	for id in _order:
+		ids.append_array((_slots[id] as Slot).member_ids)
+	return ids
+
+
+## Estado da vaga para teste e relatório: `{gen, center, waiting, due_at, tries, members}`; vazio se a vaga não existe aqui.
+func slot_info(slot_id: String) -> Dictionary:
+	var slot: Slot = _slots.get(slot_id)
+	if slot == null:
+		return {}
+	return {"gen": slot.gen, "center": slot.center, "waiting": slot.waiting, "due_at": slot.due_at, "tries": slot.tries,
+			"members": slot.member_ids.duplicate(), "region": slot.def["region"], "species": slot.def["species"]}
+
+
+func slot_ids() -> Array[String]:
+	return _order.duplicate()
+
+
+## Centro da vaga na geração 0 com a semente atual (`NO_CELL` se não achou lugar).
+func layout_center(slot_id: String) -> Vector2i:
+	return _layout0.get(slot_id, WildLayout.NO_CELL)
+
+
+func _physics_process(_delta: float) -> void:
+	if clock.is_valid():
+		tick(clock.call())
+
+
+## Passo da autoridade (público, testável sem quadros): bando sem membro selvagem marca o prazo de renascer
+## (`due_at = agora + group_respawn_seconds`, ADR-006); vencido o prazo, tenta o sorteio de um centro novo. Nunca roda no
+## `from_dict`/`restore`: o primeiro tick depois da carga resolve o que venceu.
+func tick(now: float) -> void:
+	if _layout == null:
+		return
+	for id in _order:
+		var slot: Slot = _slots[id]
+		if slot.center == WildLayout.NO_CELL:
+			continue
+		if not slot.waiting:
+			if _wild_alive(slot) == 0:
+				slot.waiting = true
+				slot.due_at = now + slot.kind.group_respawn_seconds
+				slot.tries = 0
+		elif now >= slot.due_at:
+			_try_respawn(slot, now)
+
+
+## Membros da geração atual ainda vivos e selvagens (sem dono).
+func _wild_alive(slot: Slot) -> int:
+	var count := 0
+	for member_id in slot.member_ids:
+		var creature := creature_at(member_id)
+		if creature != null and not creature.health.is_dead() and not is_owned(creature):
+			count += 1
+	return count
+
+
+func _try_respawn(slot: Slot, now: float) -> void:
+	var clearance := _rules.group_respawn_player_clearance_tiles
+	if slot.tries >= _rules.group_respawn_relax_after_tries:
+		clearance = _rules.group_respawn_relaxed_clearance_tiles  # só a distância do jogador relaxa
+	var next_gen := slot.gen + 1
+	var center := _layout.pick_center(slot.def, next_gen, slot.tries, _live_centers(slot), _player_cells(), clearance)
+	if center == WildLayout.NO_CELL:
+		slot.tries += 1
+		slot.due_at = now + _rules.group_respawn_retry_seconds
+		return
+	_forget_members(slot)
+	slot.gen = next_gen
+	slot.center = center
+	slot.waiting = false
+	slot.tries = 0
+	group_spawned.emit(_spawn_group(slot))
+
+
+## Centros dos bandos vivos (de todas as vagas menos `except`) e os fixos.
+func _live_centers(except: Slot) -> Array[Dictionary]:
+	var placed: Array[Dictionary] = fixed_centers.duplicate()
+	for id in _order:
+		var other: Slot = _slots[id]
+		if other != except and other.center != WildLayout.NO_CELL and not other.waiting and _wild_alive(other) > 0:
+			placed.append(WildLayout.placed_center(other.center, other.kind.spawn_key, other.kind.min_group_spacing_tiles))
+	return placed
+
+
+func _player_cells() -> Array[Vector2i]:
+	var cells: Array[Vector2i] = []
+	if target_locator.is_valid():
+		for node: Variant in target_locator.call():
+			if is_instance_valid(node):
+				cells.append(_map.cell_of((node as Node2D).global_position))
+	return cells
+
+
+## Esquece os ids da geração que acabou (os domados dela seguem como entidade).
+func _forget_members(slot: Slot) -> void:
+	for member_id in slot.member_ids:
+		_by_id.erase(member_id)
+		_dead.erase(member_id)
+		_taken.erase(member_id)
+	slot.member_ids.clear()
 
 
 ## Espécie pelo id salvo; desconhecido (ou ausente, save antigo) cai na primeira.
@@ -152,25 +329,54 @@ func is_changed(creature: Dino) -> bool:
 			or creature.health.current_health < creature.health.max_health
 
 
-## Delta para o save, em ordem de id.
+## Delta para o save, em ordem de vaga e de membro (só a geração atual de cada vaga).
 func to_list() -> Array:
 	var list: Array = []
-	var ids: Array = _by_id.keys()
-	ids.sort()
-	for spawn_id: String in ids:
-		if _dead.has(spawn_id):
-			list.append({"id": spawn_id, "dead": true})
+	for id in _order:
+		for member_id in (_slots[id] as Slot).member_ids:
+			var entry: Variant = _delta_entry(member_id)
+			if entry != null:
+				list.append(entry)
+	return list
+
+
+## A entrada do delta do membro, ou null se ele está como nasceu (ou já sumiu sem marca).
+func _delta_entry(spawn_id: String) -> Variant:
+	if _dead.has(spawn_id):
+		return {"id": spawn_id, "dead": true}
+	if _taken.has(spawn_id):
+		return {"id": spawn_id, "tamed": true}
+	var creature := creature_at(spawn_id)
+	if creature == null or creature.health.is_dead():
+		return null
+	if is_owned(creature):
+		return {"id": spawn_id, "tamed": true}
+	if is_changed(creature):
+		return {"id": spawn_id, "state": creature.to_dict()}
+	return null
+
+
+## `world.wild_groups` para o save: só as vagas não intactas (geração acima de 0, esperando renascer, ou com membro no delta).
+## `center` vai quando a geração é maior que 0 ou algum membro está no delta (a vaga não pode se mexer depois de tocada);
+## `due_at` e `tries` só enquanto espera. A vaga intacta da geração 0 é recalculada pela semente: custo zero no save.
+func groups_to_list() -> Array:
+	var list: Array = []
+	for id in _order:
+		var slot: Slot = _slots[id]
+		if slot.center == WildLayout.NO_CELL:
 			continue
-		if _taken.has(spawn_id):
-			list.append({"id": spawn_id, "tamed": true})
+		var touched := false
+		for member_id in slot.member_ids:
+			if _delta_entry(member_id) != null:
+				touched = true
+				break
+		if slot.gen == 0 and not slot.waiting and not touched:
 			continue
-		var creature := creature_at(spawn_id)
-		if creature == null or creature.health.is_dead():
-			continue
-		if is_owned(creature):
-			list.append({"id": spawn_id, "tamed": true})
-		elif is_changed(creature):
-			list.append({"id": spawn_id, "state": creature.to_dict()})
+		var entry := {"slot": id, "gen": slot.gen, "center": [slot.center.x, slot.center.y]}
+		if slot.waiting:
+			entry["due_at"] = slot.due_at
+			entry["tries"] = slot.tries
+		list.append(entry)
 	return list
 
 
@@ -197,18 +403,44 @@ func entities() -> Array:
 ## O delta vale por id de spawn, de qualquer revisão do mapa; id que o mapa não tem é ignorado (exceto estado com
 ## doma em andamento ou comida: vira entidade, para nenhum item se perder), e estado de outra espécie também (o
 ## selvagem nasce novo). As entidades valem sempre.
-func restore(list: Variant, saved_entities: Array) -> bool:
+func restore(list: Variant, saved_entities: Array, groups: Variant = [], saved_seed: int = -1, now: float = 0.0) -> bool:
 	last_restored = []
 	last_adopted = []
+	last_created = []
 	var entries: Variant = _read_list(list)
 	if entries == null:
 		return false
+	var seed_value := world_seed if saved_seed < 0 or _map == null else saved_seed
+	var same_seed := seed_value == world_seed
+	var layout := _layout if same_seed else WildLayout.new(_map, _rules, seed_value, SPECIES)
+	var centers0 := _layout0 if same_seed else layout.layout(fixed_centers)
+	var targets := _plan_slots(groups, layout, centers0, now)
+	var changed := {}  # id da vaga -> alvo: a vaga muda de geração, de centro ou de espera, e seus membros são refeitos
+	var fresh: Dictionary = {}  # id do membro -> Dino criado agora (só entra no mundo se tudo der certo)
+	var made: Array[Dino] = []
+	for slot_id: String in targets:
+		var slot: Slot = _slots[slot_id]
+		var target: Dictionary = targets[slot_id]
+		if target["gen"] == slot.gen and target["center"] == slot.center and target["waiting"] == slot.waiting:
+			continue
+		changed[slot_id] = target
+		if target["waiting"] or target["center"] == WildLayout.NO_CELL:
+			continue
+		var cells := layout.members_of(slot.def, target["gen"], target["center"])
+		var ks: Array = cells.keys()
+		ks.sort()
+		for k: int in ks:
+			var member_id := member_id_of(slot_id, target["gen"], k)
+			var creature := _build_member(slot.kind, layout, member_id, cells[k])
+			fresh[member_id] = creature
+			made.append(creature)
 	var applied: Array = []  # [creature, estado antes]
 	var created: Array[Dino] = []
 	var plan: Array = []  # [entrada, criatura] do que vale (id do mapa e espécie certa)
 	var ok := true
 	for entry: Dictionary in (entries as Array):
-		var creature := creature_at(str(entry["id"]))
+		var spawn_id := str(entry["id"])
+		var creature: Dino = fresh.get(spawn_id) if changed.has(_slot_of(spawn_id)) else creature_at(spawn_id)
 		if creature == null:
 			if entry.has("state") and _holds_items(entry["state"]):
 				ok = _adopt(entry["state"], created)
@@ -220,7 +452,8 @@ func restore(list: Variant, saved_entities: Array) -> bool:
 		plan.append([entry, creature])
 		if entry.has("dead") or entry.has("tamed") or _state_is_dead(entry["state"]):
 			continue  # morto não passa por `from_dict` (a morte não se desfaz): só é marcado depois de tudo conferido
-		applied.append([creature, creature.to_dict()])
+		if not made.has(creature):
+			applied.append([creature, creature.to_dict()])
 		if not creature.from_dict(entry["state"]):
 			ok = false
 			break
@@ -240,7 +473,10 @@ func restore(list: Variant, saved_entities: Array) -> bool:
 			(pair[0] as Dino).from_dict(pair[1])
 		for creature in created:
 			creature.free()
+		for creature in made:
+			creature.free()
 		return false
+	_commit_slots(changed, fresh, layout, centers0, seed_value)
 	for pair: Array in plan:
 		var entry: Dictionary = pair[0]
 		var spawn_id := str(entry["id"])
@@ -259,7 +495,70 @@ func restore(list: Variant, saved_entities: Array) -> bool:
 	_register(created)
 	last_restored.append_array(created)
 	last_adopted = created
+	for creature in made:
+		if is_instance_valid(creature) and not creature.is_queued_for_deletion():
+			last_created.append(creature)
 	return true
+
+
+## Id da vaga de um id de membro (`g7.0.2` -> `g7`).
+static func _slot_of(member_id: String) -> String:
+	return member_id.get_slice(".", 0)
+
+
+## O alvo de cada vaga depois do save: `{id: {gen, center, waiting, due_at, tries}}`. Entrada de `groups` mal formada, de vaga
+## desconhecida, de centro fora da região (ou do mapa) ou repetida é descartada, e a vaga volta à disposição da semente. Nada
+## aqui muda o mundo.
+func _plan_slots(groups: Variant, layout: WildLayout, centers0: Dictionary, now: float) -> Dictionary:
+	var read := {}
+	for item: Variant in SafeRead.list(groups).slice(0, MAX_ENTRIES):
+		var entry := SafeRead.dict(item)
+		var slot_id := SafeRead.text(entry.get("slot"), "")
+		if not _slots.has(slot_id) or read.has(slot_id):
+			continue
+		var slot: Slot = _slots[slot_id]
+		var gen := SafeRead.integer(entry.get("gen"), -1, 0, MAX_GENERATION)
+		var pair := SafeRead.list(entry.get("center"))
+		var center := WildLayout.NO_CELL
+		if pair.size() == 2:
+			center = Vector2i(SafeRead.integer(pair[0], -1, -1, 1 << 20), SafeRead.integer(pair[1], -1, -1, 1 << 20))
+		if pair.is_empty() and gen == 0 and centers0.has(slot_id):
+			center = centers0[slot_id]  # sem centro gravado (vaga só com membro no delta): vale o da semente
+		elif gen < 0 or not layout.center_is_valid(slot.def, center):
+			continue
+		var waiting := entry.has("due_at")
+		read[slot_id] = {"gen": gen, "center": center, "waiting": waiting,
+				"due_at": SafeRead.number(entry.get("due_at"), 0.0, 0.0, now + slot.kind.group_respawn_seconds),
+				"tries": SafeRead.integer(entry.get("tries"), 0, 0, 1000)}
+	var targets := {}
+	for slot_id in _order:
+		targets[slot_id] = read.get(slot_id, {"gen": 0, "center": centers0.get(slot_id, WildLayout.NO_CELL),
+				"waiting": false, "due_at": 0.0, "tries": 0})
+	return targets
+
+
+## Troca o estado das vagas refeitas (depois de tudo conferido): os membros antigos saem, os novos entram, e a semente passa a valer.
+func _commit_slots(changed: Dictionary, fresh: Dictionary, layout: WildLayout, centers0: Dictionary, seed_value: int) -> void:
+	_layout = layout
+	_layout0 = centers0
+	world_seed = seed_value
+	for slot_id: String in changed:
+		var slot: Slot = _slots[slot_id]
+		var target: Dictionary = changed[slot_id]
+		for member_id in slot.member_ids:
+			var old := creature_at(member_id)
+			if old != null and not is_owned(old):
+				old.queue_free()
+		_forget_members(slot)
+		slot.gen = target["gen"]
+		slot.center = target["center"]
+		slot.waiting = target["waiting"]
+		slot.due_at = target["due_at"]
+		slot.tries = target["tries"]
+	var ids: Array = fresh.keys()
+	ids.sort()
+	for member_id: String in ids:
+		_register_member(_slots[_slot_of(member_id)], member_id, fresh[member_id])
 
 
 ## O estado diz uma espécie que não é a de `creature`? (sem `species` não diz nada: save antigo)
@@ -362,6 +661,7 @@ func _alive(creature: Variant) -> bool:
 
 func _on_died(creature: Dino) -> void:
 	var spawn_id: String = _id_of.get(creature, "")
-	if spawn_id != "":
-		_dead[spawn_id] = true
+	var slot: Slot = _slots.get(_slot_of(spawn_id))
+	if slot != null and slot.member_ids.has(spawn_id):
+		_dead[spawn_id] = true  # só a geração atual guarda a marca: a que acabou já foi esquecida
 	creature_died.emit(creature, creature.state_machine.is_tamed)

@@ -34,6 +34,10 @@ const MAP_CHANGED_NOTICE := "O mapa mudou desde este save: recursos e selvagens 
 ## Quais nós, cenário e níveis a ilha usa (dado). O mapa em si é `IslandMap` (estático, fora do save).
 @export var world_rules: WorldRules = preload("res://data/world/world_rules.tres")
 
+## Semente deste mundo (sorteio dos bandos, ADR-007). 0 = sorteia ao criar o mundo novo (ou usa `GameSession.world_seed_override`);
+## o Continuar a troca pela salva. Quem quiser um mundo reproduzível (teste, servidor) a fixa antes de entrar na árvore.
+@export var world_seed: int = 0
+
 ## A ilha Lunata: onde está cada coisa. Só leitura; o jogo não a gera nem a salva.
 var map: IslandMap
 
@@ -55,6 +59,8 @@ var wild: WildPopulation
 var carcasses: CarcassField
 ## Consulta única de ocupação do chão (jogador e dinos hoje; a grade de construção depois).
 var occupancy := TileOccupancy.new()
+## Música do jogo (canal `Music`): faixa de dia ou de noite conforme o `WorldClock`, com crossfade.
+var music: MusicPlayer
 
 ## `entity_id` da criatura cuja tela compartilhada está aberta (0 = nenhuma).
 var _screen_target_id: int = 0
@@ -71,7 +77,15 @@ var _respawn_count: int = 0
 
 func _ready() -> void:
 	_load_server_rules()
+	music = MusicPlayer.new()
+	add_child(music)
+	music.follow_world(authority.clock)
+	var target_outline := AttackTargetOutline.new()  # contorno no dino que o golpe vai atingir
+	target_outline.player = player
+	add_child(target_outline)
 	map = IslandMap.default_map()
+	if world_seed <= 0:
+		world_seed = GameSession.world_seed_override if GameSession.world_seed_override > 0 else WorldSnapshot.new_world_seed()
 	player.player_id = WorldSnapshot.new_player_id()  # mundo novo: id aleatório (o Continuar o troca pelo salvo)
 	_place_on_island()
 	dino.level = dino_level
@@ -128,6 +142,7 @@ func _load_server_rules() -> void:
 	world_rules = server_rules.apply_world(world_rules)
 	taming_rules = server_rules.apply_taming(dino.taming.rules)
 	dino.taming.rules = taming_rules
+	authority.pvp_enabled = server_rules.pvp
 
 
 ## Quem os agressivos perseguem: os jogadores (um hoje).
@@ -154,10 +169,9 @@ func _place_on_island() -> void:
 	_build_zone()
 
 
-## A zona ativa e os selvagens do mapa (a criatura da cena é o do tutorial e entra na zona também). Nível do
-## selvagem pelo bioma onde nasce (faixa em `WorldRules.level_bands`), sorteado com semente do mapa: o mesmo
-## mapa dá os mesmos dinos. O save leva só o delta deles (`WildPopulation`): quem mudou ou morreu; o resto
-## nasce de novo no mesmo lugar.
+## A zona ativa e os bandos selvagens (a criatura da cena é o do tutorial e entra na zona também). A posição dos bandos sai
+## da semente do mundo e das vagas do mapa (`WildLayout`); o nível, do bioma onde o membro nasce (faixa em
+## `WorldRules.level_bands`). O save leva só o delta deles e as vagas não intactas (`WildPopulation`); o resto é recalculado.
 func _build_zone() -> void:
 	zone = DinoZone.new()
 	zone.name = "DinoZone"
@@ -176,23 +190,34 @@ func _build_zone() -> void:
 	wild.y_sort_enabled = true
 	wild.taming_rules = taming_rules
 	wild.target_locator = _chase_targets
+	wild.clock = authority.clock.now
 	add_child(wild)
 	zone.register(dino, false)
 	var tutorial_cell: Vector2i = map.landmarks.get("paquicefalo_tutorial", Vector2i(-1, -1))
-	var tutorial_spawn := map.spawn_id_at(dino.stats.spawn_key, tutorial_cell)  # o do tutorial também tem sexo pelo ponto
-	dino.sex = dino.stats.roll_sex(map.seed_value, tutorial_spawn if tutorial_spawn != "" else "tutorial")
+	dino.sex = dino.stats.roll_sex(map.seed_value, "tutorial")
+	if tutorial_cell != Vector2i(-1, -1):  # o bando do tutorial é fixo e conta para a distância dos outros
+		wild.fixed_centers.append(WildLayout.placed_center(tutorial_cell, dino.stats.spawn_key, dino.stats.min_group_spacing_tiles))
 	var scene_marker := get_node_or_null("DinoMarker") as DinoMarker
 	if scene_marker != null:
 		scene_marker.viewer = player
 	var scene_view := get_node_or_null("DinoView") as DinoView
 	if scene_view != null:
 		scene_view.viewer = player
-	# o do tutorial é um dos `wild_population_max`
-	for creature in wild.populate(map, world_rules, tutorial_cell, world_rules.wild_population_max - 1):
+	for creature in wild.populate(map, world_rules, world_seed):
 		zone.register(creature, false)
+	wild.group_spawned.connect(_on_group_spawned)
 	zone.mode_applied.connect(_on_zone_mode_applied)
 	wild.authority = authority
 	wild.creature_died.connect(_on_wild_died)
+	zone.reclassify()
+
+
+## Um bando renasceu: os membros entram no registro da autoridade e na zona (o respawn é só da autoridade).
+func _on_group_spawned(creatures: Array[Dino]) -> void:
+	for creature in creatures:
+		if authority.register(creature) == 0:
+			push_error("Main: selvagem sem id no registro.")
+		zone.register(creature, false)
 	zone.reclassify()
 
 
@@ -224,11 +249,15 @@ func _continue_saved_game() -> void:
 	var outcome := save_manager.load_first(
 			func(data: Dictionary) -> bool: return WorldSnapshot.restore(data, player, dino, resources, wild, carcasses, authority))
 	if outcome.status == SaveManager.Status.OK:
+		world_seed = wild.world_seed  # o save pode ter outra semente: a disposição dos bandos já foi refeita por ela
 		_respawn_count = WorldSnapshot.respawn_count_of(outcome.data)
 		scheduler.respawn_count = _respawn_count
 		authority.ensure_next_id(WorldSnapshot.next_entity_id_of(outcome.data))
 		_keep_on_island(WorldSnapshot.has_legacy_coordinates(outcome.data))
 		if zone != null:
+			for creature in wild.last_created:  # o save mudou a semente ou o bando de uma vaga: os membros novos entram no mundo
+				authority.register(creature)
+				zone.register(creature, false)
 			for creature in wild.last_adopted:
 				zone.register(creature, false)  # os domados recriados do save entram na zona
 			zone.reclassify()  # o jogador e os dinos mudaram de lugar

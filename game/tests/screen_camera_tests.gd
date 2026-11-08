@@ -64,11 +64,13 @@ func _test_map_bounds_rules() -> void:
 
 func _test_sheet_definition() -> void:
 	var sheet := SpriteSheetDef.from_json_file(PlayerView.SHEET_PATH)
-	_check(sheet.is_valid() and sheet.frame_size == Vector2i(32, 32) and sheet.columns == 10 and sheet.rows == 4,
-			"jogador.json: quadro 32x32, 10 colunas, 4 linhas")
+	_check(sheet.is_valid() and sheet.frame_size == Vector2i(32, 32) and sheet.columns == 10 and sheet.rows == 8,
+			"jogador.json: quadro 32x32, 10 colunas, 8 linhas")
 	_check(sheet.direction_rows[SpriteFacing.DOWN] == "down" and sheet.direction_rows[SpriteFacing.UP] == "up"
 			and sheet.direction_rows[SpriteFacing.LEFT] == "left" and sheet.direction_rows[SpriteFacing.RIGHT] == "right",
 			"a ordem das linhas do JSON é a de SpriteFacing (baixo, cima, esquerda, direita)")
+	_check(sheet.direction_rows.size() == sheet.rows and sheet.direction_rows[SpriteFacing.DOWN_LEFT] == "down_left"
+			and sheet.direction_rows[SpriteFacing.UP_RIGHT] == "up_right", "as 4 diagonais seguem na ordem de SpriteFacing")
 	for name in ["idle", "walk", "hit", "fall"]:
 		_check(sheet.has_animation(name), "jogador.json tem a animação %s" % name)
 	_check(sheet.column_at("walk", 0.0) == 2 and sheet.column_at("walk", 0.13) == 3 and sheet.column_at("walk", 0.5) == 2,

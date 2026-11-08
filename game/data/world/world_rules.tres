@@ -31,4 +31,11 @@ level_bands = Dictionary[int, Vector2i]({
 4: Vector2i(5, 25),
 5: Vector2i(15, 35)
 })
-wild_population_max = 108
+min_group_spacing_any_tiles = 16.0
+group_start_clearance_tiles = 12.0
+group_spawn_attempts = 40
+group_member_attempts = 20
+group_respawn_player_clearance_tiles = 40.0
+group_respawn_relaxed_clearance_tiles = 24.0
+group_respawn_retry_seconds = 60.0
+group_respawn_relax_after_tries = 3

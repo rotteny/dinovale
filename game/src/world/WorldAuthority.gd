@@ -40,6 +40,12 @@ const MAX_ORDER_NAME := 16
 ## Relógio do mundo (ADR-006). Só esta autoridade o avança, em `_physics_process`; os sistemas recebem `clock.now`.
 var clock := WorldClock.new()
 
+## Aliados do dono de uma criatura, para o dano em área: `Callable(owner_player_id, other_player_id) -> bool`.
+## Sem ele, ninguém é aliado.
+var ally_check: Callable = Callable()
+## PvP do mundo (`ServerRules.pvp`, injetado pelo host): golpe em área acerta domados de OUTRO jogador. A autoridade não lê arquivo.
+var pvp_enabled: bool = false
+
 var _entities: Dictionary = {}
 var _next_id: int = 1
 
@@ -128,6 +134,91 @@ func request_attack(actor_id: int, target_id: int) -> Enums.ActionResult:
 	if problem == Enums.ActionResult.OK and not actor.strike(dino):
 		problem = Enums.ActionResult.REFUSED
 	return _answer(actor_id, ACTION_ATTACK, problem)
+
+
+## Golpe em área de uma criatura (não é intenção de jogador: quem chama é o servidor, quando a IA ataca).
+## `attacker_id` precisa ter `area_rules()` (porte Grande com dado). O alvo principal leva o golpe inteiro; os
+## secundários, a fração de `AreaAttackRules.fraction` do dano e do torpor, até `max_extra_targets`, os mais
+## próximos do principal (empate: id menor). Nunca acerta o dono, os aliados dele nem domados (os de terceiros só com
+## `pvp_enabled`, chave de servidor `pvp`, padrão falso); selvagem só acerta jogador; quem está
+## sendo domado ou já caiu só leva se for o principal. Devolve `{entity_id: fração}` dos atingidos (vazio se o principal não foi acertado).
+func resolve_area_attack(attacker_id: int, target_id: int, damage: float, torpor_amount: float) -> Dictionary:
+	var attacker := entity(attacker_id) as Dino
+	var main_target := entity(target_id) as Node2D
+	var hits: Dictionary = {}
+	if attacker == null or main_target == null or main_target == attacker or damage < 0.0 or torpor_amount < 0.0:
+		return hits
+	var area := attacker.stats.area_rules()
+	if area == null or attacker.health.is_dead() or attacker.state_machine.current_id == Enums.DinoStateId.UNCONSCIOUS:
+		return hits
+	if not _area_hit(attacker, main_target, damage, torpor_amount, 1.0):
+		return hits
+	hits[target_id] = 1.0
+	var tile := float(attacker.level_rules.tile_size)
+	var extras: Array = []
+	for candidate_id: int in _entities:
+		var node := entity(candidate_id) as Node2D
+		if node == null or node == attacker or node == main_target or not _area_candidate(attacker, node):
+			continue
+		var fraction := area.fraction(node.global_position.distance_to(main_target.global_position) / tile)
+		if fraction > 0.0:
+			extras.append({"id": candidate_id, "fraction": fraction, "distance": node.global_position.distance_to(main_target.global_position)})
+	extras.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		return a["distance"] < b["distance"] or (a["distance"] == b["distance"] and a["id"] < b["id"]))
+	for extra: Dictionary in extras.slice(0, area.max_extra_targets):
+		var node := entity(extra["id"]) as Node2D
+		if _area_hit(attacker, node, damage, torpor_amount, extra["fraction"]):
+			hits[extra["id"]] = extra["fraction"]
+	return hits
+
+
+## O jogador pode ser acertado pela criatura? Vivo, e nem o dono dela nem aliado do dono.
+func _hostile_player(attacker: Dino, player: Player) -> bool:
+	var owner_id := attacker.owner_player_id
+	if player.health.is_dead():
+		return false
+	if owner_id == "":
+		return true
+	return player.player_id != owner_id and not (ally_check.is_valid() and ally_check.call(owner_id, player.player_id))
+
+
+## O nó pode ser SECUNDÁRIO do golpe em área de `attacker`? (O principal só passa pelo `_area_hit`.)
+func _area_candidate(attacker: Dino, node: Node) -> bool:
+	if node is Player:
+		return _hostile_player(attacker, node as Player)
+	var dino := node as Dino
+	if dino == null or dino.health.is_dead():
+		return false
+	if not attacker.state_machine.is_tamed:
+		return false  # selvagem não acerta selvagem
+	if dino.state_machine.is_tamed:
+		# Domado do mesmo dono nunca. Domado de OUTRO só com PvP ligado (`pvp_enabled`).
+		if not pvp_enabled or dino.owner_player_id == attacker.owner_player_id:
+			return false
+	return not dino.taming.is_active() and dino.state_machine.current_id != Enums.DinoStateId.UNCONSCIOUS
+
+
+## Aplica o golpe (já multiplicado por `fraction`) em `node`; false se ele não pode ser acertado.
+func _area_hit(attacker: Dino, node: Node, damage: float, torpor_amount: float, fraction: float) -> bool:
+	var player := node as Player
+	if player != null:
+		if not _hostile_player(attacker, player):
+			return false
+		player.health.take_damage(damage * fraction)
+		return true
+	var dino := node as Dino
+	if dino == null or not attacker.state_machine.is_tamed:
+		return false  # selvagem não acerta selvagem (nem o principal)
+	if dino.state_machine.is_tamed:  # só com a chave ligada, e só de outro dono: leva dano (sem torpor: já está domado)
+		return pvp_enabled and dino.owner_player_id != attacker.owner_player_id and not dino.health.is_dead() \
+				and dino.take_damage(damage * fraction, attacker.stats.attacker_kind)
+	return dino.receive_hit(damage * fraction, torpor_amount * fraction, attacker.stats.attacker_kind)
+
+
+## Alvo do golpe de quem está em `origin` olhando para `facing`: a regra única (`AttackTargeting`) com o alcance, o "à frente" e a
+## histerese de `ActionRules`, as mesmas que `request_attack` usa para negar. O jogador a consulta para o destaque.
+func choose_attack_target(origin: Vector2, facing: Vector2, candidates: Array[Node2D], current: Node2D) -> Node2D:
+	return AttackTargeting.choose(origin, facing, rules.reach_px(), candidates, current, rules.front_dot_min, rules.hysteresis_px)
 
 
 ## Pede andar na `direction` neste quadro (comprimento no máximo 1; `wants_sprint` = correr). Nega NaN,
@@ -280,6 +371,9 @@ func _attack_problem(actor: Player, dino: Dino) -> Enums.ActionResult:
 	if dino.health.is_dead() or dino.state_machine.is_tamed:
 		return Enums.ActionResult.INVALID_TARGET
 	if not _within(actor, dino, rules.reach_px()):
+		return Enums.ActionResult.OUT_OF_RANGE
+	# "À frente" é regra da autoridade, pela direção do corpo que ELA mantém (a última aceita em `request_move`).
+	if not AttackTargeting.is_in_front(actor.global_position, actor.facing, dino, rules.front_dot_min):
 		return Enums.ActionResult.OUT_OF_RANGE
 	return Enums.ActionResult.OK if actor.can_strike() else Enums.ActionResult.COOLDOWN
 

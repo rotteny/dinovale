@@ -86,7 +86,7 @@ func open() -> void:
 	is_open = true
 	visible = true
 	show_status("")
-	_column.reset_selection()
+	_column.reset_selection()  # com a pausa visível: o foco vai ao primeiro botão
 	get_tree().paused = true
 
 

@@ -27,7 +27,7 @@ Pedimos que a divulgação pública espere a correção estar disponível.
 ## Escopo
 
 Dentro: código do jogo (`game/`), scripts (`tools/`), workflows
-(`.github/`) e a página (`html/`).
+(`.github/`) e a página (`docs/`).
 
 Fora: vulnerabilidades do próprio Godot Engine (reporte ao projeto
 [Godot](https://github.com/godotengine/godot/security)) e de serviços de

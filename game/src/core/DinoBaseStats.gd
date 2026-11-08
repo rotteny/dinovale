@@ -47,7 +47,7 @@ const SEX_MALE := "m"
 @export_range(1.0, 120.0) var chase_max_seconds: float = 15.0
 ## Depois de desistir, segundos sem voltar a perseguir (alerta do GDD 6.7: 5 s).
 @export_range(0.0, 60.0) var alert_seconds: float = 5.0
-## Chance de nascer macho (`sexo_proporcao_macho` do desenho, `docs/design/corte-v02/montaria-vinculo-trabalho.md`): 0,5 = 50/50
+## Chance de nascer macho (`sexo_proporcao_macho` do desenho, `documentacao/design/corte-v02/montaria-vinculo-trabalho.md`): 0,5 = 50/50
 ## em toda espécie. Sexo não muda atributo, torpor, dieta nem velocidade.
 @export_range(0.0, 1.0) var male_ratio: float = 0.5
 ## Porte (v0.2: Dodo pequeno, Paquicéfalo e Utahraptor médios, Triceratops grande).

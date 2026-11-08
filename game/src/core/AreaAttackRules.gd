@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT
 class_name AreaAttackRules
 extends Resource
-## Dano em área de uma espécie (`docs/design/corte-v02/bandos-e-dano-em-area.md`, seção 4), só dados. Quem tem
+## Dano em área de uma espécie (`documentacao/design/corte-v02/bandos-e-dano-em-area.md`, seção 4), só dados. Quem tem
 ## isto, ao acertar um alvo principal, também acerta quem está perto dele, com a fração do dano que cai com a
 ## distância ao alvo principal. Só vale para porte Grande (`DinoBaseStats.area_rules`).
 

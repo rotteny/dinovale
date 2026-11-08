@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT
 class_name AreaAttackTests
 extends TestSuite
-## Dano em área (`docs/design/corte-v02/bandos-e-dano-em-area.md`, seção 4): uma frase testável por grupo.
+## Dano em área (`documentacao/design/corte-v02/bandos-e-dano-em-area.md`, seção 4): uma frase testável por grupo.
 ## O Triceratops ainda não existe em `data/`; o atacante é um Grande de teste montado aqui.
 
 const TILE := 16.0

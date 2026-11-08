@@ -19,7 +19,7 @@ Cabeça grande, contorno escuro de 1 px. O jogador tem 16 px de altura (1 tile).
 
 ## Bichos: PLACEHOLDER de dino e bichos pequenos
 
-Nenhum é dino de verdade, exceto o Grey Trex, que é um dino chibi. **Todos os usos abaixo são placeholder de dino** até haver dinos encomendados (ver `docs/design/arte/ESTILO.md`).
+Nenhum é dino de verdade, exceto o Grey Trex, que é um dino chibi. **Todos os usos abaixo são placeholder de dino** até haver dinos encomendados (ver `documentacao/design/arte/ESTILO.md`).
 
 | Uso sugerido | Arquivo | Quadro | Quadros | Direções | Observação |
 |---|---|---|---|---|---|
@@ -36,7 +36,7 @@ Faltam para qualquer bicho: **dormir, ferido, atacar**. Enquanto não houver art
 
 ### `tilesets/tileset_floor.png` (352x417, tile 16x16)
 
-Coordenadas em tiles (coluna, linha). Conferido por montagem de cena (ver `docs/design/arte/pacotes/mock-pacotes-2x.png`).
+Coordenadas em tiles (coluna, linha). Conferido por montagem de cena (ver `documentacao/design/arte/pacotes/mock-pacotes-2x.png`).
 
 - **Grama**: base (0,12); variações com tufos (1..4,12) e (2,11), (3,11). Sorteio ponderado (maioria base) evita padrão visível.
 - **Caminho de terra sobre a grama** (conjunto à esquerda do arquivo, colunas 0 a 9, linhas 7 a 11):

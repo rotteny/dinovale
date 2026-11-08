@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT
 class_name IslandMap
 extends RefCounted
-## O mapa estático da ilha Lunata (`res://data/world/lunata.json`, gerado por `docs/design/mapa_export.py`):
+## O mapa estático da ilha Lunata (`res://data/world/lunata.json`, gerado por `documentacao/design/mapa_export.py`):
 ## terreno por tile, início, marcos, posição dos nós de recurso e do cenário e as vagas de bando selvagem (ADR-007,
 ## emenda de 07/11: o mapa diz ONDE cada espécie pode nascer, não o ponto). Lógica pura,
 ## sem nó nem física: o jogo o LÊ, nunca o gera ao rodar, e ele NÃO vai ao save (só o estado dos nós).
@@ -82,7 +82,7 @@ func load_dict(data: Dictionary) -> bool:
 	load_error = ""
 	var format := SafeRead.integer(data.get("format"), 0, 0, 1 << 20)
 	if format != FORMAT:
-		load_error = "mapa em formato %d, o jogo lê o formato %d: regere com docs/design/mapa_export.py" % [format, FORMAT]
+		load_error = "mapa em formato %d, o jogo lê o formato %d: regere com documentacao/design/mapa_export.py" % [format, FORMAT]
 		return false
 	var side := SafeRead.integer(data.get("size"), 0, 0, 4096)
 	var rows := SafeRead.list(data.get("rows"))

@@ -43,8 +43,8 @@ O jogo é feito em [Godot 4](https://godotengine.org/) com GDScript. As regras f
 | Pasta | Conteúdo |
 |---|---|
 | [`game/`](game/) | Projeto Godot. O [README técnico](game/README.md) explica como rodar, a arquitetura e o roadmap. |
-| [`html/`](html/) | Landing page de apresentação do jogo. |
-| [`docs/`](docs/) | Planejamento do desenvolvimento. |
+| [`docs/`](docs/) | Landing page de apresentação do jogo, publicada pelo GitHub Pages em <https://rotteny.github.io/dinovale/> (main, pasta `/docs`). |
+| [`documentacao/`](documentacao/) | Planejamento do desenvolvimento. |
 
 ## Licença
 

@@ -290,14 +290,14 @@ func _longest_run(groups: Dictionary) -> int:
 
 
 func _test_exporter_is_deterministic() -> void:
-	var script := ProjectSettings.globalize_path("res://").path_join("../docs/design/mapa_export.py").simplify_path()
+	var script := ProjectSettings.globalize_path("res://").path_join("../documentacao/design/mapa_export.py").simplify_path()
 	if OS.get_environment("SKIP_EXPORTER_CHECK") == "1":
 		printerr("AVISO: SKIP_EXPORTER_CHECK=1, o lunata.json NAO foi comparado com o exportador.")
 		return
 	var probe: Array = []
 	# Sem python3 (ou sem o script) o teste FALHA: pular calado deixaria o JSON sair do script sem ninguém ver.
 	var tool_ok := FileAccess.file_exists(script) and OS.execute("python3", ["--version"], probe) == 0
-	_check(tool_ok, "o exportador do mapa roda aqui (python3 e docs/design/mapa_export.py); para pular de propósito: SKIP_EXPORTER_CHECK=1")
+	_check(tool_ok, "o exportador do mapa roda aqui (python3 e mapa_export.py); pular: SKIP_EXPORTER_CHECK=1")
 	if not tool_ok:
 		return
 	var output: Array = []

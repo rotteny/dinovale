@@ -15,6 +15,8 @@ var _calm_left := 0.0
 var _far_time := 0.0
 var _lunge_direction := Vector2.ZERO
 var _steered_phase := Enums.ThreatPhase.NONE
+var _fleeing := false
+var _flee_time := 0.0
 
 
 func enter() -> void:
@@ -25,12 +27,17 @@ func enter() -> void:
 	machine.follower.forget()
 	machine.episode_id += 1
 	_steered_phase = Enums.ThreatPhase.NONE
+	_fleeing = false
+	_flee_time = 0.0
+	machine.is_helper = false  # quem chama o ajudante liga o teto depois de entrar (`provoke_as_helper`)
 	if machine.threat_cycle != null:
 		machine.threat_cycle.begin(machine.target_distance(), machine.tile_px)
 	_steer(0.0)
 
 
 func exit() -> void:
+	machine.is_helper = false
+	_fleeing = false
 	if machine.threat_cycle != null:
 		machine.threat_cycle.end()
 	machine.speed_multiplier = 1.0
@@ -49,8 +56,13 @@ func calm_left() -> float:
 
 
 func tick(delta: float) -> void:
+	if machine.should_flee():
+		_tick_flee(delta)
+		return
 	_elapsed += delta
 	_calm_left -= delta
+	if machine.is_helper:
+		machine.helper_left -= delta
 	if _far_from_target():
 		_far_time += delta
 	else:
@@ -67,9 +79,40 @@ func _should_calm() -> bool:
 	var stats := machine.stats
 	if not machine.target_known or _calm_left <= 0.0 or _far_time >= machine.aggression.far_seconds:
 		return true
+	if machine.is_helper and machine.helper_left <= 0.0:
+		return true
 	if stats == null:
 		return false
 	return _elapsed >= stats.chase_max_seconds or machine.target_distance() > stats.chase_give_up_tiles * machine.tile_px
+
+
+## Vida baixa: o Passivo foge do atacante pelo `PathFollower`, na velocidade brava, sem revidar. Não conta o relógio de
+## calma nem os limites de perseguição: volta ao natural só depois de `flee_resume_seconds` E com o atacante a mais de
+## `flee_resume_tiles`. Sem atacante à vista, acalma como sempre.
+func _tick_flee(delta: float) -> void:
+	if not _fleeing:
+		_fleeing = true
+		_flee_time = 0.0
+		machine.follower.forget()
+		if machine.threat_cycle != null:
+			machine.threat_cycle.end()  # nada de ameaça nem golpe durante a fuga
+	if not machine.target_known:
+		machine.transition_to(Enums.DinoStateId.IDLE)
+		return
+	_flee_time += delta
+	var rules := machine.aggression
+	var away := (machine.self_position - machine.target_position).normalized()
+	if away == Vector2.ZERO:
+		away = Vector2.RIGHT
+	machine.speed_multiplier = machine.chase_speed_multiplier()
+	if _flee_time >= rules.flee_resume_seconds and machine.target_distance() > rules.flee_resume_tiles * machine.tile_px:
+		machine.transition_to(Enums.DinoStateId.IDLE)
+		return
+	var goal := machine.self_position + away * rules.flee_goal_tiles * machine.tile_px
+	machine.desired_direction = machine.follower.update(delta, machine.self_position, goal)
+	if machine.follower.stuck:  # encurralado: para de tentar, sem desistir da fuga
+		machine.follower.clear_stuck()
+		machine.desired_direction = Vector2.ZERO
 
 
 func _far_from_target() -> bool:

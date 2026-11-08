@@ -1,0 +1,142 @@
+{
+  "cursores": {
+    "ataque": {
+      "arquivo": "ataque_{tam}.png",
+      "arquivo_fora": "ataque_fora_{tam}.png",
+      "hotspot_16": [
+        1,
+        1
+      ],
+      "hotspot_por_tamanho": {
+        "16": [
+          1,
+          1
+        ],
+        "32": [
+          2,
+          2
+        ],
+        "48": [
+          3,
+          3
+        ]
+      }
+    },
+    "interagir": {
+      "arquivo": "interagir_{tam}.png",
+      "arquivo_fora": "interagir_fora_{tam}.png",
+      "hotspot_16": [
+        8,
+        9
+      ],
+      "hotspot_por_tamanho": {
+        "16": [
+          8,
+          9
+        ],
+        "32": [
+          16,
+          18
+        ],
+        "48": [
+          24,
+          27
+        ]
+      }
+    },
+    "machado": {
+      "arquivo": "machado_{tam}.png",
+      "arquivo_fora": "machado_fora_{tam}.png",
+      "hotspot_16": [
+        13,
+        4
+      ],
+      "hotspot_por_tamanho": {
+        "16": [
+          13,
+          4
+        ],
+        "32": [
+          26,
+          8
+        ],
+        "48": [
+          39,
+          12
+        ]
+      }
+    },
+    "mao": {
+      "arquivo": "mao_{tam}.png",
+      "arquivo_fora": "mao_fora_{tam}.png",
+      "hotspot_16": [
+        8,
+        9
+      ],
+      "hotspot_por_tamanho": {
+        "16": [
+          8,
+          9
+        ],
+        "32": [
+          16,
+          18
+        ],
+        "48": [
+          24,
+          27
+        ]
+      }
+    },
+    "padrao": {
+      "arquivo": "padrao_{tam}.png",
+      "arquivo_fora": "padrao_fora_{tam}.png",
+      "hotspot_16": [
+        0,
+        0
+      ],
+      "hotspot_por_tamanho": {
+        "16": [
+          0,
+          0
+        ],
+        "32": [
+          0,
+          0
+        ],
+        "48": [
+          0,
+          0
+        ]
+      }
+    },
+    "picareta": {
+      "arquivo": "picareta_{tam}.png",
+      "arquivo_fora": "picareta_fora_{tam}.png",
+      "hotspot_16": [
+        2,
+        4
+      ],
+      "hotspot_por_tamanho": {
+        "16": [
+          2,
+          4
+        ],
+        "32": [
+          4,
+          8
+        ],
+        "48": [
+          6,
+          12
+        ]
+      }
+    }
+  },
+  "grade": 16,
+  "tamanhos": [
+    16,
+    32,
+    48
+  ]
+}

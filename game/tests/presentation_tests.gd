@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT
 class_name PresentationTests
 extends TestSuite
-## "Nv N" do selvagem (`WildLevelTag`) e cursor em pixel art (`PixelCursor`).
+## "Nv N" do selvagem (`WildLevelTag`) e cursor contextual (`CursorView`).
 
 const RANGE_PX := 96.0  # 6 tiles de 16 px (DinoLevelRules)
 
@@ -65,41 +65,56 @@ func _test_level_tag() -> void:
 
 
 func _test_cursor() -> void:
-	_check(PixelCursor.base_size() == Vector2i(320, 180), "a base do cursor vem do ProjectSettings (320x180)")
-	_check(PixelCursor.scale_for(Vector2i(1280, 720)) == 4, "janela 1280x720: escala 4")
-	_check(PixelCursor.scale_for(Vector2i(1920, 1080)) == 6, "janela 1920x1080: escala 6")
-	_check(PixelCursor.scale_for(Vector2i(1300, 720)) == 4, "janela mais larga que 16:9: vale o menor lado")
-	_check(PixelCursor.scale_for(Vector2i(200, 100)) == 1, "janela menor que o jogo: escala 1")
-	var base := PixelCursor.TEXTURE.get_image()
-	_check(base.get_size() == Vector2i(10, 12), "seta de 10x12 px")
-	_check(base.get_pixel(0, 0).to_html(false) == "141b1b" and base.get_pixel(0, 0).a == 1.0, "a ponta é o pixel 0,0, com o contorno #141b1b")
-	var big := PixelCursor.scaled_image(base, 4)
-	_check(big.get_size() == Vector2i(40, 48), "ampliado 4x: 40x48")
-	var solid_ok := true
-	var colors := {}
-	for y in big.get_height():
-		for x in big.get_width():
-			var pixel := big.get_pixel(x, y)
-			solid_ok = solid_ok and (pixel.a == 0.0 or pixel.a == 1.0)
-			if pixel.a == 1.0:
-				colors[pixel.to_html(false)] = true
-			solid_ok = solid_ok and pixel == base.get_pixel(x / 4, y / 4)
-	_check(solid_ok and colors.size() == 3, "ampliado sem suavização: cada pixel vira bloco 4x4, alfa 0/1, só 3 cores")
-	_check(PixelCursor.scaled_image(base, 40).get_size() == base.get_size(), "acima do limite do sistema (256 px): fica em 1x")
-	var node := PixelCursor.new()
+	_check(CursorView.size_for(720) == 32 and CursorView.size_for(800) == 32, "janela até 800 px de altura: cursor de 32")
+	_check(CursorView.size_for(801) == 48 and CursorView.size_for(1080) == 48 and CursorView.size_for(2160) == 48, "acima de 800 px: 48")
+	_check(CursorView.image_path(&"mao", true, 32) == "res://assets/ui/cursores/mao_32.png"
+			and CursorView.image_path(&"mao", false, 48) == "res://assets/ui/cursores/mao_fora_48.png", "caminho: normal e variante fora de alcance")
+	var hotspots := CursorView.load_hotspots()
+	var files_ok := true
+	var sizes_ok := true
+	var hotspots_ok := true
+	for action in CursorView.ACTIONS:
+		for size in [CursorView.SIZE_SMALL, CursorView.SIZE_MEDIUM, CursorView.SIZE_LARGE]:
+			for reach in [true, false]:
+				var path := CursorView.image_path(action, reach, size)
+				files_ok = files_ok and CursorView.TEXTURES.has(path)
+				var texture: Texture2D = CursorView.TEXTURES.get(path)
+				sizes_ok = sizes_ok and texture != null and texture.get_size() == Vector2(size, size)
+			var point: Variant = (hotspots.get(action, {}) as Dictionary).get(str(size))
+			hotspots_ok = hotspots_ok and point is Array and (point as Array).size() == 2 \
+					and int((point as Array)[0]) < size and int((point as Array)[1]) < size
+	_check(files_ok and sizes_ok, "as 36 imagens existem, quadradas, no tamanho do nome")
+	_check(hotspots_ok, "cada ação tem hotspot dentro da imagem em 16, 32 e 48")
+	var node := CursorView.new()
 	_root.add_child(node)
 	_track.call(node)
-	_check(node.apply_count >= 1 and node.applied_scale == PixelCursor.scale_for(node.get_window().size),
-			"o cursor é aplicado ao entrar na árvore, com a escala da janela")
-	_check(PixelCursor.SHAPES.has(Input.CURSOR_ARROW) and PixelCursor.SHAPES.has(Input.CURSOR_POINTING_HAND)
-			and PixelCursor.SHAPES.size() == 17, "vale para todas as formas do sistema (mão, texto...), não só a seta")
+	_check(node.apply_count >= 1 and node.applied_action == &"padrao" and node.applied_size == CursorView.size_for(node.get_window().size.y),
+			"o cursor padrão é aplicado ao entrar na árvore, no tamanho da janela")
+	var count: int = node.apply_count
+	node.apply(&"padrao", true)
+	_check(node.apply_count == count, "o mesmo estado não troca o cursor do sistema de novo")
+	node.apply(&"mao", false)
+	_check(node.applied_action == &"mao" and not node.applied_in_reach and node.apply_count == count + 1, "ação nova ou fora de alcance troca")
+	_check(CursorView.SHAPES.has(Input.CURSOR_ARROW) and CursorView.SHAPES.has(Input.CURSOR_POINTING_HAND)
+			and CursorView.SHAPES.size() == 17, "vale para todas as formas do sistema (mão, texto...), não só a seta")
 	var before: int = node.apply_count
 	node._notification(Node.NOTIFICATION_APPLICATION_FOCUS_IN)
 	_check(node.apply_count == before + 1, "voltar o foco à janela reaplica o cursor")
+	node.refresh()
+	_check(node.applied_action == &"padrao", "sem fonte (título), o cursor é o padrão")
+	var fake := FakeCursorSource.new()
+	_track.call(fake)
+	node.source = fake
+	fake.state = {"action": &"machado", "in_reach": false}
+	node.refresh()
+	_check(node.applied_action == &"machado" and not node.applied_in_reach, "com fonte: a ação e o alcance vêm dela (machado apagado)")
+	var settled: int = node.apply_count
+	node.refresh()
+	_check(node.apply_count == settled, "consultar de novo sem mudança não troca o cursor do sistema")
 	var probe := Button.new()
 	_check(probe.mouse_default_cursor_shape == Control.CURSOR_ARROW, "o botão do tema usa a forma padrão (coberta pelo cursor do jogo)")
 	probe.free()
-	node.apply()  # sem erro de script (o contador de erros do runner reprova); o cursor do SO não se lê de volta
+	node.refresh()  # sem erro de script (o contador de erros do runner reprova); o cursor do SO não se lê de volta
 
 
 ## Símbolo de sexo ao lado do "Nv" do selvagem e da placa do domado: lê `sex`, cores do guia, fica depois do texto.
@@ -218,3 +233,11 @@ func _test_day_night_music() -> void:
 	music.follow_world(null)
 	music.stop_track()
 	_check(music.current_track() == null and not music.is_playing(), "música: parar silencia")
+
+
+## Fonte de cursor de mentira para o `CursorView`.
+class FakeCursorSource extends CursorSource:
+	var state: Dictionary = {"action": &"padrao", "in_reach": true}
+
+	func current_cursor() -> Dictionary:
+		return state

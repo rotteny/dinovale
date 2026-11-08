@@ -26,14 +26,15 @@ extends Resource
 @export_range(4.0, 128.0) var attack_reach_px: float = 30.0
 ## Folga que a autoridade dá ao alcance ao conferir as posições reais (o quadro entre o golpe e o pedido).
 @export_range(0.0, 16.0) var reach_slack_px: float = 4.0
-## Dano ao jogador por golpe. A autoridade o aplica.
-@export_range(0.0, 500.0) var damage: float = 8.0
+## O dano do golpe NÃO está aqui: vem de `DinoBaseStats.base_damage` (fixo por golpe, sem escala por nível). A autoridade o aplica.
 ## Recarga entre golpes, contada do golpe.
 @export_range(0.1, 30.0) var cooldown_s: float = 1.5
 ## Pausa depois do golpe antes de voltar a rodear (a recarga ainda pode segurar o próximo).
 @export_range(0.0, 3.0) var recover_s: float = 0.3
-## Empurrão do golpe, em pixels (sem uso até a etapa 5).
+## Empurrão do golpe no jogador, em pixels, e em quanto tempo. A autoridade o aplica; para no primeiro obstáculo e não
+## empurra quem já caiu.
 @export_range(0.0, 128.0) var knockback_px: float = 0.0
+@export_range(0.02, 1.0) var knockback_seconds: float = 0.15
 ## Ataca quem já caiu (decisão: a morte vem de dino sobre o caído).
 @export var attacks_downed: bool = true
 @export_group("Apresentação")

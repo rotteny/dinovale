@@ -91,6 +91,8 @@ func _suites() -> Array:
 		["NavigationTests", NavigationTests.new, true],
 		["AggressionTests", AggressionTests.new, true],
 		["ThreatTests", ThreatTests.new, true],
+		["HerdTests", HerdTests.new, true],
+		["ClickCollectTests", ClickCollectTests.new, true],
 		["NetFlowTests", NetFlowTests.new, false],
 	]
 

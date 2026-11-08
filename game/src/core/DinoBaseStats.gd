@@ -13,7 +13,7 @@ const SEX_MALE := "m"
 ## Folha do sprite descrita por JSON (quadro, colunas por animação, linhas por direção).
 @export_file("*.json") var sheet_path: String = "res://assets/sprites/dinos/paquicefalo.json"
 @export var base_health: float = 100.0
-## Dano do ataque do dino (sem uso até existir carnívoro).
+## Dano de cada golpe do dino ao jogador (M1: fixo, sem escala por nível; o ciclo é o `threat_profile`). Fonte única do número.
 @export var base_damage: float = 4.0
 @export var base_torpor: float = 100.0
 ## Refeições para domesticar no nível base, com dificuldade 1,0.

@@ -104,6 +104,9 @@ var _move_direction: Vector2 = Vector2.ZERO
 var _move_sprint: bool = false
 ## Motivo da última recusa de uma regra (`perform_*`); "" quando o pedido valeu. Só devolve texto ao chamador.
 var _last_refusal: String = ""
+## Empurrão em curso (a autoridade o pede): o que falta andar, em pixels, e a velocidade. Para no primeiro obstáculo.
+var _knock_left: Vector2 = Vector2.ZERO
+var _knock_speed: float = 0.0
 
 ## Sprite: só a apresentação (`PlayerView`) escolhe o quadro.
 @onready var visual: Sprite2D = $Visual
@@ -146,12 +149,40 @@ func initial_equipment() -> Array[String]:
 
 func _physics_process(delta: float) -> void:
 	tick(delta)
+	step_knockback(delta)
 	# O pedido de movimento vale por um quadro: sem pedido novo (controlador ausente, pedido negado), para.
 	velocity = apply_input(_move_direction, _move_sprint, delta)
 	_move_direction = Vector2.ZERO
 	_move_sprint = false
 	update_dino_collision()
 	move_and_slide()
+
+
+## Empurrão de `offset` pixels em `seconds` (só a autoridade chama; quem já caiu não é empurrado). Substitui o anterior.
+func knock_back(offset: Vector2, seconds: float) -> void:
+	if health.is_dead() or seconds <= 0.0:
+		return
+	_knock_left = offset
+	_knock_speed = offset.length() / seconds
+
+
+## Anda o empurrão deste quadro; encostou em obstáculo, o que falta se perde. Público para testar sem quadros.
+func step_knockback(delta: float) -> void:
+	if _knock_left == Vector2.ZERO:
+		return
+	var step := _knock_left.limit_length(_knock_speed * delta)
+	collision_mask = 1  # o empurrão sai de cima de quem bateu: só o terreno o barra (dinos não)
+	var blocked := move_and_collide(step) != null
+	collision_mask = 1 | Dino.BODY_LAYER
+	if blocked or step.length_squared() >= _knock_left.length_squared():
+		_knock_left = Vector2.ZERO
+	else:
+		_knock_left -= step
+
+
+## Quanto do empurrão ainda falta andar (zero = parado). Para teste e diagnóstico.
+func knockback_left() -> Vector2:
+	return _knock_left
 
 
 ## O jogador nunca fica preso entre dinos: enquanto o corpo se sobrepõe ao de algum dino (perseguição, bando, nascimento
@@ -298,14 +329,28 @@ func attack_at(point: Vector2) -> bool:
 		authority.request_face(authority.id_of(self), direction.normalized())
 	mouse_point = point
 	mouse_aim_active = true
-	var under := authority.entity_at(point) as ResourceNode
-	if under != null and under.def.is_struck() and _mouse_pick(_dino_candidates()) == null:
-		return _strike_target(under)  # o cursor está numa árvore ou rocha e não numa criatura
-	var wild := authority.entity_at(point) as Dino
+	var creature_under := authority.entity_at(point, true)  # a criatura sob o cursor sempre tem prioridade
+	var under := authority.entity_at(point)
+	var node := under as ResourceNode
+	if node != null and node.def.is_struck() and _mouse_pick(_dino_candidates()) == null:
+		return _strike_target(node)  # o cursor está numa árvore ou rocha e não numa criatura
+	if creature_under == null and under != null:
+		return _click_use(under)  # moita, nó de coleta direta ou item no chão: o mesmo pedido do E (sem golpe no vazio)
+	var wild := creature_under as Dino
 	if wild != null and not wild.state_machine.is_tamed and not wild.health.is_dead() and _update_attack_target() == null:
 		# Nada ao alcance, mas há uma criatura sob o cursor: o pedido vai e a autoridade explica a recusa (fora de alcance).
 		return authority.request_attack(authority.id_of(self), authority.id_of(wild)) == Enums.ActionResult.OK
 	return _strike_target()
+
+
+## Clique esquerdo num alvo que não se golpeia: item no chão é recolhido e nó de coleta direta é colhido, pelos mesmos
+## pedidos do E. A autoridade valida o alcance (recusa com motivo no log) e o intervalo entre coletas segue valendo.
+func _click_use(under: Node2D) -> bool:
+	var actor_id := authority.id_of(self)
+	var target_id := authority.id_of(under)
+	if under is GroundItem:
+		return authority.request_pickup(actor_id, target_id) == Enums.ActionResult.OK
+	return authority.request_interact(actor_id, target_id) == Enums.ActionResult.OK
 
 
 ## Executa uma opção do menu do mouse (`WorldAuthority.interaction_options`) sobre a entidade `target_id`.

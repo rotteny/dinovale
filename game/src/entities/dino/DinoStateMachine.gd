@@ -1,3 +1,4 @@
+# gdlint: ignore=max-public-methods
 # SPDX-License-Identifier: MIT
 class_name DinoStateMachine
 extends Node
@@ -75,6 +76,12 @@ var threat_cycle: ThreatCycle = null
 ## Número do episódio de agressão em curso (cresce a cada vez que o dino fica bravo): a autoridade anuncia
 ## só o primeiro golpe que acerta de cada episódio.
 var episode_id := 0
+## Fração de vida (0 a 1) que o corpo informa a cada quadro (`observe_health`). Passivo abaixo de
+## `AggressionRules.flee_health_ratio` foge em vez de revidar.
+var health_ratio := 1.0
+## Entrou chamado pelo bando (não foi golpeado): vale o teto `helper_left`, que só roda enquanto é ajudante.
+var is_helper := false
+var helper_left := 0.0
 ## Fase atual do ciclo (`NONE` fora dele ou sem perfil).
 var threat_phase: Enums.ThreatPhase:
 	get:
@@ -147,8 +154,17 @@ func _configure_threat(profile: ThreatProfile) -> void:
 
 
 func _on_cycle_struck(in_reach: bool) -> void:
-	reset_calm()  # quem ataca não acalma no meio da briga
-	struck.emit(in_reach)
+	struck.emit(in_reach)  # errar não segura a calma: só o dano confirmado pela autoridade (`confirm_hit`) a zera
+
+
+## O corpo informa a fração de vida atual (0 a 1).
+func observe_health(ratio: float) -> void:
+	health_ratio = clampf(ratio, 0.0, 1.0)
+
+
+## Foge em vez de revidar? Só o Passivo (não Agressivo), bravo e com a vida abaixo do limite das regras.
+func should_flee() -> bool:
+	return stats != null and not stats.aggressive and health_ratio < aggression.flee_health_ratio
 
 
 ## O corpo informa o alvo mais próximo que pode ser perseguido (`known` falso = nenhum).
@@ -175,9 +191,27 @@ func provoke() -> void:
 	if is_tamed or torpor.is_unconscious:
 		return
 	if current_id == Enums.DinoStateId.AGGRESSIVE:
+		is_helper = false  # golpeado de verdade: vira principal (relógio de calma, sem teto)
 		reset_calm()
 	elif current_id == Enums.DinoStateId.IDLE or current_id == Enums.DinoStateId.WANDER:
 		transition_to(Enums.DinoStateId.AGGRESSIVE)
+
+
+## A autoridade confirmou que o golpe deste dino tirou vida: quem acerta não acalma no meio da briga.
+func confirm_hit() -> void:
+	reset_calm()
+
+
+## Chamado pelo bando: o selvagem acordado e calmo fica bravo por no máximo `max_seconds`. Devolve se entrou.
+func provoke_as_helper(max_seconds: float) -> bool:
+	if is_tamed or torpor.is_unconscious:
+		return false
+	if current_id != Enums.DinoStateId.IDLE and current_id != Enums.DinoStateId.WANDER:
+		return false
+	transition_to(Enums.DinoStateId.AGGRESSIVE)
+	is_helper = true
+	helper_left = max_seconds
+	return true
 
 
 ## Dano dado ou recebido: o relógio de calma recomeça. Sem efeito fora do estado bravo.

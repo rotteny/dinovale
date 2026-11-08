@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="HerdCallRules" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/core/HerdCallRules.gd" id="1_rules"]
+
+[resource]
+script = ExtResource("1_rules")
+call_radius_tiles = 8.0
+call_delay_s = 0.5
+max_helpers = 2
+helper_max_seconds = 12.0

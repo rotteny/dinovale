@@ -22,6 +22,7 @@ func run() -> void:
 	_test_a12_cooldown()
 	_test_miss_still_cools_down()
 	_test_attack_resets_calm()
+	_test_windup_target_leaves()
 	_test_authority_applies_damage()
 	_test_log_once_per_episode()
 	_test_authority_rules()
@@ -62,14 +63,14 @@ func _record_strikes(machine: DinoStateMachine, clock: Array[float]) -> Array[Di
 
 func _test_data() -> void:
 	_check(RAPTOR.threat_profile == RAPTOR_PROFILE and RAPTOR_PROFILE != null, "o Utahraptor tem o perfil de ameaça do .tres")
-	_check(is_equal_approx(RAPTOR_PROFILE.threat_seconds, 0.8) and is_equal_approx(RAPTOR_PROFILE.damage, 8.0) \
+	_check(is_equal_approx(RAPTOR_PROFILE.threat_seconds, 0.8) and is_equal_approx(RAPTOR.base_damage, 8.0) \
 			and is_equal_approx(RAPTOR_PROFILE.cooldown_s, 1.5) and is_equal_approx(RAPTOR_PROFILE.run_threat_tiles, 4.0), \
 			"Utahraptor: ameaça 0,8 s, corre a mais de 4 tiles, mordida 8, recarga 1,5 s (do .tres)")
 	_check(is_equal_approx(RAPTOR_PROFILE.attack_reach_px, 30.0) and is_equal_approx(RAPTOR_PROFILE.windup_s, 0.3), \
 			"Utahraptor: alcance 30 px e aviso de 0,3 s")
-	_check(is_equal_approx(PAQUI_PROFILE.damage, 6.0) and is_equal_approx(PAQUI_PROFILE.cooldown_s, 1.6) \
+	_check(is_equal_approx(PAQUI.base_damage, 6.0) and is_equal_approx(PAQUI_PROFILE.cooldown_s, 1.6) \
 			and is_equal_approx(PAQUI_PROFILE.lunge_speed_px_s, 150.0), "Paquicéfalo: o perfil já está em .tres (cabeçada, etapa 5)")
-	_check(PAQUI.threat_profile == null, "o Paquicéfalo ainda não usa o perfil (só persegue até a etapa 5)")
+	_check(PAQUI.threat_profile == PAQUI_PROFILE, "o Paquicéfalo usa o perfil (cabeçada, etapa 5)")
 
 
 func _test_phase_order() -> void:
@@ -124,7 +125,7 @@ func _test_a12_cooldown() -> void:
 	_check(min_gap >= RAPTOR_PROFILE.cooldown_s - 0.001, "A12: dois golpes nunca ficam a menos de 1,5 s (menor intervalo %.2f)" % min_gap)
 	var within := strikes.filter(func(strike: Dictionary) -> bool: return float(strike["t"]) <= 8.4 and strike["hit"])
 	_check(within.size() >= 4 and within.size() <= 6, "A12: em 8,4 s de contato saem 4 a 6 mordidas (%d), 8 de dano cada" % within.size())
-	_check(is_equal_approx(RAPTOR_PROFILE.damage * 5.0, 40.0), "A12: 5 mordidas = 40 de vida")
+	_check(is_equal_approx(RAPTOR.base_damage * 5.0, 40.0), "A12: 5 mordidas = 40 de vida")
 	# Unidade: a recarga segura o aviso mesmo com a fase pronta.
 	var cycle := ThreatCycle.new(RAPTOR_PROFILE, RandomNumberGenerator.new())
 	cycle.begin(48.0, TILE)
@@ -154,18 +155,43 @@ func _test_miss_still_cools_down() -> void:
 			"o erro também gasta a recarga")
 
 
+## Se o alvo sai além do alcance durante o aviso, volta a fechar em vez de investir no vazio.
+func _test_windup_target_leaves() -> void:
+	var cycle := ThreatCycle.new(RAPTOR_PROFILE, RandomNumberGenerator.new())
+	cycle.begin(48.0, TILE)
+	cycle._enter(Enums.ThreatPhase.WINDUP)
+	cycle.tick(DT, 30.0, TILE)
+	_check(cycle.phase == Enums.ThreatPhase.WINDUP, "alvo perto: segue no aviso")
+	cycle.tick(DT, RAPTOR_PROFILE.circle_radius_px(TILE) * 1.6 + 1.0, TILE)
+	_check(cycle.phase == Enums.ThreatPhase.APPROACH, "alvo saiu no aviso: volta a APPROACH, não investe no vazio")
+
+
 func _test_attack_resets_calm() -> void:
-	var machine := _raptor(3.0)
+	# Golpe que só erra (ou que a autoridade não confirma) não segura a calma: aos 8 s sem dano ele volta ao natural.
+	var misser := _raptor(3.0)
 	var clock: Array[float] = [0.0]
-	var strikes := _record_strikes(machine, clock)
+	var strikes := _record_strikes(misser, clock)
+	misser.tick(DT)
+	_sim(misser, 10.0)
+	_check(strikes.size() >= 1 and not misser.is_aggressive, "golpes sem dano confirmado não seguram a calma (acalmou aos 8 s)")
+	# Cada golpe CONFIRMADO pela autoridade zera o relógio: bravo além dos 8 s.
+	var machine := _raptor(3.0)
+	var landed := _record_strikes(machine, clock)
+	machine.struck.connect(func(in_reach: bool) -> void:
+		if in_reach:
+			machine.confirm_hit())
 	machine.tick(DT)
 	_sim(machine, 3.0)
-	_check(strikes.size() >= 1, "o raptor mordeu em 3 s")
-	var calm := machine.calm_left()
-	_check(calm > 6.0, "ao atacar o relógio de calma volta ao início (sobram %.1f s)" % calm)
-	# Sem `reset_calm`, 8 s depois ele acalmaria; mordendo, continua bravo além disso.
+	_check(landed.size() >= 1 and machine.calm_left() > 6.0,
+			"golpe confirmado: o relógio volta ao início (sobram %.1f s)" % machine.calm_left())
 	_sim(machine, 7.0)
-	_check(machine.is_aggressive, "mordendo, aos 10 s ele segue bravo (o relógio de 8 s é zerado a cada golpe)")
+	_check(machine.is_aggressive, "acertando, aos 10 s ele segue bravo")
+	# No mundo: a autoridade confirma o dano e zera o relógio; o golpe recusado não.
+	var arena := _arena(20.0)
+	var dino: Dino = arena["dino"]
+	_drive(dino, 3.0)
+	_check(dino.state_machine.calm_left() > 6.0,
+			"pela autoridade: mordida que tirou vida zera a calma (%.1f s)" % dino.state_machine.calm_left())
 
 
 ## Raptor real no mundo: corpo do Dino sem física, jogador a `gap` px, tudo pela autoridade.
@@ -248,14 +274,33 @@ func _test_authority_rules() -> void:
 	_check(authority.resolve_dino_attack(dino_id, player_id, 8.0).is_empty() and is_equal_approx(player.health.current_health, before),
 			"o dono nunca é atingido pelo próprio dino")
 	dino.owner_player_id = ""
+	_arm_strike(dino)
 	dino.attack_requested.emit(player, 999.0, 1)
-	_check(is_equal_approx(player.health.current_health, before), "pedido de dano maior que o do perfil é recusado")
+	_check(is_equal_approx(player.health.current_health, before), "pedido de dano maior que o da espécie é recusado")
 	player.global_position = Vector2(200.0, 0.0)
 	dino.attack_requested.emit(player, 8.0, 1)
 	_check(is_equal_approx(player.health.current_health, before), "pedido fora do alcance real é recusado")
 	player.global_position = Vector2(20.0, 0.0)
 	dino.attack_requested.emit(player, 8.0, 1)
-	_check(is_equal_approx(player.health.current_health, before - 8.0), "no alcance e com o dano do perfil, passa")
+	_check(is_equal_approx(player.health.current_health, before - 8.0), "no alcance e com o dano da espécie, passa")
+	for i in 5:  # N pedidos do mesmo golpe: só o primeiro vale
+		dino.attack_requested.emit(player, 8.0, 1)
+	_check(is_equal_approx(player.health.current_health, before - 8.0), "o mesmo golpe do ciclo não passa duas vezes")
+	_arm_strike(dino)
+	dino.state_machine.threat_cycle.cooldown_left = 0.0
+	dino.attack_requested.emit(player, 8.0, 1)
+	_check(is_equal_approx(player.health.current_health, before - 8.0), "sem a recarga correndo (golpe que o ciclo não deu) é recusado")
+	_arm_strike(dino)
+	dino.state_machine.threat_cycle._enter(Enums.ThreatPhase.CIRCLE)
+	dino.attack_requested.emit(player, 8.0, 1)
+	_check(is_equal_approx(player.health.current_health, before - 8.0), "fora da fase de golpe é recusado")
+	_arm_strike(dino)
+	dino.state_machine.transition_to(Enums.DinoStateId.IDLE)
+	dino.attack_requested.emit(player, 8.0, 1)
+	_check(is_equal_approx(player.health.current_health, before - 8.0), "dino que não está bravo é recusado")
+	_arm_strike(dino)
+	dino.attack_requested.emit(player, 8.0, 1)
+	_check(is_equal_approx(player.health.current_health, before - 16.0), "um golpe novo do ciclo passa")
 	dino.torpor.add_torpor(dino.torpor.max_torpor)
 	_check(authority.resolve_dino_attack(dino_id, player_id, 8.0).is_empty(), "dino dormindo não ataca")
 	# Domado de outro dono: só com PvP.
@@ -276,6 +321,16 @@ func _test_authority_rules() -> void:
 	_check(authority.resolve_dino_attack(tamed_id, other_id, 5.0).has(other_id), "com PvP ele fere o domado de outro dono")
 	other.owner_player_id = "local"
 	_check(authority.resolve_dino_attack(tamed_id, other_id, 5.0).is_empty(), "mesmo dono nunca, nem com PvP")
+
+
+## Põe o dino na fase de golpe de um golpe NOVO do ciclo (o que o `ThreatCycle` faz ao acertar), para pedir dano à mão.
+func _arm_strike(dino: Dino) -> void:
+	if not dino.state_machine.is_aggressive:
+		dino.state_machine.transition_to(Enums.DinoStateId.AGGRESSIVE)
+	var cycle := dino.state_machine.threat_cycle
+	cycle._enter(Enums.ThreatPhase.LUNGE)
+	cycle.cooldown_left = cycle.profile.cooldown_s
+	cycle.strike_count += 1
 
 
 func _tamed_of(dino: Dino, owner: String) -> Dino:

@@ -40,7 +40,8 @@ var _health_bar := StatBar.new("Vida", Color(0.8, 0.2, 0.2), BAR_SIZE,
 		preload("res://assets/third_party/ninja-adventure/ui/icon_heart.png"), ICON_SIZE, true)
 var _hunger_bar := StatBar.new("Fome", Color(0.98, 0.85, 0.35), BAR_SIZE,
 		preload("res://assets/third_party/ninja-adventure/items/food_meat.png"), ICON_SIZE, true)
-var _stamina_bar := StatBar.new("Stamina", STAMINA_COLOR, BAR_SIZE, null, ICON_SIZE, true)
+var _stamina_bar := StatBar.new("Stamina", STAMINA_COLOR, BAR_SIZE,
+		preload("res://assets/sprites/ui/icon_stamina_8.png"), ICON_SIZE, true)
 var _xp_label := Label.new()
 var _xp_bar := StatBar.new("", Color(0.45, 0.6, 1.0), Vector2(StatBar.BAR_SIZE.x, 3.0))
 var _hotbar := HotbarBar.new()

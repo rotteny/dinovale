@@ -24,10 +24,13 @@ func run() -> void:
 	_test_a7_signal()
 
 
-## Máquina do Paquicéfalo com o alvo (o jogador que bateu) a `tiles` à direita.
+## Máquina do Paquicéfalo SEM o perfil de ameaça (só persegue e para: o estado de agressão da etapa 3; o ciclo é de
+## `ThreatTests` e `HerdTests`), com o alvo (o jogador que bateu) a `tiles` à direita.
 func _paqui(tiles: float = 5.0) -> DinoStateMachine:
 	var machine := _make_machine()
-	machine.configure(PAQUI, 40.0, TILE)
+	var chase_only: DinoBaseStats = PAQUI.duplicate()
+	chase_only.threat_profile = null
+	machine.configure(chase_only, 40.0, TILE)
 	machine.observe(Vector2.ZERO, Vector2.ZERO, false)
 	machine.observe_target(Vector2(tiles * TILE, 0.0), true)
 	return machine
@@ -183,8 +186,18 @@ func _test_not_saved() -> void:
 
 
 ## O corpo: golpe do jogador (e só dele) deixa o selvagem bravo; o alvo é quem bateu.
-func _test_dino_body_hit() -> void:
+## Dino real do Paquicéfalo sem o perfil de ameaça (só persegue e para).
+func _chase_only_dino() -> Dino:
 	var dino := _spawn_dino()
+	var stats: DinoBaseStats = PAQUI.duplicate()
+	stats.threat_profile = null
+	dino.stats = stats
+	dino._apply_level()
+	return dino
+
+
+func _test_dino_body_hit() -> void:
+	var dino := _chase_only_dino()
 	dino.set_physics_process(false)
 	dino.state_machine.set_physics_process(false)
 	var player := _spawn_player()
@@ -209,7 +222,7 @@ func _test_dino_body_hit() -> void:
 
 
 func _test_a7_signal() -> void:
-	var dino := _spawn_dino()
+	var dino := _chase_only_dino()
 	dino.set_physics_process(false)
 	dino.state_machine.set_physics_process(false)
 	var player := _spawn_player()

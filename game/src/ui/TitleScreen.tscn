@@ -1,7 +1,7 @@
 [gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://src/ui/TitleScreen.gd" id="1_title"]
-[ext_resource type="Script" path="res://src/ui/PixelCursor.gd" id="97_cursor"]
+[ext_resource type="Script" path="res://src/ui/CursorView.gd" id="97_cursor"]
 
 [node name="TitleScreen" type="Control"]
 layout_mode = 3
@@ -10,5 +10,5 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 script = ExtResource("1_title")
 
-[node name="PixelCursor" type="Node" parent="."]
+[node name="CursorView" type="Node" parent="."]
 script = ExtResource("97_cursor")

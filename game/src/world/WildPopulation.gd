@@ -144,12 +144,20 @@ func _register_member(slot: Slot, member_id: String, creature: Dino) -> void:
 	slot.member_ids.append(member_id)
 	_by_id[member_id] = creature
 	_id_of[creature] = member_id
+	creature.herd_id = herd_of(member_id)
 	creature.health.died.connect(_on_died.bind(creature))
 
 
 ## Id do membro `k` da geração `gen` da vaga: `g7.0.2`.
 static func member_id_of(slot_id: String, gen: int, k: int) -> String:
 	return "%s.%d.%d" % [slot_id, gen, k]
+
+
+## Bando de um id de membro (`g7.0.2` -> `g7.0`): vaga e geração. Gerações diferentes nunca são o mesmo bando.
+static func herd_of(member_id: String) -> String:
+	var parts := member_id.split(".")
+	parts.remove_at(parts.size() - 1)
+	return ".".join(parts)
 
 
 ## Nível do selvagem de id `member_id` na faixa `band` (x = mínimo, y = máximo): fluxo `["wild", semente, id, "level"]`.

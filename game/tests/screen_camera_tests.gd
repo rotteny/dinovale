@@ -19,8 +19,6 @@ func run() -> void:
 	_test_player_body_by_data()
 	await _test_camera_follows_and_stops_at_edges()
 	_release_worlds()
-	await _test_fog_frame()
-	_release_worlds()
 	await _test_hud_coverage()
 	_release_worlds()
 	await _test_screens_fit()
@@ -147,30 +145,6 @@ func _test_camera_follows_and_stops_at_edges() -> void:
 	main.player.global_position += Vector2(24, -16)
 	await _root.get_tree().process_frame
 	_check(camera.shown_center() - before == Vector2(24, -16), "a câmera anda junto com o personagem, sem atraso")
-
-
-func _test_fog_frame() -> void:
-	var main := _test_main_for_camera()
-	var fog := main.get_node("UI/FogFrame") as FogFrame
-	await _root.get_tree().process_frame
-	_check(fog != null and fog.mouse_filter == Control.MOUSE_FILTER_IGNORE and fog.focus_mode == Control.FOCUS_NONE,
-			"névoa não captura clique nem foco")
-	_check(fog.size == VIEW and fog.get_index() == 0, "névoa cobre a tela e fica atrás da HUD (primeiro filho da UI)")
-	_check(fog.max_alpha <= 0.5 and fog.steps >= 2, "névoa leve: opacidade máxima até 0,5, em degraus")
-	# Lê a máscara que o shader aplica: opaca na borda, nula no miolo, só dentro de 2 tiles (32 px).
-	var corner := fog.alpha_at(Vector2i(0, 0))
-	var edge_mid := fog.alpha_at(Vector2i(int(VIEW.x) / 2, 0))
-	var center := fog.alpha_at(Vector2i(int(VIEW.x) / 2, int(VIEW.y) / 2))
-	_check(is_equal_approx(edge_mid, fog.max_alpha) and corner >= edge_mid, "névoa mais forte na borda: %.2f" % edge_mid)
-	_check(center == 0.0, "névoa não cobre o centro da tela")
-	_check(fog.alpha_at(Vector2i(32, 90)) == 0.0 and fog.alpha_at(Vector2i(31, 90)) > 0.0, "névoa acaba a 32 px da borda")
-	var levels := {}
-	var inverted := false
-	for x in range(0, 33):
-		var here := fog.alpha_at(Vector2i(x, 90))
-		levels[snappedf(here, 0.001)] = true
-		inverted = inverted or here < fog.alpha_at(Vector2i(mini(x + 1, 32), 90))
-	_check(not inverted and levels.size() == fog.steps + 1, "névoa decresce da borda ao miolo em %d degraus" % fog.steps)
 
 
 func _test_hud_coverage() -> void:

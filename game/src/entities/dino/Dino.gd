@@ -14,6 +14,8 @@ signal level_changed(level: int)
 ## O bravo acertou o alvo no alcance (`threat_profile`): pedido de dano à autoridade, que valida e aplica. O dino nunca
 ## tira vida de ninguém sozinho. `episode` é o número do episódio de agressão (a autoridade anuncia o primeiro).
 signal attack_requested(target: Node2D, damage: float, episode: int)
+## Um selvagem acordado foi golpeado por um jogador e ficou (ou continua) bravo: a autoridade decide se o bando ajuda.
+signal provoked(attacker_id: String)
 ## Limite de sanidade para uma coordenada vinda de save.
 const COORD_LIMIT := 1.0e6
 const LEVEL_SANITY := 1000000
@@ -52,6 +54,9 @@ var player_locator: Callable = Callable()
 ## Devolve os corpos que o agressivo pode perseguir (`Array` de `Node2D`; o mundo preenche). Sem ele, ninguém é alvo.
 var target_locator: Callable = Callable()
 
+## Bando de nascença (`<vaga>.<geração>`, dado por `WildPopulation`); "" = sem bando. Não vai ao save: o mundo o refaz.
+var herd_id: String = ""
+
 var _restoring: bool = false
 ## Corpo do alvo atual do bravo (o mais próximo que `observe_targets` achou); null = nenhum.
 var _target_body: Node2D = null
@@ -86,6 +91,7 @@ func _ready() -> void:
 	interactable.prompt_availability = can_command
 	state_machine.state_changed.connect(_on_state_changed)
 	state_machine.struck.connect(_on_struck)
+	state_machine.aggression_changed.connect(_on_aggression_changed)
 	state_machine.order_changed.connect(_on_order_changed)
 	_refresh_prompt()
 	interactable.refresh()
@@ -112,6 +118,7 @@ func observe_owner() -> void:
 
 ## Informa à máquina o alvo vivo mais próximo (só o agressivo procura). Público para testar sem quadros.
 func observe_targets() -> void:
+	state_machine.observe_health(health.current_health / maxf(health.max_health, 1.0))
 	var may_target := stats.aggressive or state_machine.is_aggressive  # o Passivo só mira enquanto está bravo
 	if not may_target or state_machine.is_tamed or not target_locator.is_valid():
 		_target_body = null
@@ -133,12 +140,28 @@ func observe_targets() -> void:
 	state_machine.observe_target(best.global_position if best != null else Vector2.ZERO, best != null)
 
 
+## Chamada do bando (só a autoridade chama): fica bravo contra `attacker_id` por no máximo `max_seconds`. Devolve se entrou.
+## Morto, dormindo, domado ou já bravo não entra.
+func join_call(attacker_id: String, max_seconds: float) -> bool:
+	if health.is_dead() or owner_player_id != "" or not state_machine.provoke_as_helper(max_seconds):
+		return false
+	_aggressor_id = attacker_id
+	observe_targets()
+	return true
+
+
+## Acalmou: esquece quem bateu (sem rancor). Quem o provocar de novo, ou o bando que o chamar, diz o atacante de novo.
+func _on_aggression_changed(aggressive: bool) -> void:
+	if not aggressive:
+		_aggressor_id = ""
+
+
 ## O golpe do ciclo saiu. Só acertou se havia alvo no alcance; o dano é pedido à autoridade (`attack_requested`).
 func _on_struck(in_reach: bool) -> void:
 	var profile := stats.threat_profile
 	if not in_reach or profile == null or _target_body == null or not is_instance_valid(_target_body):
 		return
-	attack_requested.emit(_target_body, profile.damage, state_machine.episode_id)
+	attack_requested.emit(_target_body, stats.base_damage, state_machine.episode_id)
 
 
 ## Reavalia o prompt depois de o dono mudar fora do fluxo normal (ex.: dono corrigido ao carregar).
@@ -210,6 +233,8 @@ func receive_hit(damage: float, torpor_amount: float, attacker_kind: String, att
 		_aggressor_id = attacker_id
 		state_machine.provoke()
 		observe_targets()  # o alvo já vale no quadro do golpe: a máquina não acalma por "sem alvo"
+		if state_machine.is_aggressive:
+			provoked.emit(attacker_id)
 	return hit
 
 

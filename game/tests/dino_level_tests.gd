@@ -154,7 +154,7 @@ func _test_dino_level_stats_and_save() -> void:
 	_check(is_equal_approx(dino.health.max_health, 140.0) and is_equal_approx(dino.torpor.max_torpor, 120.0),
 			"nível 20: vida 140 e torpor 120")
 	_check(is_equal_approx(dino.health.current_health, 140.0), "vida cheia continua cheia ao mudar de nível")
-	_check(is_equal_approx(dino.attack_damage, 5.6) and dino.taming.meals_required() == 6, "dano 5,6 e 6 refeições em L20")
+	_check(is_equal_approx(dino.attack_damage, 8.4) and dino.taming.meals_required() == 6, "dano 8,4 e 6 refeições em L20")
 	dino.level = 0
 	_check(dino.level == 1, "nível mínimo 1")
 	var preset: Dino = DinoScene.instantiate()

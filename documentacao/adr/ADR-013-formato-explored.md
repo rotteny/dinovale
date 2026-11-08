@@ -6,7 +6,7 @@
 
 ## Contexto
 
-O M2b traz minimapa e névoa persistente. Decidido em 07/11: minimapa sem dinos nem recursos; mapa geral a 1 px por 2x2 tiles; revelação num raio de 12 tiles, calculada pela autoridade. Hoje não existe névoa de jogo (`FogFrame.gd` é só moldura visual da tela). A ilha tem 256x256 tiles (`lunata.json`, campo `size`) e o M9 pode trazer mundo maior em chunks (ADR-012, ainda não escrito). O formato precisa nascer agora para não pedir v6 quando o mundo crescer.
+O M2b traz minimapa e névoa persistente. Decidido em 07/11: minimapa sem dinos nem recursos; mapa geral a 1 px por 2x2 tiles; revelação num raio de 12 tiles, calculada pela autoridade. Hoje não existe névoa de jogo (a moldura visual de névoa da tela, `FogFrame`, foi removida em 08/11). A ilha tem 256x256 tiles (`lunata.json`, campo `size`) e o M9 pode trazer mundo maior em chunks (ADR-012, ainda não escrito). O formato precisa nascer agora para não pedir v6 quando o mundo crescer.
 
 ## Opções consideradas
 

@@ -14,7 +14,6 @@ lunge_speed_px_s = 0.0
 lunge_max_s = 0.5
 attack_reach_px = 30.0
 reach_slack_px = 4.0
-damage = 8.0
 cooldown_s = 1.5
 recover_s = 0.3
 knockback_px = 0.0

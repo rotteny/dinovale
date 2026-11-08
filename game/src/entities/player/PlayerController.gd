@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: MIT
 class_name PlayerController
-extends Node
+extends CursorSource
 ## Controlador do jogador local (cliente): a ÚNICA leitura de `Input` do jogo fora da `src/ui/`.
 ## Lê o teclado, vira intenção e a entrega à autoridade (ADR-001): o movimento vai como
 ## `request_move`; interagir, atacar e os atalhos, pelos pedidos do `Player`. Não conhece física
@@ -9,6 +9,14 @@ extends Node
 ## Corpo que este controlador dirige.
 ## Ação da tecla G (Seguir/Ficar do domado mais perto), criada por código para não mexer em `project.godot`.
 const TOGGLE_FOLLOW := &"toggle_follow"
+
+## Ações do cursor (`cursor_action`): o nome é o do arquivo da imagem em `assets/ui/cursores/`.
+const CURSOR_DEFAULT := &"padrao"
+const CURSOR_HAND := &"mao"
+const CURSOR_AXE := &"machado"
+const CURSOR_PICKAXE := &"picareta"
+const CURSOR_ATTACK := &"ataque"
+const CURSOR_INTERACT := &"interagir"
 
 @export var player: Player
 ## Ponto de passagem das ações; a direção sai por ele, nunca direto no corpo.
@@ -23,6 +31,13 @@ var _actor_id: int = 0
 ## O mouse é o dispositivo em uso (mexeu ou clicou): o contorno e o golpe preferem o que está sob o cursor.
 ## Qualquer tecla de ação ou de movimento devolve ao automático.
 var _mouse_in_use: bool = false
+
+
+## O cursor contextual agora: só com o mouse em uso (com o teclado, volta ao padrão); sobre a UI, o padrão.
+func current_cursor() -> Dictionary:
+	if player == null or not _mouse_in_use:
+		return super.current_cursor()
+	return cursor_state(player.get_global_mouse_position(), pointer_over_ui())
 
 
 func _init() -> void:
@@ -117,6 +132,48 @@ func world_click(button: int, world_point: Vector2, screen_point: Vector2, over_
 	if button == MOUSE_BUTTON_RIGHT and not player.input_locked:
 		return open_options(world_point, screen_point)
 	return false
+
+
+## Que ação o clique esquerdo teria sob `world_point`, e se o jogador a alcança. Só consulta (sem pedido, sem estado). A criatura
+## sob o cursor tem prioridade, como em `Player.attack_at`; sobre a UI, ou sem nada, é o padrão. `{"action": StringName,
+## "in_reach": bool}`. Alcance: o mesmo da autoridade (`rules.reach_px()`), distância entre o jogador e o alvo.
+func cursor_state(world_point: Vector2, over_ui: bool = false) -> Dictionary:
+	var none := {"action": CURSOR_DEFAULT, "in_reach": true}
+	if player == null or authority == null or over_ui:
+		return none
+	var creature := authority.entity_at(world_point, true) as Dino
+	var target: Node2D = creature if creature != null else authority.entity_at(world_point)
+	if target == null:
+		return none
+	var action := _cursor_action_of(target)
+	if action == CURSOR_DEFAULT:
+		return none
+	var in_reach := player.global_position.distance_to(target.global_position) <= authority.rules.reach_px()
+	return {"action": action, "in_reach": in_reach}
+
+
+func cursor_action(world_point: Vector2, over_ui: bool = false) -> StringName:
+	return cursor_state(world_point, over_ui)["action"]
+
+
+func cursor_in_reach(world_point: Vector2, over_ui: bool = false) -> bool:
+	return cursor_state(world_point, over_ui)["in_reach"]
+
+
+func _cursor_action_of(target: Node2D) -> StringName:
+	var dino := target as Dino
+	if dino != null:
+		if not dino.state_machine.is_tamed:
+			return CURSOR_ATTACK
+		return CURSOR_INTERACT if dino.owner_player_id == player.player_id else CURSOR_DEFAULT
+	var resource := target as ResourceNode
+	if resource != null and resource.def.is_struck():
+		match resource.def.material_id:
+			"wood":
+				return CURSOR_AXE
+			"stone", "ore":
+				return CURSOR_PICKAXE
+	return CURSOR_HAND if target is ResourceNode or target is GroundItem else CURSOR_DEFAULT
 
 
 ## Abre o menu de opções do que está sob `world_point`. Falso se não há nada ou nada a oferecer.

@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cfhvdtatpyyxh"
-path="res://.godot/imported/cursor.png-da07e5d4f697ea8da43ce051395e8ff6.ctex"
+uid="uid://c6fhf7cw722nd"
+path="res://.godot/imported/picareta_16.png-3fd2ec09f8e8084a7ebf3cc48abba465.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/sprites/ui/cursor.png"
-dest_files=["res://.godot/imported/cursor.png-da07e5d4f697ea8da43ce051395e8ff6.ctex"]
+source_file="res://assets/ui/cursores/picareta_16.png"
+dest_files=["res://.godot/imported/picareta_16.png-3fd2ec09f8e8084a7ebf3cc48abba465.ctex"]
 
 [params]
 

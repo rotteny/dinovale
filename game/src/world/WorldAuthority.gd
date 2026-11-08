@@ -66,6 +66,9 @@ var ally_check: Callable = Callable()
 ## PvP do mundo (`ServerRules.pvp`, injetado pelo host): golpe em área acerta domados de OUTRO jogador. A autoridade não lê arquivo.
 var pvp_enabled: bool = false
 
+## Chamada do bando (`HerdCall`): a autoridade a alimenta quando um selvagem é golpeado e a avança a cada quadro.
+var herd := HerdCall.new()
+
 var _entities: Dictionary = {}
 ## Por jogador: instante (relógio do mundo) em que pode concluir outra coleta, e quantas já concluiu. Não vão ao save.
 var _gather_ready_at: Dictionary = {}
@@ -76,10 +79,18 @@ var _reason_params: Dictionary = {}
 var _next_id: int = 1
 ## Último episódio de agressão anunciado por criatura (`entity_id` -> episódio): `dino_hit_player` sai uma vez por episódio.
 var _announced_episode: Dictionary = {}
+## Último golpe aceito por criatura (`entity_id` -> `ThreatCycle.strike_count`): um golpe do ciclo vale um pedido só.
+var _last_strike: Dictionary = {}
 
 
 func _physics_process(delta: float) -> void:
 	clock.advance(delta)
+	tick_herd(delta)
+
+
+## Passo do bando (público e testável sem quadros): os ajudantes escalados entram quando o atraso acaba.
+func tick_herd(delta: float) -> void:
+	herd.tick(delta)
 
 
 ## Registra `node` no mundo. `entity_id` 0 = o próximo livre. Devolve o id usado, ou 0 se o id pedido já
@@ -118,6 +129,7 @@ func _watch(node: Node) -> void:
 			announce("taming_lost", {"species": dino.stats.display_name}))
 		dino.state_machine.got_stuck.connect(func() -> void:
 			announce("tamed_stuck", {"species": dino.stats.display_name}))
+		dino.provoked.connect(func(attacker_id: String) -> void: _on_dino_provoked(dino, attacker_id))
 		dino.attack_requested.connect(func(target: Node2D, damage: float, episode: int) -> void:
 			_on_dino_attack(dino, target, damage, episode))
 	elif node is Player:
@@ -159,6 +171,8 @@ func player_id_of(entity_id: int) -> String:
 
 func unregister(entity_id: int) -> void:
 	_entities.erase(entity_id)
+	_announced_episode.erase(entity_id)
+	_last_strike.erase(entity_id)
 
 
 ## Nó vivo do `entity_id`, ou null (id desconhecido, nó liberado ou já saindo do mundo).
@@ -247,20 +261,52 @@ func resolve_dino_attack(attacker_id: int, target_id: int, damage: float) -> Dic
 	return {target_id: 1.0} if _area_hit(attacker, target, damage, 0.0, 1.0) else {}
 
 
+## Um selvagem foi golpeado e está bravo: o bando dele é chamado contra o mesmo atacante.
+func _on_dino_provoked(dino: Dino, attacker_id: String) -> void:
+	var attacker := player_body(attacker_id) as Node2D
+	if attacker == null:
+		return
+	var others: Array[Dino] = []
+	for id: Variant in _entities:
+		var other := entity(int(id)) as Dino  # `entity` pula nó liberado (o cast direto de um liberado é erro de script)
+		if other != null:
+			others.append(other)
+	herd.raise_call(dino, attacker_id, attacker.global_position, others)
+
+
 ## O bravo pediu um golpe (`Dino.attack_requested`): confere o alcance contra a posição REAL dos dois, aplica o dano e
-## anuncia o primeiro golpe que acertou de cada episódio. Dano sem perfil na espécie ou fora do alcance é recusado.
+## anuncia o primeiro golpe que acertou de cada episódio. Recusa: sem perfil na espécie, dano acima do da espécie
+## (`base_damage`), dino que não está bravo, fora da fase de golpe, golpe do ciclo já atendido (a recarga) ou fora do alcance.
 func _on_dino_attack(dino: Dino, target: Node2D, damage: float, episode: int) -> void:
 	var profile := dino.stats.threat_profile
 	var attacker_id := id_of(dino)
 	var target_id := id_of(target)
-	if profile == null or attacker_id == 0 or target_id == 0 or damage > profile.damage:
+	if profile == null or attacker_id == 0 or target_id == 0 or damage > dino.stats.base_damage:
+		return
+	var cycle := dino.state_machine.threat_cycle
+	if cycle == null or not dino.state_machine.is_aggressive or cycle.phase != Enums.ThreatPhase.LUNGE \
+			or cycle.cooldown_left < profile.cooldown_s - 0.001 or _last_strike.get(attacker_id, -1) == cycle.strike_count:
 		return
 	if dino.global_position.distance_to(target.global_position) > profile.attack_reach_px + profile.reach_slack_px:
 		return
+	_last_strike[attacker_id] = cycle.strike_count
 	var hits := resolve_dino_attack(attacker_id, target_id, damage)
+	_knock_back(dino, target, profile, hits.has(target_id))
+	if hits.has(target_id):
+		dino.state_machine.confirm_hit()
 	if hits.has(target_id) and target is Player and _announced_episode.get(attacker_id, 0) != episode:
 		_announced_episode[attacker_id] = episode
 		announce("dino_hit_player", {"species": dino.stats.display_name, "amount": snappedf(damage, 0.1)})
+
+
+## Empurrão do golpe que acertou: só o jogador, só se ainda está de pé depois do dano, sempre para longe de quem bateu.
+func _knock_back(dino: Dino, target: Node2D, profile: ThreatProfile, landed: bool) -> void:
+	var player := target as Player
+	if not landed or player == null or player.health.is_dead() or profile.knockback_px <= 0.0:
+		return
+	var away := target.global_position - dino.global_position
+	if away.length_squared() > 0.0001:
+		player.knock_back(away.normalized() * profile.knockback_px, profile.knockback_seconds)
 
 
 ## O jogador pode ser acertado pela criatura? Vivo, e nem o dono dela nem aliado do dono.
@@ -349,12 +395,15 @@ func request_face(actor_id: int, direction: Vector2) -> Enums.ActionResult:
 
 ## Entidade interagível (criatura ou nó de recurso visível) sob o ponto do mundo `point`, a mais perto do ponto; null se nenhuma.
 ## Só consulta (o cursor do mouse escolhe alvo por aqui; o que se faz com ele passa pelos `request_*`).
-func entity_at(point: Vector2) -> Node2D:
+## `creatures_only` ignora recursos e itens: a criatura viva sob o ponto tem prioridade sobre o resto.
+func entity_at(point: Vector2, creatures_only: bool = false) -> Node2D:
 	var best: Node2D = null
 	var best_distance := INF
 	for id: Variant in _entities:
 		var node := entity(int(id)) as Node2D
 		if node == null or node is Player or node.get("interactable") == null:
+			continue
+		if creatures_only and not node is Dino:
 			continue
 		if node is ResourceNode and not (node as ResourceNode).is_available():
 			continue

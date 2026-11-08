@@ -1,7 +1,9 @@
-[gd_resource type="Resource" script_class="DinoBaseStats" load_steps=4 format=3]
+[gd_resource type="Resource" script_class="DinoBaseStats" load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://src/core/DinoBaseStats.gd" id="1_stats"]
 [ext_resource type="Texture2D" path="res://assets/sprites/dinos/paquicefalo.png" id="2_dead"]
+
+[ext_resource type="Resource" path="res://data/dino/paquicefalo_threat.tres" id="3_threat"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_dead"]
 atlas = ExtResource("2_dead")
@@ -12,7 +14,7 @@ script = ExtResource("1_stats")
 id = "placeholder_dino"
 display_name = "Paquicéfalo"
 base_health = 100.0
-base_damage = 4.0
+base_damage = 6.0
 base_torpor = 100.0
 base_meals = 5
 difficulty = 1.0
@@ -26,3 +28,5 @@ cohesion_radius_tiles = 3.0
 min_group_spacing_tiles = 24.0
 group_respawn_seconds = 1200.0
 chase_speed = 80.0
+attacker_kind = "herbivore"
+threat_profile = ExtResource("3_threat")

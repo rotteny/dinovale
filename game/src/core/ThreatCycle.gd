@@ -20,6 +20,8 @@ var runs_threat := false
 ## Sentido do rodeio (+1 ou -1), sorteado por episódio.
 var circle_sign := 1.0
 var cooldown_left := 0.0
+## Quantos golpes saíram (a autoridade aceita no máximo um pedido por golpe).
+var strike_count := 0
 ## Segundos na fase atual.
 var phase_time := 0.0
 
@@ -64,7 +66,9 @@ func tick(delta: float, distance_px: float, tile_px: float) -> void:
 			elif phase_time >= _circle_length:
 				_enter(Enums.ThreatPhase.WINDUP)
 		Enums.ThreatPhase.WINDUP:
-			if phase_time >= profile.windup_s and cooldown_left <= 0.0:
+			if distance_px > profile.circle_radius_px(tile_px) * 1.6:
+				_enter(Enums.ThreatPhase.APPROACH)  # o alvo saiu durante o aviso: fecha de novo em vez de investir no vazio
+			elif phase_time >= profile.windup_s and cooldown_left <= 0.0:
 				_enter(Enums.ThreatPhase.LUNGE)
 		Enums.ThreatPhase.LUNGE:
 			if distance_px <= profile.attack_reach_px:
@@ -78,6 +82,7 @@ func tick(delta: float, distance_px: float, tile_px: float) -> void:
 
 func _strike(in_reach: bool) -> void:
 	cooldown_left = profile.cooldown_s
+	strike_count += 1
 	struck.emit(in_reach)
 	_enter(Enums.ThreatPhase.RECOVER)
 

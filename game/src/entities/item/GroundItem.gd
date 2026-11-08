@@ -14,6 +14,8 @@ const INTERACT_RADIUS := 8.0
 
 var item_id: String = ""
 var amount: int = 0
+## Item individual (ferramenta, arma): a entrada inteira (`{id, iid, durab...}`) para a durabilidade voltar com ele. Vazio = pilha.
+var entry: Dictionary = {}
 ## Instante (relógio do mundo) em que o item some.
 var due_at: float = 0.0
 ## Gancho do co-op: quem largou/derrubou e até quando só ele recolhe (`owner_until`, relógio do mundo). "" = qualquer um.

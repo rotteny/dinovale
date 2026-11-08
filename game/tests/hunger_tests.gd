@@ -129,7 +129,7 @@ func _test_death_clears_queue() -> void:
 	var player := _eater(40.0)
 	_use(player, 7)
 	_check(player.hunger.pending > 0.0, "há fila antes de morrer")
-	player.health.take_damage(player.health.max_health * 2.0)
+	TestWorld.kill(player)
 	_check(player.hunger.pending == 0.0, "morrer zera a fila")
 
 

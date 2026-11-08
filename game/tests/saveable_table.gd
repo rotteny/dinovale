@@ -14,6 +14,7 @@ const PlayerScene := preload("res://src/entities/player/Player.tscn")
 
 # SAVEABLES-BEGIN
 const SCRIPTS: Array[String] = [
+	"res://src/components/DownedComponent.gd",
 	"res://src/components/EquipmentComponent.gd",
 	"res://src/components/HealthComponent.gd",
 	"res://src/components/HotbarComponent.gd",
@@ -42,6 +43,7 @@ func _init(host: Node, track: Callable) -> void:
 ## Devolve `[original, restaurado]`, ou `[]` se o script não tem caso na tabela.
 func build(script_path: String) -> Array:
 	var cases := {
+		"res://src/components/DownedComponent.gd": _downed_case,
 		"res://src/components/EquipmentComponent.gd": _equipment_case,
 		"res://src/components/HealthComponent.gd": _health_case,
 		"res://src/components/HotbarComponent.gd": _hotbar_case,
@@ -58,6 +60,13 @@ func build(script_path: String) -> Array:
 	if not cases.has(script_path):
 		return []
 	return cases[script_path].call()
+
+
+func _downed_case() -> Array:
+	var original: DownedComponent = _track.call(DownedComponent.new())
+	original.enter()
+	original.tick(3.0, false)
+	return [original, _track.call(DownedComponent.new())]
 
 
 func _health_case() -> Array:

@@ -318,7 +318,7 @@ func _test_a10_knockback() -> void:
 	dino.global_position = Vector2(0.0, FAR_Y + 100.0)
 	player.health.current_health = 4.0
 	_strike(dino, player)
-	_check(player.health.is_dead() and player.knockback_left() == Vector2.ZERO, "quem caiu não é empurrado")
+	_check(player.is_incapacitated() and player.knockback_left() == Vector2.ZERO, "quem caiu não é empurrado")
 	_check(authority != null, "autoridade viva")
 
 

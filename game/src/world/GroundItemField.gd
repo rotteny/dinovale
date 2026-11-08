@@ -82,6 +82,31 @@ func spawn_scatter(item_id: String, amount: int, origin: Vector2, dropper_id: St
 	return created
 
 
+## Solta um item individual (com `iid` e durabilidade) a 4 a 12 px de `origin`; recolher o devolve com a mesma durabilidade.
+## Devolve o item de chão, ou null se a entrada não é de um individual conhecido.
+func spawn_entry(entry: Dictionary, origin: Vector2, ignore_area_cap: bool = false) -> GroundItem:
+	var clean := _clean_entry(entry)
+	if clean.is_empty():
+		return null
+	var item := _spawn(str(clean["id"]), 1, origin + _offset(origin, str(clean["id"]), 0),
+			_now() + rules.despawn_seconds, 0, ignore_area_cap)
+	item.entry = clean
+	return item
+
+
+## Entrada de individual válida (id conhecido e individual, `iid` de texto, `durab` inteiro limitado) ou `{}`.
+func _clean_entry(raw: Variant) -> Dictionary:
+	var data := SafeRead.dict(raw)
+	var item_id := SafeRead.text(data.get("id"), "")
+	var iid := SafeRead.text(data.get("iid"), "")
+	if not Items.has(item_id) or not Items.is_individual(item_id) or iid == "" or iid.length() > InventoryComponent.MAX_IID_LENGTH:
+		return {}
+	var clean := {"id": item_id, "iid": iid}
+	if data.has("durab"):
+		clean["durab"] = SafeRead.integer(data.get("durab"), 0, 0, 1 << 20)
+	return clean
+
+
 ## Deslocamento da pilha `index` em volta de `origin`: ângulo e distância saem da semente do mundo, do ponto e do item.
 func _offset(origin: Vector2, item_id: String, index: int) -> Vector2:
 	var rng := SeededRng.new()
@@ -152,6 +177,8 @@ func to_list() -> Array:
 			"id": authority.id_of(item) if authority != null else 0, "item": item.item_id, "amount": item.amount,
 			"x": item.position.x, "y": item.position.y, "due_at": item.due_at,
 		}
+		if not item.entry.is_empty():
+			entry["entry"] = item.entry.duplicate()
 		if item.owner_player_id != "":
 			entry["owner"] = item.owner_player_id
 			entry["owner_until"] = item.owner_until
@@ -169,12 +196,15 @@ func restore_list(list: Array) -> void:
 		var data := SafeRead.dict(entry)
 		var item_id := SafeRead.text(data.get("item"), "")
 		var amount := SafeRead.integer(data.get("amount"), 0, 0, MAX_AMOUNT)
-		if not Items.has(item_id) or Items.is_individual(item_id) or amount <= 0:
+		var individual := _clean_entry(data.get("entry")) if data.has("entry") else {}
+		if not Items.has(item_id) or amount <= 0 or (Items.is_individual(item_id) and individual.is_empty()) \
+				or (not Items.is_individual(item_id) and data.has("entry")):
 			continue
 		var point := Vector2(SafeRead.number(data.get("x"), 0.0, -MAX_COORD, MAX_COORD),
 				SafeRead.number(data.get("y"), 0.0, -MAX_COORD, MAX_COORD))
 		# O prazo não passa do que um item novo teria (relógio já reposto); vencido some no 1º tick.
 		var due_at := SafeRead.number(data.get("due_at"), current, 0.0, current + rules.despawn_seconds)
-		var item := _spawn(item_id, amount, point, due_at, SafeRead.integer(data.get("id"), 0, 0, 1 << 30))
+		var item := _spawn(item_id, 1 if not individual.is_empty() else amount, point, due_at, SafeRead.integer(data.get("id"), 0, 0, 1 << 30))
+		item.entry = individual
 		item.owner_player_id = SafeRead.text(data.get("owner"), "")
 		item.owner_until = SafeRead.number(data.get("owner_until"), 0.0, 0.0, current + rules.owner_seconds)

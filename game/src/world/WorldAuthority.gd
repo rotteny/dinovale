@@ -27,6 +27,9 @@ signal items_dropped(item_id: String, amount: int, at: Vector2, dropper_id: Stri
 signal owner_event(player_id: String, code: String, params: Dictionary)
 ## Um golpe de criatura em criatura matou: a predação cuida da refeição, do aviso e do alforje.
 signal predator_kill(attacker: Dino, victim: Dino)
+## A autoridade decidiu a morte de um jogador (o caído levou o último golpe de um dino). O corpo deixa os itens aqui
+## (`CorpseField`) e a `Main` abre a tela de morte. Nunca sai em `from_dict`: carregar não é evento de jogo.
+signal player_died(player: Player)
 
 const ACTION_ATTACK := "attack"
 const ACTION_INTERACT := "interact"
@@ -41,6 +44,7 @@ const REASON_GATHER_INTERVAL := "gather_interval"
 const ACTION_FACE := "face"
 const ACTION_PICKUP := "pickup"
 const ACTION_DROP := "drop"
+const ACTION_RECOVER := "recover_corpse"
 ## Quantidade de `request_transfer_slot` que significa "a pilha toda".
 const TRANSFER_ALL := -1
 ## Tamanho máximo de `iid` e de nome de vaga aceitos (dado vindo de fora não é confiável).
@@ -74,6 +78,9 @@ var pvp_enabled: bool = false
 var bite_filter: Callable = Callable()
 ## Chamada do bando (`HerdCall`): a autoridade a alimenta quando um selvagem é golpeado e a avança a cada quadro.
 var herd := HerdCall.new()
+
+## Quantas varreduras do mouse (`pick_at`) já fizeram: o cursor as limita (serve a teste de custo).
+var pick_queries: int = 0
 
 var _entities: Dictionary = {}
 ## Por jogador: instante (relógio do mundo) em que pode concluir outra coleta, e quantas já concluiu. Não vão ao save.
@@ -140,8 +147,43 @@ func _watch(node: Node) -> void:
 		dino.attack_requested.connect(func(target: Node2D, damage: float, episode: int) -> void:
 			_on_dino_attack(dino, target, damage, episode))
 	elif node is Player:
-		(node as Player).health.died.connect(func() -> void: announce("player_downed"))
+		var player := node as Player
+		# Vida 0 de pé vira caído; vida 0 já caído é morte (só dino sobre o caído mata). A fome só sobe o torpor.
+		player.health.died.connect(func() -> void: _on_player_zeroed(player))
+		player.downed.torpor_full.connect(func() -> void: _down_player(player, false))
+		player.downed.time_over.connect(func() -> void: _wake_player(player))
 		(node as Player).weapon_broke.connect(func(item_id: String) -> void: announce("weapon_broke", {"item": Items.display_name(item_id)}))
+
+
+## A vida do jogador chegou a 0. De pé: cai (decisão D1). Já caído: morre.
+func _on_player_zeroed(player: Player) -> void:
+	if player.downed.is_downed:
+		_kill_player(player)
+	else:
+		_down_player(player, true)
+
+
+## O jogador cai (`from_health`: a vida zerou; senão o torpor da fome chegou ao máximo). Só de pé e vivo.
+func _down_player(player: Player, from_health: bool) -> void:
+	if player.downed.is_downed or (player.health.is_dead() and not from_health):
+		return
+	player.perform_down(from_health)
+	announce("player_downed", {"cause": "health" if from_health else "torpor"})
+
+
+## Acabou o desmaio: o jogador acorda (só se ainda estava caído).
+func _wake_player(player: Player) -> void:
+	if not player.downed.is_downed or player.health.is_dead():
+		return
+	player.perform_wake()
+	announce("player_woke")
+
+
+## O caído zerou: morre. O corpo (itens) e a tela de morte ouvem `player_died`.
+func _kill_player(player: Player) -> void:
+	player.perform_death()  # tira o caído e zera a fila de comida
+	announce("player_died")
+	player_died.emit(player)
 
 
 ## Emite um evento de jogo (também usado pelo host para o que a autoridade não observa).
@@ -348,17 +390,20 @@ func _on_dino_attack(dino: Dino, target: Node2D, damage: float, episode: int) ->
 ## Empurrão do golpe que acertou: só o jogador, só se ainda está de pé depois do dano, sempre para longe de quem bateu.
 func _knock_back(dino: Dino, target: Node2D, profile: ThreatProfile, landed: bool) -> void:
 	var player := target as Player
-	if not landed or player == null or player.health.is_dead() or profile.knockback_px <= 0.0:
+	if not landed or player == null or player.is_incapacitated() or profile.knockback_px <= 0.0:
 		return
 	var away := target.global_position - dino.global_position
 	if away.length_squared() > 0.0001:
 		player.knock_back(away.normalized() * profile.knockback_px, profile.knockback_seconds)
 
 
-## O jogador pode ser acertado pela criatura? Vivo, e nem o dono dela nem aliado do dono.
+## O jogador pode ser acertado pela criatura? Vivo, e nem o dono dela nem aliado do dono. Caído: só por quem ataca o
+## caído (`ThreatProfile.attacks_downed`; o Paquicéfalo não, o Utahraptor sim).
 func _hostile_player(attacker: Dino, player: Player) -> bool:
 	var owner_id := attacker.owner_player_id
 	if player.health.is_dead():
+		return false
+	if player.downed.is_downed and not attacker.attacks_downed():
 		return false
 	if owner_id == "":
 		return true
@@ -390,8 +435,10 @@ func _area_hit(attacker: Dino, node: Node, damage: float, torpor_amount: float, 
 		player.health.take_damage(damage * fraction)
 		return true
 	var dino := node as Dino
-	if dino == null or not attacker.state_machine.is_tamed:
+	if dino == null or not attacker.state_machine.is_tamed or attacker == dino:
 		return false  # selvagem não acerta selvagem (nem o principal)
+	if not dino.state_machine.is_tamed and not DinoRelation.may_hit_creature(attacker, dino):
+		return false  # em selvagem: bando nunca (regra única de relação)
 	if dino.state_machine.is_tamed:  # só com a chave ligada, e só de outro dono: leva dano (sem torpor: já está domado)
 		return pvp_enabled and dino.owner_player_id != attacker.owner_player_id and not dino.health.is_dead() \
 				and dino.take_damage(damage * fraction, attacker.stats.attacker_kind)
@@ -443,13 +490,21 @@ func request_face(actor_id: int, direction: Vector2) -> Enums.ActionResult:
 ## Só consulta (o cursor do mouse escolhe alvo por aqui; o que se faz com ele passa pelos `request_*`).
 ## `creatures_only` ignora recursos e itens: a criatura viva sob o ponto tem prioridade sobre o resto.
 func entity_at(point: Vector2, creatures_only: bool = false) -> Node2D:
+	var picked := pick_at(point)
+	return picked["creature"] if creatures_only else picked["any"]
+
+
+## As duas escolhas do mouse numa varredura só: `{"creature": Node2D ou null, "any": Node2D ou null}` (a criatura mais perto
+## sob `point` e a entidade mais perto de qualquer tipo). O cursor e o clique usam isto em vez de duas varreduras O(N).
+func pick_at(point: Vector2) -> Dictionary:
+	pick_queries += 1
 	var best: Node2D = null
 	var best_distance := INF
+	var best_creature: Node2D = null
+	var best_creature_distance := INF
 	for id: Variant in _entities:
 		var node := entity(int(id)) as Node2D
 		if node == null or node is Player or node.get("interactable") == null:
-			continue
-		if creatures_only and not node is Dino:
 			continue
 		if node is ResourceNode and not (node as ResourceNode).is_available():
 			continue
@@ -461,7 +516,10 @@ func entity_at(point: Vector2, creatures_only: bool = false) -> Node2D:
 		if distance < best_distance:
 			best_distance = distance
 			best = node
-	return best
+		if node is Dino and distance < best_creature_distance:
+			best_creature_distance = distance
+			best_creature = node
+	return {"creature": best_creature, "any": best}
 
 
 ## Retângulo do mundo que "é" a entidade para o mouse: o sprite, ou o ponto dela se ainda não tem desenho.
@@ -489,6 +547,10 @@ func interaction_options(actor_id: int, target_id: int) -> Array[Dictionary]:
 	var dino := target as Dino
 	if dino != null:
 		_dino_options(options, actor, dino)
+	elif target is PlayerCorpse:
+		var corpse := target as PlayerCorpse
+		var problem := _corpse_problem(actor, corpse)
+		options.append(_option("recover", "Recuperar itens", problem))
 	elif target is ResourceNode and (target as ResourceNode).is_available():
 		var node := target as ResourceNode
 		var in_range := _within(actor, node, node.def.reach)
@@ -718,10 +780,40 @@ func request_pickup(actor_id: int, target_id: int) -> Enums.ActionResult:
 		_reason = "inventory_full"
 	if problem == Enums.ActionResult.OK:
 		var item_id := item.item_id
+		var entry := item.entry.duplicate(true)  # individual: volta com a durabilidade que tinha
 		var taken := item.take(actor.inventory.room_for(item_id))
-		actor.inventory.add(item_id, taken)
+		if entry.is_empty():
+			actor.inventory.add(item_id, taken)
+		elif taken > 0:
+			actor.inventory.add_entry(entry)
 		announce("item_collected", {"item": Items.display_name(item_id), "amount": taken})
 	return _answer(actor_id, ACTION_PICKUP, problem)
+
+
+## Recuperar os itens do corpo `corpse_id`: vai ao inventário de `actor_id` o que couber; o resto fica no corpo (que some quando
+## esvazia). Valida ator vivo e de pé, alcance de coleta e dono (só o dono). Corpo cheio demais para o inventário: recusa.
+func request_recover_corpse(actor_id: int, corpse_id: int) -> Enums.ActionResult:
+	var actor := _live_player(actor_id)
+	var corpse := entity(corpse_id) as PlayerCorpse
+	var problem := _actor_problem(actor_id, actor)
+	if problem == Enums.ActionResult.OK:
+		problem = _corpse_problem(actor, corpse)
+	if problem == Enums.ActionResult.OK:
+		var moved := corpse.recover_into(actor.inventory)
+		if moved <= 0:
+			problem = Enums.ActionResult.REFUSED
+			_reason = "inventory_full"
+		else:
+			announce("corpse_recovered", {"amount": moved, "left": corpse.item_count()})
+	return _answer(actor_id, ACTION_RECOVER, problem)
+
+
+func _corpse_problem(actor: Player, corpse: PlayerCorpse) -> Enums.ActionResult:
+	if corpse == null:
+		return Enums.ActionResult.UNKNOWN_TARGET
+	if not _within(actor, corpse, rules.reach_px()):
+		return Enums.ActionResult.OUT_OF_RANGE
+	return Enums.ActionResult.OK if corpse.owner_player_id == actor.player_id else Enums.ActionResult.NOT_OWNER
 
 
 ## Largar no chão `amount` (TRANSFER_ALL = tudo) do slot `index` do inventário de `actor_id`, aos pés dele. Só pilha
@@ -771,10 +863,10 @@ func _gather_result(reason: String) -> Enums.ActionResult:
 
 func _live_player(actor_id: int) -> Player:
 	var actor := entity(actor_id) as Player
-	return actor if actor != null and not actor.health.is_dead() else null
+	return actor if actor != null and not actor.is_incapacitated() else null
 
 
-## Por que o ator não serve (OK = serve): não é um jogador registrado, ou está morto.
+## Por que o ator não serve (OK = serve): não é um jogador registrado, ou está morto ou caído (`ACTOR_DEAD`: "Você está caído.").
 func _actor_problem(actor_id: int, actor: Player) -> Enums.ActionResult:
 	if actor != null:
 		return Enums.ActionResult.OK

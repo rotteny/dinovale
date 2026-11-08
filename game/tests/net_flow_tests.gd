@@ -436,7 +436,7 @@ func _test_owner_dead_or_absent() -> void:
 		await tree.physics_frame
 	_check(dino.velocity.length() > 0.0 and dino.position.x > 100.0, "dono vivo e longe: o dino vai até ele")
 	# Dono morto conta como ausente: o dino fica onde está e a ordem se mantém.
-	player.health.take_damage(player.health.max_health * 10.0)
+	TestWorld.kill(player)
 	await tree.physics_frame
 	await tree.physics_frame
 	var stopped_at := dino.position

@@ -445,7 +445,7 @@ func _test_coalescing() -> void:
 	scheduler.request(R.TAMED_DINO_DEATH)
 	await tree.process_frame
 	_check(scheduler.saves_done == done, "morte a 1 s do último save espera o prazo")
-	pair_player.health.take_damage(10000.0)  # o estado muda enquanto espera: o save leva o de AGORA
+	TestWorld.kill(pair_player)  # o estado muda enquanto espera: o save leva o de AGORA
 	scheduler.tick(5.0)
 	_check(scheduler.saves_done == done, "aos 6 s ainda dentro do prazo")
 	scheduler.tick(4.0)
@@ -475,7 +475,7 @@ func _test_triggers_on_main() -> void:
 	var dying := _main("trig_death")
 	var death_reasons: Array[int] = []
 	dying.scheduler.saved.connect(func(reason: SaveManager.Reason, _ok: bool, _m: String) -> void: death_reasons.append(reason))
-	dying.player.health.take_damage(10000.0)
+	TestWorld.kill(dying.player)
 	_check(dying.player.health.is_dead() and dying.scheduler.saves_done == 0, "o jogador morreu; o save só sai no fim do quadro")
 	await tree.process_frame
 	_check(death_reasons == [R.PLAYER_DEATH], "morte do jogador grava")
@@ -486,8 +486,8 @@ func _test_triggers_on_main() -> void:
 	var loaded := _fresh_pair()
 	_check(dying.save_manager.load_first(_accept_into(loaded)).status == SaveManager.Status.OK, "o save da morte carrega")
 	var still_dead: Player = loaded[0]
-	_check(still_dead.health.is_dead() and still_dead.inventory.count("berry") == 10,
-			"carregar save de morte não desfaz a morte e mantém o inventário")
+	_check(still_dead.health.is_dead() and still_dead.inventory.is_empty(),
+			"carregar save de morte não desfaz a morte (os itens ficam no corpo, que o mundo guarda)")
 	GameSession.continue_requested = true
 	var resumed := _main("trig_death")
 	_check(resumed.pending_death_choice and resumed.player.health.is_dead() and resumed.death_screen.is_open,
@@ -518,7 +518,7 @@ func _test_triggers_on_main() -> void:
 	# Morte e autosave no mesmo instante: um save só, e coerente
 	var both := _main("trig_both")
 	both.scheduler.tick(100000.0)
-	both.player.health.take_damage(10000.0)
+	TestWorld.kill(both.player)
 	await tree.process_frame
 	_check(both.scheduler.saves_done == 1 and both.save_manager.probe().status == SaveManager.Status.OK,
 			"morte e autosave no mesmo quadro: um save só, válido")
@@ -609,7 +609,7 @@ func _test_continue_failure() -> void:
 		_check(main.scheduler.frozen and notice.contains(case[2]), "%s: Continuar que falha pede voltar ao título com o motivo" % case[0])
 		_check(not main.save_game(R.BED) and not main.scheduler.save_now(R.QUIT), "%s: nada grava" % case[0])
 		main.scheduler.request(R.AUTOSAVE)
-		main.player.health.take_damage(10000.0)
+		TestWorld.kill(main.player)
 		await _root.get_tree().process_frame
 		var saved_files := _dir_files(manager).filter(func(name: String) -> bool: return name != ServerRules.FILE_NAME)
 		_check(_read_raw(manager.main_path()) == case[1] and saved_files == ["world.json"],

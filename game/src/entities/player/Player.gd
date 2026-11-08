@@ -59,6 +59,8 @@ const LOCAL_PLAYER_ID := "local"
 @export var sprint_speed: float = 120.0
 ## Números do jogador (fome, recarga de comida e de troca, ofego) vindos dos dados.
 @export var rules: PlayerRules = preload("res://data/balance/player_rules.tres")
+## Caído e corpo (M1, etapa 6): duração do desmaio, vida do caído, torpor e minutos do corpo.
+@export var downed_rules: DownedRules = preload("res://data/balance/downed_rules.tres")
 ## Golpe de mãos livres (Soco): dano, torpor e recarga vêm dos dados (`res://data/weapons/`).
 @export var unarmed: WeaponDef = preload("res://data/weapons/punch.tres")
 ## Equipamento inicial do jogo normal: nenhum (as armas vêm da fabricação, M3). O de desenvolvimento está em
@@ -116,6 +118,7 @@ var _knock_speed: float = 0.0
 @onready var inventory: InventoryComponent = $InventoryComponent
 @onready var hotbar: HotbarComponent = $HotbarComponent
 @onready var equipment: EquipmentComponent = $EquipmentComponent
+@onready var downed: DownedComponent = $DownedComponent
 @onready var detector: Area2D = $InteractionDetector
 
 
@@ -123,9 +126,9 @@ func _ready() -> void:
 	_apply_hitbox()
 	hunger.decay_per_second = rules.hunger_decay_idle
 	hunger.recovery_per_second = rules.hunger_recovery_per_second
-	health.died.connect(hunger.clear_pending)
+	downed.rules = downed_rules
 	stamina.rules = rules
-	hunger.starved.connect(health.take_damage)
+	health.died.connect(_on_health_zeroed)
 	detector.area_entered.connect(_on_area_entered)
 	detector.area_exited.connect(_on_area_exited)
 	# O save é restaurado depois do _ready (from_dict exige o nó na árvore) e sobrescreve isto.
@@ -160,7 +163,7 @@ func _physics_process(delta: float) -> void:
 
 ## Empurrão de `offset` pixels em `seconds` (só a autoridade chama; quem já caiu não é empurrado). Substitui o anterior.
 func knock_back(offset: Vector2, seconds: float) -> void:
-	if health.is_dead() or seconds <= 0.0:
+	if is_incapacitated() or seconds <= 0.0:
 		return
 	_knock_left = offset
 	_knock_speed = offset.length() / seconds
@@ -213,6 +216,7 @@ func tick(delta: float) -> void:
 	_equip_timer = maxf(_equip_timer - delta, 0.0)
 	_gather_timer = maxf(_gather_timer - delta, 0.0)
 	health.tick(delta)
+	if not health.is_dead(): downed.tick(delta, hunger.is_starving())
 	update_target()
 	_update_attack_target()
 
@@ -236,7 +240,7 @@ func perform_face(direction: Vector2) -> void:
 ## Regra de movimento: converte direção + pedido de corrida na velocidade do frame
 ## e gasta/regenera a stamina. Só corre quem está se movendo e tem stamina.
 func apply_input(direction: Vector2, wants_sprint: bool, delta: float) -> Vector2:
-	if health.is_dead():
+	if is_incapacitated():
 		return Vector2.ZERO
 	direction = direction.limit_length(1.0)
 	var moving := direction != Vector2.ZERO
@@ -268,7 +272,7 @@ func update_target() -> void:
 
 ## Prioridade do alvo do E (menor vence): item no chão, nó de recurso, estrutura/objeto, criatura. Entre iguais, o mais perto.
 static func interact_priority(area: InteractableArea) -> int:
-	if area.entity is GroundItem:
+	if area.entity is GroundItem or area.entity is PlayerCorpse:
 		return 0
 	if area.entity is ResourceNode:
 		return 1
@@ -322,7 +326,7 @@ func _mouse_pick(candidates: Array[Node2D]) -> Dino:
 ## Intenção "golpear onde o mouse clicou": vira para o cursor (pedido de virar à autoridade, sem andar) e golpeia a
 ## criatura sob ele; sem ela ao alcance, vale a escolha automática. A autoridade valida alcance, frente e recarga.
 func attack_at(point: Vector2) -> bool:
-	if input_locked or health.is_dead() or authority == null:
+	if input_locked or is_incapacitated() or authority == null:
 		return false
 	var direction := point - global_position
 	if direction.length() > 1.0:
@@ -343,24 +347,27 @@ func attack_at(point: Vector2) -> bool:
 	return _strike_target()
 
 
-## Clique esquerdo num alvo que não se golpeia: item no chão é recolhido e nó de coleta direta é colhido, pelos mesmos
-## pedidos do E. A autoridade valida o alcance (recusa com motivo no log) e o intervalo entre coletas segue valendo.
+## Clique num alvo que não se golpeia (e o E): recolhe item, recupera corpo ou interage, pelos pedidos da autoridade.
 func _click_use(under: Node2D) -> bool:
 	var actor_id := authority.id_of(self)
 	var target_id := authority.id_of(under)
 	if under is GroundItem:
 		return authority.request_pickup(actor_id, target_id) == Enums.ActionResult.OK
+	if under is PlayerCorpse:
+		return authority.request_recover_corpse(actor_id, target_id) == Enums.ActionResult.OK
 	return authority.request_interact(actor_id, target_id) == Enums.ActionResult.OK
 
 
 ## Executa uma opção do menu do mouse (`WorldAuthority.interaction_options`) sobre a entidade `target_id`.
 func run_option(option_id: String, target_id: int) -> bool:
-	if input_locked or health.is_dead() or authority == null:
+	if input_locked or is_incapacitated() or authority == null:
 		return false
 	var actor_id := authority.id_of(self)
 	match option_id:
 		"interact", "inventory":
 			return authority.request_interact(actor_id, target_id) == Enums.ActionResult.OK
+		"recover":
+			return authority.request_recover_corpse(actor_id, target_id) == Enums.ActionResult.OK
 		"follow", "stay":
 			return authority.request_command(actor_id, target_id, option_id.to_upper()) == Enums.ActionResult.OK
 		"attack":
@@ -369,17 +376,12 @@ func run_option(option_id: String, target_id: int) -> bool:
 	return false
 
 
-## Intenção "interagir com o alvo": pede à autoridade (ou, num domado seu, troca a ordem Seguir/Ficar).
-## Retorna true se a autoridade aceitou. Quem abre a tela ou colhe ouve `interaction_granted`.
+## Intenção "interagir com o alvo": pede à autoridade. Retorna true se aceitou (`interaction_granted` avisa quem abre tela).
 func try_interact() -> bool:
-	if input_locked or health.is_dead() or target == null or authority == null:
+	if input_locked or is_incapacitated() or target == null or authority == null:
 		return false
-	var actor_id := authority.id_of(self)
-	var target_id := authority.id_of(target.entity)
-	if target.entity is GroundItem:  # item no chão: o E o pega (prioridade 1 do E)
-		return authority.request_pickup(actor_id, target_id) == Enums.ActionResult.OK
-	# A tecla E nunca dá ordem a dino (decisão do dono, 08/11): as ordens saem do menu e da tecla G (`toggle_nearest_order`).
-	return authority.request_interact(actor_id, target_id) == Enums.ActionResult.OK
+	# O E nunca dá ordem a dino (decisão do dono, 08/11): as ordens saem do menu e da tecla G.
+	return _click_use(target.entity)
 
 
 ## O alvo do E é um domado meu? (a tecla abre o menu em vez de interagir)
@@ -390,7 +392,7 @@ func target_is_own_tamed() -> bool:
 
 ## Tecla G: alterna Seguir/Ficar do domado meu mais perto, ao alcance. Retorna true se a autoridade aceitou.
 func toggle_nearest_order() -> bool:
-	if input_locked or health.is_dead() or authority == null:
+	if input_locked or is_incapacitated() or authority == null:
 		return false
 	var actor_id := authority.id_of(self)
 	var dino_id := authority.nearest_own_tamed(actor_id)
@@ -414,7 +416,7 @@ func attack_with_key() -> bool:
 
 
 func _strike_target(preferred_node: ResourceNode = null) -> bool:
-	if input_locked or health.is_dead() or authority == null:
+	if input_locked or is_incapacitated() or authority == null:
 		return false
 	var dino := _update_attack_target()
 	if preferred_node != null:
@@ -661,9 +663,48 @@ func _refuse_gather(reason: String) -> String:
 	return reason
 
 
-## Renasce em `point` (GDD 12.4): vida e fome nas frações das regras, fôlego cheio, proteção por
-## alguns segundos. O inventário, a barra e as vagas ficam como estavam (o corpo com os itens é
-## SOB-02, M2). Só vale para quem está morto; devolve se renasceu.
+func _on_health_zeroed() -> void:
+	if authority == null: perform_death()  # sem autoridade, vida 0 é morte
+
+
+## Morto ou caído: não age. Só a autoridade muda isto.
+func is_incapacitated() -> bool:
+	return health.is_dead() or downed.is_downed
+
+
+## Cai (só a autoridade chama): `from_health` = vida 0 de pé vira a vida do caído; o torpor por fome mantém a vida.
+func perform_down(from_health: bool) -> void:
+	if health.is_dead() and from_health: health.revive(downed_rules.downed_health / health.max_health)
+	downed.enter()
+	_stop_acting()
+
+
+## Acorda (só a autoridade chama): vida mínima `wake_min_health`, torpor `wake_torpor`, graça sem dano.
+func perform_wake() -> void:
+	downed.wake()
+	health.heal(maxf(downed_rules.wake_min_health - health.current_health, 0.0))
+	health.grant_protection(downed_rules.wake_grace_seconds)
+
+
+## Morre de vez (só a autoridade chama): o que digeria se perde e o desmaio acaba.
+func perform_death() -> void:
+	downed.clear()
+	hunger.clear_pending()
+	_stop_acting()
+
+
+func _stop_acting() -> void:
+	_move_direction = Vector2.ZERO
+	_move_sprint = false
+	_knock_left = Vector2.ZERO
+	velocity = Vector2.ZERO
+	if attack_target != null:
+		attack_target = null
+		attack_target_changed.emit(null)
+
+
+## Renasce em `point` (GDD 12.4): vida e fome nas frações das regras, torpor zerado, fôlego cheio, proteção por
+## alguns segundos. Os itens ficaram no corpo. Só vale para quem está morto; devolve se renasceu.
 func respawn_at(point: Vector2, respawn_rules: RespawnRules) -> bool:
 	if not health.is_dead():
 		return false
@@ -671,6 +712,7 @@ func respawn_at(point: Vector2, respawn_rules: RespawnRules) -> bool:
 	velocity = Vector2.ZERO
 	health.revive(respawn_rules.health_ratio)
 	hunger.set_ratio(respawn_rules.hunger_ratio)
+	downed.clear()
 	stamina.from_dict({"current": stamina.max_stamina, "is_exhausted": false})
 	health.grant_protection(respawn_rules.protection_seconds)
 	# `_in_range` fica: o detector devolve o que continuar sobreposto e o `area_exited` tira o resto.
@@ -694,7 +736,7 @@ func current_weapon() -> WeaponDef:
 ## equipado; comer não mexe nele. Sem estoque, sem efeito.
 ## Retorna true se algo foi consumido ou trocado.
 func request_use_item(slot: int) -> bool:
-	if input_locked or health.is_dead() or authority == null:
+	if input_locked or is_incapacitated() or authority == null:
 		return false
 	return authority.request_use_item(authority.id_of(self), slot) == Enums.ActionResult.OK
 
@@ -780,7 +822,7 @@ func request_unequip(slot_id: String) -> String:
 
 
 func _can_equip_now() -> bool:
-	return not health.is_dead() and _equip_timer <= 0.0  # a tela trava o corpo (`input_locked`), mas é por ela que se equipa
+	return not is_incapacitated() and _equip_timer <= 0.0  # a tela trava o corpo (`input_locked`), mas é por ela que se equipa
 
 
 func _after_equip_request(reason: String) -> String:
@@ -820,6 +862,7 @@ func to_dict() -> Dictionary:
 		"version": FORMAT_VERSION,
 		"position": {"x": position.x, "y": position.y},
 		"health": health.to_dict(),
+		"downed": downed.to_dict(),
 		"stamina": stamina.to_dict(),
 		"hunger": hunger.to_dict(),
 		"inventory": inventory.to_dict(),
@@ -865,6 +908,8 @@ func from_dict(data: Dictionary) -> bool:
 	)
 	health.from_dict(SafeRead.dict(data.get("health")))
 	health.protection_left = SafeRead.number(data.get("protection"), 0.0, 0.0, HealthComponent.MAX_PROTECTION)
+	downed.from_dict(SafeRead.dict(data.get("downed")))  # sem o bloco (save antigo): de pé; morto não está caído
+	if health.is_dead(): downed.clear()
 	stamina.from_dict(SafeRead.dict(data.get("stamina")))
 	hunger.from_dict(SafeRead.dict(data.get("hunger")))
 	if replaces_inventory:

@@ -97,7 +97,7 @@ func tick(delta: float) -> void:
 	_attack_left = maxf(_attack_left - delta, 0.0)
 	_tick_breath(delta)
 	var sprite := player.visual
-	if player.health.is_dead():
+	if player.is_incapacitated():  # morto ou caído: o quadro de queda
 		_show_frame(sprite, _sheet.column_at(ANIM_FALL, 0.0))
 		return
 	var moving := player.velocity.length_squared() > MOVING_SPEED_SQUARED
@@ -150,7 +150,7 @@ func _tick_breath(delta: float) -> void:
 	var stamina := player.stamina
 	# O fôlego longo toca inteiro: nenhum sopro o corta.
 	_gasp_left = maxf(_gasp_left - delta, 0.0)
-	if player.health.is_dead() or not stamina.is_winded():
+	if player.is_incapacitated() or not stamina.is_winded():
 		_pant_clock = 0.0
 		return
 	if _gasp_left > 0.0:

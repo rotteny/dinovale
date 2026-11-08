@@ -17,6 +17,14 @@ static func arm(player: Player, others: Array, track: Callable) -> WorldAuthorit
 	return authority
 
 
+## Mata o jogador de vez, pelo caminho do jogo: o primeiro golpe de dano o derruba (vida 0 de pé vira caído) e o
+## segundo, já caído, o mata. Sem autoridade a vida 0 já é morte e o segundo golpe nada faz.
+static func kill(player: Player) -> void:
+	player.health.take_damage(1.0e6)
+	if player.downed.is_downed:
+		player.health.take_damage(1.0e6)
+
+
 ## Liga a tela de inventário à autoridade como a `Main` faz: o pedido de transferência vira
 ## `request_transfer_slot` e a recusa volta como aviso. `target` é a criatura aberta na tela.
 static func wire_screen(screen: InventoryScreen, authority: WorldAuthority, player: Player, target: Node) -> void:
@@ -36,6 +44,7 @@ static func pass_time(main: Main, seconds: float) -> void:
 	main.authority.clock.advance(seconds)
 	main.resources.tick()
 	main.carcasses.tick()
+	main.corpses.tick()
 
 
 ## Relógio de mentira para componente sem a `Main`: `clock = TestClock.new(); node.clock = clock.now`.

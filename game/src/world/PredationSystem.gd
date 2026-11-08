@@ -19,9 +19,10 @@ class Hunt extends RefCounted:
 	var age := 0.0
 	var unseen := 0.0
 	var eval_left := 0.0
-	var health_mark := 0.0  # vida da presa na última conferência: queda = mordida
+	var bite_mark := 0  # `Dino.bite_count` da presa na última conferência: mudou = mordida de criatura (dano do jogador não conta)
 	var bitten := false
 	var damage_mark := 0
+	var released_for_player := false  # já largou a presa e reiniciou o episódio por causa do jogador (uma vez só)
 	var player_fixed := false  # o jogador bateu nele (ou foi mordido por ele) neste episódio: não troca para presa
 	var eating := false
 	var carcass: ResourceNode = null
@@ -44,6 +45,8 @@ var authority: WorldAuthority = null:
 			value.bite_filter = allows_bite
 ## Testes de distância feitos desde a criação (A30: uma reavaliação custa no máximo P x A + P).
 var distance_tests := 0
+## Quantas vezes o bônus de bando foi calculado (uma por caçador em cada avaliação, não uma por presa).
+var pack_evaluations := 0
 
 var _hunts: Dictionary = {}  # Dino -> Hunt
 var _active: Array[Dino] = []
@@ -139,12 +142,12 @@ func _is_hunter(dino: Dino) -> bool:
 
 
 ## A criatura `prey` é presa de `hunter` agora? `fresh` confere também o que só vale ao escolher (recuo, piso do bando).
-func _prey_ok(hunter: Dino, prey: Dino, now: float, fresh: bool) -> bool:
+func _prey_ok(hunter: Dino, prey: Dino, now: float, fresh: bool, pack: bool) -> bool:
 	if prey == hunter or not is_instance_valid(prey) or prey.is_queued_for_deletion() or prey.health.is_dead():
 		return false
 	if not _active_set.has(prey) or _in_safe_zone(prey.global_position):
 		return false
-	if not DinoRelation.is_prey_species(hunter.stats, prey.stats, _pack_bonus(hunter)):
+	if not DinoRelation.is_prey_species(hunter.stats, prey.stats, pack):
 		return false
 	if prey.state_machine.is_tamed:
 		return prey.owner_player_id != ""  # domado do jogador: acordado ou dormindo, sem piso de bando
@@ -155,6 +158,7 @@ func _prey_ok(hunter: Dino, prey: Dino, now: float, fresh: bool) -> bool:
 
 
 func _pack_bonus(hunter: Dino) -> bool:
+	pack_evaluations += 1
 	var needed := hunter.stats.predation.pack_size_bonus_min_members
 	if needed <= 0:
 		return false
@@ -215,6 +219,7 @@ func _step(hunt: Hunt, delta: float, now: float) -> void:
 		return
 	if not hunter.state_machine.is_aggressive:
 		hunt.player_fixed = false
+		hunt.released_for_player = false
 	hunt.lock_age += delta
 	hunt.eval_left -= delta
 	if hunt.prey != null:
@@ -229,13 +234,13 @@ func _step_prey(hunt: Hunt, delta: float, now: float) -> void:
 	var hunter := hunt.hunter
 	var prey := hunt.prey
 	var profile := hunter.stats.predation
-	if not _prey_ok(hunter, prey, now, false):
+	if not _prey_ok(hunter, prey, now, false, _pack_bonus(hunter)):
 		_release(hunt, now, false)
 		return
 	hunt.age += delta
-	if prey.health.current_health < hunt.health_mark - 0.001:
+	if prey.bite_count != hunt.bite_mark:
 		hunt.bitten = true
-	hunt.health_mark = prey.health.current_health
+	hunt.bite_mark = prey.bite_count
 	var tile := _tile()
 	var distance := _effective(hunter, prey.global_position)
 	if distance <= hunter.stats.perception_tiles * tile:
@@ -286,8 +291,10 @@ func _reevaluate(hunt: Hunt, now: float) -> void:
 	if hunter.bit_player_episode == hunter.state_machine.episode_id and hunter.state_machine.is_aggressive:
 		hunt.player_fixed = true  # quem já mordeu o jogador neste episódio não troca para presa
 	if hunt.player_fixed and hunter.state_machine.is_aggressive:
-		_release(hunt, now, false)  # volta ao natural: o `Dino` persegue o jogador que bateu
-		hunter.state_machine.restart_episode()
+		if not hunt.released_for_player:  # uma vez só: reiniciar a cada reavaliação impediria o raptor de acalmar
+			hunt.released_for_player = true
+			_release(hunt, now, false)  # volta ao natural: o `Dino` persegue o jogador que bateu
+			hunter.state_machine.restart_episode()
 		return
 	var tile := _tile()
 	var perception := hunter.stats.perception_tiles * tile
@@ -328,12 +335,13 @@ func _collect_prey(hunt: Hunt, candidates: Array[Dictionary], current: Node2D, n
 	var plain_limit := perception * perception
 	var shield := rules.owner_shield_tiles * tile
 	var guarded := current as Player
+	var pack := _pack_bonus(hunter)  # uma vez por caçador, não por presa
 	for prey in _active:
 		distance_tests += 1
 		if prey == hunter or hunter.global_position.distance_squared_to(prey.global_position) > plain_limit:
 			continue
 		var distance := _effective(hunter, prey.global_position)
-		if distance > perception or not _prey_ok(hunter, prey, now, true):
+		if distance > perception or not _prey_ok(hunter, prey, now, true, pack):
 			continue
 		if guarded != null and guarded.global_position.distance_to(prey.global_position) <= shield:
 			continue  # escudo do dono: quem já persegue o jogador não o larga por quem está colado nele
@@ -366,7 +374,7 @@ func _set_target(hunt: Hunt, node: Node2D, now: float) -> void:
 	hunt.bitten = false
 	hunt.damage_mark = hunt.hunter.player_damage_count
 	if hunt.prey != null:
-		hunt.health_mark = hunt.prey.health.current_health
+		hunt.bite_mark = hunt.prey.bite_count
 	hunt.hunter.hunt_target = hunt.prey
 	hunt.hunter.observe_targets()  # o alvo vale já neste quadro
 
@@ -432,7 +440,10 @@ func _tamed_killed(attacker: Dino, victim: Dino) -> void:
 		return
 	for index in victim.inventory.slot_count():  # o alforje cai no chão, sem perder nada pelo teto por área
 		var slot := victim.inventory.get_slot(index)
-		if slot.is_empty() or slot.has("iid"):
+		if slot.is_empty():
+			continue
+		if slot.has("iid"):  # ferramenta ou arma: cai com a durabilidade que tinha
+			ground.spawn_entry(slot, victim.global_position, true)
 			continue
 		var amount := victim.inventory.take_from_slot(index, int(slot.get("count", 0)))
 		if amount > 0:

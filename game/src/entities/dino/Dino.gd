@@ -61,6 +61,8 @@ var combat_id: String = ""
 var hunt_target: Node2D = null
 ## Até quando (relógio do mundo) o carnívoro está saciado e não caça presa. Vai ao save; 0 = sem saciedade.
 var sated_until: float = 0.0
+## Quantas mordidas de OUTRA criatura esta levou (a caçada distingue mordida de dano do jogador).
+var bite_count: int = 0
 ## Quantas vezes um jogador lhe causou dano (a predação compara: dano do jogador durante a caça troca o alvo).
 var player_damage_count: int = 0
 ## Episódio de agressão em que mordeu um jogador pela última vez (-1 = nunca): quem mordeu não troca para presa.
@@ -160,7 +162,7 @@ func observe_targets() -> void:
 		_set_target(hunt_target)
 		return
 	if _aggressor_body != null:
-		var attacker := _aggressor_body if is_instance_valid(_aggressor_body) and not _is_dead_body(_aggressor_body) else null
+		var attacker := _aggressor_body if is_instance_valid(_aggressor_body) and not _is_untargetable(_aggressor_body) else null
 		_set_target(attacker)
 		return
 	if not target_locator.is_valid():
@@ -170,7 +172,7 @@ func observe_targets() -> void:
 	var best_distance := INF
 	for candidate: Variant in target_locator.call():
 		var body := candidate as Node2D
-		if body == null or not is_instance_valid(body) or _is_dead_body(body):
+		if body == null or not is_instance_valid(body) or _is_untargetable(body):
 			continue
 		if not stats.aggressive and _aggressor_id != "" and body.get("player_id") != _aggressor_id:
 			continue  # bravo por golpe: persegue quem bateu, não o jogador mais perto
@@ -216,6 +218,27 @@ func _on_struck(in_reach: bool) -> void:
 func refresh_command_state() -> void:
 	_refresh_prompt()
 	interactable.refresh()
+
+
+## Limita a saciedade a `now` mais o teto da espécie (`PredationProfile.sated_max_seconds`); sem perfil, não há saciedade.
+## Quem restaura um save a chama: o número gravado é dado de fora.
+func cap_sated(now: float) -> void:
+	var ceiling := now + (stats.predation.sated_max_seconds if stats.predation != null else 0.0)
+	sated_until = minf(sated_until, ceiling)
+
+
+## Esta espécie ataca o jogador caído? (`ThreatProfile.attacks_downed`; sem perfil vale o padrão do perfil: sim.)
+func attacks_downed() -> bool:
+	var profile := stats.threat_profile
+	return profile == null or profile.attacks_downed
+
+
+## O corpo não serve de alvo: morto, ou jogador caído e esta espécie não ataca o caído (o Paquicéfalo larga e acalma).
+func _is_untargetable(body: Node2D) -> bool:
+	if _is_dead_body(body):
+		return true
+	var downed := body.get("downed") as DownedComponent
+	return downed != null and downed.is_downed and not attacks_downed()
 
 
 func _is_dead_body(body: Node2D) -> bool:
@@ -295,6 +318,7 @@ func receive_hit(damage: float, torpor_amount: float, attacker_kind: String, att
 func be_bitten(damage: float, attacker: Dino) -> bool:
 	if health.is_dead() or attacker == null or not take_damage(damage, attacker.stats.attacker_kind):
 		return false
+	bite_count += 1
 	if health.is_dead() or state_machine.is_tamed or stats.predation != null:
 		return true
 	_aggressor_id = attacker.combat_id

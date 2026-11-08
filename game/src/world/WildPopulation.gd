@@ -383,7 +383,7 @@ func is_owned(creature: Dino) -> bool:
 
 ## Selvagem sem dono que saiu do estado de nascimento.
 func is_changed(creature: Dino) -> bool:
-	return creature.feeder_player_id != "" or creature.sated_until > 0.0 \
+	return creature.feeder_player_id != "" or creature.sated_until > _now() \
 			or creature.taming.taming_progress > 0.0 or creature.torpor.current_torpor > 0.0 \
 			or creature.torpor.is_unconscious or not creature.inventory.is_empty() \
 			or creature.health.current_health < creature.health.max_health
@@ -560,10 +560,16 @@ func restore(list: Variant, saved_entities: Array, groups: Variant = [], saved_s
 	_register(created)
 	last_restored.append_array(created)
 	last_adopted = created
+	for restored in last_restored:  # a saciedade do save nunca passa de agora + o teto da espécie (dado de fora)
+		restored.cap_sated(now)
 	for creature in made:
 		if is_instance_valid(creature) and not creature.is_queued_for_deletion():
 			last_created.append(creature)
 	return true
+
+
+func _now() -> float:
+	return float(clock.call()) if clock.is_valid() else 0.0
 
 
 ## Id da vaga de um id de membro (`g7.0.2` -> `g7`).

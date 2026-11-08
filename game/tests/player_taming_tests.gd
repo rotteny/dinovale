@@ -75,9 +75,10 @@ func _test_player_starves_to_death() -> void:
 	var player := _spawn_player()
 	player.hunger.current_hunger = 0.0
 	player.hunger.tick(2.0)
-	_check(player.health.current_health == 95.0, "fome zerada machuca o player")
+	_check(player.health.current_health == 100.0, "fome zerada não tira vida (decisão de 07/11: ela sobe o torpor)")
 	player.hunger.tick(38.0)
-	_check(player.health.is_dead(), "fome mata depois de muito tempo")
+	_check(not player.health.is_dead(), "fome não mata, nem depois de muito tempo")
+	TestWorld.kill(player)
 	_check(player.apply_input(Vector2.RIGHT, false, 0.1) == Vector2.ZERO, "morto não anda")
 
 

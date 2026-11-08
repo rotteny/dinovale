@@ -348,7 +348,7 @@ func _test_consumers() -> void:
 	_check(plain_levels_ok and custom_levels_ok, "faixas_de_nivel: com semente fixa, nível dentro da faixa padrão e da trocada")
 	# respawn_protecao_s e respawn_fome_pct
 	for main: Main in [plain, custom]:
-		main.player.health.take_damage(10000.0)
+		TestWorld.kill(main.player)
 		_check(main.request_respawn("campina") == "", "renasce na Campina")
 	_check(
 		is_equal_approx(plain.player.health.protection_left, 3.0) and is_equal_approx(custom.player.health.protection_left, 10.0),

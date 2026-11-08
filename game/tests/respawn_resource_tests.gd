@@ -200,7 +200,7 @@ func _test_death_and_respawn_flow() -> void:
 	main.player.inventory.add(Items.WOOD, 5)
 	var berries := main.player.inventory.count(Items.BERRY)
 	main.player.hunger.set_ratio(0.2)
-	main.player.health.take_damage(10000.0)
+	TestWorld.kill(main.player)
 	_check(main.pending_death_choice and main.death_screen.is_open and main.player.health.is_dead(), "vida 0 abre a tela de morte")
 	_check(main.death_screen.column().selected_id() == "campina", "Campina vem pré-selecionada")
 	_check(main.request_respawn("nao_existe") == "unknown_region" and main.player.health.is_dead(), "região desconhecida é recusada")
@@ -208,7 +208,7 @@ func _test_death_and_respawn_flow() -> void:
 	main.player.health.take_damage(1000.0)  # protegido: ignorado
 	_check(not main.player.health.is_dead(), "respawn_at direto também protege")
 	main.player.health.protection_left = 0.0
-	main.player.health.take_damage(10000.0)
+	TestWorld.kill(main.player)
 	_check(main.player.health.is_dead(), "morreu de novo")
 	_check(main.request_respawn("campina") == "", "respawn na Campina")
 	var player := main.player
@@ -222,8 +222,10 @@ func _test_death_and_respawn_flow() -> void:
 	player.tick(RULES.protection_seconds + 0.1)
 	player.health.take_damage(50.0)
 	_check(player.health.current_health == player.health.max_health - 50.0, "depois dos 3 s o dano volta")
-	_check(player.inventory.count(Items.WOOD) == 5 and player.inventory.count(Items.BERRY) == berries,
-			"M1: o inventário fica com o jogador (o corpo com itens é SOB-02, M2)")
+	var body := main.corpses.corpse_of(player.player_id)
+	_check(player.inventory.count(Items.WOOD) == 0 and player.inventory.count(Items.BERRY) == 0 and body != null
+			and body.count(Items.WOOD) == 5 and body.count(Items.BERRY) == berries,
+			"M1 etapa 6: os itens ficaram no corpo e o jogador renasce de inventário vazio")
 	_check(main.request_respawn("campina") == "not_dead", "vivo não renasce de novo")
 
 
@@ -244,7 +246,7 @@ func _test_respawn_points_are_free() -> void:
 	for i in 60:
 		main._respawn_count = i
 		main.player.health.protection_left = 0.0
-		main.player.health.take_damage(10000.0)
+		TestWorld.kill(main.player)
 		_check(main.request_respawn("campina") == "", "respawn %d" % i)
 		var point := main.player.position
 		all_free = all_free and main._is_free_point(point)
@@ -255,7 +257,7 @@ func _test_respawn_points_are_free() -> void:
 func _test_dead_save_is_not_undone() -> void:
 	var tree := _root.get_tree()
 	var main := _main("dead_roundtrip")
-	main.player.health.take_damage(10000.0)
+	TestWorld.kill(main.player)
 	await tree.process_frame
 	var dead_file := _read_raw(main.save_manager.main_path())
 	_check(main.scheduler.saves_done == 1 and dead_file.contains("dead_pending_choice"), "a morte salva o estado de morto")
@@ -268,7 +270,9 @@ func _test_dead_save_is_not_undone() -> void:
 		await tree.process_frame
 		_check(again.pending_death_choice and again.player.health.is_dead() and again.death_screen.is_open,
 				"Continuar %d: continua morto, com a tela de morte aberta" % (i + 1))
-		_check(again.player.inventory.count(Items.BERRY) == 10, "inventário do morto intacto")
+		var kept := again.corpses.corpse_of(again.player.player_id)
+		_check(again.player.inventory.count(Items.BERRY) == 0 and kept != null and kept.count(Items.BERRY) == 10,
+				"inventário do morto vazio e o corpo intacto, com os itens")
 		_check(_read_raw(again.save_manager.main_path()) == dead_file, "carregar não mexe no arquivo")
 	# A escolha tira do estado de morto, e só ela.
 	GameSession.continue_requested = true
@@ -284,7 +288,7 @@ func _test_dead_save_is_not_undone() -> void:
 func _test_respawn_survives_save() -> void:
 	var tree := _root.get_tree()
 	var main := _main("respawn_save")
-	main.player.health.take_damage(10000.0)
+	TestWorld.kill(main.player)
 	main.request_respawn("campina")
 	var position := main.player.position
 	main.save_game(R.EXIT_MENU)
@@ -355,7 +359,7 @@ func _test_gather_rules() -> void:
 			"espaço parcial (1 de 3): entra 1 e as outras 2 ficam no nó, que não esgota")
 	# Morto não colhe.
 	player.inventory.remove(Items.WOOD, player.inventory.count(Items.WOOD))
-	player.health.take_damage(10000.0)
+	TestWorld.kill(player)
 	_check(player.request_gather() == Player.GATHER_BLOCKED and wood.is_available(), "morto não colhe")
 	# Respawn do nó pelo relógio do jogo.
 	TestWorld.pass_time(main, BERRY_BUSH.respawn_seconds)
@@ -424,8 +428,9 @@ func _test_death_screen_lists_data() -> void:
 	screen.open(Vector2(100, 100))
 	_check(screen.column().button_of("campina") != null and screen.column().button_of("mata_baixa") != null
 			and screen.column().selected_id() == "campina", "a tela lista as regiões dos dados; a primeira vem selecionada")
-	_check(screen.column().label_of("mata_baixa").contains("Mata-baixa") and screen.column().label_of("mata_baixa").contains("tiles"),
-			"cada linha mostra nome e distância")
+	var low_label: String = screen.column().label_of("mata_baixa")
+	_check(low_label.contains("Mata-baixa") and low_label.contains(DeathScreen.RANDOM_LABEL),
+			"cada linha é um \"Local aleatório\" com o nome da região")
 	screen.column().button_of("mata_baixa").pressed.emit()
 	_check(chosen.is_empty(), "antes do atraso, a escolha é ignorada")
 	screen._process(rules.accept_delay)
@@ -476,11 +481,11 @@ func _test_targeting() -> void:
 	_check(player.target == dino.interactable and player.try_interact() and opened == [dino],
 			"E no dino dormindo ignora arbustos esgotados")
 	# Renascer limpa alvo e alcance.
-	player.health.take_damage(10000.0)
+	TestWorld.kill(player)
 	_check(main.request_respawn("campina") == "" and player.target == null, "renascer zera o alvo")
 	# Renascer ao lado de um nó: o que continua sobreposto continua alcançável.
 	player.health.protection_left = 0.0
-	player.health.take_damage(10000.0)
+	TestWorld.kill(player)
 	player._in_range.clear()
 	player._in_range.append(other.interactable)
 	other.component.depleted = false
@@ -489,7 +494,7 @@ func _test_targeting() -> void:
 	player.update_target()
 	_check(player.target == other.interactable and player.try_interact(), "renascendo a 28 px do nó, interagir funciona de imediato")
 	player.health.protection_left = 0.0
-	player.health.take_damage(10000.0)
+	TestWorld.kill(player)
 	main.request_respawn("campina")
 	player.target = other.interactable
 	other.component.depleted = false
@@ -505,7 +510,7 @@ func _test_inventory_and_death() -> void:
 	await tree.physics_frame
 	main.screen.open_own()
 	_check(main.screen.is_open and main.player.input_locked, "preparo: inventário aberto trava o jogador")
-	main.player.health.take_damage(10000.0)
+	TestWorld.kill(main.player)
 	_check(not main.screen.is_open and not main.player.input_locked, "morrer fecha o inventário e destrava o corpo")
 	main.screen.open_own()
 	main.screen.open_with(main.player.inventory, main.dino.inventory, main.dino.interactable, "Criatura")
@@ -524,7 +529,7 @@ func _test_respawn_save_timing() -> void:
 	var tree := _root.get_tree()
 	# Morte, save de morto e respawn: o save do respawn espera o prazo e só então grava o vivo.
 	var main := _main("timing")
-	main.player.health.take_damage(10000.0)
+	TestWorld.kill(main.player)
 	await tree.process_frame
 	_check(main.scheduler.saves_done == 1 and _read_raw(main.save_manager.main_path()).contains("dead_pending_choice"), "morte gravada")
 	main.request_respawn("campina")
@@ -537,7 +542,7 @@ func _test_respawn_save_timing() -> void:
 	# Morte e respawn dentro do prazo do save anterior: só o save de vivo existe.
 	var burst := _main("timing_burst")
 	burst.save_game(SaveManager.Reason.BED)
-	burst.player.health.take_damage(10000.0)
+	TestWorld.kill(burst.player)
 	burst.request_respawn("campina")
 	await tree.process_frame
 	burst.scheduler.tick(burst.scheduler.rules.min_seconds_between_saves)
@@ -558,7 +563,7 @@ func _test_regions_and_points() -> void:
 		_check(main._is_free_point(region.fallback_point), "ponto reserva de %s é livre" % region.id)
 		var wanted := region.id
 		main.player.health.protection_left = 0.0
-		main.player.health.take_damage(10000.0)
+		TestWorld.kill(main.player)
 		_check(main.request_respawn(wanted) == "" and not main.player.health.is_dead(), "renasce em %s" % wanted)
 	# Sem regiões nos dados: a tela e o respawn continuam possíveis.
 	var empty: RespawnRules = rules.duplicate()
@@ -566,7 +571,7 @@ func _test_regions_and_points() -> void:
 	main.respawn_rules = empty
 	main.death_screen.rules = empty
 	main.player.health.protection_left = 0.0
-	main.player.health.take_damage(10000.0)
+	TestWorld.kill(main.player)
 	_check(main.death_screen.column().selected_id() == "inicio", "sem regiões nos dados a tela oferece o ponto de emergência")
 	_check(main.request_respawn("inicio") == "" and main.player.position == empty.default_fallback_point, "e o respawn usa o ponto reserva")
 	# A seed depende do contador: pontos diferentes a cada respawn, mesmo mundo.
@@ -576,7 +581,7 @@ func _test_regions_and_points() -> void:
 	var points := {}
 	for i in 12:
 		main.player.health.protection_left = 0.0
-		main.player.health.take_damage(10000.0)
+		TestWorld.kill(main.player)
 		main.request_respawn("campina")
 		points[main.player.position] = true
 	_check(points.size() >= 8, "respawns seguidos sorteiam pontos diferentes (%d de 12)" % points.size())
@@ -594,7 +599,7 @@ func _test_death_screen_keyboard() -> void:
 	var tree := _root.get_tree()
 	var main := _main("keyboard")
 	await tree.physics_frame
-	main.player.health.take_damage(10000.0)
+	TestWorld.kill(main.player)
 	var screen := main.death_screen
 	var column := screen.column()
 	var down := InputEventAction.new()
@@ -629,12 +634,12 @@ func _test_two_deaths_reset_delay() -> void:
 	var tree := _root.get_tree()
 	var main := _main("two_deaths")
 	await tree.physics_frame
-	main.player.health.take_damage(10000.0)
+	TestWorld.kill(main.player)
 	main.death_screen._process(10.0)
 	_check(main.death_screen.open_seconds >= 10.0, "preparo: atraso cumprido na primeira morte")
 	main.request_respawn("campina")
 	main.player.health.protection_left = 0.0
-	main.player.health.take_damage(10000.0)
+	TestWorld.kill(main.player)
 	_check(main.death_screen.open_seconds == 0.0 and main.death_screen.is_open, "a segunda morte zera o atraso")
 	main.death_screen.column().button_of("campina").pressed.emit()
 	_check(main.player.health.is_dead(), "e a escolha logo ao abrir de novo é ignorada")
@@ -647,4 +652,4 @@ func _test_two_deaths_reset_delay() -> void:
 	_track.call(screen)
 	screen.open(rules.default_fallback_point)
 	label = screen.column().label_of("inicio")
-	_check(label.contains("(0 tiles)"), "a distância da região de emergência mede até o ponto reserva (%s)" % label)
+	_check(label == "%s (Início)" % DeathScreen.RANDOM_LABEL, "a região de emergência também aparece como Local aleatório (%s)" % label)

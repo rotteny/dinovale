@@ -65,6 +65,8 @@ var wild: WildPopulation
 var carcasses: CarcassField
 ## Caça dos carnívoros (M1 etapa 5b): escolhe alvo, avisa a presa, come e descansa. Só a autoridade (este mundo) a roda.
 var predation: PredationSystem
+## Corpos dos jogadores mortos (M1 etapa 6): os itens ficam aqui por `body_minutes` de mundo rodando.
+var corpses: CorpseField
 ## Itens soltos no chão (a colheita por golpes derruba aqui; o jogador também larga).
 var ground: GroundItemField
 ## Log do sistema (eventos da autoridade traduzidos em um lugar só) e a vista dele no canto de baixo.
@@ -127,14 +129,15 @@ func _ready() -> void:
 	scheduler.wild = wild
 	scheduler.carcasses = carcasses
 	scheduler.ground = ground
+	scheduler.corpses = corpses
 	scheduler.authority = authority
 	scheduler.saved.connect(_on_saved)
 	add_child(scheduler)
-	player.health.died.connect(_on_player_died)
 	player.gathered.connect(_on_player_gathered)
 	player.gather_refused.connect(_on_gather_refused)
 	if death_screen != null:
 		death_screen.rules = respawn_rules
+		death_screen.corpse_minutes = player.downed_rules.body_minutes
 		death_screen.region_chosen.connect(request_respawn)
 	dino.health.died.connect(_on_dino_died)
 	if pause != null:
@@ -213,6 +216,13 @@ func _build_zone() -> void:
 	ground.clock = authority.clock.now
 	ground.world_seed = world_seed
 	ground.player = player
+	corpses = CorpseField.new()
+	corpses.name = "Corpses"
+	corpses.y_sort_enabled = true
+	corpses.clock = authority.clock.now
+	corpses.attach(authority)  # antes de a Main ouvir `player_died`: o corpo recebe os itens primeiro
+	add_child(corpses)
+	authority.player_died.connect(_on_player_died)
 	authority.drops_enabled = true
 	authority.world_seed = world_seed
 	authority.items_dropped.connect(func(item_id: String, amount: int, at: Vector2, dropper_id: String) -> void:
@@ -288,7 +298,7 @@ func save_game(reason: SaveManager.Reason) -> bool:
 
 func _continue_saved_game() -> void:
 	var outcome := save_manager.load_first(
-			func(data: Dictionary) -> bool: return WorldSnapshot.restore(data, player, dino, resources, wild, carcasses, authority, ground))
+			func(data: Dictionary) -> bool: return WorldSnapshot.restore(data, player, dino, resources, wild, carcasses, authority, ground, corpses))
 	if outcome.status == SaveManager.Status.OK:
 		world_seed = wild.world_seed  # o save pode ter outra semente: a disposição dos bandos já foi refeita por ela
 		ground.world_seed = world_seed
@@ -337,7 +347,7 @@ func _keep_on_island(legacy: bool) -> void:
 				creature.position = map.nearest_walkable_point(player.position + Vector2(24.0, 0.0), 6, map.safe_point())
 
 
-func _on_player_died() -> void:
+func _on_player_died(_dead: Player) -> void:
 	_enter_death()
 	scheduler.request(SaveManager.Reason.PLAYER_DEATH)
 
@@ -353,7 +363,7 @@ func _enter_death() -> void:
 
 ## Intenção "renascer na região `region_id`": o servidor (aqui, o host local) valida e executa. Devolve ""
 ## se renasceu ou o motivo da recusa. Sorteia o ponto (GDD 12.2), restaura vida, fome e proteção
-## (12.4) e salva. O inventário não é tocado: o corpo com os itens é do M2 (SOB-02).
+## (12.4) e salva. O inventário já está vazio: os itens ficaram no corpo (`CorpseField`).
 func request_respawn(region_id: String) -> String:
 	if not pending_death_choice or not player.health.is_dead():
 		return "not_dead"
@@ -372,6 +382,7 @@ func request_respawn(region_id: String) -> String:
 	screen.close()
 	if death_screen != null:
 		death_screen.close()
+	authority.announce("player_respawned")
 	scheduler.request(SaveManager.Reason.RESPAWN)
 	return ""
 

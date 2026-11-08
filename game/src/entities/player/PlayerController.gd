@@ -8,6 +8,8 @@ extends CursorSource
 
 ## Corpo que este controlador dirige.
 ## Ação da tecla G (Seguir/Ficar do domado mais perto), criada por código para não mexer em `project.godot`.
+## Intervalo mínimo entre duas consultas do cursor ao mundo.
+const CURSOR_POLL_SECONDS := 0.05
 const TOGGLE_FOLLOW := &"toggle_follow"
 
 ## Ações do cursor (`cursor_action`): o nome é o do arquivo da imagem em `assets/ui/cursores/`.
@@ -31,13 +33,21 @@ var _actor_id: int = 0
 ## O mouse é o dispositivo em uso (mexeu ou clicou): o contorno e o golpe preferem o que está sob o cursor.
 ## Qualquer tecla de ação ou de movimento devolve ao automático.
 var _mouse_in_use: bool = false
+## Última consulta do cursor ao mundo (`Time.get_ticks_msec`) e o resultado: a consulta é O(N) e o mouse mexe a cada quadro.
+var _cursor_polled_at: float = -1000.0
+var _cursor_cache: Dictionary = {}
 
 
 ## O cursor contextual agora: só com o mouse em uso (com o teclado, volta ao padrão); sobre a UI, o padrão.
 func current_cursor() -> Dictionary:
 	if player == null or not _mouse_in_use:
 		return super.current_cursor()
-	return cursor_state(player.get_global_mouse_position(), pointer_over_ui())
+	var now := authority.clock.now() if authority != null else 0.0  # relógio do mundo, não de parede (ADR-006)
+	if now - _cursor_polled_at < CURSOR_POLL_SECONDS and not _cursor_cache.is_empty():
+		return _cursor_cache  # no máximo uma consulta ao mundo a cada 50 ms; o resultado vale para ação e alcance
+	_cursor_polled_at = now
+	_cursor_cache = cursor_state(player.get_global_mouse_position(), pointer_over_ui())
+	return _cursor_cache
 
 
 func _init() -> void:
@@ -141,8 +151,8 @@ func cursor_state(world_point: Vector2, over_ui: bool = false) -> Dictionary:
 	var none := {"action": CURSOR_DEFAULT, "in_reach": true}
 	if player == null or authority == null or over_ui:
 		return none
-	var creature := authority.entity_at(world_point, true) as Dino
-	var target: Node2D = creature if creature != null else authority.entity_at(world_point)
+	var picked := authority.pick_at(world_point)  # uma varredura só (criatura e qualquer entidade)
+	var target: Node2D = picked["creature"] if picked["creature"] != null else picked["any"]
 	if target == null:
 		return none
 	var action := _cursor_action_of(target)

@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="DownedRules" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/core/DownedRules.gd" id="1_rules"]
+
+[resource]
+script = ExtResource("1_rules")
+downed_seconds = 10.0
+downed_health = 70.0
+wake_grace_seconds = 2.0
+wake_torpor = 50.0
+wake_min_health = 20.0
+max_torpor = 100.0
+starving_torpor_per_second = 2.0
+fed_torpor_per_second = 1.0
+body_minutes = 10.0

@@ -231,8 +231,8 @@ func _test_hud_layout_and_xp_hook() -> void:
 			bars.append(node)
 		if node is Control and (node as Control).tooltip_text == "Stamina":
 			stamina_tooltips += 1
-	_check(bars.size() == 4 and hud.stamina_bar() != null and stamina_tooltips == 1,
-			"HUD tem 4 barras (vida, fome, stamina, XP); a stamina é o raio, o nome só na dica")
+	_check(bars.size() == 5 and hud.stamina_bar() != null and stamina_tooltips == 1 and not hud.downed_bar().visible,
+			"HUD tem 5 barras (vida, fome, stamina, caído, XP); a do caído só aparece caído; a stamina é o raio, o nome só na dica")
 	_check(hud.xp_label().text == "Nv 1" and hud.xp_bar().value() == 0.0, "XP: ponto de ligação mostra Nv 1 e XP 0")
 	hud.set_experience(3, 40.0, 100.0)
 	_check(hud.xp_label().text == "Nv 3" and hud.xp_bar().value() == 40.0 and hud.xp_bar().max_value() == 100.0,

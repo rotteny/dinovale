@@ -31,6 +31,8 @@ const STARVING_TEXT := "Morrendo de fome!"
 const STAMINA_COLOR := Color("#6fd6c4")
 const STAMINA_WINDED_COLOR := Color("#f0a35a")
 const STAMINA_EXHAUSTED_COLOR := Color("#7d7d7d")
+## Barra do caído (tempo que falta para acordar, em segundos): laranja escuro, só aparece caído.
+const DOWNED_COLOR := Color("#d9792b")
 ## Dica de contexto bloqueada (ex.: falta ferramenta): cinza.
 const HINT_BLOCKED_COLOR := Color("#a8a8a8")
 
@@ -42,6 +44,7 @@ var _hunger_bar := StatBar.new("Fome", Color(0.98, 0.85, 0.35), BAR_SIZE,
 		preload("res://assets/third_party/ninja-adventure/items/food_meat.png"), ICON_SIZE, true)
 var _stamina_bar := StatBar.new("Stamina", STAMINA_COLOR, BAR_SIZE,
 		preload("res://assets/sprites/ui/icon_stamina_8.png"), ICON_SIZE, true)
+var _downed_bar := StatBar.new("Caído", DOWNED_COLOR, BAR_SIZE, null, ICON_SIZE, true)
 var _xp_label := Label.new()
 var _xp_bar := StatBar.new("", Color(0.45, 0.6, 1.0), Vector2(StatBar.BAR_SIZE.x, 3.0))
 var _hotbar := HotbarBar.new()
@@ -68,7 +71,8 @@ func _ready() -> void:
 	bars.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	bars.add_theme_constant_override("separation", 0)
 	bars.position = Vector2(EDGE_MARGIN, EDGE_MARGIN)
-	for bar in [_health_bar, _hunger_bar, _stamina_bar]:
+	_downed_bar.visible = false
+	for bar in [_health_bar, _hunger_bar, _stamina_bar, _downed_bar]:
 		bar.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN  # a linha ocupa só o seu tamanho, não a largura do aviso
 		bars.add_child(bar)
 	_outline(_hunger_warning)
@@ -130,12 +134,16 @@ func _ready() -> void:
 	player.stamina.stamina_changed.connect(_refresh_stamina)
 	player.stamina.exhausted.connect(_refresh_stamina_state)
 	player.stamina.recovered.connect(_refresh_stamina_state)
+	player.downed.time_changed.connect(_downed_bar.set_values)
+	player.downed.state_changed.connect(_refresh_downed)
 	player.target_changed.connect(_on_target_changed)
 	player.input_lock_changed.connect(_on_lock_changed)
 	_health_bar.set_values(player.health.current_health, player.health.max_health)
 	_refresh_hunger_bar(player.hunger.current_hunger, player.hunger.max_hunger)
 	_refresh_hunger_warning(player.hunger.current_hunger, player.hunger.max_hunger)
 	_refresh_stamina(player.stamina.current_stamina, player.stamina.max_stamina)
+	_downed_bar.set_values(player.downed.left, player.downed_rules.downed_seconds)
+	_refresh_downed(player.downed.is_downed)
 	_on_target_changed(player.target)
 
 
@@ -337,6 +345,15 @@ func _refresh_stamina_state() -> void:
 	elif player.stamina.is_winded():
 		color = STAMINA_WINDED_COLOR
 	_stamina_bar.set_fill_color(color)
+
+
+## A barra do caído só existe enquanto o jogador está caído.
+func _refresh_downed(downed: bool) -> void:
+	_downed_bar.visible = downed
+
+
+func downed_bar() -> StatBar:
+	return _downed_bar
 
 
 func stamina_bar() -> StatBar:

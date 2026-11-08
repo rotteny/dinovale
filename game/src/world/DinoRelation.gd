@@ -14,6 +14,15 @@ static func is_herbivore(stats: DinoBaseStats) -> bool:
 	return stats.attacker_kind == TamingRules.ATTACKER_HERBIVORE
 
 
+## A parte da relação que vale para QUALQUER atacante de criatura (selvagem ou domado): nunca em si mesmo, nunca no
+## mesmo bando. `may_strike` e o golpe do domado (`WorldAuthority._area_hit`) passam por aqui. A espécie fica só no
+## `may_strike` (domado de dono diferente da mesma espécie se acerta com pvp ligado).
+static func may_hit_creature(attacker: Dino, target: Dino) -> bool:
+	if attacker == null or target == null or attacker == target:
+		return false
+	return attacker.herd_id == "" or attacker.herd_id != target.herd_id
+
+
 ## Só carnívoro contra herbívoro, nos dois sentidos. Nunca no mesmo bando, nunca da mesma espécie, nunca carnívoro contra
 ## carnívoro nem herbívoro contra herbívoro. Domado nunca ataca no M1 (a ordem de atacar é do M3).
 static func may_strike(attacker: Dino, target: Dino) -> bool:
@@ -21,9 +30,7 @@ static func may_strike(attacker: Dino, target: Dino) -> bool:
 		return false
 	if attacker.owner_player_id != "" or attacker.state_machine.is_tamed:
 		return false
-	if attacker.stats.id == target.stats.id:
-		return false
-	if attacker.herd_id != "" and attacker.herd_id == target.herd_id:
+	if attacker.stats.id == target.stats.id or not may_hit_creature(attacker, target):
 		return false
 	var a := attacker.stats
 	var b := target.stats

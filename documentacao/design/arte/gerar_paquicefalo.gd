@@ -22,7 +22,7 @@ var L = Lib.new()
 var R = R3.new()
 
 const S := 32
-const COLS := 11
+const COLS := 18  # 0-10 como sempre; 11-14 ameaca (M1), 15-17 cabecada (M1)
 const LIGHT := Vector3(-0.45, -0.6, 0.66)
 const CUTS := [0.30, 0.58, 0.86]  # limites dos 4 tons
 
@@ -165,7 +165,7 @@ func side(p: Dictionary, f: float, tame: bool) -> Image:
 	var arm: float = p.get("arm", 0.0)
 	var nf: Array = p.get("near", [0.0, 0.0])
 	var ff: Array = p.get("far", [0.0, 0.0])
-	var ox := 16.0 - f * 1.5  # u=0 fica um pouco atras do centro: cabeca e focinho ocupam o lado da frente
+	var ox := 16.0 - f * 1.5 - f * float(p.get("back", 0.0))  # u=0 fica um pouco atras do centro: cabeca e focinho ocupam o lado da frente
 	var U := func(u: float) -> float: return ox + f * u
 	var by := 19.4 + bob
 
@@ -213,7 +213,28 @@ func side(p: Dictionary, f: float, tame: bool) -> Image:
 	# perna da frente (perto)
 	fr.add(leg(U.call(0.6), hy, U.call(0.6 + nf[0]), 28.6 + nf[1], f, 3.4), BACK, {})
 	fr.add(foot(U.call(0.6 + nf[0] + 1.4), 29.2 + nf[1], f), CLAW, {})
-	return render(fr)
+	var im := render(fr)
+	# poeira do pe raspando (so quando o pe esta no chao e puxado para tras) e bufada (2 px de vapor na frente do focinho)
+	var dust: int = int(p.get("dust", 0.0))
+	if dust > 0:
+		# monte de poeira atras do pe que raspa (encostado no chao, nunca pixel solto)
+		var gx := int(floor(U.call(0.6 + nf[0] + 1.4 - 4.2)))
+		var cl := [[0, 0, "sand"], [-1, 0, "sand_dk"], [0, -1, "sand_dk"]]
+		if dust > 1:
+			cl += [[-1, -1, "sand"], [-2, 0, "sand"], [0, -2, "sand"]]
+		for d in cl:
+			var px: int = gx - int(f) * d[0] * -1
+			if px >= 0 and px < S and not L.solid(im, px, 29 + d[1]):
+				L.put(im, px, 29 + d[1], d[2])
+	if p.get("puff", 0.0) > 0.0:
+		# bufada: 2 px de vapor acima e a frente do focinho
+		var qy := int(hyy + 0.4) - int(p.get("puff", 0.0)) + 1
+		var qx := int(floor(U.call(hx + 8.2 + (p.get("puff", 0.0) - 1.0))))
+		for d in [[0, 0, "white"], [1, 0, "white"], [1, -1, "sand"], [2, -1, "sand"]]:
+			var px2: int = qx - int(f) * d[0] * -1
+			if px2 >= 0 and px2 < S and not L.solid(im, px2, qy + d[1]):
+				L.put(im, px2, qy + d[1], d[2])
+	return im
 
 func mat_tail(nx: float, ny: float, _x: int, _y: int, ramp: Array) -> Array:
 	return BELLY if ny > 0.55 else ramp
@@ -355,6 +376,15 @@ func pose(col: int) -> Dictionary:
 		6: return {"bob": 1.0, "bx": -1.0, "hdx": -1.0, "hdy": -1.0, "lean": -0.12, "near": [-1.0, 0.0], "far": [1.0, 0.0], "tail": 1.0, "arm": -1.0}
 		7: return {"bob": 1.0, "bx": 1.0, "hdx": 1.5, "hdy": 1.5, "lean": 0.16, "near": [-2.0, 0.0], "far": [-3.0, 0.0], "tail": -1.0, "arm": 1.0, "mouth": 1.0}
 		8: return {"bob": 0.0, "bx": 1.0, "hdx": 1.0, "hdy": 0.0, "lean": 0.06, "near": [-1.0, 0.0], "far": [-1.0, 0.0], "tail": 0.0}
+		# ameaca: cabeca baixa, cauda erguida, pe raspando para tras (poeira), bufadas nos quadros 12-13
+		11: return {"bob": 1.0, "bx": -0.5, "hdx": 0.5, "hdy": 2.0, "lean": 0.10, "near": [1.0, -2.5], "far": [0.0, 0.0], "tail": -2.5, "arm": 0.0, "back": 1.5}
+		12: return {"bob": 1.5, "bx": 0.0, "hdx": 0.5, "hdy": 3.5, "lean": 0.16, "near": [-3.0, 0.0], "far": [0.0, 0.0], "tail": -3.0, "arm": 0.5, "dust": 1.0, "puff": 1.0, "back": 1.5}
+		13: return {"bob": 1.0, "bx": 0.0, "hdx": 0.5, "hdy": 3.5, "lean": 0.16, "near": [1.0, -2.5], "far": [0.0, 0.0], "tail": -3.0, "arm": 0.0, "puff": 2.0, "back": 1.5}
+		14: return {"bob": 1.5, "bx": 0.5, "hdx": 1.0, "hdy": 4.0, "lean": 0.20, "near": [-3.5, 0.0], "far": [0.0, 0.0], "tail": -3.0, "arm": 0.5, "dust": 2.0, "back": 1.5}
+		# cabecada: recua e agacha, investe com a cabeca (impacto), volta
+		15: return {"bob": 1.0, "bx": -1.5, "hdx": -1.5, "hdy": 1.0, "lean": -0.12, "near": [-1.0, 0.0], "far": [1.0, 0.0], "tail": 1.5, "arm": -1.0, "back": 1.5}
+		16: return {"bob": 1.5, "bx": 2.5, "hdx": 2.5, "hdy": 3.0, "lean": 0.30, "near": [-2.5, 0.0], "far": [-3.5, 0.0], "tail": -2.0, "arm": 1.5, "back": 3.5}
+		17: return {"bob": 0.0, "bx": 1.0, "hdx": 1.0, "hdy": 1.5, "lean": 0.08, "near": [-1.0, 0.0], "far": [-1.0, 0.0], "tail": -0.5, "back": 1.5}
 	return {}
 
 ## Para frente e costas o golpe vira cabecada para baixo/cima na tela: pose propria.
@@ -365,6 +395,16 @@ func pose_fb(col: int, up: bool) -> Dictionary:
 		p = {"bob": [1.0, 1.0, 0.0][col - 6], "hdy": k if not up else -k * 0.5, "tail": 0.0, "near": [0.0, 0.0], "far": [0.0, 0.0], "mouth": 0.0}
 		if col == 7:
 			p["mouth"] = 1.0
+	elif col >= 11:
+		# ameaca e cabecada de frente/costas: cabeca desce (ou sobe, nas costas), pes levantam alternados
+		var q := pose(col)
+		var dy: float = q.get("hdy", 0.0)
+		p = {"bob": q.get("bob", 0.0), "hdy": dy if not up else dy * -0.4, "tail": 0.0,
+			"near": [0.0, (q.get("near", [0.0, 0.0]) as Array)[1]], "far": [0.0, 0.0], "mouth": 0.0,
+			"sway": [-0.5, 0.5, -0.5, 0.5, 0.0, 0.0, 0.0][col - 11] if col <= 14 else 0.0, "arm": q.get("arm", 0.0)}
+		if col == 12 or col == 14:
+			p["near"] = [0.0, 0.0]
+			p["far"] = [0.0, -2.0]
 	elif col >= 2 and col <= 5:
 		p["near"] = [0.0, [0.0, 0.0, 0.0, -2.0][col - 2] if col != 2 else 0.0]
 		p["far"] = [0.0, [0.0, -2.0, 0.0, 0.0][col - 2] if col != 4 else 0.0]
@@ -379,8 +419,10 @@ func pose_fb(col: int, up: bool) -> Dictionary:
 func Z(sy: float) -> float:
 	return 30.0 - sy
 
+var dshift := 0.0  # recuo do corpo todo no quadro (cabecada: abre espaco para a investida)
+
 func fw(u: float) -> float:
-	return u - 1.5
+	return u - 1.5 - dshift
 
 func mat_body3(n: Vector3, ramp: Array) -> Array:
 	if n.z < -0.25:
@@ -394,6 +436,7 @@ func mat_tail3(n: Vector3, ramp: Array) -> Array:
 
 func diag(p: Dictionary, yaw: float, tame: bool) -> Image:
 	R.clear()
+	dshift = p.get("back", 0.0)
 	var bx: float = p.get("bx", 0.0)
 	var bob: float = p.get("bob", 0.0)
 	var hdx: float = p.get("hdx", 0.0)
@@ -472,6 +515,8 @@ func _init() -> void:
 			"idle": {"colunas": [0, 1], "fps": 2, "loop": true},
 			"sleep": {"colunas": [9], "fps": 1, "loop": false},
 			"walk": {"colunas": [2, 3, 4, 5], "fps": 8, "loop": true},
+			"threat": {"colunas": [11, 12, 13, 14], "fps": 8, "loop": false},
+			"headbutt": {"colunas": [15, 16, 17], "fps": 12, "loop": false},
 		},
 		"arquivo": "paquicefalo.png",
 		"colisao_pes": [12, 12],
@@ -480,9 +525,10 @@ func _init() -> void:
 		"especie": "paquicefalo",
 		"filhote": "nao incluso (M4)",
 		"golpe": "cabecada desenhada nos quadros 6-8 (cabeca e tronco avancam 2 a 3 px); sem deslocamento extra em codigo",
-		"layout": "igual nas cinco especies: colunas 0-1 idle, 2-5 walk, 6-8 attack, 9 sleep, 10 dead; linhas down, up, left, right, down_left, down_right, up_left, up_right",
+		"layout": "colunas 0-1 idle, 2-5 walk, 6-8 attack, 9 sleep, 10 dead (igual nas cinco especies), 11-14 threat, 15-17 headbutt (so Paquicefalo, M1); linhas down, up, left, right, down_left, down_right, up_left, up_right",
 		"linhas": 8,
 		"linhas_direcao": R.DIR_NAMES,
+		"ameaca_m1": "threat 11-14: cabeca baixa, cauda erguida, pe raspando para tras com poeira, bufada (vapor) nos quadros 12-13 (vapor so nas vistas laterais esquerda e direita); headbutt 15-17: recua e agacha (15), investida com impacto (16, corpo recuado no quadro para caber o avanco), volta (17). Colunas 0-10 identicas a folha anterior.",
 		"luz": "cima-esquerda",
 		"porte": "Pequeno",
 		"quadro": [S, S],

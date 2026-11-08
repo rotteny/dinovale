@@ -1,6 +1,8 @@
 ## Gerador dos dinos da v0.2: Dodo, Paquicefalo, Parassaurolofo, Utahraptor e Triceratops.
 ## Arte propria, CC BY 4.0, sem IA e sem recorte de terceiros. Da raiz do repositorio:
 ##   godot --headless --script documentacao/design/arte/gerar_dinos.gd
+## Com argumentos (nao toca em game/): `-- <pasta de saida>` gera as cinco folhas la; `-- <pasta> ameaca` gera so o Utahraptor com as
+## colunas extras do M1: 11-13 threat (abaixa, abre a boca, cauda erguida) e 14-16 bite (mordida). Colunas 0-10 ficam identicas.
 ## Saida (um PNG e um JSON por especie) em game/assets/sprites/dinos/:
 ##   dodo.png (16x16), paquicefalo.png (24x24), parassaurolofo.png (32x32), utahraptor.png (32x32), triceratops.png (48x48)
 ## Layout IGUAL para as cinco: 11 colunas x 4 linhas, quadro quadrado do porte (GDD 4.2).
@@ -42,8 +44,18 @@ const T_TRIKE := ["g_sg", "g_gr", "g_dk"]
 const T_FRILL := ["w_br", "w_dk", "f_dk"]
 const T_HORN := ["cut", "ring2", "w_hi"]
 
+var out_dir := OUT
+var ameaca := false
+
 func _init() -> void:
+	var a := OS.get_cmdline_user_args()
+	if a.size() > 0:
+		out_dir = (a[0] as String).path_join("")
+		DirAccess.make_dir_recursive_absolute(out_dir)
+	ameaca = a.size() > 1 and a[1] == "ameaca"
 	for sp in ESP:
+		if ameaca and sp != "utah":
+			continue
 		build(sp)
 	quit()
 
@@ -51,7 +63,8 @@ func build(sp: String) -> void:
 	var e: Dictionary = ESP[sp]
 	S = e["S"]
 	G = S - 2
-	var sheet: Image = L.img(S * COLS, S * 4)
+	var ncols := COLS + (6 if ameaca else 0)
+	var sheet: Image = L.img(S * ncols, S * 4)
 	for d in 4:
 		var cols := []
 		for f in 2: cols.append(["idle", f])
@@ -59,9 +72,12 @@ func build(sp: String) -> void:
 		for f in 3: cols.append(["hit", f])
 		cols.append(["sleep", 0])
 		cols.append(["dead", 0])
+		if ameaca:
+			for f in 3: cols.append(["threat", f])
+			for f in 3: cols.append(["bite", f])
 		for c in cols.size():
 			L.blit(sheet, frame(sp, d, cols[c][0], cols[c][1]), c * S, d * S)
-	L.save_png_checked(sheet, OUT + e["arq"] + ".png")
+	L.save_png_checked(sheet, out_dir + e["arq"] + ".png")
 	var anims := {
 		"idle": {"colunas": [0, 1], "fps": 2, "loop": true},
 		"walk": {"colunas": [2, 3, 4, 5], "fps": 8, "loop": true},
@@ -69,9 +85,12 @@ func build(sp: String) -> void:
 		"sleep": {"colunas": [9], "fps": 1, "loop": false},
 		"dead": {"colunas": [10], "fps": 1, "loop": false},
 	}
+	if ameaca:
+		anims["threat"] = {"colunas": [11, 12, 13], "fps": 6, "loop": false}
+		anims["bite"] = {"colunas": [14, 15, 16], "fps": 12, "loop": false}
 	var nota_golpe := "reacao de susto: agacha, pula com o bico/boca aberto, pousa. Nao ataca." if e["golpe"] == "scare" else "preparo (cabeca recua), impacto (investida, boca aberta ou chifres a frente), volta."
 	var js := {
-		"arquivo": e["arq"] + ".png", "especie": e["arq"], "porte": e["porte"], "quadro": [S, S], "colunas": COLS, "linhas": 4,
+		"arquivo": e["arq"] + ".png", "especie": e["arq"], "porte": e["porte"], "quadro": [S, S], "colunas": ncols, "linhas": 4,
 		"linhas_direcao": ["down", "up", "left", "right"],
 		"animacoes": anims,
 		"ancora": "base do quadro (pes em y=%d, contorno em y=%d)" % [S - 2, S - 1],
@@ -83,7 +102,9 @@ func build(sp: String) -> void:
 		"luz": "cima-esquerda",
 		"filhote": "nao incluso (M4)",
 	}
-	var f := FileAccess.open(OUT + e["arq"] + ".json", FileAccess.WRITE)
+	if ameaca:
+		js["ameaca_m1"] = "threat 11-13: abaixa o corpo, boca aberta com dentes, cauda erguida (3 quadros, o ultimo e a pose a segurar); bite 14-16: cabeca recua com a boca escancarada (14), estica e morde com a cabeca bem a frente (15), volta (16). Nas vistas de frente e de costas a cauda erguida so encurta a cauda. Colunas 0-10 identicas a folha anterior."
+	var f := FileAccess.open(out_dir + e["arq"] + ".json", FileAccess.WRITE)
 	f.store_string(JSON.stringify(js, "\t"))
 	f.close()
 
@@ -168,7 +189,7 @@ func rim(p: Image, cx: float, cy: float, rx: float, ry: float, a0: float, a1: fl
 func pose(anim: String, f: int, scare: bool) -> Dictionary:
 	var a := 1 if S <= 24 else (2 if S <= 32 else 3)
 	var lf := 1 if a == 1 else 2
-	var z := {"b": 0, "nx": 0, "nl": 0, "fx": 0, "fl": 0, "ll": 0, "rl": 0, "sw": 0, "hx": 0, "hy": 0, "open": 0, "jump": 0, "claw": 0, "a": a}
+	var z := {"tl": 0, "b": 0, "nx": 0, "nl": 0, "fx": 0, "fl": 0, "ll": 0, "rl": 0, "sw": 0, "hx": 0, "hy": 0, "open": 0, "jump": 0, "claw": 0, "a": a}
 	if anim == "idle":
 		z["hy"] = 1 if f == 1 else 0
 	elif anim == "walk":
@@ -177,6 +198,17 @@ func pose(anim: String, f: int, scare: bool) -> Dictionary:
 			1: z["b"] = -1; z["nl"] = lf; z["rl"] = 1; z["sw"] = 0
 			2: z["nx"] = a; z["fx"] = -a; z["ll"] = lf; z["sw"] = 1
 			3: z["b"] = -1; z["fl"] = lf; z["ll"] = 1; z["sw"] = 0
+	elif anim == "threat":
+		# abaixa (b), cabeca baixa e a frente, boca aberta, cauda erguida (tl); o ultimo quadro e a pose segurada
+		match f:
+			0: z["b"] = 1; z["tl"] = 2; z["hy"] = 1; z["hx"] = 1
+			1: z["b"] = 2; z["tl"] = 3; z["hy"] = 2; z["hx"] = -1; z["open"] = 1
+			2: z["b"] = 2; z["tl"] = 4; z["hy"] = 2; z["hx"] = 0; z["open"] = 1; z["sw"] = 0
+	elif anim == "bite":
+		match f:
+			0: z["b"] = 1; z["tl"] = 2; z["hx"] = 3; z["hy"] = -1; z["open"] = 1
+			1: z["b"] = 2; z["tl"] = 3; z["hx"] = -1; z["hy"] = 1; z["open"] = 1; z["claw"] = 1
+			2: z["b"] = 1; z["tl"] = 1; z["hx"] = -1; z["hy"] = 1; z["open"] = 0
 	elif anim == "hit":
 		if scare:
 			match f:
@@ -587,14 +619,15 @@ func utah_side(z: Dictionary) -> Image:
 	var tdark := ["w_dk", "f_dk", "f_dk"]
 	utah_leg(d, 16 + z["fx"], b, z["fl"], tdark, false)
 	# cauda longa e reta, ponta com penas
-	var mt := newm(); PG(mt, [[19, 12.5 + b], [26, 12.5 + b], [30.5, 13.5 + b], [30.5, 16 + b], [26, 16.2 + b], [19, 18 + b]])
+	var tl: int = z["tl"]  # cauda erguida: a ponta sobe tl px, o meio metade
+	var mt := newm(); PG(mt, [[19, 12.5 + b], [26, 12.5 + b - tl / 2.0], [30.5, 13.5 + b - tl], [30.5, 16 + b - tl], [26, 16.2 + b - tl / 2.0], [19, 18 + b]])
 	var pt := put_part(d, mt, T_UTAH, true)
-	for q in [[24, 13], [27, 14]]:
-		D(pt, q[0], q[1] + b, "h_xx")
+	for q in [[24, 13, tl / 3], [27, 14, tl / 2]]:
+		D(pt, q[0], q[1] + b - q[2], "h_xx")
 	for q in [[29, 12], [30, 12], [30, 11], [28, 12]]:
-		D(d, q[0], q[1] + b, "K")
+		D(d, q[0], q[1] + b - tl, "K")
 	for q in [[29, 13], [30, 13], [30, 14]]:
-		D(pt, q[0], q[1] + b, "yellow")
+		D(pt, q[0], q[1] + b - tl, "yellow")
 	stamp(d, pt, true)
 	var mb := newm(); E(mb, 14, 15 + b, 6.2, 3.8)
 	var pb := put_part(d, mb, T_UTAH)
@@ -738,11 +771,14 @@ func utah_back(z: Dictionary) -> Image:
 		D(ph, q[0] + sw, q[1] + b + hy, "ring")
 	stamp(d, ph, true)
 	# cauda comprida vem para a camera
-	var mt := newm(); PG(mt, [[13.5 + sw, 21 + b], [18.5 + sw, 21 + b], [17.5 + sw, 30 + b], [14.5 + sw, 30 + b]])
+	var tl: int = z["tl"]  # cauda erguida vista de costas: encurta
+	var ty := 30 - tl
+	var mt := newm(); PG(mt, [[13.5 + sw, 21 + b], [18.5 + sw, 21 + b], [17.5 + sw, ty + b], [14.5 + sw, ty + b]])
 	var pt := put_part(d, mt, T_UTAH)
 	for y in [24, 27]:
-		D(pt, 15 + sw, y + b, "h_xx"); D(pt, 16 + sw, y + b, "h_xx")
-	D(pt, 15 + sw, 29 + b, "yellow"); D(pt, 16 + sw, 29 + b, "yellow")
+		if y < ty - 1:
+			D(pt, 15 + sw, y + b, "h_xx"); D(pt, 16 + sw, y + b, "h_xx")
+	D(pt, 15 + sw, ty - 1 + b, "yellow"); D(pt, 16 + sw, ty - 1 + b, "yellow")
 	return d
 
 func utah_lying(dead: bool) -> Image:

@@ -335,6 +335,7 @@ func _test_carcass_hand_cost_and_partial() -> void:
 			"parcial: 1 de dano por item entregue (2), a carcaça segue")
 	_check(carcass.component.pending_yields() == {"meat": meat - 2}, "o resto fica na carcaça")
 	player.tick(60.0)
+	main.authority.clock.advance(2.0)  # intervalo entre coletas
 	player.inventory.remove("meat", Items.max_stack("meat"))
 	hp = player.health.current_health
 	_check(main.authority.request_gather(1, id) == RESULT.OK, "volta e leva o resto")

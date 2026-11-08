@@ -34,6 +34,7 @@ const REASONS: Dictionary = {
 	"out_of_range": "Fora de alcance.",
 	"behind": "O alvo está atrás de você.",
 	"cooldown": "Em recarga.",
+	"gather_interval": "Espere um pouco para coletar de novo.",
 	"wrong_state": "Agora não dá.",
 	"not_owner": "Esse dino não é seu.",
 	"refused": "Não deu.",

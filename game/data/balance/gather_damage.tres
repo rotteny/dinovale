@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="GatherDamageTable" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/core/GatherDamageTable.gd" id="1_table"]
+
+[resource]
+script = ExtResource("1_table")
+; [premissa] decisão do dono (08/11): ferramenta dá mais dano que a mão; a certa para o material dá mais.
+by_material = {
+"ore": {
+"": 0.0,
+"axe_stone": 5.0,
+"pickaxe_stone": 20.0
+},
+"stone": {
+"": 0.0,
+"axe_stone": 5.0,
+"pickaxe_stone": 20.0
+},
+"wood": {
+"": 10.0,
+"axe_stone": 20.0,
+"pickaxe_stone": 15.0,
+"sleep_staff": 12.0,
+"wooden_spear": 12.0
+}
+}

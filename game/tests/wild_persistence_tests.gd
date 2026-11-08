@@ -378,7 +378,7 @@ func _test_full_inventory_tree_drops_to_ground() -> void:
 	var wood := main.resources.node_by_id("n316")
 	_near(main, wood)
 	var hp := player.health.current_health
-	var rounds := wood.def.hits_by_hand
+	var rounds := Player.GATHER_DAMAGE.hits_to_break(wood.def.material_id, wood.def.health_max, "")
 	_strikes(main, wood, rounds)
 	_check(not wood.is_available() and main.ground.total_of("wood") == wood.def.yield_amount
 			and inventory.count("wood") == inventory.stack_limit("wood") - 1,
@@ -500,6 +500,7 @@ func _test_partial_bush() -> void:
 	# Nada cabe: recusa sem gastar o nó.
 	player.inventory.add("stone", player.inventory.stack_limit("stone"))
 	player.tick(60.0)
+	main.authority.clock.advance(2.0)  # intervalo entre coletas
 	var left_before := bush.component.leftover.duplicate()
 	var refused: Array[String] = []
 	player.gather_refused.connect(func(reason: String) -> void: refused.append(reason))
@@ -509,6 +510,7 @@ func _test_partial_bush() -> void:
 	# Com vaga, a fibra sai e o nó esgota.
 	player.inventory.remove("stone", player.inventory.stack_limit("stone"))
 	player.tick(60.0)
+	main.authority.clock.advance(2.0)  # intervalo entre coletas
 	main.authority.request_gather(1, main.authority.id_of(bush))
 	_check(player.inventory.count("fiber") == bush.def.extra_yields["fiber"] and not bush.is_available()
 			and not bush.component.is_partial(), "com vaga, a fibra sai e o nó esgota")

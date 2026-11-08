@@ -215,9 +215,11 @@ func _test_carcass_gather_time_and_recharge() -> void:
 	player.tick(14.9)
 	_check(main.authority.request_gather(1, second) == RESULT.COOLDOWN, "aos 14,9 s ainda recarrega (inteira = 15 s)")
 	player.tick(0.2)
+	main.authority.clock.advance(2.0)  # intervalo entre coletas (1 a 2 s)
 	_check(main.authority.request_gather(1, second) == RESULT.OK, "aos 15,1 s colhe de novo")
 	# Parcial: cabem 2 de 5, a recarga é proporcional (6 s).
 	player.tick(60.0)
+	main.authority.clock.advance(2.0)
 	_empty(player.inventory)
 	player.inventory.capacity = 1
 	player.inventory.add("meat", Items.max_stack("meat") - 2)
@@ -226,6 +228,7 @@ func _test_carcass_gather_time_and_recharge() -> void:
 	player.tick(5.9)
 	_check(main.authority.request_gather(1, third) == RESULT.COOLDOWN, "parcial: aos 5,9 s ainda recarrega (2/5 de 15 s = 6 s)")
 	player.tick(0.2)
+	main.authority.clock.advance(2.0)
 	_check(main.authority.request_gather(1, third) != RESULT.COOLDOWN, "parcial: aos 6,1 s a recarga acabou (não os 15 s inteiros)")
 
 

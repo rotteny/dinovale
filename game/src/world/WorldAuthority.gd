@@ -32,6 +32,8 @@ const ACTION_USE_ITEM := "use_item"
 const ACTION_EQUIP := "equip"
 const ACTION_UNEQUIP := "unequip"
 const ACTION_GATHER := "gather"
+## Motivo da recusa por intervalo entre coletas: sem mensagem no log (o indicador é visual).
+const REASON_GATHER_INTERVAL := "gather_interval"
 const ACTION_FACE := "face"
 const ACTION_PICKUP := "pickup"
 const ACTION_DROP := "drop"
@@ -55,6 +57,8 @@ var drops_enabled: bool = false
 
 ## Relógio do mundo (ADR-006). Só esta autoridade o avança, em `_physics_process`; os sistemas recebem `clock.now`.
 var clock := WorldClock.new()
+## Semente do mundo (a `Main` define): entra no sorteio do intervalo entre coletas.
+var world_seed: int = 0
 
 ## Aliados do dono de uma criatura, para o dano em área: `Callable(owner_player_id, other_player_id) -> bool`.
 ## Sem ele, ninguém é aliado.
@@ -63,6 +67,9 @@ var ally_check: Callable = Callable()
 var pvp_enabled: bool = false
 
 var _entities: Dictionary = {}
+## Por jogador: instante (relógio do mundo) em que pode concluir outra coleta, e quantas já concluiu. Não vão ao save.
+var _gather_ready_at: Dictionary = {}
+var _gather_count: Dictionary = {}
 ## Motivo e parâmetros específicos da recusa em andamento (senão vale o padrão do resultado). `_answer` os consome.
 var _reason: String = ""
 var _reason_params: Dictionary = {}
@@ -514,17 +521,34 @@ func request_gather(actor_id: int, target_id: int) -> Enums.ActionResult:
 			and not AttackTargeting.is_in_front(actor.global_position, actor.facing, node, rules.front_dot_min):
 		problem = Enums.ActionResult.OUT_OF_RANGE  # colher por golpes pede o nó à frente, como o golpe
 		_reason = "behind"
-	if problem == Enums.ActionResult.OK and node.is_available() and not node.def.is_struck() and actor.gather_repeat_blocked(node):
-		problem = Enums.ActionResult.COOLDOWN  # anti-spam: o mesmo nó pedido de novo no mesmo instante
-		_reason = "cooldown"
+	var completes := problem == Enums.ActionResult.OK and node.is_available() and actor.would_complete_gather(node)
+	if completes and gather_wait_left(actor_id) > 0.0:
+		problem = Enums.ActionResult.COOLDOWN  # intervalo entre coletas concluídas: recusa silenciosa (a HUD cinza avisa)
+		_reason = REASON_GATHER_INTERVAL
 	if problem == Enums.ActionResult.OK:
 		var life_before := actor.health.current_health
 		var reason := actor.perform_gather(node)
 		problem = _gather_result(reason)
 		_report_gather(actor, node, reason, life_before)
-		if reason == "":
-			actor.mark_gather(node, rules.gather_repeat_seconds)
+		if reason == "" and completes:
+			_start_gather_interval(actor_id)
 	return _answer(actor_id, ACTION_GATHER, problem)
+
+
+## Segundos até o jogador poder concluir outra coleta (0 = já pode). O instante vive aqui, no relógio do mundo.
+func gather_wait_left(actor_id: int) -> float:
+	return maxf(float(_gather_ready_at.get(actor_id, 0.0)) - clock.now(), 0.0)
+
+
+## Abre o intervalo: sorteio determinístico entre o mínimo e o máximo (semente do mundo, jogador e nº da coleta).
+func _start_gather_interval(actor_id: int) -> void:
+	var count := int(_gather_count.get(actor_id, 0))
+	_gather_count[actor_id] = count + 1
+	var rng := SeededRng.new()
+	rng.seed_from([world_seed, "gather_interval", actor_id, count])
+	var low := minf(rules.gather_interval_min_s, rules.gather_interval_max_s)
+	var high := maxf(rules.gather_interval_min_s, rules.gather_interval_max_s)
+	_gather_ready_at[actor_id] = clock.now() + rng.next_range(low, high)
 
 
 ## Avisos da coleta: o que entrou, a vida que a mão custou e o motivo de não ter coletado.
@@ -713,6 +737,7 @@ func _within(actor: Node2D, target: Node, reach: float) -> bool:
 func _answer(actor_id: int, action: String, result: Enums.ActionResult) -> Enums.ActionResult:
 	if result != Enums.ActionResult.OK:
 		action_denied.emit(actor_id, action, result)
+	if result != Enums.ActionResult.OK and _reason != REASON_GATHER_INTERVAL:  # o intervalo não enche o log
 		var params := _reason_params.duplicate()
 		params["action"] = action
 		params["reason"] = _reason if _reason != "" else GameMessages.reason_for(result)

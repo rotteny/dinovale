@@ -161,8 +161,8 @@ func _test_pending_bar() -> void:
 	_check(not bar.pending_visible(), "sem fila, sem trecho")
 
 
-## Dois arbustos vizinhos colhidos em sequência imediata: os dois entregam (item 9). O mesmo nó repetido no mesmo instante
-## é o único barrado, pelo anti-spam curto dos dados.
+## Intervalo entre coletas concluídas (decisão do dono, 08/11): entre `gather_interval_min_s` e `_max_s`, sorteado de
+## forma determinística. A segunda coleta imediata é recusada (sem mensagem no log) e passa depois do intervalo.
 func _test_adjacent_bushes_have_no_delay() -> void:
 	var bush_def: ResourceNodeDef = BUSH_DEF
 	var player := _player_at(Vector2.ZERO)
@@ -172,27 +172,43 @@ func _test_adjacent_bushes_have_no_delay() -> void:
 	authority.register(first)
 	authority.register(second)
 	var actor_id := authority.id_of(player)
-	var before := player.inventory.count(Items.BERRY)
+	var logged: Array[String] = []
+	authority.game_event.connect(func(code: String, _params: Dictionary) -> void: logged.append(code))
 	var one := authority.request_gather(actor_id, authority.id_of(first))
+	var wait := authority.gather_wait_left(actor_id)
+	_check(one == Enums.ActionResult.OK and wait >= authority.rules.gather_interval_min_s - 0.001
+			and wait <= authority.rules.gather_interval_max_s + 0.001, "a coleta concluída abre um intervalo de 1 a 2 s (%.2f)" % wait)
+	logged.clear()
 	var two := authority.request_gather(actor_id, authority.id_of(second))
-	_check(one == Enums.ActionResult.OK and two == Enums.ActionResult.OK, "dois arbustos vizinhos: os dois aceitam em sequência")
-	_check(player.inventory.count(Items.BERRY) > before and not first.is_available() and not second.is_available(),
-			"os dois entregam e esgotam")
-	_check(authority.rules.gather_repeat_seconds <= 0.15, "o anti-spam do mesmo nó é curto e vem do dado")
+	_check(two == Enums.ActionResult.COOLDOWN and second.is_available(), "a segunda coleta imediata é recusada e não gasta o nó")
+	_check(not logged.has("action_refused"), "a recusa do intervalo não enche o log")
+	authority.clock.advance(authority.rules.gather_interval_min_s - 0.2)
+	_check(authority.request_gather(actor_id, authority.id_of(second)) == Enums.ActionResult.COOLDOWN, "antes do intervalo, ainda recusa")
+	authority.clock.advance(authority.rules.gather_interval_max_s)
+	_check(authority.request_gather(actor_id, authority.id_of(second)) == Enums.ActionResult.OK and not second.is_available(),
+			"passado o intervalo, a coleta vale")
 	_check(authority.request_gather(actor_id, authority.id_of(first)) != Enums.ActionResult.OK, "nó esgotado não coleta de novo")
-	_test_same_node_spam()
+	_test_interval_is_deterministic()
 
 
-## O anti-spam é por nó: marcado, só o MESMO nó fica barrado, e só pela janela curta dos dados.
-func _test_same_node_spam() -> void:
-	var player := _player_at(Vector2.ZERO)
-	var bush_def: ResourceNodeDef = BUSH_DEF
-	var one := _bush(bush_def, Vector2(10, 0))
-	var other := _bush(bush_def, Vector2(0, 10))
-	player.mark_gather(one, 0.12)
-	_check(player.gather_repeat_blocked(one) and not player.gather_repeat_blocked(other), "só o mesmo nó fica barrado")
-	player.tick(0.13)
-	_check(not player.gather_repeat_blocked(one), "passada a janela curta, o nó libera")
+## O sorteio do intervalo só depende da semente do mundo, do jogador e do contador: dois mundos iguais dão os mesmos tempos.
+func _test_interval_is_deterministic() -> void:
+	var waits: Array[Array] = []
+	for world_seed in [7, 7, 8]:
+		var player := _player_at(Vector2.ZERO)
+		var authority := TestWorld.arm(player, [], _track)
+		authority.world_seed = world_seed
+		var actor_id := authority.id_of(player)
+		var seen: Array[float] = []
+		for index in 3:
+			var bush := _bush(BUSH_DEF, Vector2(10, 0))
+			authority.register(bush)
+			authority.request_gather(actor_id, authority.id_of(bush))
+			seen.append(authority.gather_wait_left(actor_id))
+			authority.clock.advance(3.0)
+		waits.append(seen)
+	_check(waits[0] == waits[1], "mesma semente, mesmos intervalos")
+	_check(waits[0] != waits[2], "outra semente, outros intervalos")
 
 
 func _bush(def: ResourceNodeDef, point: Vector2) -> ResourceNode:

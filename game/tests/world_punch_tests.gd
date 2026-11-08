@@ -42,11 +42,12 @@ func _test_punch_denials() -> void:
 	_check(authority.request_gather(1, authority.id_of(wood)) == RESULT.OK, "preparo: primeiro golpe na árvore")
 	hp = player.health.current_health
 	_check(authority.request_gather(1, authority.id_of(wood)) == RESULT.COOLDOWN and wood.is_available()
-			and player.health.current_health == hp and wood.component.current_hits() == 1,
+			and player.health.current_health == hp and wood.component.has_damage(),
 			"em recarga: negado, sem custo, o golpe não conta")
 	# Esgotado.
-	_strikes(main, wood, wood.def.hits_by_hand)
+	_strikes(main, wood, _hand_hits(wood))
 	player.tick(60.0)
+	main.authority.clock.advance(2.0)  # intervalo entre coletas
 	hp = player.health.current_health
 	_check(authority.request_gather(1, authority.id_of(wood)) == RESULT.WRONG_STATE and player.health.current_health == hp,
 			"esgotado: negado, sem custo")

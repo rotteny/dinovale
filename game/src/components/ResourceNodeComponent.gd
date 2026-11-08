@@ -9,13 +9,18 @@ extends Node
 ## Mudou entre cheio e esgotado (a apresentação e a dica reagem).
 signal changed
 
-## Um golpe acertou o nó (a apresentação treme e mostra o progresso): golpes dados e golpes necessários.
-signal struck(hits: int, needed: int)
+## Um golpe acertou o nó (a apresentação treme, solta lascas e troca o estágio de dano): vida que sobrou e vida máxima.
+## `by_hand`: o golpe foi de mão (sem a ferramenta do nó), para o som.
+signal damaged(health: float, health_max: float, by_hand: bool)
+
+## O último golpe derrubou o nó (a apresentação o faz cair antes de sumir). Sai antes de `changed`.
+signal felled
+
+## A mão bateu no nó e não tirou nada (rocha sem ferramenta): só o som e o tremor.
+signal rebuffed
 
 ## Intervalo entre as tentativas de voltar quando o lugar está ocupado.
 const RETRY_SECONDS := 0.5
-## Teto de golpes lidos de um save (dado de fora não é confiável).
-const MAX_SAVED_HITS := 50
 
 @export var def: ResourceNodeDef
 
@@ -37,9 +42,10 @@ var leftover: Dictionary = {}
 ## novo a cada `RETRY_SECONDS`; esperar não conta como perdido e o nó segue no save como esgotado.
 var can_return: Callable = Callable()
 
-## Golpes já dados (colheita por golpes). Volta a zero sozinho, `def.hit_reset_seconds` depois do último golpe.
-var hits: int = 0
-var _hits_expire_at: float = 0.0
+## Vida já perdida em golpes (nó de vários golpes). Volta a zero sozinho, `def.hit_reset_seconds` depois do último
+## golpe: a vida volta ao máximo.
+var damage_taken: float = 0.0
+var _damage_expire_at: float = 0.0
 ## Próxima tentativa de voltar com o lugar ocupado (instante do relógio; não vai ao save).
 var _retry_at: float = 0.0
 
@@ -81,27 +87,56 @@ func respawn_total() -> float:
 	return base / maxf(respawn_rate, 0.001)
 
 
-## Golpes que o nó guarda agora (já descontado o prazo sem golpes).
-func current_hits() -> int:
-	if hits > 0 and now() >= _hits_expire_at:
-		hits = 0
-	return hits
+## Dano acumulado agora (já descontado o prazo sem golpes).
+func current_damage() -> float:
+	if damage_taken > 0.0 and now() >= _damage_expire_at:
+		damage_taken = 0.0
+	return damage_taken
 
 
-func has_hits() -> bool:
-	return current_hits() > 0
+func has_damage() -> bool:
+	return current_damage() > 0.0
 
 
-## Registra um golpe e devolve quantos o nó já levou. `needed` só vai ao aviso da apresentação.
-func register_hit(needed: int) -> int:
-	hits = current_hits() + 1
-	_hits_expire_at = now() + (def.hit_reset_seconds if def != null else 0.0)
-	struck.emit(hits, needed)
-	return hits
+func _max_health() -> float:
+	return def.health_max if def != null else 0.0
 
 
-func reset_hits() -> void:
-	hits = 0
+## Vida que o nó tem agora.
+func current_health() -> float:
+	return maxf(_max_health() - current_damage(), 0.0)
+
+
+## Fração de vida (1 = inteiro, 0 = caiu). Nó de um toque é sempre 1.
+func health_fraction() -> float:
+	var maximum := _max_health()
+	return current_health() / maximum if maximum > 0.0 else 1.0
+
+
+## Estágio visual de dano: 0 = inteiro, 1 e 2 conforme `def.damage_stage_thresholds` (fração de vida <= limite).
+func damage_stage() -> int:
+	if def == null:
+		return 0
+	var fraction := health_fraction()
+	var stage := 0
+	for limit: float in def.damage_stage_thresholds:
+		if fraction <= limit:
+			stage += 1
+	return stage
+
+
+## Um golpe `amount` aceito (> 0) tira vida (nunca abaixo de zero) e devolve a que sobrou.
+func register_damage(amount: float, by_hand: bool = false) -> float:
+	var maximum := _max_health()
+	damage_taken = minf(current_damage() + maxf(amount, 0.0), maximum)
+	_damage_expire_at = now() + (def.hit_reset_seconds if def != null else 0.0)
+	damaged.emit(current_health(), maximum, by_hand)
+	return current_health()
+
+
+## A mão bateu sem efeito (a apresentação reage).
+func rebuff() -> void:
+	rebuffed.emit()
 
 
 func is_available() -> bool:
@@ -141,8 +176,10 @@ func leave(remaining: Dictionary) -> void:
 func harvest() -> int:
 	if not is_available():
 		return 0
+	if def.is_struck():
+		felled.emit()
 	depleted = true
-	hits = 0
+	damage_taken = 0.0
 	leftover = {}
 	due_at = now() + respawn_total()
 	_retry_at = 0.0
@@ -154,9 +191,9 @@ func to_dict() -> Dictionary:
 	var data := {"def": def.id if def != null else "", "depleted": depleted, "due_at": due_at}
 	if is_partial():
 		data["leftover"] = leftover.duplicate()
-	if has_hits():
-		data["hits"] = hits
-		data["hits_left_seconds"] = _hits_expire_at - now()  # relativo: o relógio do mundo é restaurado à parte
+	if has_damage():
+		data["health"] = current_health()
+		data["health_left_seconds"] = _damage_expire_at - now()  # relativo: o relógio do mundo é restaurado à parte
 	return data
 
 
@@ -170,10 +207,12 @@ func from_dict(data: Dictionary) -> void:
 	due_at = SafeRead.number(data.get("due_at"), current, 0.0, current + respawn_total()) if depleted else 0.0
 	_retry_at = 0.0
 	leftover = _read_leftover(data.get("leftover")) if not depleted else {}
-	hits = 0
-	if not depleted:
-		hits = SafeRead.integer(data.get("hits"), 0, 0, MAX_SAVED_HITS)
-		_hits_expire_at = current + SafeRead.number(data.get("hits_left_seconds"), 0.0, 0.0, def.hit_reset_seconds)
+	damage_taken = 0.0
+	if not depleted and def.is_struck() and data.has("health"):
+		# Save antigo (contava golpes) não tem "health": a vida fica cheia. Dado de fora fica entre 0 e o máximo.
+		var saved_health := SafeRead.number(data.get("health"), def.health_max, 0.0, def.health_max)
+		damage_taken = clampf(def.health_max - saved_health, 0.0, def.health_max)
+		_damage_expire_at = current + SafeRead.number(data.get("health_left_seconds"), 0.0, 0.0, def.hit_reset_seconds)
 	changed.emit()
 
 

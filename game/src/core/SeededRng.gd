@@ -35,3 +35,9 @@ func next_below(limit: int) -> int:
 	_state ^= _state >> 17
 	_state ^= (_state << 5) & MASK
 	return _state % limit if limit > 1 else 0
+
+
+## Decimal em [low, high). Limites invertidos são ordenados.
+func next_range(low: float, high: float) -> float:
+	var start := minf(low, high)
+	return start + (maxf(low, high) - start) * float(next_below(1000000)) / 1000000.0

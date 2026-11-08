@@ -347,7 +347,7 @@ func _test_gather_by_target_id() -> void:
 	player.position = wood.position + Vector2(0, 10)
 	player.facing = Vector2.UP
 	player.tick(10.0)
-	_check(authority.request_gather(1, authority.id_of(wood)) == RESULT.OK and wood.component.current_hits() == 1,
+	_check(authority.request_gather(1, authority.id_of(wood)) == RESULT.OK and wood.component.has_damage(),
 			"perto do nó certo, de frente: o golpe conta")
 	_check(authority.request_gather(1, authority.id_of(wood)) == RESULT.COOLDOWN, "a recarga do golpe vale")
 	main.get_parent().queue_free()

@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="SfxBank" load_steps=9 format=3]
+
+[ext_resource type="Script" path="res://src/ui/SfxBank.gd" id="1_bank"]
+[ext_resource type="AudioStream" path="res://assets/audio/sfx/soco_arvore.wav" id="2_sfx"]
+[ext_resource type="AudioStream" path="res://assets/audio/sfx/golpe_madeira.wav" id="3_sfx"]
+[ext_resource type="AudioStream" path="res://assets/audio/sfx/golpe_pedra.wav" id="4_sfx"]
+[ext_resource type="AudioStream" path="res://assets/audio/sfx/soco_pedra.wav" id="5_sfx"]
+[ext_resource type="AudioStream" path="res://assets/audio/sfx/arvore_cai.wav" id="6_sfx"]
+[ext_resource type="AudioStream" path="res://assets/audio/sfx/rocha_quebra.wav" id="7_sfx"]
+[ext_resource type="AudioStream" path="res://assets/audio/sfx/item_cai.wav" id="8_sfx"]
+
+[resource]
+script = ExtResource("1_bank")
+streams = {
+&"soco_arvore": ExtResource("2_sfx"),
+&"golpe_madeira": ExtResource("3_sfx"),
+&"golpe_pedra": ExtResource("4_sfx"),
+&"soco_pedra": ExtResource("5_sfx"),
+&"arvore_cai": ExtResource("6_sfx"),
+&"rocha_quebra": ExtResource("7_sfx"),
+&"item_cai": ExtResource("8_sfx")
+}

@@ -76,12 +76,19 @@ func _test_view_ignores_clicks() -> void:
 	_check(blockers == 0, "fechado, nada no painel intercepta clique")
 
 
+func _has_digit(text: String) -> bool:
+	for index in text.length():
+		if text[index] >= "0" and text[index] <= "9":
+			return true
+	return false
+
+
 func _test_hints() -> void:
 	var tree: ResourceNodeDef = load("res://data/resources/tree.tres")
 	var rock: ResourceNodeDef = load("res://data/resources/rock.tres")
-	var by_hand := ActionHints.for_resource(tree, false, 0)
-	_check(by_hand["text"] == "[clique] Golpear árvore (à mão: 6 golpes, dói)" and not by_hand["blocked"],
-			"dica da árvore à mão: " + by_hand["text"])
-	_check(ActionHints.for_resource(tree, true, 2)["text"].contains("2/3"), "com machado mostra o progresso")
-	var stone := ActionHints.for_resource(rock, false, 0)
+	var by_hand := ActionHints.for_resource(tree, 10.0)
+	_check(by_hand["text"] == "[clique] Golpear árvore" and not by_hand["blocked"], "dica da árvore só com a ação: " + by_hand["text"])
+	_check(not _has_digit(ActionHints.for_resource(tree, 20.0)["text"]), "a dica não mostra número de golpes")
+	_check(ActionHints.for_resource(tree, 20.0, true)["blocked"], "no intervalo entre coletas a dica fica cinza")
+	var stone := ActionHints.for_resource(rock, 0.0)
 	_check(stone["blocked"] and stone["text"].contains("Picareta"), "rocha sem Picareta: dica cinza que diz a ferramenta")

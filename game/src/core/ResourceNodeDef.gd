@@ -46,13 +46,19 @@ extends Resource
 ## Caixa de colisão dos pés, em pixels, apoiada na origem (`Vector2.ZERO` = sem colisão). GDD 4.2: só os pés.
 @export var foot_size: Vector2 = Vector2.ZERO
 @export var blocks_when_full: bool = true
-## [premissa, a SHIRO revisa] Golpes para colher à mão (0 ou 1 = um toque). Decisão do dono (08/11): árvore e rocha
-## pedem alguns golpes; arbusto e pedra avulsa seguem de um toque.
-@export_range(0, 50) var hits_by_hand: int = 0
-## [premissa] Golpes para colher com a ferramenta do nó (`tool_item_id`); 0 ou 1 = um toque.
-@export_range(0, 50) var hits_with_tool: int = 0
-## [premissa] Segundos sem golpe depois dos quais o progresso do nó volta a zero.
+## Material do nó para a tabela de dano (`GatherDamageTable`): "wood", "stone" ou "ore".
+@export var material_id: String = ""
+## [premissa] Vida do nó de vários golpes (árvore, rocha, minério); 0 = colhe de um toque. Cada golpe aceito tira o
+## dano da ferramenta contra o material (decisão do dono, 08/11). Zerou: o nó cai e solta os itens no chão.
+@export_range(0.0, 1000.0) var health_max: float = 0.0
+## [premissa] Segundos sem golpe depois dos quais a vida do nó volta ao máximo.
 @export_range(1.0, 120.0) var hit_reset_seconds: float = 10.0
+## Frações de vida em que o desenho passa ao estágio 1 e ao estágio 2 de dano (fração <= limite). Só a apresentação.
+@export var damage_stage_thresholds: PackedFloat32Array = PackedFloat32Array([0.67, 0.34])
+## Sobreposições de dano (marcas de corte, rachaduras), uma por estágio, mesmo tamanho e âncora da textura.
+@export var damage_overlays: Array[Texture2D] = []
+## Cor das lascas que saltam a cada golpe (a do material: madeira, pedra, minério).
+@export var chip_color: Color = Color.WHITE
 
 
 ## Tudo que a colheita entrega (item -> unidades), o principal primeiro.
@@ -68,11 +74,6 @@ func hand_can_gather() -> bool:
 	return not tool_required
 
 
-## Golpes que a colheita pede (com ou sem a ferramenta do nó); 1 = um toque só.
-func hits_needed(with_tool: bool) -> int:
-	return maxi(hits_with_tool if with_tool else hits_by_hand, 1)
-
-
-## O nó se colhe por vários golpes (de alguma forma)?
+## O nó se colhe por vida e golpes (e não por um toque)?
 func is_struck() -> bool:
-	return hits_by_hand > 1 or hits_with_tool > 1
+	return health_max > 0.0

@@ -21,9 +21,12 @@ extends Resource
 @export_range(0.0, 32.0) var hysteresis_px: float = 6.0
 
 ## Raio (px) em volta do cursor em que uma criatura ou objeto conta como "sob o cursor" (golpe e menu do mouse).
-## Anti-spam da coleta: pedido repetido no MESMO nó dentro deste tempo (s) é recusado ("em recarga"). Não há espera
-## entre nós diferentes: coletar um arbusto nunca trava o vizinho. Curto de propósito (<= 0,15 s).
-@export_range(0.0, 0.15) var gather_repeat_seconds: float = 0.12
+## Intervalo entre uma coleta CONCLUÍDA e a próxima (decisão do dono, 08/11: "entre 1 e 2 s, só para criar uma
+## dificuldade"). Sorteado a cada coleta, de forma determinística (semente do mundo + contador do jogador), entre o
+## mínimo e o máximo. Vale só para a coleta concluída: golpe intermediário, ataque e recolher do chão não esperam.
+@export_range(0.0, 10.0) var gather_interval_min_s: float = 1.0
+@export_range(0.0, 10.0) var gather_interval_max_s: float = 2.0
+
 @export_range(2.0, 48.0) var mouse_pick_radius_px: float = 12.0
 
 

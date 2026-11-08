@@ -326,8 +326,7 @@ func _test_gather_rules() -> void:
 	_check(player.request_gather() == Player.GATHER_DEPLETED, "nó esgotado: recusa")
 	# Espaço: sem espaço o nó NÃO é gasto. A árvore real cai no chão (golpes); aqui o nó vira de um toque, como o arbusto.
 	var touch_def: ResourceNodeDef = TREE.duplicate()
-	touch_def.hits_by_hand = 1
-	touch_def.hits_with_tool = 1
+	touch_def.health_max = 0.0
 	wood.def = touch_def
 	wood.component.def = touch_def
 	player.position = wood.position + Vector2(0, 10)
@@ -338,6 +337,7 @@ func _test_gather_rules() -> void:
 		guard += 1
 	var room := player.inventory.room_for(Items.WOOD)
 	_check(room < TREE.yield_amount, "preparo: inventário sem espaço para 3 madeiras (sobra %d)" % room)
+	TestWorld.pass_time(main, 2.0)  # passa o intervalo da coleta anterior
 	var wood_before := player.inventory.count(Items.WOOD)
 	_check(player.request_gather() == Player.GATHER_FULL and wood.is_available() and player.inventory.count(Items.WOOD) == wood_before,
 			"inventário cheio: recusa e o nó não gasta")

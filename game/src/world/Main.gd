@@ -76,6 +76,7 @@ var _last_failure_notice: String = ""
 var _wild_views: Dictionary = {}  # Dino -> [DinoView, DinoStatusBars, DinoMarker, WildLevelTag] dos selvagens ativos
 var _gather_notice: String = ""
 var _gather_notice_frame: int = -1
+var _drop_sound_frame: int = -1
 ## O Continuar falhou: esta partida não existe de verdade (a cena volta ao título) e não grava nada.
 var _load_failed: bool = false
 ## Quantos respawns o mundo já fez: semente do sorteio de ponto (vai no save).
@@ -202,8 +203,10 @@ func _build_zone() -> void:
 	ground.world_seed = world_seed
 	ground.player = player
 	authority.drops_enabled = true
+	authority.world_seed = world_seed
 	authority.items_dropped.connect(func(item_id: String, amount: int, at: Vector2, dropper_id: String) -> void:
-		ground.spawn_scatter(item_id, amount, at, dropper_id))
+		ground.spawn_scatter(item_id, amount, at, dropper_id)
+		_play_drop_sound(at))
 	add_child(ground)
 	wild = WildPopulation.new()
 	wild.name = "Wild"
@@ -271,6 +274,7 @@ func _continue_saved_game() -> void:
 	if outcome.status == SaveManager.Status.OK:
 		world_seed = wild.world_seed  # o save pode ter outra semente: a disposição dos bandos já foi refeita por ela
 		ground.world_seed = world_seed
+		authority.world_seed = world_seed
 		_respawn_count = WorldSnapshot.respawn_count_of(outcome.data)
 		scheduler.respawn_count = _respawn_count
 		authority.ensure_next_id(WorldSnapshot.next_entity_id_of(outcome.data))
@@ -391,6 +395,14 @@ func _on_player_gathered(item_id: String, amount: int) -> void:
 	_gather_notice = _gather_notice + "  " + part if frame == _gather_notice_frame else part
 	_gather_notice_frame = frame
 	_notify(_gather_notice, 1.5)
+
+
+## Uma queda de itens soa uma vez, não por item (o sinal sai por item, todos no mesmo quadro).
+func _play_drop_sound(at: Vector2) -> void:
+	var frame := Engine.get_process_frames()
+	if frame != _drop_sound_frame:
+		_drop_sound_frame = frame
+		SfxPlayer.play(self, SfxPlayer.ITEM_DROP, at)
 
 
 func _on_gather_refused(reason: String) -> void:

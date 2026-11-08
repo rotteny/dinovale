@@ -429,10 +429,16 @@ func _first_sprite(node: ResourceNode) -> Sprite2D:
 
 # ----------------------------------------------------------------------------- Soco
 
+## Golpes de mão que derrubam o nó (da vida e da tabela de dano).
+func _hand_hits(node: ResourceNode) -> int:
+	return Player.GATHER_DAMAGE.hits_to_break(node.def.material_id, node.def.health_max, "")
+
+
 func _near(main: Main, node: ResourceNode) -> void:
 	main.player.position = node.position + Vector2(0, 10)
 	main.player.facing = Vector2.UP  # o nó de golpes pede estar à frente
 	main.player.tick(60.0)  # a recarga da colheita anterior
+	main.authority.clock.advance(2.0)  # e o intervalo entre coletas (1 a 2 s)
 
 
 ## Golpeia o nó `times` vezes, de frente, deixando passar a recarga entre os golpes. Devolve o último resultado.
@@ -458,7 +464,7 @@ func _test_punch_rules() -> void:
 	_near(main, wood)
 	var hp := player.health.current_health
 	var logs := player.inventory.count(Items.WOOD)
-	_check(_strikes(main, wood, wood.def.hits_by_hand - 1) == RESULT.OK and wood.is_available()
+	_check(_strikes(main, wood, _hand_hits(wood) - 1) == RESULT.OK and wood.is_available()
 			and is_equal_approx(player.health.current_health, hp), "árvore no Soco: com um golpe a menos ela segue de pé, sem custo")
 	_check(_strikes(main, wood, 1) == RESULT.OK and not wood.is_available()
 			and main.ground.total_of(Items.WOOD) == wood.def.yield_amount and player.inventory.count(Items.WOOD) == logs
@@ -467,7 +473,7 @@ func _test_punch_rules() -> void:
 	var second := main.resources.node_by_id("n317")
 	_near(main, second)
 	hp = player.health.current_health
-	_check(_strikes(main, second, second.def.hits_by_hand) == RESULT.OK and is_equal_approx(player.health.current_health, hp - 1.0),
+	_check(_strikes(main, second, _hand_hits(second)) == RESULT.OK and is_equal_approx(player.health.current_health, hp - 1.0),
 			"a segunda colheita custa mais 1 (por colheita, não por golpe)")
 	# Pedra à mão: um toque, 1 de dano, sem coleta; o nó fica cheio.
 	var rock := main.resources.node_by_id("n174")
@@ -482,6 +488,7 @@ func _test_punch_rules() -> void:
 	# Dino vivo: o golpe custa 1 ao jogador e machuca o dino.
 	var creature := main.dino
 	player.tick(60.0)
+	main.authority.clock.advance(2.0)  # intervalo entre coletas
 	hp = player.health.current_health
 	var creature_hp := creature.health.current_health
 	var torpor := creature.torpor.current_torpor
@@ -497,6 +504,7 @@ func _test_punch_rules() -> void:
 	main.resources.add_node(carcass)
 	authority.register(carcass)
 	player.tick(60.0)
+	main.authority.clock.advance(2.0)  # intervalo entre coletas
 	hp = player.health.current_health
 	var meat := player.inventory.count(Items.MEAT)
 	_check(def.hand_can_gather() and authority.request_gather(1, authority.id_of(carcass)) == RESULT.OK
@@ -506,13 +514,15 @@ func _test_punch_rules() -> void:
 	# Piso: com 10 de vida, nenhum Soco (golpe, toque, colheita) baixa a vida, e o jogo segue.
 	player.health.current_health = floor_hp + 0.5
 	player.tick(60.0)
+	main.authority.clock.advance(2.0)  # intervalo entre coletas
 	_check(player.strike(creature) and player.health.current_health == floor_hp, "o Soco para em 10 de vida (tirou só o que cabia)")
 	player.tick(60.0)
+	main.authority.clock.advance(2.0)  # intervalo entre coletas
 	_check(player.strike(creature) and player.health.current_health == floor_hp and not player.health.is_dead(),
 			"no piso: nada mais é tirado")
 	var third := main.resources.node_by_id("n318")
 	_near(main, third)
-	_check(_strikes(main, third, third.def.hits_by_hand) == RESULT.OK and player.health.current_health == floor_hp
+	_check(_strikes(main, third, _hand_hits(third)) == RESULT.OK and player.health.current_health == floor_hp
 			and not third.is_available(), "no piso a árvore ainda é colhida, sem custo, sem morrer")
 	# A conta do piso é do componente de vida: tira o que cabe acima do piso e nunca mata.
 	player.health.current_health = 50.0

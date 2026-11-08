@@ -276,9 +276,6 @@ func _on_target_changed(target: InteractableArea) -> void:
 	_watched = target
 	if _watched != null:
 		_watched.availability_changed.connect(_on_availability_changed)
-		var struck_node := _watched.entity as ResourceNode
-		if struck_node != null and not struck_node.component.struck.is_connected(_on_node_struck):
-			struck_node.component.struck.connect(_on_node_struck)
 	_highlight(target)
 	_refresh_prompt()
 
@@ -294,10 +291,6 @@ func _highlight(target: InteractableArea) -> void:
 		if child is ResourceNodeView:
 			_highlighted = child
 			_highlighted.set_highlight(true)
-
-
-func _on_node_struck(_hits: int, _needed: int) -> void:
-	_refresh_prompt()
 
 
 func _on_availability_changed(_available: bool) -> void:
@@ -319,9 +312,9 @@ func _is_foreign_command() -> bool:
 ## Dica de contexto do alvo ao alcance: nó de vários golpes mostra o gesto certo (e o que falta); o resto, "E para ...".
 func _hint_for(area: InteractableArea) -> Dictionary:
 	var node := area.entity as ResourceNode
-	if node != null and (node.def.is_struck() or node.def.tool_required):
-		return ActionHints.for_resource(node.def, player.has_tool_in_hand(node.def.tool_item_id), node.component.current_hits())
-	return {"text": "E para %s" % area.prompt, "blocked": false}
+	if node != null and node.def.is_struck():
+		return ActionHints.for_resource(node.def, player.gather_damage_on(node.def), player.gather_blocked_now(node))
+	return {"text": "E para %s" % area.prompt, "blocked": node != null and player.gather_blocked_now(node)}
 
 
 ## Barra de Fome: valor atual e, mais claro à frente, a parte que ainda vai subir (comida na fila).

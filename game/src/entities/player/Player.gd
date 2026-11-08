@@ -36,6 +36,8 @@ signal gather_refused(reason: String)
 ## 2 = vagas de equipamento (`equipment`).
 const FORMAT_VERSION := 2
 const COOLDOWN := "cooldown"
+## Dano de coleta por ferramenta e material (dado; decisão do dono, 08/11).
+const GATHER_DAMAGE: GatherDamageTable = preload("res://data/balance/gather_damage.tres")
 ## Motivos de recusa de `request_gather`.
 const GATHER_NO_TARGET := "no_target"
 const GATHER_DEPLETED := "depleted"
@@ -96,8 +98,6 @@ var _attack_timer: float = 0.0
 var _eat_timer: float = 0.0
 var _equip_timer: float = 0.0
 var _gather_timer: float = 0.0
-var _repeat_node: ResourceNode = null
-var _repeat_timer: float = 0.0
 var _last_equipped: String = ""
 ## Direção e corrida do quadro, guardadas por `perform_move` e consumidas pela física.
 var _move_direction: Vector2 = Vector2.ZERO
@@ -181,7 +181,6 @@ func tick(delta: float) -> void:
 	_eat_timer = maxf(_eat_timer - delta, 0.0)
 	_equip_timer = maxf(_equip_timer - delta, 0.0)
 	_gather_timer = maxf(_gather_timer - delta, 0.0)
-	_repeat_timer = maxf(_repeat_timer - delta, 0.0)
 	health.tick(delta)
 	update_target()
 	_update_attack_target()
@@ -424,14 +423,31 @@ func last_refusal() -> String:
 	return _last_refusal
 
 
-## Anti-spam da coleta: o mesmo nó pedido de novo dentro de `seconds` é barrado; outro nó nunca espera.
-func mark_gather(node: ResourceNode, seconds: float) -> void:
-	_repeat_node = node
-	_repeat_timer = seconds
+## Dano de coleta por golpe do que está em mãos (ou da mão) contra o material do nó, pela tabela de dados.
+## O atributo Dano do jogador NÃO multiplica a coleta (decisão: só a ferramenta e o material contam, por ora).
+func gather_damage_on(def: ResourceNodeDef) -> float:
+	return GATHER_DAMAGE.damage(def.material_id, str(equipment.item_in(EquipmentLayout.WEAPON).get("id", "")))
 
 
-func gather_repeat_blocked(node: ResourceNode) -> bool:
-	return _repeat_timer > 0.0 and _repeat_node == node
+## Esta coleta CONCLUIRIA o nó (a que o intervalo de coleta barra)? Toque: sempre. Golpe: só o que zera a vida;
+## golpe intermediário e golpe sem dano nunca concluem.
+func would_complete_gather(node: ResourceNode) -> bool:
+	if node == null or node.def == null:
+		return false
+	if not node.def.is_struck():
+		return true
+	var damage := gather_damage_on(node.def)
+	return damage > 0.0 and node.component.current_health() - damage <= 0.0
+
+
+## Segundos até poder concluir outra coleta (a autoridade guarda o instante; 0 = já pode).
+func gather_interval_left() -> float:
+	return authority.gather_wait_left(authority.id_of(self)) if authority != null else 0.0
+
+
+## A coleta concluiria agora mas o intervalo ainda não passou? (a HUD pinta a dica de cinza)
+func gather_blocked_now(node: ResourceNode) -> bool:
+	return node != null and gather_interval_left() > 0.0 and would_complete_gather(node)
 
 
 ## Segundos que faltam para poder colher de novo: só a carcaça tem espera; nó de toque devolve 0.
@@ -478,45 +494,49 @@ func perform_gather(node: ResourceNode) -> String:
 	var refusal := _gather_gate(node)
 	if refusal != "":
 		return refusal
-	var hits_needed := node.def.hits_needed(_has_tool(node.def.tool_item_id))
-	if hits_needed > 1:
-		return _strike_resource(node, hits_needed)
+	if node.def.is_struck():
+		return _strike_resource(node)
 	return _gather_by_touch(node)
 
 
-## Antes de colher: recarga, alvo válido e o toque em nó que EXIGE ferramenta (machuca a mão e não coleta). "" = pode colher.
+## Antes de colher: recarga, alvo válido e a ferramenta. "" = pode colher. Nó de golpes sem dano (a mão na rocha)
+## machuca a mão, não tira vida e devolve `GATHER_NEEDS_TOOL`; nó de toque que EXIGE ferramenta faz o mesmo.
 func _gather_gate(node: ResourceNode) -> String:
-	var hits_needed := 1
-	if node != null and node.def != null:
-		hits_needed = node.def.hits_needed(_has_tool(node.def.tool_item_id))
+	var struck := node != null and node.def != null and node.def.is_struck()
 	# Colher por golpes usa a recarga do golpe da arma em mãos; a colheita de um toque, a própria.
-	if (hits_needed > 1 and not can_strike()) or (hits_needed <= 1 and _gather_timer > 0.0):
+	if (struck and not can_strike()) or (not struck and _gather_timer > 0.0):
 		_last_refusal = COOLDOWN
 		return COOLDOWN
 	var reason := _gather_refusal(node)
 	if reason != "":
 		return _refuse_gather(reason)
-	if node.def.tool_required and not _has_tool(node.def.tool_item_id):
+	var needs_tool := gather_damage_on(node.def) <= 0.0 if struck else node.def.tool_required and not _has_tool(node.def.tool_item_id)
+	if needs_tool:
 		# A ferramenta vem antes do espaço: a pedra sem Picareta machuca a mão mesmo com o inventário cheio.
 		_hurt_hands(node.def.touch_self_damage)
 		_gather_timer = node.def.touch_seconds
+		if struck:
+			_attack_timer = current_weapon().cooldown  # o mesmo ritmo do golpe: clicar sem parar não machuca sem parar
+		node.component.rebuff()
 		return _refuse_gather(GATHER_NEEDS_TOOL)
 	return ""
 
 
-## Um golpe num nó de vários golpes (árvore, rocha, minério). Os que não quebram só somam progresso; o último derruba o
-## nó e o recurso vai ao CHÃO (`last_drop`: a autoridade o espalha), nunca direto ao inventário. Sem ferramenta, o
-## último golpe custa a vida da mão uma vez (não por golpe).
-func _strike_resource(node: ResourceNode, hits_needed: int) -> String:
+## Um golpe num nó de vida (árvore, rocha, minério): tira o dano da ferramenta contra o material. Os que não zeram só
+## tiram vida; o que zera derruba o nó e o recurso vai ao CHÃO (`last_drop`: a autoridade o espalha), nunca direto ao
+## inventário. Sem ferramenta, o golpe final custa a vida da mão uma vez (não por golpe).
+func _strike_resource(node: ResourceNode) -> String:
 	_attack_timer = current_weapon().cooldown
 	hunger.spend(rules.hunger_cost_gather_strike)
-	if node.component.current_hits() + 1 < hits_needed:
-		node.component.register_hit(hits_needed)
+	var damage := gather_damage_on(node.def)
+	var by_hand := not _has_tool(node.def.tool_item_id)
+	if node.component.current_health() - damage > 0.0:
+		node.component.register_damage(damage, by_hand)
 		return ""
 	last_drop = node.component.pending_yields()
-	node.component.reset_hits()
+	node.component.register_damage(damage, by_hand)
 	node.harvest()
-	if not _has_tool(node.def.tool_item_id):
+	if by_hand:
 		_hurt_hands(node.def.hand_self_damage)
 	_gather_timer = 0.0
 	return ""

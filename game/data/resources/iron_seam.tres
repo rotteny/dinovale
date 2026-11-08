@@ -1,7 +1,10 @@
-[gd_resource type="Resource" script_class="ResourceNodeDef" load_steps=4 format=3]
+[gd_resource type="Resource" script_class="ResourceNodeDef" load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://src/core/ResourceNodeDef.gd" id="1_def"]
 [ext_resource type="Texture2D" path="res://assets/sprites/recursos/rock_ore_32.png" id="2_full"]
+
+[ext_resource type="Texture2D" path="res://assets/sprites/recursos/ore_damage_1.png" id="3_dmg1"]
+[ext_resource type="Texture2D" path="res://assets/sprites/recursos/ore_damage_2.png" id="4_dmg2"]
 
 [resource]
 script = ExtResource("1_def")
@@ -22,7 +25,11 @@ touch_self_damage = 1.0
 texture = ExtResource("2_full")
 foot_size = Vector2(24, 12)
 blocks_when_full = true
-; [premissa] golpes provisórios (decisão do dono, 08/11): a SHIRO revisa
-hits_by_hand = 0
-hits_with_tool = 6
 hit_reset_seconds = 10.0
+; [premissa] vida do nó (decisão do dono, 08/11): cada golpe tira o dano da ferramenta contra o material
+; (`data/balance/gather_damage.tres`); a SHIRO revisa
+material_id = "ore"
+health_max = 120.0
+damage_stage_thresholds = PackedFloat32Array(0.67, 0.34)
+damage_overlays = Array[Texture2D]([ExtResource("3_dmg1"), ExtResource("4_dmg2")])
+chip_color = Color(0.44, 0.87, 0.93, 1)

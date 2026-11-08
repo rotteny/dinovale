@@ -86,7 +86,8 @@ func _test_escape_while_chased() -> void:
 
 ## A perseguição para a `chase_stop_px` do alvo: não empurra para dentro do jogador.
 func _test_chase_keeps_distance() -> void:
-	var stats: DinoBaseStats = RAPTOR
+	var stats: DinoBaseStats = RAPTOR.duplicate()
+	stats.threat_profile = null  # só perseguição (sem golpe): ao alcançar, desiste
 	var machine: DinoStateMachine = _track.call(DinoStateMachine.new())
 	machine.torpor = _track.call(TorporComponent.new())
 	machine.rng.seed = 42

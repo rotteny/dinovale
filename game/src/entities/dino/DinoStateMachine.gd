@@ -25,6 +25,10 @@ signal order_changed(order: Enums.DinoOrder)
 signal got_stuck
 ## Ficou bravo ou se acalmou (a apresentação mostra ou apaga o "!"). Presentação apenas: não é evento de jogo.
 signal aggression_changed(aggressive: bool)
+## Mudou a fase do ciclo de ameaça (a view troca animação e toca o som). Apresentação apenas.
+signal threat_phase_changed(phase: Enums.ThreatPhase)
+## O bravo golpeou (`in_reach` falso = errou). A view toca o som do golpe; o `Dino` pede o dano à autoridade.
+signal struck(in_reach: bool)
 
 @export var torpor: TorporComponent
 ## Duração mínima e máxima, em segundos, de cada estado.
@@ -66,6 +70,15 @@ var navigation: PathProvider = null:
 		follower.provider = value
 ## Segue um destino e percebe quando trava (perseguição e Seguir do domado).
 var follower := PathFollower.new()
+## Ciclo de ameaça da espécie (null = sem `threat_profile`: o bravo só persegue). Criado por `configure`.
+var threat_cycle: ThreatCycle = null
+## Número do episódio de agressão em curso (cresce a cada vez que o dino fica bravo): a autoridade anuncia
+## só o primeiro golpe que acerta de cada episódio.
+var episode_id := 0
+## Fase atual do ciclo (`NONE` fora dele ou sem perfil).
+var threat_phase: Enums.ThreatPhase:
+	get:
+		return threat_cycle.phase if threat_cycle != null else Enums.ThreatPhase.NONE
 
 var _alert_left := 0.0
 var _aggression_signaled := false
@@ -105,6 +118,8 @@ func start() -> void:
 
 
 func tick(delta: float) -> void:
+	if threat_cycle != null and not is_aggressive:
+		threat_cycle.cool(delta)
 	_alert_left = maxf(_alert_left - delta, 0.0)
 	if _can_start_chase():
 		transition_to(Enums.DinoStateId.AGGRESSIVE)
@@ -117,6 +132,23 @@ func configure(species: DinoBaseStats, body_speed: float, tile_size: float) -> v
 	walk_speed = maxf(body_speed, 1.0)
 	tile_px = tile_size
 	follower.size_class = species.size
+	_configure_threat(species.threat_profile)
+
+
+func _configure_threat(profile: ThreatProfile) -> void:
+	if profile == null:
+		threat_cycle = null
+		return
+	if threat_cycle != null and threat_cycle.profile == profile:
+		return
+	threat_cycle = ThreatCycle.new(profile, rng)
+	threat_cycle.phase_changed.connect(func(phase: Enums.ThreatPhase) -> void: threat_phase_changed.emit(phase))
+	threat_cycle.struck.connect(_on_cycle_struck)
+
+
+func _on_cycle_struck(in_reach: bool) -> void:
+	reset_calm()  # quem ataca não acalma no meio da briga
+	struck.emit(in_reach)
 
 
 ## O corpo informa o alvo mais próximo que pode ser perseguido (`known` falso = nenhum).

@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="SfxBank" load_steps=9 format=3]
+[gd_resource type="Resource" script_class="SfxBank" load_steps=14 format=3]
 
 [ext_resource type="Script" path="res://src/ui/SfxBank.gd" id="1_bank"]
 [ext_resource type="AudioStream" path="res://assets/audio/sfx/soco_arvore.wav" id="2_sfx"]
@@ -8,6 +8,11 @@
 [ext_resource type="AudioStream" path="res://assets/audio/sfx/arvore_cai.wav" id="6_sfx"]
 [ext_resource type="AudioStream" path="res://assets/audio/sfx/rocha_quebra.wav" id="7_sfx"]
 [ext_resource type="AudioStream" path="res://assets/audio/sfx/item_cai.wav" id="8_sfx"]
+[ext_resource type="AudioStream" path="res://assets/audio/sfx/paqui_bufada.wav" id="9_sfx"]
+[ext_resource type="AudioStream" path="res://assets/audio/sfx/paqui_cabecada.wav" id="10_sfx"]
+[ext_resource type="AudioStream" path="res://assets/audio/sfx/raptor_rosnado.wav" id="11_sfx"]
+[ext_resource type="AudioStream" path="res://assets/audio/sfx/raptor_mordida.wav" id="12_sfx"]
+[ext_resource type="AudioStream" path="res://assets/audio/sfx/dino_dor.wav" id="13_sfx"]
 
 [resource]
 script = ExtResource("1_bank")
@@ -18,5 +23,10 @@ streams = {
 &"soco_pedra": ExtResource("5_sfx"),
 &"arvore_cai": ExtResource("6_sfx"),
 &"rocha_quebra": ExtResource("7_sfx"),
-&"item_cai": ExtResource("8_sfx")
+&"item_cai": ExtResource("8_sfx"),
+&"paqui_bufada": ExtResource("9_sfx"),
+&"paqui_cabecada": ExtResource("10_sfx"),
+&"raptor_rosnado": ExtResource("11_sfx"),
+&"raptor_mordida": ExtResource("12_sfx"),
+&"dino_dor": ExtResource("13_sfx")
 }

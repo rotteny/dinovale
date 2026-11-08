@@ -2,7 +2,8 @@
 class_name DinoAggressiveState
 extends DinoState
 ## Bravo (M1, seção 2): vai até o alvo pelo caminho do `PathFollower`, na velocidade brava da espécie, e para na
-## distância mínima (`chase_stop_px`) para não empurrar o jogador. Ainda não ataca (etapa 4).
+## distância mínima (`chase_stop_px`) para não empurrar o jogador. Com `threat_profile` na espécie (etapa 4) o bravo
+## segue o ciclo do `ThreatCycle`: ameaça, aproxima, rodeia, avisa, investe e se recupera; sem perfil, só persegue.
 ##
 ## Entra quando o dino leva golpe do jogador ou, sendo Agressivo, avista o alvo. Sai para o natural SEM rancor quando:
 ## 8 s se passam sem dano (`AggressionRules.calm_seconds`; `reset_calm` o zera), o alvo fica a mais de `far_tiles` por
@@ -12,6 +13,8 @@ extends DinoState
 var _elapsed := 0.0
 var _calm_left := 0.0
 var _far_time := 0.0
+var _lunge_direction := Vector2.ZERO
+var _steered_phase := Enums.ThreatPhase.NONE
 
 
 func enter() -> void:
@@ -20,10 +23,16 @@ func enter() -> void:
 	reset_calm()
 	machine.speed_multiplier = machine.chase_speed_multiplier()
 	machine.follower.forget()
+	machine.episode_id += 1
+	_steered_phase = Enums.ThreatPhase.NONE
+	if machine.threat_cycle != null:
+		machine.threat_cycle.begin(machine.target_distance(), machine.tile_px)
 	_steer(0.0)
 
 
 func exit() -> void:
+	if machine.threat_cycle != null:
+		machine.threat_cycle.end()
 	machine.speed_multiplier = 1.0
 	machine.desired_direction = Vector2.ZERO
 	machine.start_alert()
@@ -49,6 +58,8 @@ func tick(delta: float) -> void:
 	if _should_calm():
 		machine.transition_to(Enums.DinoStateId.IDLE)
 		return
+	if machine.threat_cycle != null:
+		machine.threat_cycle.tick(delta, machine.target_distance(), machine.tile_px)
 	_steer(delta)
 
 
@@ -66,6 +77,61 @@ func _far_from_target() -> bool:
 
 
 func _steer(delta: float) -> void:
+	if machine.threat_cycle != null:
+		_steer_cycle(delta)
+		return
+	_steer_chase(delta)
+
+
+## Rumo e velocidade de cada fase do ciclo. Parado em THREAT (alvo perto), WINDUP e RECOVER; corre na ameaça de longe e
+## na aproximação; gira no rodeio; investe em linha reta, na direção travada ao entrar em LUNGE.
+func _steer_cycle(delta: float) -> void:
+	var cycle := machine.threat_cycle
+	var profile := cycle.profile
+	var phase := cycle.phase
+	var chase := machine.chase_speed_multiplier()
+	machine.speed_multiplier = chase
+	var to_target := machine.target_position - machine.self_position
+	var toward := to_target.normalized()
+	match phase:
+		Enums.ThreatPhase.THREAT:
+			if cycle.runs_threat and machine.target_distance() > profile.circle_radius_px(machine.tile_px):
+				_follow(delta)
+			else:
+				machine.desired_direction = Vector2.ZERO
+		Enums.ThreatPhase.APPROACH:
+			_follow(delta)
+		Enums.ThreatPhase.CIRCLE:
+			machine.speed_multiplier = chase * profile.circle_speed_factor
+			machine.desired_direction = _circle_direction(toward, profile)
+		Enums.ThreatPhase.LUNGE:
+			if _steered_phase != Enums.ThreatPhase.LUNGE:
+				_lunge_direction = toward
+			if profile.lunge_speed_px_s > 0.0:
+				machine.speed_multiplier = profile.lunge_speed_px_s / machine.walk_speed
+			machine.desired_direction = _lunge_direction
+		_:
+			machine.desired_direction = Vector2.ZERO
+	_steered_phase = phase
+
+
+## Tangente ao alvo, no sentido do episódio, com correção do raio: o dino não espirala para dentro nem para fora.
+func _circle_direction(toward: Vector2, profile: ThreatProfile) -> Vector2:
+	var tangent := toward.rotated(PI * 0.5 * machine.threat_cycle.circle_sign)
+	var radius := profile.circle_radius_px(machine.tile_px)
+	var distance := machine.target_distance()
+	var correction := clampf((distance - radius) / radius, -0.5, 0.5)
+	return (tangent + toward * correction).normalized()
+
+
+func _follow(delta: float) -> void:
+	machine.desired_direction = machine.follower.update(delta, machine.self_position, machine.target_position)
+	if machine.follower.stuck:
+		machine.desired_direction = Vector2.ZERO
+		machine.transition_to(Enums.DinoStateId.IDLE)  # travou: desiste e fica em alerta
+
+
+func _steer_chase(delta: float) -> void:
 	# Na distância mínima o dino para: perseguir "para dentro" do alvo só espreme o corpo dele. O Agressivo, sem ataque
 	# ainda (M1), desiste ali e fica em alerta longo; o que só revida fica parado, bravo, até o relógio acabar.
 	if machine.stats != null and machine.target_distance() <= machine.stats.chase_stop_px:

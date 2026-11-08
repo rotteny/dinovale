@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: MIT
 class_name DinoView
 extends Node2D
-## Apresentação do dino sobre a folha da espécie (`sprites/dinos/<espécie>.png`, quadros de 32x32, 11 colunas x
-## 4 linhas, descrita por `<espécie>.json`: a linha é a direção, as colunas são as animações `idle`, `walk`,
+## Apresentação do dino sobre a folha da espécie (`sprites/dinos/<espécie>.png`, quadros de 32x32, 11 a 18 colunas x
+## 4 ou 8 linhas, descrita por `<espécie>.json`: a linha é a direção, as colunas são as animações `idle`, `walk`,
 ## `attack`, `sleep` e `dead`; os pés ficam em y=30 do quadro): quadro por direção, cambaleio (deslocamento de 1 a
 ## 2 px) e pausa pela faixa de torpor, bocejo, sono (quadro `sleep`, já deitado na arte, e o balão "zz"), flash
 ## branco e número flutuante ao levar dano. Só apresentação:
@@ -22,6 +22,8 @@ signal sound_cue(cue: StringName)
 const ANIM_IDLE := "idle"
 const ANIM_WALK := "walk"
 const ANIM_SLEEP := "sleep"
+## Tempo da animação de golpe durante o aviso: parado no primeiro quadro (cabeça recuada).
+const WINDUP_HOLD := 0.0
 const CUE_HIT := &"hit"
 const CUE_YAWN := &"yawn"
 const CUE_TAMED := &"tamed"
@@ -63,6 +65,9 @@ var _text_left := 0.0
 var _yawn_clock := 0.0
 var _alert_mark := Label.new()
 var _alert_fade := AggressionFade.new()
+## Segundos desde a entrada na fase de ameaça atual e desde o início do golpe (investida, que segue na recuperação).
+var _phase_clock := 0.0
+var _strike_clock := 0.0
 
 
 func _ready() -> void:
@@ -93,11 +98,20 @@ func _ready() -> void:
 	if dino == null:
 		return
 	_sheet = SpriteSheetDef.from_json_file(dino.stats.sheet_path)
+	_use_species_texture()
 	dino.health.damaged.connect(_on_damaged)
 	dino.torpor.band_changed.connect(_on_band_changed)
 	dino.taming.level_finalized.connect(_on_tamed)
 	dino.state_machine.order_changed.connect(_on_order_changed)
+	dino.state_machine.threat_phase_changed.connect(_on_threat_phase)
+	dino.state_machine.struck.connect(_on_struck)
 	follow()
+
+
+## O sprite da cena nasce com a folha do Paquicéfalo: a espécie traz a dela em `sheet_texture`.
+func _use_species_texture() -> void:
+	if dino.stats.sheet_texture != null:
+		dino.visual.texture = dino.stats.sheet_texture
 
 
 func _process(delta: float) -> void:
@@ -111,6 +125,8 @@ func tick(delta: float) -> void:
 		return
 	follow()
 	_time += delta
+	_phase_clock += delta
+	_strike_clock += delta
 	_flash_left = maxf(_flash_left - delta, 0.0)
 	_text_left = maxf(_text_left - delta, 0.0)
 	var awake := not dino.torpor.is_unconscious
@@ -177,16 +193,42 @@ func _apply_pose(awake: bool) -> void:
 	_sleep_icon.visible = not awake
 	dino.visual.rotation = 0.0
 	var moving := awake and dino.velocity.length_squared() > 1.0
+	var phase := dino.state_machine.threat_phase if awake else Enums.ThreatPhase.NONE
 	if moving:
 		_facing = SpriteFacing.facing_for(dino.velocity, _facing, _sheet.rows)
+	elif phase != Enums.ThreatPhase.NONE:
+		_facing = SpriteFacing.facing_for(dino.state_machine.target_position - dino.global_position, _facing, _sheet.rows)
 	var column := 0
+	var threat_column := _threat_column(phase)
 	if not awake:
 		column = _sheet.column_at(ANIM_SLEEP, 0.0)
+	elif threat_column >= 0:
+		column = threat_column
 	elif moving:
 		column = _sheet.column_at(ANIM_WALK, _time)
 	else:
 		column = _sheet.column_at(ANIM_IDLE, _time)
 	_show_frame(column)
+
+
+## Quadro da fase de ameaça (-1 = nenhuma animação própria, segue o andar e o parado): ameaça parada = `threat`; aviso do
+## golpe = primeiro quadro do golpe; investida e recuperação = a animação do golpe. A ameaça feita correndo anda.
+func _threat_column(phase: Enums.ThreatPhase) -> int:
+	var cycle := dino.state_machine.threat_cycle
+	if cycle == null or phase == Enums.ThreatPhase.NONE:
+		return -1
+	var profile := cycle.profile
+	match phase:
+		Enums.ThreatPhase.THREAT:
+			if not cycle.runs_threat and _sheet.has_animation(profile.threat_animation):
+				return _sheet.column_at(profile.threat_animation, _phase_clock)
+		Enums.ThreatPhase.WINDUP:
+			if _sheet.has_animation(profile.strike_animation):
+				return _sheet.column_at(profile.strike_animation, WINDUP_HOLD)
+		Enums.ThreatPhase.LUNGE, Enums.ThreatPhase.RECOVER:
+			if _sheet.has_animation(profile.strike_animation):
+				return _sheet.column_at(profile.strike_animation, _strike_clock)
+	return -1
 
 
 ## Folha do JSON de outro tamanho que o sprite da cena: fica no primeiro quadro da direção, nunca fora da folha.
@@ -236,6 +278,7 @@ func _show_text(text: String) -> void:
 
 
 func _on_damaged(amount: float) -> void:
+	SfxPlayer.play(self, SfxPlayer.DINO_HURT, global_position)
 	_flash_left = FLASH_SECONDS
 	_spawn_popup(FloatingText.damage_text(amount), Color(1.0, 0.45, 0.4))
 	_cue(CUE_HIT)
@@ -244,6 +287,25 @@ func _on_damaged(amount: float) -> void:
 ## A ordem do domado mudou: o texto sobe da criatura (sem sprite novo; GDD 6.11).
 func _on_order_changed(order: Enums.DinoOrder) -> void:
 	_spawn_popup("Seguir" if order == Enums.DinoOrder.FOLLOW else "Ficar", ORDER_COLOR)
+
+
+## Fase nova do ciclo de ameaça: zera o relógio da animação e, na ameaça, toca o som (bufada ou rosnado).
+func _on_threat_phase(phase: Enums.ThreatPhase) -> void:
+	_phase_clock = 0.0
+	var cycle := dino.state_machine.threat_cycle
+	if cycle == null:
+		return
+	if phase == Enums.ThreatPhase.THREAT:
+		SfxPlayer.play(self, cycle.profile.threat_sound, global_position)
+	elif phase == Enums.ThreatPhase.LUNGE:
+		_strike_clock = 0.0
+
+
+## O golpe saiu (acertando ou errando): o som de golpe da espécie.
+func _on_struck(_in_reach: bool) -> void:
+	var cycle := dino.state_machine.threat_cycle
+	if cycle != null:
+		SfxPlayer.play(self, cycle.profile.strike_sound, global_position)
 
 
 func _on_band_changed(_band: int) -> void:

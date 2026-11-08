@@ -21,6 +21,8 @@ const SEX_MALE := "m"
 @export var difficulty: float = 1.0
 ## Carne da carcaça no nível base (GDD 5.6; o couro ainda não existe no catálogo).
 @export var carcass_meat: int = 4
+## Folha inteira do sprite (o PNG que o `sheet_path` descreve). Vazio = a folha da cena (a do Paquicéfalo).
+@export var sheet_texture: Texture2D
 ## Quadro "morto" da espécie (coluna 10 da folha): o desenho da carcaça.
 @export var carcass_texture: Texture2D
 ## Caixa de golpe e de alvo (hurtbox), em pixels (largura, altura): o que o jogador acerta. NÃO colide com o mundo: a
@@ -59,6 +61,8 @@ const SEX_MALE := "m"
 @export var attacker_kind: String = TamingRules.ATTACKER_CARNIVORE
 ## Dano em área (null = golpe só no alvo). Só vale se `size` for Grande: veja `area_rules`.
 @export var area_attack: AreaAttackRules
+## Ciclo de ameaça e golpe do bravo (null = só persegue, como na etapa 3).
+@export var threat_profile: ThreatProfile
 @export_group("Bando")
 ## Terrenos (índice do `IslandMap`) onde o bando desta espécie pode nascer. A região da vaga é a máscara; isto a restringe.
 @export var spawn_terrains: Array[int] = [3]

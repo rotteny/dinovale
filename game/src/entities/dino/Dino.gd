@@ -11,6 +11,9 @@ extends CharacterBody2D
 ## domesticar, o `TamingComponent` entrega o nível final e o dino o assume.
 
 signal level_changed(level: int)
+## O bravo acertou o alvo no alcance (`threat_profile`): pedido de dano à autoridade, que valida e aplica. O dino nunca
+## tira vida de ninguém sozinho. `episode` é o número do episódio de agressão (a autoridade anuncia o primeiro).
+signal attack_requested(target: Node2D, damage: float, episode: int)
 ## Limite de sanidade para uma coordenada vinda de save.
 const COORD_LIMIT := 1.0e6
 const LEVEL_SANITY := 1000000
@@ -50,6 +53,8 @@ var player_locator: Callable = Callable()
 var target_locator: Callable = Callable()
 
 var _restoring: bool = false
+## Corpo do alvo atual do bravo (o mais próximo que `observe_targets` achou); null = nenhum.
+var _target_body: Node2D = null
 ## Quem bateu por último (`player_id`): o alvo do selvagem que só revida. Não vai para o save (bravo não persiste).
 var _aggressor_id: String = ""
 
@@ -80,6 +85,7 @@ func _ready() -> void:
 	interactable.availability = can_interact
 	interactable.prompt_availability = can_command
 	state_machine.state_changed.connect(_on_state_changed)
+	state_machine.struck.connect(_on_struck)
 	state_machine.order_changed.connect(_on_order_changed)
 	_refresh_prompt()
 	interactable.refresh()
@@ -108,6 +114,7 @@ func observe_owner() -> void:
 func observe_targets() -> void:
 	var may_target := stats.aggressive or state_machine.is_aggressive  # o Passivo só mira enquanto está bravo
 	if not may_target or state_machine.is_tamed or not target_locator.is_valid():
+		_target_body = null
 		state_machine.observe_target(Vector2.ZERO, false)
 		return
 	var best: Node2D = null
@@ -122,7 +129,16 @@ func observe_targets() -> void:
 		if distance < best_distance:
 			best = body
 			best_distance = distance
+	_target_body = best
 	state_machine.observe_target(best.global_position if best != null else Vector2.ZERO, best != null)
+
+
+## O golpe do ciclo saiu. Só acertou se havia alvo no alcance; o dano é pedido à autoridade (`attack_requested`).
+func _on_struck(in_reach: bool) -> void:
+	var profile := stats.threat_profile
+	if not in_reach or profile == null or _target_body == null or not is_instance_valid(_target_body):
+		return
+	attack_requested.emit(_target_body, profile.damage, state_machine.episode_id)
 
 
 ## Reavalia o prompt depois de o dono mudar fora do fluxo normal (ex.: dono corrigido ao carregar).

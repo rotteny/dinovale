@@ -716,9 +716,10 @@ func _test_dino_view_sprite_frames() -> void:
 	dino.set_physics_process(false)
 	dino.torpor.set_physics_process(false)
 	var view := _spawn_view(dino)
+	view.tick(0.1)  # a view ajusta o sprite à folha no primeiro quadro
 	var sheet := SpriteSheetDef.from_json_file(dino.stats.sheet_path)
 	_check(sheet.is_valid() and dino.visual.hframes == sheet.columns and dino.visual.vframes == sheet.rows
-			and dino.visual.hframes == 11 and dino.visual.vframes == 8, "sprite do dino: folha 11x8 lida do JSON")
+			and dino.visual.hframes == 18 and dino.visual.vframes == 8, "sprite do dino: folha 18x8 lida do JSON")
 	_check(dino.visual.texture.get_size() == Vector2(sheet.frame_size * Vector2i(sheet.columns, sheet.rows)), "o PNG tem o tamanho do JSON")
 	view.tick(0.01)
 	_check(dino.visual.frame_coords == Vector2i(0, SpriteFacing.DOWN), "parado: de frente, coluna 0 do idle")

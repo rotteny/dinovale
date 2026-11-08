@@ -1,4 +1,5 @@
 {
+	"ameaca_m1": "threat 11-14: cabeca baixa, cauda erguida, pe raspando para tras com poeira, bufada (vapor) nos quadros 12-13 (vapor so nas vistas laterais esquerda e direita); headbutt 15-17: recua e agacha (15), investida com impacto (16, corpo recuado no quadro para caber o avanco), volta (17). Colunas 0-10 identicas a folha anterior.",
 	"ancora": "base do quadro (pes em y=30, contorno em y=31, folha 32x32); montado por partes por script",
 	"animacoes": {
 		"attack": {
@@ -17,6 +18,15 @@
 			"fps": 1,
 			"loop": false
 		},
+		"headbutt": {
+			"colunas": [
+				15,
+				16,
+				17
+			],
+			"fps": 12,
+			"loop": false
+		},
 		"idle": {
 			"colunas": [
 				0,
@@ -30,6 +40,16 @@
 				9
 			],
 			"fps": 1,
+			"loop": false
+		},
+		"threat": {
+			"colunas": [
+				11,
+				12,
+				13,
+				14
+			],
+			"fps": 8,
 			"loop": false
 		},
 		"walk": {
@@ -48,12 +68,12 @@
 		12,
 		12
 	],
-	"colunas": 11,
+	"colunas": 18,
 	"direita": "desenhada por script (geometria espelhada, sombreada de novo com a luz a esquerda)",
 	"especie": "paquicefalo",
 	"filhote": "nao incluso (M4)",
 	"golpe": "cabecada desenhada nos quadros 6-8 (cabeca e tronco avancam 2 a 3 px); sem deslocamento extra em codigo",
-	"layout": "igual nas cinco especies: colunas 0-1 idle, 2-5 walk, 6-8 attack, 9 sleep, 10 dead; linhas down, up, left, right, down_left, down_right, up_left, up_right",
+	"layout": "colunas 0-1 idle, 2-5 walk, 6-8 attack, 9 sleep, 10 dead (igual nas cinco especies), 11-14 threat, 15-17 headbutt (so Paquicefalo, M1); linhas down, up, left, right, down_left, down_right, up_left, up_right",
 	"linhas": 8,
 	"linhas_direcao": [
 		"down",

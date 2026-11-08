@@ -13,6 +13,8 @@ const PUNCH_STONE := &"soco_pedra"
 const TREE_FALL := &"arvore_cai"
 const ROCK_BREAK := &"rocha_quebra"
 const ITEM_DROP := &"item_cai"
+## Dor do dino ao levar dano; os sons de ameaça e de golpe de cada espécie vêm do `ThreatProfile`.
+const DINO_HURT := &"dino_dor"
 ## Variação do tom (fração): 0,08 = de 92% a 108%.
 const PITCH_SPREAD := 0.08
 

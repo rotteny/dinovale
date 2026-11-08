@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="ThreatProfile" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/core/ThreatProfile.gd" id="1_threat"]
+
+[resource]
+script = ExtResource("1_threat")
+threat_seconds = 0.8
+run_threat_tiles = 4.0
+circle_radius_tiles = 3.0
+circle_seconds = Vector2(0.8, 1.5)
+circle_speed_factor = 0.6
+windup_s = 0.5
+lunge_speed_px_s = 150.0
+lunge_max_s = 0.3
+attack_reach_px = 26.0
+reach_slack_px = 4.0
+damage = 6.0
+cooldown_s = 1.6
+recover_s = 0.3
+knockback_px = 24.0
+attacks_downed = false
+threat_animation = &"threat"
+strike_animation = &"headbutt"
+threat_sound = &"paqui_bufada"
+strike_sound = &"paqui_cabecada"

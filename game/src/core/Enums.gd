@@ -6,6 +6,9 @@ extends RefCounted
 
 enum DinoStateId { IDLE, WANDER, UNCONSCIOUS, TAMED, AGGRESSIVE, STUCK }
 
+## Fases do ciclo de ameaça do bravo (`ThreatCycle`). Nunca vai para o save (bravo não persiste).
+enum ThreatPhase { NONE, THREAT, APPROACH, CIRCLE, WINDUP, LUNGE, RECOVER }
+
 ## Porte da espécie. Em dado, o NOME (`DinoBaseStats.size`); só Grande pode ter dano em área.
 enum DinoSize { SMALL, MEDIUM, LARGE }
 

@@ -579,7 +579,7 @@ func _test_follow_goes_around() -> void:
 
 func _chase_machine(provider: GridPathProvider) -> DinoStateMachine:
 	var machine := _make_machine()
-	machine.configure(RAPTOR, 40.0, TILE)
+	machine.configure(_chase_only(), 40.0, TILE)
 	machine.navigation = provider
 	return machine
 
@@ -639,3 +639,10 @@ func _test_chase_around_and_give_up() -> void:
 func _free_rig(rig: Dictionary) -> void:
 	for key: String in ["dino", "player", "authority"]:
 		(rig[key] as Node).free()
+
+
+## Utahraptor só perseguidor (sem `threat_profile`): o comportamento da etapa 3, que estes testes de caminho medem.
+func _chase_only() -> DinoBaseStats:
+	var stats: DinoBaseStats = RAPTOR.duplicate()
+	stats.threat_profile = null
+	return stats

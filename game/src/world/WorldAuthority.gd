@@ -74,6 +74,8 @@ var _gather_count: Dictionary = {}
 var _reason: String = ""
 var _reason_params: Dictionary = {}
 var _next_id: int = 1
+## Último episódio de agressão anunciado por criatura (`entity_id` -> episódio): `dino_hit_player` sai uma vez por episódio.
+var _announced_episode: Dictionary = {}
 
 
 func _physics_process(delta: float) -> void:
@@ -116,6 +118,8 @@ func _watch(node: Node) -> void:
 			announce("taming_lost", {"species": dino.stats.display_name}))
 		dino.state_machine.got_stuck.connect(func() -> void:
 			announce("tamed_stuck", {"species": dino.stats.display_name}))
+		dino.attack_requested.connect(func(target: Node2D, damage: float, episode: int) -> void:
+			_on_dino_attack(dino, target, damage, episode))
 	elif node is Player:
 		(node as Player).health.died.connect(func() -> void: announce("player_downed"))
 		(node as Player).weapon_broke.connect(func(item_id: String) -> void: announce("weapon_broke", {"item": Items.display_name(item_id)}))
@@ -226,6 +230,37 @@ func resolve_area_attack(attacker_id: int, target_id: int, damage: float, torpor
 		if _area_hit(attacker, node, damage, torpor_amount, extra["fraction"]):
 			hits[extra["id"]] = extra["fraction"]
 	return hits
+
+
+## Golpe de uma criatura selvagem ou domada no alvo `target_id`, de um só alvo. Porte Grande com `area_attack` vai pelo
+## golpe em área (`resolve_area_attack`, sem torpor); os demais acertam só o principal, pelas MESMAS regras de quem pode
+## ser acertado (dono e aliados nunca; dino domado de outro dono só com `pvp_enabled`). Devolve `{entity_id: fração}`.
+func resolve_dino_attack(attacker_id: int, target_id: int, damage: float) -> Dictionary:
+	var attacker := entity(attacker_id) as Dino
+	var target := entity(target_id) as Node2D
+	if attacker == null or target == null or target == attacker or damage < 0.0:
+		return {}
+	if attacker.stats.area_rules() != null:
+		return resolve_area_attack(attacker_id, target_id, damage, 0.0)
+	if attacker.health.is_dead() or attacker.state_machine.current_id == Enums.DinoStateId.UNCONSCIOUS:
+		return {}
+	return {target_id: 1.0} if _area_hit(attacker, target, damage, 0.0, 1.0) else {}
+
+
+## O bravo pediu um golpe (`Dino.attack_requested`): confere o alcance contra a posição REAL dos dois, aplica o dano e
+## anuncia o primeiro golpe que acertou de cada episódio. Dano sem perfil na espécie ou fora do alcance é recusado.
+func _on_dino_attack(dino: Dino, target: Node2D, damage: float, episode: int) -> void:
+	var profile := dino.stats.threat_profile
+	var attacker_id := id_of(dino)
+	var target_id := id_of(target)
+	if profile == null or attacker_id == 0 or target_id == 0 or damage > profile.damage:
+		return
+	if dino.global_position.distance_to(target.global_position) > profile.attack_reach_px + profile.reach_slack_px:
+		return
+	var hits := resolve_dino_attack(attacker_id, target_id, damage)
+	if hits.has(target_id) and target is Player and _announced_episode.get(attacker_id, 0) != episode:
+		_announced_episode[attacker_id] = episode
+		announce("dino_hit_player", {"species": dino.stats.display_name, "amount": snappedf(damage, 0.1)})
 
 
 ## O jogador pode ser acertado pela criatura? Vivo, e nem o dono dela nem aliado do dono.

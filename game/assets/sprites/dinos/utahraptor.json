@@ -1,4 +1,5 @@
 {
+	"ameaca_m1": "threat 11-13: abaixa o corpo, boca aberta com dentes, cauda erguida (3 quadros, o ultimo e a pose a segurar); bite 14-16: cabeca recua com a boca escancarada (14), estica e morde com a cabeca bem a frente (15), volta (16). Nas vistas de frente e de costas a cauda erguida so encurta a cauda. Colunas 0-10 identicas a folha anterior.",
 	"ancora": "base do quadro (pes em y=30, contorno em y=31)",
 	"animacoes": {
 		"attack": {
@@ -8,6 +9,15 @@
 				8
 			],
 			"fps": 10,
+			"loop": false
+		},
+		"bite": {
+			"colunas": [
+				14,
+				15,
+				16
+			],
+			"fps": 12,
 			"loop": false
 		},
 		"dead": {
@@ -32,6 +42,15 @@
 			"fps": 1,
 			"loop": false
 		},
+		"threat": {
+			"colunas": [
+				11,
+				12,
+				13
+			],
+			"fps": 6,
+			"loop": false
+		},
 		"walk": {
 			"colunas": [
 				2,
@@ -48,7 +67,7 @@
 		14,
 		14
 	],
-	"colunas": 11,
+	"colunas": 17,
 	"direita": "desenhada a parte (nao e espelho cego): a luz continua vindo de cima-esquerda",
 	"especie": "utahraptor",
 	"filhote": "nao incluso (M4)",

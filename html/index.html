@@ -3,16 +3,16 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Dino Vale: um vale cheio de dinossauros esperando um amigo</title>
-  <meta name="description" content="Dino Vale é um jogo de sobrevivência em pixel art onde você explora, constrói e faz amizade com dinossauros. Grátis, comunitário e de código aberto. Ainda em construção: não há versão jogável.">
-  <meta name="theme-color" content="#0E4527">
+  <title>Dino Vale: sobreviva numa ilha de dinossauros</title>
+  <meta name="description" content="Dino Vale é um jogo de sobrevivência em pixel art: explore uma ilha selvagem, derrube criaturas gigantes e conquiste a confiança delas. Grátis e de código aberto. Em desenvolvimento: ainda não há versão jogável.">
+  <meta name="theme-color" content="#1c332e">
   <meta property="og:type" content="website">
   <meta property="og:locale" content="pt_BR">
   <meta property="og:site_name" content="Dino Vale">
-  <meta property="og:title" content="Dino Vale: um vale cheio de dinossauros esperando um amigo">
-  <meta property="og:description" content="Jogo de sobrevivência em pixel art, grátis e de código aberto. Ainda em construção: não há versão jogável.">
+  <meta property="og:title" content="Dino Vale: sobreviva numa ilha de dinossauros">
+  <meta property="og:description" content="Sobrevivência em pixel art, grátis e de código aberto. Em desenvolvimento: ainda não há versão jogável.">
   <meta name="twitter:card" content="summary">
-  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="assets/favicon.png" type="image/png">
   <link rel="stylesheet" href="css/style.css">
   <script>
     document.documentElement.classList.add('js');
@@ -22,25 +22,21 @@
 <body>
   <a class="pular" href="#conteudo">Ir para o conteúdo</a>
 
-  <div class="folhagem" aria-hidden="true">
-    <div class="fl fl-esq-fundo"></div><div class="fl fl-dir-fundo"></div>
-    <div class="fl fl-esq-frente"></div><div class="fl fl-dir-frente"></div>
-  </div>
-
   <header class="topo">
     <div class="topo-in">
       <a class="marca" href="#inicio" aria-label="Dino Vale, início">
-        <img src="assets/favicon.svg" alt="" width="36" height="29">
+        <img src="assets/favicon.png" alt="" width="32" height="32">
         <span>Dino Vale</span>
       </a>
       <button class="icone-btn menu-btn" type="button" aria-expanded="false" aria-controls="menu" aria-label="Abrir menu">
         <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
       </button>
       <nav class="nav" id="menu" aria-label="Seções">
-        <a href="#como">Como funciona</a>
-        <a href="#vale">Seu vale</a>
+        <a href="#como">O jogo</a>
+        <a href="#vale">A ilha</a>
         <a href="#estado">Onde estamos</a>
-        <a href="#acompanhar">Acompanhar</a>
+        <a href="#apoie">Apoie</a>
+        <a href="#acompanhar">Código</a>
       </nav>
       <button class="icone-btn tema" type="button" aria-pressed="false" aria-label="Alternar tema escuro">
         <svg class="ico ico-lua" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
@@ -50,136 +46,172 @@
   </header>
 
   <main id="conteudo">
-    <section class="selva hero" id="inicio" aria-labelledby="titulo">
+    <section class="secao hero" id="inicio" aria-labelledby="titulo">
       <div class="hero-in">
-        <h1 id="titulo" class="hero-logo"><img src="assets/logo.svg" alt="Dino Vale" width="152" height="94"></h1>
-
-        <div class="hero-cena">
-          <div class="cena">
-            <img class="c-esq" src="assets/cena-esq.svg" alt="" width="80" height="64">
-            <img class="c-dir" src="assets/cena-dir.svg" alt="" width="80" height="64">
-            <span class="heroi">
-              <img src="assets/cena-base.svg" alt="Arte: um dinossauro laranja sorridente entre folhas, com um amigo verde e um filhote azul de casca de ovo na cabeça espiando." width="80" height="64">
-              <img class="piscar" src="assets/cena-piscar.svg" alt="" width="80" height="64">
-            </span>
-            <img class="c-fa" src="assets/cena-folhas-a.svg" alt="" width="80" height="64">
-            <img class="c-fb" src="assets/cena-folhas-b.svg" alt="" width="80" height="64">
+        <div class="moldura" data-parallax>
+          <div class="palco" aria-hidden="true">
+            <img class="camada" data-fator="0.1" src="assets/menu_camada_ceu.png" alt="" width="352" height="212">
+            <img class="camada" data-fator="0.2" src="assets/menu_camada_longe.png" alt="" width="352" height="212">
+            <img class="camada" data-fator="0.4" src="assets/menu_camada_meio.png" alt="" width="352" height="212">
+            <img class="camada" data-fator="0.7" src="assets/menu_camada_perto.png" alt="" width="352" height="212">
+            <div class="andarilho andarilho-jogador"><span class="sprite s-jogador"></span></div>
+            <div class="andarilho andarilho-dino"><span class="sprite s-paquicefalo"></span></div>
+            <img class="camada" data-fator="1" src="assets/menu_camada_frente.png" alt="" width="352" height="212">
           </div>
-          <p class="legenda">Arte feita para esta página. Não é captura de tela do jogo.</p>
+          <div class="luz" aria-hidden="true"></div>
+          <h1 id="titulo" class="hero-logo"><img src="assets/menu_logo.png" alt="Dino Vale" width="158" height="32"></h1>
+          <nav class="hero-menu" aria-label="Atalhos">
+            <a class="btn btn-grande" href="#como">Conhecer o jogo</a>
+            <a class="btn btn-grande" href="#estado">Onde estamos</a>
+            <a class="btn btn-grande" href="https://github.com/rotteny/dinovale" rel="noopener">Ver o código</a>
+          </nav>
         </div>
 
-        <div class="hero-texto">
-          <p class="adesivo"><strong>Ainda não dá pra jogar!</strong> Estamos arrumando o vale.</p>
-          <div class="papel">
-            <p class="lead">Um vale cheio de dinossauros esperando um amigo.</p>
-            <p>Explore, monte sua base e faça um dinossauro tirar uma soneca. Dê um lanchinho enquanto ele ronca e, quando acordar, é seu parceiro.</p>
-            <div class="acoes">
-              <a class="btn btn-sol" href="#como">Como funciona</a>
-              <a class="btn" href="https://github.com/rotteny/dinovale" rel="noopener">Espiar o código</a>
-            </div>
-          </div>
+        <div class="papel chamada">
+          <p class="chip chip-vem">Em desenvolvimento: ainda não dá para jogar</p>
+          <p class="lead">Uma ilha. Dinossauros. Só você para sobreviver.</p>
+          <p>Explore, colete e derrube o torpor de criaturas enormes. Alimente cada uma enquanto dorme: a que hoje te caça pode amanhã lutar ao seu lado.</p>
         </div>
       </div>
     </section>
 
-    <section class="bloco" id="como" aria-labelledby="t-como">
-      <div class="bloco-in">
-        <h2 id="t-como" class="titulo">Três coisas pra fazer no vale</h2>
+    <section class="secao" id="como" aria-labelledby="t-como">
+      <div class="secao-in">
+        <h2 id="t-como" class="titulo">Sobreviva. Dome. Construa.</h2>
         <div class="trio">
-          <article class="carta">
-            <img class="carta-arte" src="assets/mec-sobreviver.svg" alt="Arte: um dinossauro verde de gola rosa sorrindo ao lado de uma fogueira e de uma moita de frutinhas." width="48" height="42">
-            <h3>Sobreviver</h3>
-            <p>Explore, junte coisas e cuide da barriguinha: vida, fôlego e fome contam. Hoje a fome só cai, comer ainda está na lista.</p>
+          <article class="papel carta">
+            <div class="vitrine" aria-hidden="true">
+              <span class="sprite s-jogador anda"></span>
+              <img class="prop" src="assets/bush_food.png" alt="" width="16" height="16">
+            </div>
+            <h3>Sobreviva</h3>
+            <p>Vida, torpor e fome cobram caro. Explore a ilha, colete o que achar e escolha suas brigas. Hoje a fome só cai; comer ainda está na lista.</p>
             <p class="chip chip-ja">Já existe</p>
           </article>
-          <article class="carta">
-            <img class="carta-arte" src="assets/mec-domesticar.svg" alt="Arte: um dinossauro laranja dormindo feliz, com um coração e um ronco em letras z flutuando perto dele." width="48" height="42">
-            <h3>Domesticar</h3>
-            <p>Derrube o sono do bicho (a barra de torpor, não a de vida) e dê o lanche certo enquanto ele ronca.</p>
+          <article class="papel carta">
+            <div class="vitrine" aria-hidden="true">
+              <span class="sprite s-paquicefalo dorme"></span>
+              <img class="prop" src="assets/icon_fruit_sleep.png" alt="" width="16" height="16">
+            </div>
+            <h3>Dome</h3>
+            <p>Encha a barra de torpor, não a de vida, e alimente a criatura enquanto ela dorme. Se acordar antes da hora, o progresso se perde.</p>
             <ol class="passos">
-              <li>Soneca</li><li>Lanche</li><li>Parceiro</li>
+              <li>Derrube</li><li>Alimente</li><li>Conquiste</li>
             </ol>
             <p class="chip chip-ja">Já existe</p>
           </article>
-          <article class="carta">
-            <img class="carta-arte" src="assets/mec-construir.svg" alt="Arte: um filhote azul com casca de ovo na cabeça, rindo ao lado de um baú e de uma parede de madeira." width="48" height="42">
-            <h3>Construir</h3>
-            <p>Fundação, parede e um baú pra guardar seus achados. A base vai ficar com a sua cara.</p>
+          <article class="papel carta">
+            <div class="vitrine" aria-hidden="true">
+              <span class="sprite s-jogador golpeia"></span>
+              <img class="prop" src="assets/rock_stone_32.png" alt="" width="32" height="32">
+            </div>
+            <h3>Construa</h3>
+            <p>Fundação, parede e um baú para guardar o que você arrancou da ilha. A base é o seu território.</p>
             <p class="chip chip-vem">Vem aí</p>
           </article>
         </div>
       </div>
     </section>
 
-    <section class="selva bloco bloco-selva" id="vale" aria-labelledby="t-vale">
-      <div class="bloco-in vale">
-        <figure class="vale-arte">
-          <img src="assets/comunidade.svg" alt="Arte: três dinossauros, um laranja, um verde e um azul, espiando por trás de uma cerca viva." width="96" height="46">
+    <section class="secao" id="vale" aria-labelledby="t-vale">
+      <div class="secao-in vale">
+        <figure class="elenco">
+          <div class="vitrine vitrine-elenco" aria-hidden="true">
+            <span class="especie"><span class="sprite s-dodo respira"></span><span class="nome">Dodo</span></span>
+            <span class="especie"><span class="sprite s-paquicefalo respira"></span><span class="nome">Paquicéfalo</span></span>
+            <span class="especie"><span class="sprite s-utahraptor respira"></span><span class="nome">Utahraptor</span></span>
+            <span class="especie"><span class="sprite s-triceratops respira"></span><span class="nome">Triceratops</span></span>
+          </div>
+          <figcaption>Elenco da v0.2: Dodo, Paquicéfalo, Utahraptor e Triceratops. Por enquanto só o Paquicéfalo anda pela ilha.</figcaption>
         </figure>
         <div class="papel">
-          <h2 id="t-vale" class="titulo titulo-papel">Seu vale, suas regras</h2>
-          <p>Dino Vale é grátis e feito em comunidade. Cada turma pode ter o próprio vale, rodando no próprio servidor, sem mensalidade.</p>
-          <p>O código é aberto, com licença MIT, e qualquer um pode espiar e ajudar.</p>
+          <h2 id="t-vale" class="titulo-papel">Aqui, quem cai vira comida</h2>
+          <p>O torpor também vale para você: se a barra encher, você desmaia, e qualquer predador por perto agradece. Essa parte ainda está em construção.</p>
           <p class="chips">
             <span class="chip chip-ja">Grátis</span>
             <span class="chip chip-ja">Código aberto</span>
           </p>
-          <p>Jogar junto com a turma pela internet ainda é só plano, e fica para bem mais pra frente. <span class="chip chip-longe">Mais pra frente</span></p>
+          <p>Feito em comunidade, com licença MIT. A ideia é que cada turma rode o próprio vale, sem mensalidade. Jogar junto pela internet ainda é só plano. <span class="chip chip-longe">Mais pra frente</span></p>
         </div>
       </div>
     </section>
 
-    <section class="bloco" id="estado" aria-labelledby="t-estado">
-      <div class="bloco-in">
+    <section class="secao" id="estado" aria-labelledby="t-estado">
+      <div class="secao-in">
         <h2 id="t-estado" class="titulo">Onde estamos</h2>
-        <p class="intro">Ainda não tem nada pra baixar e não tem data de lançamento: sai quando ficar bom. Por enquanto, olha o que já anda por aqui:</p>
-        <div class="trio trio-estado">
-          <section class="lista lista-ja" aria-labelledby="l-ja">
+        <p class="papel intro">Não há nada para baixar e não há data de lançamento: sai quando estiver bom. Hoje já anda por aqui:</p>
+        <div class="trio">
+          <section class="papel lista lista-ja" aria-labelledby="l-ja">
             <h3 id="l-ja"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Já existe</h3>
             <ul>
-              <li>Um jogador com vida, fôlego e fome</li>
-              <li>Mochila, inventário e painel de status</li>
-              <li>Interagir com as coisas do vale</li>
-              <li>Domesticar de verdade: soneca, lanche, parceiro</li>
+              <li>A ilha Lunata, com mapa único</li>
+              <li>Coletar recursos e golpear com o Soco</li>
+              <li>Domar o Paquicéfalo, do torpor à conquista</li>
+              <li>Nível de cada criatura à vista</li>
+              <li>Salvar e carregar o mundo, com autosave</li>
             </ul>
           </section>
-          <section class="lista lista-vem" aria-labelledby="l-vem">
+          <section class="papel lista lista-vem" aria-labelledby="l-vem">
             <h3 id="l-vem"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>Vem aí</h3>
             <ul>
+              <li>Desmaio com perigo de verdade</li>
               <li>Construir a base</li>
-              <li>Comer pra matar a fome</li>
-              <li>Salvar o seu mundo</li>
-              <li>Um mapa grande de verdade</li>
-              <li>Mandar o parceiro seguir ou ficar</li>
+              <li>Dia, noite e chuva</li>
+              <li>Utahraptor, Dodo e Triceratops no mundo</li>
               <li>Arte e sons definitivos</li>
             </ul>
           </section>
-          <section class="lista lista-longe" aria-labelledby="l-longe">
+          <section class="papel lista lista-longe" aria-labelledby="l-longe">
             <h3 id="l-longe"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m16.24 7.76-2.12 6.36-6.36 2.12 2.12-6.36 6.36-2.12z"/></svg>Mais pra frente</h3>
             <ul>
               <li>Jogar com a turma pela internet</li>
-              <li>Um jeito fácil de subir o seu próprio servidor</li>
+              <li>Um jeito fácil de subir o seu servidor</li>
             </ul>
           </section>
         </div>
       </div>
     </section>
 
-    <section class="selva bloco bloco-selva" id="acompanhar" aria-labelledby="t-acomp">
-      <div class="bloco-in acomp">
-        <img class="espiando" src="assets/espiando.svg" alt="Arte: um filhote azul de casca de ovo na cabeça espiando por trás de umas folhas." width="40" height="30">
+    <section class="secao" id="apoie" aria-labelledby="t-apoie">
+      <div class="secao-in">
+        <h2 id="t-apoie" class="titulo">Apoie o desenvolvimento</h2>
+        <div class="papel apoie">
+          <figure class="pix-qr">
+            <img src="assets/pix-qr.png" alt="QR Code do Pix para doar ao Dino Vale" width="366" height="366">
+          </figure>
+          <div class="apoie-texto">
+            <p>Dino Vale é um projeto independente e de código aberto. Cada doação acelera a arte, a música e os próximos dinos.</p>
+            <p>Doar não dá nenhuma vantagem no jogo. Qualquer valor ajuda.</p>
+            <label class="pix-rotulo" for="pix-codigo">Pix copia e cola</label>
+            <textarea id="pix-codigo" class="pix-codigo" readonly rows="5" spellcheck="false">00020126780014br.gov.bcb.pix0136931bbcd1-8f04-44f5-809c-8966596742f60216Doacao Dino Vale5204000053039865802BR5909DINO VALE6009SAO PAULO62070503***63042207</textarea>
+            <div class="acoes">
+              <button class="btn" type="button" data-copiar="pix-codigo">Copiar código Pix</button>
+              <span class="pix-status" role="status" aria-live="polite"></span>
+            </div>
+            <p class="pix-dica">Abra o app do seu banco &gt; Pix &gt; Copia e cola, ou aponte a câmera para o QR.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="secao secao-fim" id="acompanhar" aria-labelledby="t-acomp">
+      <div class="secao-in acomp">
+        <div class="vitrine vitrine-dupla" aria-hidden="true">
+          <span class="sprite s-jogador respira vira-dir"></span>
+          <span class="sprite s-paquicefalo respira vira-esq"></span>
+        </div>
         <div class="papel">
-          <h2 id="t-acomp" class="titulo titulo-papel">Quer espiar?</h2>
-          <p>O código do jogo fica aberto no GitHub. Ele pode estar vazio até o primeiro envio, então não estranhe se for um quarto sem móveis.</p>
+          <h2 id="t-acomp" class="titulo-papel">Acompanhe a construção</h2>
+          <p>O código do jogo fica aberto no GitHub. Ele pode estar vazio até o primeiro envio: nesse caso, é um quarto sem móveis.</p>
           <div class="acoes">
-            <a class="btn btn-sol" href="https://github.com/rotteny/dinovale" rel="noopener">Ver no GitHub</a>
+            <a class="btn" href="https://github.com/rotteny/dinovale" rel="noopener">Ver no GitHub</a>
             <span class="btn btn-quieto" aria-disabled="true">Discord: ainda não existe</span>
           </div>
         </div>
       </div>
       <footer class="rodape">
-        <p>Dino Vale está em construção e esta página não mostra um jogo pronto. Toda a arte foi desenhada para ela.</p>
-        <p>Ícones: <a href="https://lucide.dev" rel="noopener">Lucide</a> (ISC). Fontes: Fredoka e Atkinson Hyperlegible (OFL, licenças em <code>assets/fonts</code>).</p>
+        <p>Dino Vale está em construção. A arte desta página é a do próprio jogo, ainda em evolução, e não mostra um jogo pronto.</p>
+        <p>Arte: autoria do projeto, <a href="https://creativecommons.org/licenses/by/4.0/deed.pt-br" rel="noopener">CC BY 4.0</a> (detalhes em <code>assets/CREDITS.md</code>). Fonte Vale Mini: derivada da Kenney Mini (CC0). Texto: Atkinson Hyperlegible (OFL, licença em <code>assets/fonts</code>). Ícones: <a href="https://lucide.dev" rel="noopener">Lucide</a> (ISC).</p>
       </footer>
     </section>
   </main>

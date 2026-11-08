@@ -33,7 +33,6 @@ const SHEET_PATH := "res://assets/sprites/jogador/jogador.json"
 const ANIM_IDLE := "idle"
 const ANIM_WALK := "walk"
 const ANIM_HIT := "hit"
-const ANIM_FALL := "fall"
 const MOVING_SPEED_SQUARED := 1.0
 ## Duração do golpe se a folha não tiver `hit`.
 const FALLBACK_ATTACK_SECONDS := 0.25
@@ -58,6 +57,9 @@ var _sheet: SpriteSheetDef = SpriteSheetDef.from_json_file(SHEET_PATH)
 var _attack_seconds := maxf(_sheet.duration(ANIM_HIT), FALLBACK_ATTACK_SECONDS)
 var _facing := SpriteFacing.DOWN
 var _popups := Node2D.new()
+var _standing_texture: Texture2D = null
+var _standing_offset := Vector2.ZERO
+var _downed_fps: float = BodyArt.fps("caido.png", "respirar", BodyArt.DEFAULT_DOWNED_FPS)
 
 
 func _ready() -> void:
@@ -97,9 +99,10 @@ func tick(delta: float) -> void:
 	_attack_left = maxf(_attack_left - delta, 0.0)
 	_tick_breath(delta)
 	var sprite := player.visual
-	if player.is_incapacitated():  # morto ou caído: o quadro de queda
-		_show_frame(sprite, _sheet.column_at(ANIM_FALL, 0.0))
+	if player.is_incapacitated():  # morto ou caído: a pose deitada
+		_show_downed(sprite)
 		return
+	_restore_standing(sprite)
 	var moving := player.velocity.length_squared() > MOVING_SPEED_SQUARED
 	if moving:
 		_facing = SpriteFacing.facing_for(player.velocity, _facing, _sheet.rows)
@@ -111,6 +114,32 @@ func tick(delta: float) -> void:
 	else:
 		column = _sheet.column_at(ANIM_IDLE, _time)
 	_show_frame(sprite, column)
+
+
+## Caído: a folha própria (`caido.png`, pose única; `flip_h` nas direções da direita) no mesmo Sprite2D do jogador, para
+## manter a ordem de desenho. Respira só caído e vivo; morto fica no primeiro quadro. Sem a folha do jogador válida
+## (testes com outra folha), cai no quadro de queda dela.
+func _show_downed(sprite: Sprite2D) -> void:
+	if sprite.texture == null:
+		return
+	if sprite.texture != BodyArt.DOWNED_TEXTURE:
+		_standing_texture = sprite.texture
+		_standing_offset = sprite.offset
+		sprite.texture = BodyArt.DOWNED_TEXTURE
+		sprite.offset = BodyArt.ANCHOR_OFFSET
+		sprite.hframes = BodyArt.FRAMES
+		sprite.vframes = 1
+	sprite.flip_h = BodyArt.is_mirrored(_facing)
+	var breathing := player.downed.is_downed and not player.health.is_dead()
+	sprite.frame_coords = Vector2i(BodyArt.frame_at(_time, _downed_fps) if breathing else 0, 0)
+
+
+## Levantou (ou renasceu): devolve a folha do jogador.
+func _restore_standing(sprite: Sprite2D) -> void:
+	if sprite.texture == BodyArt.DOWNED_TEXTURE and _standing_texture != null:
+		sprite.texture = _standing_texture
+		sprite.offset = _standing_offset
+		sprite.flip_h = false
 
 
 ## Mostra o quadro `column` na linha da direção (mesma ordem de `SpriteFacing`). Folha do JSON inválida ou

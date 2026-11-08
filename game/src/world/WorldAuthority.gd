@@ -804,6 +804,7 @@ func request_recover_corpse(actor_id: int, corpse_id: int) -> Enums.ActionResult
 			problem = Enums.ActionResult.REFUSED
 			_reason = "inventory_full"
 		else:
+			corpse.restore_hotbar(actor.hotbar, actor.inventory)  # os atalhos voltam para onde estavam
 			announce("corpse_recovered", {"amount": moved, "left": corpse.item_count()})
 	return _answer(actor_id, ACTION_RECOVER, problem)
 

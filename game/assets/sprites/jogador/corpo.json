@@ -1,0 +1,49 @@
+{
+	"ancora": "base do quadro; o corpo apoiado no chao em y=29, contorno em y=30",
+	"arquivos": {
+		"caido.png": {
+			"animacoes": {
+				"respirar": {
+					"colunas": [
+						0,
+						1
+					],
+					"fps": 1.0,
+					"loop": true
+				}
+			},
+			"colunas": 2,
+			"linhas": 1
+		},
+		"corpo.png": {
+			"animacoes": {
+				"brilho": {
+					"colunas": [
+						0,
+						1
+					],
+					"fps": 2.0,
+					"loop": true
+				}
+			},
+			"colunas": 2,
+			"linhas": 1,
+			"ocupa_px": "x 0-29, y 9-30"
+		},
+		"icone_corpo.png": {
+			"colunas": 1,
+			"nota": "caveira; legivel como marcador de corpo no minimapa",
+			"quadro": [
+				8,
+				8
+			]
+		}
+	},
+	"direcoes": "pose unica de lado, cabeca a esquerda; para direita, baixo-direita e cima-direita use flip_h=true; as demais usam sem espelho",
+	"gerador": "documentacao/design/arte/gerar_corpo.gd",
+	"nota_tamanho": "a folha atual do jogador tem quadro 32x32 (nao 16x32); este gerador segue o 32x32 real",
+	"quadro": [
+		32,
+		32
+	]
+}

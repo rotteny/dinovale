@@ -776,7 +776,8 @@ func _test_player_view_frames() -> void:
 			"parado mantém a direção (idle, coluna 0 ou 1)")
 	player.health.take_damage(1000.0)
 	view.tick(0.01)
-	_check(player.visual.frame_coords == Vector2i(9, SpriteFacing.LEFT), "caído: coluna 9, na direção em que estava")
+	_check(player.visual.texture == BodyArt.DOWNED_TEXTURE and player.visual.frame_coords == Vector2i(0, 0) and not player.visual.flip_h,
+			"caído: a folha do caído (sem espelho para a esquerda), quadro 0 se morto")
 
 
 func _test_player_view_attack_sound() -> void:

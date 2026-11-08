@@ -48,6 +48,8 @@ var map: IslandMap
 ## O jogador morreu e ainda não escolheu onde renascer (GDD 12.4). Vale para a morte em jogo e para o
 ## save carregado de um jogador morto: nos dois a tela de morte está aberta e só a escolha tira daqui.
 var pending_death_choice: bool = false
+## O menu de opções do clique direito (só existe com o controlador ligado).
+var interaction_menu: InteractionMenu = null
 var save_manager: SaveManager
 var scheduler: SaveScheduler
 
@@ -114,6 +116,7 @@ func _ready() -> void:
 	player.equip_refused.connect(screen.show_refusal)
 	screen.hotbar_assign_requested.connect(_on_hotbar_assign_requested)
 	_wire_mouse_ui()
+	player.downed.state_changed.connect(func(_downed: bool) -> void: sync_incapacity_lock())
 	screen.opened.connect(func() -> void: player.input_locked = true)
 	screen.closed.connect(func() -> void: player.input_locked = false)
 	_register_entities()
@@ -316,6 +319,8 @@ func _continue_saved_game() -> void:
 			zone.reclassify()  # o jogador e os dinos mudaram de lugar
 		if WorldSnapshot.was_dead_pending_choice(outcome.data):
 			_enter_death()  # carregar um morto reabre a escolha; não desfaz a morte
+		else:
+			sync_incapacity_lock()  # carregou caído: a tela fica trancada até acordar
 		if WorldSnapshot.same_map_revision(outcome.data):
 			_notify(outcome.message)
 		else:  # um aviso só: o da cópia anterior (.bak), se houve, junto com o do mapa
@@ -355,10 +360,20 @@ func _on_player_died(_dead: Player) -> void:
 ## Estado de morto: a escolha de respawn fica pendente e a tela abre. Não emite nada nem salva.
 func _enter_death() -> void:
 	pending_death_choice = true
-	screen.close()
-	screen.locked = true  # morto não abre inventário (nem pelo atalho nem por uma criatura)
+	sync_incapacity_lock()  # morto não abre inventário (nem pelo atalho nem por uma criatura)
 	if death_screen != null:
 		death_screen.open(player.global_position)
+
+
+## Caído ou morto não abre inventário nem menu: tranca a tela e fecha o que estiver aberto; de pé, destranca. Chamada
+## quando o desmaio começa ou acaba, na morte, ao renascer e depois de carregar um save.
+func sync_incapacity_lock() -> void:
+	var blocked := pending_death_choice or player.is_incapacitated()
+	if blocked:
+		screen.close()
+		if interaction_menu != null:
+			interaction_menu.close()
+	screen.locked = blocked
 
 
 ## Intenção "renascer na região `region_id`": o servidor (aqui, o host local) valida e executa. Devolve ""
@@ -378,7 +393,7 @@ func request_respawn(region_id: String) -> String:
 	_respawn_count += 1
 	scheduler.respawn_count = _respawn_count
 	pending_death_choice = false
-	screen.locked = false
+	sync_incapacity_lock()
 	screen.close()
 	if death_screen != null:
 		death_screen.close()
@@ -552,9 +567,13 @@ func _wire_mouse_ui() -> void:
 	if controller != null:
 		var menu := InteractionMenu.new()
 		screen.get_parent().add_child(menu)
-		controller.menu_opener = menu.open_for
+		interaction_menu = menu
+		controller.menu_opener = func(at: Vector2, title: String, target_id: int, options: Array[Dictionary]) -> bool:
+			return not player.is_incapacitated() and menu.open_for(at, title, target_id, options)
 		controller.menu_closer = menu.close
-		menu.option_chosen.connect(func(option_id: String, target_id: int) -> void: player.run_option(option_id, target_id))
+		menu.option_chosen.connect(func(option_id: String, target_id: int) -> void:
+			if not player.is_incapacitated():
+				player.run_option(option_id, target_id))
 	message_log = MessageLog.new()
 	message_log_view = MessageLogView.new()
 	message_log_view.messages = message_log
@@ -566,12 +585,18 @@ func _wire_mouse_ui() -> void:
 	if hud != null:
 		var bar := hud.hotbar_bar()
 		bar.assign_requested.connect(_on_hotbar_assign_requested)
-		bar.swap_requested.connect(func(first: int, second: int) -> void: player.hotbar.swap(first, second))
-		bar.clear_requested.connect(func(slot: int) -> void: player.hotbar.clear(slot))
+		bar.swap_requested.connect(func(first: int, second: int) -> void:
+			if not player.is_incapacitated():
+				player.hotbar.swap(first, second))
+		bar.clear_requested.connect(func(slot: int) -> void:
+			if not player.is_incapacitated():
+				player.hotbar.clear(slot))
 
 
 ## A tela pede, o mundo muda a barra do jogador ("" limpa a posição).
 func _on_hotbar_assign_requested(slot: int, item_id: String, iid: String) -> void:
+	if player.is_incapacitated():
+		return  # caído ou morto não mexe nas vagas (o arrasto de atalho também)
 	if item_id == "":
 		player.hotbar.clear(slot)
 	elif iid != "":

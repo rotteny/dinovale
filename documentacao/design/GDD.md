@@ -380,7 +380,7 @@ Animal morto deixa **carcaça** coletável; os itens podem virar **sacolinha** n
 
 > **Atualizado em 08/11 (dono): a barra de Stamina entra no HUD**, abaixo da Fome (tom diferente quando o fôlego está curto; cinza esgotada). O som e o ofegar seguem. A **durabilidade das armas** aparece como barra fina na base do ícone no inventário, na vaga e no atalho (verde, amarela, vermelha). Há também o **log do sistema** no canto de baixo à esquerda (tecla L abre o histórico).
 
-**Visíveis:** barra de **vida**, barra de **fome**, barra de **XP** e a **barra de atalhos 1 a 9** (5.2). **Sem sede** por agora, **sem barra de stamina**, sem temperatura. M1: vida, fome e atalhos; M2: XP e aviso de ponto.
+**Visíveis:** barra de **vida**, barra de **fome**, barra de **XP** e a **barra de atalhos 1 a 9** (5.2). **Sem sede** por agora, **barra de Stamina** abaixo da fome (decidida em 08/11, antes "sem barra"), sem temperatura. M1: vida, fome, stamina e atalhos; M2: XP e aviso de ponto.
 
 **Stamina por comportamento, sem barra.** O atributo existe e limita a corrida (dreno 25/s, regen 15/s, retoma com 20; sprint de 4 s, mais 0,24 s por ponto). Sinal em duas etapas [premissa]: (1) abaixo de **25%** (cerca de 1 s antes de zerar, a 25/s) começa um **ofegar** de som crescente; (2) ao **zerar**, o personagem **ofega e para de correr**, e golpes e coleta ficam mais lentos (5.8): anda a 70 até recuperar 20, o que leva **1,3 s** (20/15) [calculado], com som de fôlego e uma pequena nuvem de suor. Sem janela nem texto. Em co-op o estado "ofegante" é um bit replicado, para os outros jogadores ouvirem. O jogador aprende a duração do sprint pelo uso; a tela de atributos mostra "sprint X s" ao distribuir pontos. Golpes e coleta gastam fôlego (5.8) e o mesmo sinal vale.
 
@@ -388,7 +388,7 @@ Animal morto deixa **carcaça** coletável; os itens podem virar **sacolinha** n
 
 **Durabilidade (revisto 06/11, dono): existe, fora da HUD.** Ferramentas, armas e armaduras têm durabilidade individual (5.9). O jogador percebe por **tooltip no inventário, aviso ao ficar baixa e som de quebra**; **nenhuma barra na HUD**. Estimativa de percepção em 5.9.
 
-**Escopo:** barra de XP, nível e selo; linha de aviso; estado ofegante com som e partícula (a barra de stamina, se existir, sai de graça). **`YATORA`:** moldura das 3 barras, ícone do selo, partícula de suor, sons de ofegar e de subir de nível.
+**Escopo:** barra de XP, nível e selo; linha de aviso; estado ofegante com som e partícula (a barra de Stamina vale: decisão de 08/11). **`YATORA`:** moldura das 3 barras, ícone do selo, partícula de suor, sons de ofegar e de subir de nível.
 
 ### 5.8 Stamina em golpes e coleta (decisão do dono, 06/11)
 
@@ -1471,7 +1471,7 @@ Metas do plano: 3 de 5 testadores completam o fluxo em até 20 min (M1) [premiss
 20. **Torpor do jogador** (sinais e, no M4, sono) não está no plano; reaproveita o `TorporComponent`.
 21. **Dose da flecha de sono** (antes dose do dardo, 50): 15 imediato + 12/s por 5 s = 75; `racao_sim.py` guarda o 50 antigo só como histórico (sem Dardo no jogo).
 23. **Receitas por Saber** (receitas.md): PRO-04 e PRO-10 do plano não têm moeda nem tela de aprender; o texto "por ter feito" do GDD 9 foi substituído.
-24. **HUD** (5.7): barra de XP, aviso de ponto e ofego no lugar da barra de stamina não estão no plano; se o HUD atual tem barra de stamina, ela sai.
+24. **HUD** (5.7): barra de XP, aviso de ponto e ofego não estavam no plano; a barra de Stamina ficou (decisão de 08/11) e o ofego vale junto dela.
 25. **Durabilidade (revisto 06/11):** o GDD cortava; agora existe (5.9). **Muda o inventário do código** (`{id,count}` e barra por tipo): item individual e slot na barra; a camada de salvar sobe de versão.
 26. **Conduta:** "desistem após 5 s sem caminho" vira "ataca a peça de bloqueio" para o Agressivo (8.1); `Dino` ganha comportamento novo.
 27. **Reparo:** o de **peça** continua cortado (regenera, 8.1); o de **item** existe na Bancada (5.9).

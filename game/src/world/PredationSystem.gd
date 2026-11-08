@@ -306,7 +306,7 @@ func _reevaluate(hunt: Hunt, now: float) -> void:
 	elif current is Player and _effective(hunter, current.global_position) > perception:
 		current = null  # o jogador saiu do alcance: alvo perdido não espera nada
 	var candidates: Array[Dictionary] = []
-	for player in _players():
+	for player in _players(hunter):
 		distance_tests += 1
 		var distance := _effective(hunter, player.global_position)
 		if distance <= perception:
@@ -454,7 +454,7 @@ func _tamed_killed(attacker: Dino, victim: Dino) -> void:
 func _step_eat(hunt: Hunt, delta: float, now: float) -> void:
 	var hunter := hunt.hunter
 	var perception := hunter.stats.perception_tiles * _tile()
-	for player in _players():
+	for player in _players(hunter):
 		distance_tests += 1
 		if _effective(hunter, player.global_position) <= perception:
 			_finish_eat(hunt, now, true)
@@ -505,11 +505,12 @@ func _focus_distance(point: Vector2) -> float:
 	return best
 
 
-func _players() -> Array[Player]:
+## Jogadores que o caçador `hunter` enxerga como alvo: vivos, e caídos só para quem ataca caído (`attacks_downed`).
+func _players(hunter: Dino) -> Array[Player]:
 	var list: Array[Player] = []
 	for focus in zone.foci:
 		var player := focus as Player if is_instance_valid(focus) else null
-		if player != null and not player.health.is_dead():
+		if player != null and not player.health.is_dead() and (not player.downed.is_downed or hunter.attacks_downed()):
 			list.append(player)
 	return list
 

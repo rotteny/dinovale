@@ -196,7 +196,7 @@ Já existe a perseguição (90 px/s, percepção elíptica 8 x 5 tiles, desiste 
 | `circle_seconds` | 0,5 a 1,0 | [premissa] |
 | `circle_radius_tiles` | 2,5 | [premissa] |
 | `windup_s` | 0,3 | [premissa] |
-| `lunge_speed_px_s` / `lunge_max_s` | 0 (sem investida: ele já chega a 90) | [premissa] |
+| `lunge_speed_px_s` / `lunge_max_s` | 0 (sem investida: ele já chega a 90) / **0,5**: sem investida, o `lunge_max_s` é só o tempo que a fase `LUNGE` espera o alvo entrar no alcance antes de errar a mordida (aprovado na revisão da etapa 4; a spec dizia "sem valor") | [aprovado na revisão; código] |
 | `attack_reach_px` | 30 (igual ao 28 px do `chase_stop_px` + 2) | [premissa] |
 | `damage` | **8** | [lido `base_damage`] |
 | `cooldown_s` | 1,5 | [lido GDD 6.1b, linha 261] |
@@ -257,6 +257,8 @@ Por que 70 e 10 s: **1 raptor não mata** (sobra 14 de vida; o jogador acorda e 
 Acordar: volta a `ALIVE`, vida restante do caído (mínimo 20 [premissa]), torpor 50, `wake_grace_seconds` sem dano. Raptor ainda colado volta ao ciclo depois da graça.
 
 ### Morrer e renascer
+
+**Decisão do dono (revisão da etapa 6): uma segunda morte NÃO apaga o corpo anterior.** O jogador pode ter vários corpos no mundo; cada um guarda os seus itens e expira no próprio prazo de 10 min, contado da morte dele. O teto é de 16 corpos no mundo (o mais antigo sai só além disso, para proteger o save). Ao recuperar um corpo, os atalhos que apontavam para os itens devolvidos voltam às posições de antes (só em vaga vazia). Caído ou morto não abre inventário, menu de opções nem muda atalhos (a tela fecha ao cair e destranca ao acordar).
 
 1. **Morte:** a vida do caído chega a 0 por dino. O jogador vira corpo no lugar: **todo o inventário e o que veste ou está nos atalhos caem no corpo**, que some em 10 min (`body_minutes`) [decidido, GDD 1294]. Pegar o corpo é a interação "Recuperar itens" (E), com o mesmo alcance de coleta. O corpo guarda tudo; se o jogador não alcança em 10 min, perde.
 2. **O que NÃO se perde** [decidido, GDD 163 e 1294]: XP, nível, pontos de nível, Saber e receitas, dinos domados (ficam onde estavam, na ordem atual). O que se perde: os itens (só se o corpo expirar), a fila de fome (`fome_pendente` zera ao morrer, decisão 08/11), e o tempo.
@@ -555,3 +557,44 @@ Escopo: `PredationProfile` e `PredationRules` em `.tres` e as 4 espécies de tes
 **Perguntas novas para o playtest:** P8. O jogador entende o "!" laranja como "está caçando outro" e age ("passo") em vez de se achar a presa? P9. O bando de Paquicéfalo em 2 a 3 de 4 ainda parece bando, ou o jogador acha o mapa vazio? P10. Quantas caçadas o jogador vê por hora numa região exposta (a conta dá no máximo 6 abates por hora por bando de presa, mas a frequência real depende de onde ele anda). P11. Perder domados para um bando de raptores é "a natureza cobra" ou "o jogo pune quem cuida"? Quantos domados o jogador perde por hora e o log `tamed_attacked` chega a tempo?
 
 **Conflito 8 (aberto, sem resolver).** `GDD.md:261` diz que o Utahraptor é solitário na 0.2 e mira o Paquicéfalo dormindo (aviso 3 s). Aqui: ele segue com bando de 2 a 3 (CONFLITO 2), mira o **domado** (D6) e o domado dormindo (D16), mas **não** o selvagem em doma (D15). `GDD.md:1259`-`1294` fala do corpo do jogador, não do de dino; o alforje no chão (D17) é a solução intermediária. Não afeta a conta; só o texto do GDD.
+
+---
+
+## 11. Valores em uso (fechamento do M1, 08/11)
+
+Conferidos contra as seções 1 a 5 e 10 na etapa 7: **uma divergência**, o `lunge_max_s` do Utahraptor (0,5 no dado; a seção 4 foi atualizada para bater). Os demais valores são iguais aos da spec. O teste `M1ClosingTests` (`game/tests/m1_closing_tests.gd`) falha se algum destes números mudar sem a spec mudar junto. Todos os caminhos são relativos a `game/data/`.
+
+| Grupo | Número | Valor | Arquivo |
+|---|---|---|---|
+| Navegação | tile, pedido máx., repath, pedidos por quadro | 16 px, 48 tiles, 0,5 s, 3 | `balance/navigation_rules.tres` |
+| Navegação | folga Pequeno / Médio / Grande | 0 / 0 / 1 | `balance/navigation_rules.tres` |
+| Navegação | travado: janela, progresso mín., desistir, célula bloqueada | 1,0 s, 6 px, 3,0 s, 5 s | `balance/navigation_rules.tres` |
+| Navegação | domado preso: longe, margem da tela, retomada, limpa | 14 tiles, 2 tiles, 5 s, 4 tiles | `balance/navigation_rules.tres` |
+| Agressão | acalmar; longe (distância, tempo) | 8 s; 12 tiles, 5 s | `balance/aggression_rules.tres` |
+| Agressão | fuga: vida, volta (tempo, distância), meta | 25%, 10 s, 10 tiles, 6 tiles | `balance/aggression_rules.tres` |
+| Agressão | cores do "!" bravo / caçando | vermelho / laranja | `balance/aggression_rules.tres` |
+| Velocidade | Paquicéfalo natural / bravo | 40 / 80 px/s | `dino/placeholder_dino.tres` (`chase_speed`) |
+| Velocidade | Utahraptor natural / bravo | 40 / 90 px/s | `dino/utahraptor.tres` |
+| Percepção | Utahraptor: tiles, peso vertical, desiste a, perseguição máx., alerta | 8, 1,6, 20 tiles, 15 s, 5 s | `dino/utahraptor.tres` |
+| Paquicéfalo | dano; bando | 6; 3 a 4 | `dino/placeholder_dino.tres` |
+| Paquicéfalo | ameaça, rodeio, raio | 0,8 s; 0,8 a 1,5 s; 3 tiles | `dino/paquicefalo_threat.tres` |
+| Paquicéfalo | aviso, investida (vel., máx.), alcance | 0,5 s; 150 px/s, 0,3 s; 26 px | `dino/paquicefalo_threat.tres` |
+| Paquicéfalo | recarga, empurrão (px, s), ataca caído | 1,6 s; 24 px, 0,15 s; não | `dino/paquicefalo_threat.tres` |
+| Utahraptor | dano; bando | 8; 2 a 3 | `dino/utahraptor.tres` |
+| Utahraptor | ameaça, rodeio, raio, "correndo" a mais de | 0,8 s; 0,5 a 1,0 s; 2,5 tiles; 4 tiles | `dino/utahraptor_threat.tres` |
+| Utahraptor | aviso, investida (vel., máx.), alcance | 0,3 s; 0 px/s, **0,5 s**; 30 px | `dino/utahraptor_threat.tres` |
+| Utahraptor | recarga, empurrão, ataca caído | 1,5 s; 0; sim | `dino/utahraptor_threat.tres` |
+| Bando | chamada: raio, atraso, ajudantes, teto | 8 tiles, 0,5 s, 2, 12 s | `balance/herd_call_rules.tres` |
+| Caído | desmaio, vida, graça, torpor ao acordar, vida mín. | 10 s, 70, 2 s, 50, 20 | `balance/downed_rules.tres` |
+| Corpo | duração | 10 min | `balance/downed_rules.tres` |
+| Renascer | tentativas, distância de selvagem, proteção, vida, fome | 30, 128 px, 3 s, 100%, 50% | `balance/respawn_rules.tres` |
+| Caça | reavaliar, travar mín., histerese, combate a | 0,5 s, 2,0 s, 0,7, 4 tiles | `dino/utahraptor_predation.tres` |
+| Caça | tempo máx., cooldown de falha, sem ver | 40 s, 60 s, 5 s | `dino/utahraptor_predation.tres` |
+| Caça | comer por carne (máx.), saciado por carne (máx.) | 2 s (20), 60 s (600) | `dino/utahraptor_predation.tres` |
+| Caça | mordida que fere: lentidão, tempo; recuo | x0,5, 3 s; 25% | `dino/utahraptor_predation.tres` |
+| Caça | porte da presa, bônus de bando, troca ao levar dano | igual ou menor, desligado, sim | `dino/utahraptor_predation.tres` |
+| Predação | alarme da presa, escudo do dono, empate, rearme do log | 6, 4 tiles, 5%, 30 s | `balance/predation_rules.tres` |
+| População | piso do bando, reposição, zona segura | 2, 600 s, 8 tiles | `balance/predation_rules.tres` |
+| População | raio ativo, máx. ativos, folga do jogador na reposição, renascer bando | 16 tiles, 32, 40 tiles, 1200 s | `world/zone_rules.tres`, `world/world_rules.tres`, `dino/*.tres` |
+
+**Desempenho medido (headless, `M1ClosingTests`):** 32 ativos bravos ou caçando no mapa real com a grade ligada, 1.800 quadros de 1/60 s: média e pior quadro registrados no relatório da etapa 7 (a máquina de testes não é a do jogador; é prova de ordem de grandeza, não de 60 fps no Windows).

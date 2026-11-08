@@ -18,6 +18,9 @@ var owner_player_id: String = ""
 var due_at: float = 0.0
 ## O que o corpo guarda: entradas de `InventoryComponent` (`{id, count}` de pilha ou `{id, iid, durab...}` de individual).
 var entries: Array[Dictionary] = []
+## Onde estavam os atalhos do dono ao morrer: `{slot, id, iid}` (`iid` vazio = tipo empilhável). Só a apresentação do
+## "devolver ao atalho" lê isto; não guarda item nenhum.
+var hotbar_slots: Array[Dictionary] = []
 var interactable: InteractableArea = null
 
 
@@ -74,6 +77,26 @@ func recover_into(to: InventoryComponent) -> int:
 	if entries.is_empty():
 		depleted.emit(self)
 	return moved
+
+
+## Devolve à barra `hotbar` os atalhos que apontavam para itens que já voltaram ao inventário `bag`. Só ocupa vaga vazia
+## e não repete o item; o que ainda não voltou fica para a próxima recuperação.
+func restore_hotbar(hotbar: HotbarComponent, bag: InventoryComponent) -> void:
+	var pending: Array[Dictionary] = []
+	for saved in hotbar_slots:
+		var slot := int(saved.get("slot", -1))
+		var item_id := str(saved.get("id", ""))
+		var iid := str(saved.get("iid", ""))
+		var back := (not bag.find_iid(iid).is_empty()) if iid != "" else bag.count(item_id) > 0
+		if not back:
+			pending.append(saved)
+			continue
+		if hotbar.entry_at(slot).is_empty():
+			if iid != "":
+				hotbar.assign_iid(slot, iid, item_id)
+			else:
+				hotbar.assign(slot, item_id)
+	hotbar_slots = pending
 
 
 static func _units(entry: Dictionary) -> int:

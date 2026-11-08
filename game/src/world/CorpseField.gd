@@ -63,13 +63,25 @@ func corpse_of(player_id: String) -> PlayerCorpse:
 ## O jogador `player` morreu: o corpo guarda tudo o que ele levava e fica onde ele estava. Sem itens, não há corpo.
 ## Devolve o corpo ou null.
 func deposit(player: Player) -> PlayerCorpse:
+	var marks := _hotbar_marks(player.hotbar)
 	var entries := _take_all(player)
 	if entries.is_empty():
 		return null
-	var previous := corpse_of(player.player_id)
-	if previous != null:
-		_remove(previous)  # sem recuperar o anterior, os itens dele se perdem (o jogador só tem um corpo)
-	return _spawn(player.player_id, player.global_position, _now() + rules.body_seconds(), entries, 0)
+	# Decisão do dono: uma segunda morte NÃO apaga o corpo anterior. Cada corpo guarda os seus itens e expira no seu prazo;
+	# o teto de `MAX_CORPSES` (o mais antigo sai) só protege o save.
+	var corpse := _spawn(player.player_id, player.global_position, _now() + rules.body_seconds(), entries, 0)
+	corpse.hotbar_slots = marks
+	return corpse
+
+
+## Onde estão os atalhos agora (`{slot, id, iid}`), para devolvê-los ao recuperar o corpo.
+func _hotbar_marks(hotbar: HotbarComponent) -> Array[Dictionary]:
+	var marks: Array[Dictionary] = []
+	for index in HotbarComponent.SLOT_COUNT:
+		var entry := hotbar.entry_at(index)
+		if not entry.is_empty():
+			marks.append({"slot": index, "id": str(entry.get("id", "")), "iid": str(entry.get("iid", ""))})
+	return marks
 
 
 ## Tira TUDO que o jogador leva (grade, vestido; os atalhos só apontam) e devolve como entradas de `add_entry`.
@@ -134,6 +146,7 @@ func to_list() -> Array:
 			"x": corpse.position.x, "y": corpse.position.y,
 			"due_at": corpse.due_at,
 			"items": items,
+			"hotbar": corpse.hotbar_slots.duplicate(true),
 		})
 	return list
 
@@ -155,8 +168,25 @@ func restore_list(list: Array) -> void:
 			continue
 		var point := Vector2(SafeRead.number(data.get("x"), 0.0, -MAX_COORD, MAX_COORD),
 				SafeRead.number(data.get("y"), 0.0, -MAX_COORD, MAX_COORD))
-		var due_at := SafeRead.number(data.get("due_at"), current, 0.0, current + rules.body_seconds())
-		_spawn(owner_id, point, due_at, entries, SafeRead.integer(data.get("id"), 0, 0, 1 << 30))
+		var due_at := SafeRead.number(data.get("due_at"), current + rules.body_seconds(), 0.0, current + rules.body_seconds())
+		var revived := _spawn(owner_id, point, due_at, entries, SafeRead.integer(data.get("id"), 0, 0, 1 << 30))
+		revived.hotbar_slots = _clean_marks(SafeRead.list(data.get("hotbar")))
+
+
+## Atalhos salvos válidos: posição da barra, tipo conhecido, `iid` de texto curto; sem repetir posição.
+func _clean_marks(raw: Array) -> Array[Dictionary]:
+	var clean: Array[Dictionary] = []
+	var used: Dictionary = {}
+	for item: Variant in raw:
+		var data := SafeRead.dict(item)
+		var slot := SafeRead.integer(data.get("slot"), -1, -1, HotbarComponent.SLOT_COUNT - 1)
+		var item_id := SafeRead.text(data.get("id"), "")
+		var iid := SafeRead.text(data.get("iid"), "")
+		if slot < 0 or used.has(slot) or iid.length() > HotbarComponent.MAX_IID_LENGTH or (iid == "" and not Items.has(item_id)):
+			continue
+		used[slot] = true
+		clean.append({"slot": slot, "id": item_id, "iid": iid})
+	return clean
 
 
 ## Entradas válidas: item conhecido, contagem entre 1 e o teto da pilha, individual com `iid` de texto.

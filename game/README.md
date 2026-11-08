@@ -2,14 +2,14 @@
 
 Sandbox survival 2D top-down em pixel art, com exploração, construção e domesticação de dinossauros. É um jogo comunitário, gratuito e auto-hospedado, feito em Godot 4 com GDScript.
 
-> **Estado:** fundação técnica, com o ciclo de domesticação jogável. A cena principal tem mapa com grama, caminho de terra, árvores, folhagem nas bordas, casa e baú decorativos, um jogador animado (Caveman) e um bicho placeholder (Reptile) passeando em uma área fechada. Arte e sons são do pacote Ninja Adventure (CC0), só como placeholder. A HUD mostra vida e fome, a barra de XP fina ("Nv 1", só o ponto de ligação) e a barra de atalhos 1 a 9, sem barra de stamina (o fôlego é som e nuvem). Com o dino inconsciente, barras de torpor e de domesticação aparecem sobre ele, a qualquer distância, e somem quando ele acorda (domesticado que desmaia mostra só o torpor). O dino da cena tem nível fixo (20, exportado na `Main`). Dá para derrubar o dino com o bastão-de-sono (tecla 4 o põe em mãos; F ou Espaço: 2 de dano e 30 de torpor, recarga de 0,7 s; de mãos livres o golpe é o Soco, 1 de dano e 10 de torpor), abrir o inventário compartilhado com E enquanto ele está inconsciente, passar comida para ele por clique e ver a domesticação chegar a 100%. Dormindo, a Eficiência cai com o tempo, a comida e os golpes, e o nível final sobe pela fórmula (a barra mostra "Nv 20 -> 28"). A barra de vida só aparece depois de dano. O jogo salva em arquivo (veja Save). Ainda não há construção, arte nem som definitivos.
+> **Estado:** fundação técnica, com o ciclo de domesticação jogável. A cena principal tem mapa com grama, caminho de terra, árvores, folhagem nas bordas, casa e baú decorativos, um jogador animado (Caveman) e um bicho placeholder (Reptile) passeando em uma área fechada. Arte e sons são do pacote Ninja Adventure (CC0), só como placeholder. A HUD mostra vida e fome, a barra de XP fina ("Nv 1", só o ponto de ligação) e a barra de atalhos 1 a 9, a barra de Stamina abaixo da fome (decidida em 08/11; o fôlego também aparece em som e nuvem). Com o dino inconsciente, barras de torpor e de domesticação aparecem sobre ele, a qualquer distância, e somem quando ele acorda (domesticado que desmaia mostra só o torpor). O dino da cena tem nível fixo (20, exportado na `Main`). Dá para derrubar o dino com o bastão-de-sono (tecla 4 o põe em mãos; F ou Espaço: 2 de dano e 30 de torpor, recarga de 0,7 s; de mãos livres o golpe é o Soco, 1 de dano e 10 de torpor), abrir o inventário compartilhado com E enquanto ele está inconsciente, passar comida para ele por clique e ver a domesticação chegar a 100%. Dormindo, a Eficiência cai com o tempo, a comida e os golpes, e o nível final sobe pela fórmula (a barra mostra "Nv 20 -> 28"). A barra de vida só aparece depois de dano. O jogo salva em arquivo (veja Save). Ainda não há construção, arte nem som definitivos.
 
 ## Controles
 
 | Ação | Teclado | Mouse |
 |---|---|---|
 | Andar / correr | WASD ou setas / Shift | |
-| Interagir (pega item no chão; senão nó de recurso, estrutura, criatura; num domado seu abre o menu; nunca dá ordem) | E | clique esquerdo numa moita, nó de coleta direta (colhe) ou item no chão (pega), sem criatura sob o cursor; fora de alcance a autoridade recusa e o log explica; o intervalo entre coletas vale |
+| Interagir (pega item no chão; recupera o corpo ao lado dele ("Recuperar itens"); senão nó de recurso, estrutura, criatura; num domado seu abre o menu; nunca dá ordem) | E | clique esquerdo numa moita, nó de coleta direta (colhe) ou item no chão (pega), sem criatura sob o cursor; fora de alcance a autoridade recusa e o log explica; o intervalo entre coletas vale |
 | Golpear (criatura ao alcance, ou a árvore/rocha/minério à frente) | F ou Espaço | clique esquerdo |
 | Menu de opções do alvo (Atacar, Seguir, Ficar, Inventário) | Shift+E | clique direito no dino |
 | Cursor contextual (mão para colher e pegar, machado, picareta, ataque, interagir; apagado fora de alcance; 32 px até 800 px de altura de janela, 48 acima) | | só apresentação, `CursorView`; a lógica é `PlayerController.cursor_state` |
@@ -23,6 +23,18 @@ Sandbox survival 2D top-down em pixel art, com exploração, construção e dome
 | Pausa | Esc | |
 
 Com a tela aberta o jogador não anda. As armas (Lança de madeira, Bastão-de-sono) só entram no inventário em build de desenvolvimento (debug, o que inclui `godot --path game`, ou o argumento `--dev`); numa exportação release o jogador começa sem elas até a fabricação (M3). O jogador começa com 10 bagas (a comida ideal do dino), 4 carnes e 3 samambaias; só baga e carne crua são comida dele, a samambaia é de dino.
+
+## O que há no jogo (M1 "Ameaça e corpo": implementado, aguardando playtest)
+
+- **Ilha, domar e cuidar:** ilha Lunata de 256x256 tiles, selvagens em bandos, Paquicéfalo (domável) e Utahraptor (só ameaça); nocautear, alimentar vigiando, domar, ordens Seguir/Ficar, coleta de moita, árvore e rocha, inventário, equipamento e atalhos, fome por atividade, stamina, save e autosave.
+- **Navegação:** os dinos acham caminho pelo mapa (a grade bloqueia água, árvore e rocha; três portes têm folgas diferentes). Domado longe e fora da tela que fica preso desiste, para e o log diz "ficou preso", sem teleporte.
+- **Bravo e acalmar:** levar um golpe deixa o selvagem bravo ("!" vermelho, "Nv" avermelhado, mais rápido); sem dar nem receber dano por 8 s ele acalma e esquece.
+- **Revide e bando:** o Paquicéfalo ameaça (encara, rodeia) e cabeceia; o bando próximo ajuda, no máximo 2 ajudantes, por no máximo 12 s.
+- **Utahraptor:** ameaça, persegue e morde; desiste se o alvo foge longe ou some da vista.
+- **Predação:** o Utahraptor também caça Paquicéfalo e domados de porte igual ou menor, dentro da percepção dele e só perto do jogador; come a presa inteira, fica saciado por um tempo; o bando de presa nunca cai abaixo de 2 vivos e repõe membros. "!" laranja = caçando outro, não você.
+- **Caído, morte e corpo:** vida a zero (ou torpor cheio por fome) deixa o jogador caído por 10 s (acorda com 2 s de proteção); só dino sobre o caído mata (o Utahraptor ataca o caído, o Paquicéfalo não). Morrer deixa um corpo por 10 min com todos os itens; E sobre ele recupera. A tela de morte oferece "Local aleatório". XP, nível e dinos domados não se perdem.
+
+Tudo isso falta só do olhar do dono: se o perigo é justo e divertido não se prova por teste. O roteiro está em `documentacao/design/corte-v02/m1-roteiro-playtest.md`; os números, em `documentacao/design/corte-v02/m1-ameaca-e-corpo.md` (seção 11).
 
 ## Tela inicial, tela cheia e configurações
 
@@ -111,6 +123,7 @@ game/
 │   │   ├── npcs/
 │   │   └── player/
 │   │       ├── Player.gd            # corpo: lê o input e aplica a física
+│   │       ├── PlayerSave.gd        # grava e lê o jogador (to_dict/from_dict delegam) (o Player só delega)
 │   │       └── Player.tscn
 │   ├── ui/                  # só apresentação, reage a sinais
 │   │   ├── PlayerHud.gd     # vida, fome, XP (Nv) e prompt
@@ -119,7 +132,9 @@ game/
 │   │   ├── BreathSound.gd   # placeholder sintetizado do ofegar
 │   │   ├── DinoStatusBars.gd # barras de vida, torpor, domesticação e Eficiência
 │   │   ├── DinoView.gd       # sprite do dino: direção, andar, sono, cambaleio, pausa, flash, números, som
-│   │   ├── PlayerView.gd     # sprite do jogador: parado, andar, ataque, morto, som do golpe
+│   │   ├── PlayerView.gd     # sprite do jogador: parado, andar, ataque, caído (caido.png), som do golpe
+│   │   ├── CorpseView.gd     # corpo do jogador no chão (corpo.png) e o rótulo "Seus itens"
+│   │   ├── BodyArt.gd        # texturas, quadros e fps do caído e do corpo (lidos de corpo.json)
 │   │   ├── SpriteFacing.gd   # colunas de direção e ciclo de andar das folhas do pacote
 │   │   ├── StatBar.gd
 │   │   ├── InventoryScreen.gd
@@ -196,7 +211,7 @@ Um detector (`Area2D`) enxerga as `InteractableArea` no alcance, e o `target` é
 
 ### UI
 
-Tudo em `src/ui/` é só apresentação, reage a sinais e pode ser removido sem efeito nas regras. `PlayerHud` mostra vida, fome, a barra de XP com "Nv N" e a `HotbarBar` (9 atalhos), mais o prompt "E para interagir". O XP ainda não existe: `set_experience(nível, atual, necessário)` é só o ponto de ligação e a HUD nasce em Nv 1, XP 0. `PlayerView` mostra o dano recebido (número vermelho e `sound_cue(hurt)`) e o ofegar (`pant`, `gasp`, nuvem). Na tela de inventário, a tecla 1 a 9 com o foco ou o mouse sobre um item o atribui ao atalho; o pedido sai por `hotbar_assign_requested` e a `Main` muda o `HotbarComponent`. `DinoStatusBars` é instanciada na `Main` (fora do `Dino.tscn`), segue o dino e mostra torpor, domesticação e Eficiência com o nível previsto só enquanto ele dorme (domesticação e Eficiência somem se ele já é domesticado), e a barra de vida só depois de dano, até 5 s após o último. `DinoView` faz a apresentação sobre o placeholder: cambaleio por faixa, achatamento e "..." na pausa, bocejo, flash branco de 0,1 s e número flutuante ao levar dano.
+Tudo em `src/ui/` é só apresentação, reage a sinais e pode ser removido sem efeito nas regras. `PlayerHud` mostra vida, fome, a barra de Stamina (tom de aviso quando curta, cinza esgotada), a barra de XP com "Nv N" e a `HotbarBar` (9 atalhos), mais o prompt "E para interagir". O XP ainda não existe: `set_experience(nível, atual, necessário)` é só o ponto de ligação e a HUD nasce em Nv 1, XP 0. `PlayerView` mostra o dano recebido (número vermelho e `sound_cue(hurt)`) e o ofegar (`pant`, `gasp`, nuvem). Na tela de inventário, a tecla 1 a 9 com o foco ou o mouse sobre um item o atribui ao atalho; o pedido sai por `hotbar_assign_requested` e a `Main` muda o `HotbarComponent`. `DinoStatusBars` é instanciada na `Main` (fora do `Dino.tscn`), segue o dino e mostra torpor, domesticação e Eficiência com o nível previsto só enquanto ele dorme (domesticação e Eficiência somem se ele já é domesticado), e a barra de vida só depois de dano, até 5 s após o último. `DinoView` faz a apresentação sobre o placeholder: cambaleio por faixa, achatamento e "..." na pausa, bocejo, flash branco de 0,1 s e número flutuante ao levar dano.
 
 **Som (ponto de ligação, sem áudio criado):** `DinoView` emite `sound_cue(cue)` (`hit`, `yawn`, `tamed`) e toca no seu `AudioStreamPlayer2D` se houver stream em `cue_streams`. Coloque os arquivos em `res://assets/sounds/dino/`, registre-os em `assets/CREDITS.md` e arraste-os para `cue_streams` do nó `DinoView` na `Main.tscn`. `InventoryScreen` mostra o inventário do jogador e o da criatura; ela fecha sozinha se o dino acordar, for domesticado ou sair da cena. A `Main` liga `Player.interacted` à tela e a tela ao `input_locked` do jogador. A fonte é a padrão da engine em tamanho 10, pensada para 640x360.
 

@@ -85,10 +85,10 @@ func _test_chase_rules() -> void:
 	var machine := _machine_for(UTAHRAPTOR)
 	machine.observe_target(Vector2(9.0 * tile, 0.0), true)
 	machine.tick(0.1)
-	_check(machine.current_id != Enums.DinoStateId.CHASE, "a 9 tiles na horizontal ele não percebe")
+	_check(machine.current_id != Enums.DinoStateId.AGGRESSIVE, "a 9 tiles na horizontal ele não percebe")
 	machine.observe_target(Vector2(7.5 * tile, 0.0), true)
 	machine.tick(0.1)
-	_check(machine.current_id == Enums.DinoStateId.CHASE, "a 7,5 tiles na horizontal ele persegue")
+	_check(machine.current_id == Enums.DinoStateId.AGGRESSIVE, "a 7,5 tiles na horizontal ele persegue")
 	_check(
 		machine.desired_direction.is_equal_approx(Vector2.RIGHT) and is_equal_approx(machine.speed_multiplier, 90.0 / 40.0),
 		"corre na direção do alvo a 90 px/s"
@@ -96,10 +96,10 @@ func _test_chase_rules() -> void:
 	var vertical := _machine_for(UTAHRAPTOR)
 	vertical.observe_target(Vector2(0.0, 5.5 * tile), true)
 	vertical.tick(0.1)
-	_check(vertical.current_id != Enums.DinoStateId.CHASE, "a 5,5 tiles na vertical não percebe (elipse 8 x 5)")
+	_check(vertical.current_id != Enums.DinoStateId.AGGRESSIVE, "a 5,5 tiles na vertical não percebe (elipse 8 x 5)")
 	vertical.observe_target(Vector2(0.0, 4.9 * tile), true)
 	vertical.tick(0.1)
-	_check(vertical.current_id == Enums.DinoStateId.CHASE, "a 4,9 tiles na vertical percebe")
+	_check(vertical.current_id == Enums.DinoStateId.AGGRESSIVE, "a 4,9 tiles na vertical percebe")
 	# desiste além de 20 tiles, volta a Idle e fica 5 s em alerta
 	machine.observe_target(Vector2(21.0 * tile, 0.0), true)
 	machine.tick(0.1)
@@ -109,15 +109,17 @@ func _test_chase_rules() -> void:
 	)
 	machine.observe_target(Vector2(3.0 * tile, 0.0), true)
 	machine.tick(1.0)
-	_check(machine.current_id != Enums.DinoStateId.CHASE, "em alerta de 5 s não volta a perseguir")
+	_check(machine.current_id != Enums.DinoStateId.AGGRESSIVE, "em alerta de 5 s não volta a perseguir")
 	machine.tick(4.5)
-	_check(machine.current_id == Enums.DinoStateId.CHASE, "passado o alerta, persegue de novo")
-	# desiste depois de 15 s mesmo com o alvo perto
+	_check(machine.current_id == Enums.DinoStateId.AGGRESSIVE, "passado o alerta, persegue de novo")
+	# desiste depois de 15 s mesmo com o alvo perto: golpes a cada 6 s zeram o relógio de calma (8 s), não o limite
 	var long_chase := _machine_for(UTAHRAPTOR)
 	long_chase.observe_target(Vector2(3.0 * tile, 0.0), true)
 	for i in 148:
 		long_chase.tick(0.1)
-	_check(long_chase.current_id == Enums.DinoStateId.CHASE, "aos 14,8 s ainda persegue")
+		if i % 60 == 59:
+			long_chase.provoke()
+	_check(long_chase.current_id == Enums.DinoStateId.AGGRESSIVE, "aos 14,8 s ainda persegue")
 	for i in 3:
 		long_chase.tick(0.1)
 	_check(long_chase.current_id == Enums.DinoStateId.IDLE, "desiste depois de 15 s de perseguição, mesmo com o alvo perto")
@@ -132,12 +134,12 @@ func _test_chase_rules() -> void:
 	var passive := _machine_for(preload("res://data/dino/placeholder_dino.tres"))
 	passive.observe_target(Vector2(2.0 * tile, 0.0), true)
 	passive.tick(0.1)
-	_check(passive.current_id != Enums.DinoStateId.CHASE, "o Paquicéfalo (não agressivo) não persegue")
+	_check(passive.current_id != Enums.DinoStateId.AGGRESSIVE, "o Paquicéfalo (não agressivo) não persegue")
 	var tamed := _machine_for(UTAHRAPTOR)
 	tamed.is_tamed = true
 	tamed.observe_target(Vector2(2.0 * tile, 0.0), true)
 	tamed.tick(0.1)
-	_check(tamed.current_id != Enums.DinoStateId.CHASE, "o domado não persegue")
+	_check(tamed.current_id != Enums.DinoStateId.AGGRESSIVE, "o domado não persegue")
 	var chaser := _machine_for(UTAHRAPTOR)
 	chaser.observe_target(Vector2(2.0 * tile, 0.0), true)
 	chaser.tick(0.1)
@@ -183,7 +185,7 @@ func _test_population_and_chase() -> void:
 	var start_distance := creature.global_position.distance_to(prey.global_position)
 	for i in 20:
 		await _root.get_tree().physics_frame
-	_check(creature.state_machine.current_id == Enums.DinoStateId.CHASE, "o corpo entra em perseguição ao ver o alvo")
+	_check(creature.state_machine.current_id == Enums.DinoStateId.AGGRESSIVE, "o corpo entra em perseguição ao ver o alvo")
 	_check(creature.global_position.distance_to(prey.global_position) < start_distance - 20.0, "e anda até ele")
 	_check(
 		creature.velocity.length() > 80.0 and creature.velocity.length() < 100.0, "a 90 px/s (%.1f)" % creature.velocity.length()
@@ -225,7 +227,7 @@ func _test_population_and_chase() -> void:
 		await _root.get_tree().physics_frame
 	_check(
 		(
-			sentinel.state_machine.current_id == Enums.DinoStateId.CHASE
+			sentinel.state_machine.current_id == Enums.DinoStateId.AGGRESSIVE
 			and sentinel.position.distance_to(main.player.position) < before - 20.0
 		),
 		"o sentinela da U1 persegue o jogador que chega a 6 tiles"

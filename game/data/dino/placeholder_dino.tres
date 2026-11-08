@@ -25,3 +25,4 @@ group_size_max = 4
 cohesion_radius_tiles = 3.0
 min_group_spacing_tiles = 24.0
 group_respawn_seconds = 1200.0
+chase_speed = 80.0

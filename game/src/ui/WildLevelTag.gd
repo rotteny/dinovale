@@ -17,9 +17,11 @@ const LABEL_WIDTH := 40.0
 ## Quem olha: a distância é medida até ele.
 @export var viewer: Node2D
 @export var rules: DinoLevelRules = preload("res://data/balance/dino_level_rules.tres")
+@export var aggression_rules: AggressionRules = preload("res://data/balance/aggression_rules.tres")
 
 var _label := Label.new()
 var _sex_icon := Sprite2D.new()
+var _alert_fade := AggressionFade.new()
 
 
 func _ready() -> void:
@@ -38,18 +40,20 @@ func _ready() -> void:
 	tick()
 
 
-func _process(_delta: float) -> void:
-	tick()
+func _process(delta: float) -> void:
+	tick(delta)
 
 
-## Atualiza posição, texto e visibilidade (público para testar sem quadros).
-func tick() -> void:
+## Atualiza posição, texto, cor e visibilidade (público para testar sem quadros). `delta` move o fade do vermelho.
+func tick(delta: float = 0.0) -> void:
 	if not is_instance_valid(dino) or dino.is_queued_for_deletion():
 		visible = false
 		queue_free()
 		return
 	global_position = dino.global_position
 	visible = should_show()
+	var alpha := _alert_fade.step(delta, dino.state_machine.is_aggressive, aggression_rules)
+	_label.add_theme_color_override("font_color", TEXT_COLOR.lerp(aggression_rules.alert_color, alpha))
 	if visible:
 		_label.text = "Nv %d" % dino.level
 		SexIcon.place(_sex_icon, _label, dino.sex)
@@ -66,6 +70,11 @@ func should_show() -> bool:
 
 func tag_visible() -> bool:
 	return visible
+
+
+## Cor atual do "Nv" (avermelhada enquanto o dino está bravo).
+func tag_color() -> Color:
+	return _label.get_theme_color("font_color")
 
 
 func tag_text() -> String:

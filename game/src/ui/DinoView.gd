@@ -38,6 +38,8 @@ const SWAY_AMPLITUDE_BY_BAND: Array[float] = [0.0, 0.0, 1.0, 2.0]
 const SWAY_SPEED_BY_BAND: Array[float] = [0.0, 0.0, 6.0, 3.5]
 const SLEEP_ICON := preload("res://assets/third_party/ninja-adventure/ui/emote_sleep.png")
 const SLEEP_ICON_POSITION := Vector2(10.0, -14.0)
+## "!" de bravo: sobre a cabeça, abaixo da placa de nível.
+const ALERT_MARK_POSITION := Vector2(-4.0, -28.0)
 const POPUP_RISE := 14.0
 const POPUP_SECONDS := 0.7
 
@@ -45,6 +47,7 @@ const POPUP_SECONDS := 0.7
 ## Sons por ocasião (`hit`, `yawn`, `tamed`). Vazio até a escolha do pacote de som.
 @export var cue_streams: Dictionary[StringName, AudioStream] = {}
 @export var volume_db: float = 6.0
+@export var aggression_rules: AggressionRules = preload("res://data/balance/aggression_rules.tres")
 ## O jogador local (para saber se o domado é dele); sem ele vale o id padrão do jogador de teste.
 var viewer: Player = null
 
@@ -58,6 +61,8 @@ var _time := 0.0
 var _flash_left := 0.0
 var _text_left := 0.0
 var _yawn_clock := 0.0
+var _alert_mark := Label.new()
+var _alert_fade := AggressionFade.new()
 
 
 func _ready() -> void:
@@ -76,6 +81,15 @@ func _ready() -> void:
 	_text.position = Vector2(14.0, -18.0)
 	_text.visible = false
 	add_child(_text)
+	_alert_mark.text = aggression_rules.mark_text
+	_alert_mark.add_theme_font_size_override("font_size", 10)
+	_alert_mark.add_theme_color_override("font_color", aggression_rules.mark_color)
+	_alert_mark.add_theme_color_override("font_outline_color", Color.BLACK)
+	_alert_mark.add_theme_constant_override("outline_size", 3)
+	_alert_mark.position = ALERT_MARK_POSITION
+	_alert_mark.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_alert_mark.visible = false
+	add_child(_alert_mark)
 	if dino == null:
 		return
 	_sheet = SpriteSheetDef.from_json_file(dino.stats.sheet_path)
@@ -109,6 +123,7 @@ func tick(delta: float) -> void:
 	_apply_pause(awake and dino.torpor.is_paused())
 	_apply_tint(awake)
 	_text.visible = _text_left > 0.0
+	_apply_alert_mark(awake, delta)
 
 
 func follow() -> void:
@@ -123,6 +138,15 @@ func popup_count() -> int:
 		if not child.is_queued_for_deletion():
 			count += 1
 	return count
+
+
+## O "!" vermelho está à mostra (mesmo em fade)?
+func alert_mark_visible() -> bool:
+	return _alert_mark.visible
+
+
+func alert_mark_alpha() -> float:
+	return _alert_mark.modulate.a if _alert_mark.visible else 0.0
 
 
 func text_shown() -> String:
@@ -171,6 +195,13 @@ func _show_frame(column: int) -> void:
 	var usable := SpriteFacing.fit_sheet(sprite, _sheet)
 	sprite.frame_coords = Vector2i(
 			clampi(column if usable else 0, 0, sprite.hframes - 1), clampi(_facing, 0, sprite.vframes - 1))
+
+
+## "!" vermelho enquanto a máquina diz que o dino está bravo; some com fade ao acalmar.
+func _apply_alert_mark(awake: bool, delta: float) -> void:
+	var alpha := _alert_fade.step(delta, awake and dino.state_machine.is_aggressive, aggression_rules)
+	_alert_mark.visible = alpha > 0.0
+	_alert_mark.modulate.a = alpha
 
 
 func _apply_yawn(band: int, delta: float) -> void:

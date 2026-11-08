@@ -603,7 +603,7 @@ func _test_chase_around_and_give_up() -> void:
 		if not provider.is_blocked(provider.cell_of(next)):
 			pos = next
 		closest = minf(closest, pos.distance_to(target))
-		if machine.current_id != Enums.DinoStateId.CHASE and elapsed > 0.5:
+		if machine.current_id != Enums.DinoStateId.AGGRESSIVE and elapsed > 0.5:
 			reached = true
 			break
 	_check(reached and closest <= RAPTOR.chase_stop_px + 2.0, \
@@ -628,8 +628,8 @@ func _test_chase_around_and_give_up() -> void:
 		chaser.observe_target(goal, true)
 		chaser.tick(DT)
 		time += DT
-		chased = chased or chaser.current_id == Enums.DinoStateId.CHASE
-		if chased and chaser.current_id != Enums.DinoStateId.CHASE and gave_up_at < 0.0:
+		chased = chased or chaser.current_id == Enums.DinoStateId.AGGRESSIVE
+		if chased and chaser.current_id != Enums.DinoStateId.AGGRESSIVE and gave_up_at < 0.0:
 			gave_up_at = time
 	_check(chased and gave_up_at > 0.0 and gave_up_at <= RULES.stuck_give_up_seconds, \
 			"perseguição sem caminho: desiste em até 3 s (%.2f s)" % gave_up_at)

@@ -6,7 +6,8 @@ extends Node
 ## servidor headless.
 ##
 ##   IDLE <-> WANDER
-##   IDLE/WANDER -> CHASE -> IDLE     (agressivo avista o alvo; desiste por distância, tempo ou sem alvo)
+##   IDLE/WANDER -> AGGRESSIVE -> IDLE (bravo: leva golpe do jogador, ou o Agressivo avista o alvo; acalma sem
+##                                      dano por 8 s, por distância ou tempo; sem rancor e fora do save)
 ##   qualquer estado -> UNCONSCIOUS   (TorporComponent.knocked_out)
 ##   UNCONSCIOUS -> IDLE              (acordou selvagem)
 ##   UNCONSCIOUS -> TAMED             (mark_tamed, ou acordou já domesticado)
@@ -22,6 +23,8 @@ signal order_changed(order: Enums.DinoOrder)
 ## O domado desistiu de seguir (episódio novo de "ficou preso"). Emitido UMA vez por episódio: só rearma depois de
 ## o dino andar `stuck_clear_tiles`. A autoridade o anuncia no log (`tamed_stuck`).
 signal got_stuck
+## Ficou bravo ou se acalmou (a apresentação mostra ou apaga o "!"). Presentação apenas: não é evento de jogo.
+signal aggression_changed(aggressive: bool)
 
 @export var torpor: TorporComponent
 ## Duração mínima e máxima, em segundos, de cada estado.
@@ -29,12 +32,17 @@ signal got_stuck
 @export var wander_seconds := Vector2(1.0, 4.0)
 @export var order_rules: DinoOrderRules = preload("res://data/balance/dino_order_rules.tres")
 @export var nav_rules: NavigationRules = preload("res://data/balance/navigation_rules.tres")
+@export var aggression: AggressionRules = preload("res://data/balance/aggression_rules.tres")
 
 ## Fixe `rng.seed` para ter um comportamento reproduzível.
 var rng := RandomNumberGenerator.new()
 var is_tamed := false
 var desired_direction := Vector2.ZERO
 var current_id := Enums.DinoStateId.IDLE
+## Bravo agora? Vem do estado (não tem campo próprio, para nunca divergir) e nunca vai para o save.
+var is_aggressive: bool:
+	get:
+		return current_id == Enums.DinoStateId.AGGRESSIVE
 ## Ordem atual. Só vale para o domesticado; vai no save pelo nome.
 var order := Enums.DinoOrder.STAY
 ## Multiplicador da velocidade de andar que a ordem pede (1 = normal).
@@ -60,6 +68,7 @@ var navigation: PathProvider = null:
 var follower := PathFollower.new()
 
 var _alert_left := 0.0
+var _aggression_signaled := false
 var _stuck_episode_open := false
 var _stuck_origin := Vector2.ZERO
 
@@ -83,7 +92,7 @@ func start() -> void:
 		Enums.DinoStateId.WANDER: DinoWanderState.new(),
 		Enums.DinoStateId.UNCONSCIOUS: DinoUnconsciousState.new(),
 		Enums.DinoStateId.TAMED: DinoTamedState.new(),
-		Enums.DinoStateId.CHASE: DinoChaseState.new(),
+		Enums.DinoStateId.AGGRESSIVE: DinoAggressiveState.new(),
 		Enums.DinoStateId.STUCK: DinoStuckState.new(),
 	}
 	follower.rules = nav_rules
@@ -98,7 +107,7 @@ func start() -> void:
 func tick(delta: float) -> void:
 	_alert_left = maxf(_alert_left - delta, 0.0)
 	if _can_start_chase():
-		transition_to(Enums.DinoStateId.CHASE)
+		transition_to(Enums.DinoStateId.AGGRESSIVE)
 	_states[current_id].tick(delta)
 
 
@@ -125,6 +134,31 @@ func target_distance() -> float:
 
 func chase_speed_multiplier() -> float:
 	return stats.chase_speed / walk_speed if stats != null else 1.0
+
+
+## O dino levou golpe do jogador (a autoridade só chama com o golpe aplicado e o alvo já informado por
+## `observe_target`). Selvagem acordado fica bravo; já bravo, só zera o relógio de calma. Dormindo, domado ou
+## preso não reage. A etapa 4 chama `reset_calm` também quando o dino ataca.
+func provoke() -> void:
+	if is_tamed or torpor.is_unconscious:
+		return
+	if current_id == Enums.DinoStateId.AGGRESSIVE:
+		reset_calm()
+	elif current_id == Enums.DinoStateId.IDLE or current_id == Enums.DinoStateId.WANDER:
+		transition_to(Enums.DinoStateId.AGGRESSIVE)
+
+
+## Dano dado ou recebido: o relógio de calma recomeça. Sem efeito fora do estado bravo.
+func reset_calm() -> void:
+	if is_aggressive:
+		(_states[Enums.DinoStateId.AGGRESSIVE] as DinoAggressiveState).reset_calm()
+
+
+## Segundos que faltam para acalmar sem novo dano (0 se não está bravo). Para teste e diagnóstico.
+func calm_left() -> float:
+	if not is_aggressive:
+		return 0.0
+	return (_states[Enums.DinoStateId.AGGRESSIVE] as DinoAggressiveState).calm_left()
 
 
 ## Entra em alerta: não persegue de novo por `alert_seconds` (chamado ao sair da perseguição).
@@ -193,6 +227,9 @@ func transition_to(next_id: Enums.DinoStateId) -> void:
 	current_id = next_id
 	_states[next_id].enter()
 	state_changed.emit(previous, next_id)
+	if is_aggressive != _aggression_signaled:
+		_aggression_signaled = is_aggressive
+		aggression_changed.emit(is_aggressive)
 
 
 ## Conclui a domesticação e acorda a criatura. Só vale para uma criatura
@@ -206,8 +243,10 @@ func mark_tamed() -> bool:
 
 
 func to_dict() -> Dictionary:
+	# Bravo não vai para o save: quem foi salvo bravo volta calmo (Idle), sem rancor.
+	var saved_id := Enums.DinoStateId.IDLE if is_aggressive else current_id
 	return {
-		"state": Enums.DinoStateId.find_key(current_id),
+		"state": Enums.DinoStateId.find_key(saved_id),
 		"is_tamed": is_tamed,
 		"order": Enums.DinoOrder.find_key(order),
 	}

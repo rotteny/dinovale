@@ -50,6 +50,8 @@ var player_locator: Callable = Callable()
 var target_locator: Callable = Callable()
 
 var _restoring: bool = false
+## Quem bateu por último (`player_id`): o alvo do selvagem que só revida. Não vai para o save (bravo não persiste).
+var _aggressor_id: String = ""
 
 @onready var health: HealthComponent = $HealthComponent
 @onready var torpor: TorporComponent = $TorporComponent
@@ -104,7 +106,8 @@ func observe_owner() -> void:
 
 ## Informa à máquina o alvo vivo mais próximo (só o agressivo procura). Público para testar sem quadros.
 func observe_targets() -> void:
-	if not stats.aggressive or state_machine.is_tamed or not target_locator.is_valid():
+	var may_target := stats.aggressive or state_machine.is_aggressive  # o Passivo só mira enquanto está bravo
+	if not may_target or state_machine.is_tamed or not target_locator.is_valid():
 		state_machine.observe_target(Vector2.ZERO, false)
 		return
 	var best: Node2D = null
@@ -113,6 +116,8 @@ func observe_targets() -> void:
 		var body := candidate as Node2D
 		if body == null or not is_instance_valid(body) or _is_dead_body(body):
 			continue
+		if not stats.aggressive and _aggressor_id != "" and body.get("player_id") != _aggressor_id:
+			continue  # bravo por golpe: persegue quem bateu, não o jogador mais perto
 		var distance := global_position.distance_squared_to(body.global_position)
 		if distance < best_distance:
 			best = body
@@ -185,6 +190,10 @@ func receive_hit(damage: float, torpor_amount: float, attacker_kind: String, att
 	var hit := take_damage(damage, attacker_kind, _spares_efficiency(attacker_kind, attacker_id))
 	if not health.is_dead() and apply_torpor(torpor_amount):
 		hit = true
+	if hit and attacker_kind == TamingRules.ATTACKER_PLAYER and not health.is_dead():
+		_aggressor_id = attacker_id
+		state_machine.provoke()
+		observe_targets()  # o alvo já vale no quadro do golpe: a máquina não acalma por "sem alvo"
 	return hit
 
 

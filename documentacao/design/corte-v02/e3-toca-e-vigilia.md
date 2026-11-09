@@ -254,6 +254,7 @@ Não achei "B1+" definido em nenhum documento do repositório; adoto a mesma con
 5. **Percepção elíptica (10.2) x ronco circular:** a escolha "mais próximo" compara elipse com círculo. Assumido; ver [jogar] na 2.2.
 6. **`chase_give_up_tiles` 20, `chase_max_seconds` 15, `alert_seconds` 5** não mudam; a âncora é um quarto limite.
 7. **Utahraptor "solitário" do GDD 261** já está superado pelo bando de 2 a 3 (conflito 2 do M1); aqui o bando é de 2 por toca (D-E2).
+14. **Espaçamento do bando de Utahraptor fica em 19 tiles** [provisório 08/11, U2-U6 a 19,7 tiles]: a decisão do coordenador desvia dos 20 da D-E2 porque as tocas U2 e U6 ficam a 19,7 tiles uma da outra e 20 deixaria uma vaga sem lugar. O `utahraptor.tres` usa 19; reavaliar se o mapa mudar.
 
 **Com o GDD e o `racao.md`:**
 

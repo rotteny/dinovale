@@ -174,7 +174,12 @@ func _is_sleeper(prey: Dino) -> bool:
 
 ## Alcance do ronco do dormindo para este caçador, em pixels: o ronco (com o bônus da comida de doma) até o teto da espécie.
 func _snore_px(hunter: Dino, prey: Dino) -> float:
-	var tiles := prey.taming.rules.snore_range(prey.taming.ideal_food)
+	var foods: Array[String] = []  # a comida dada na doma (no alforje dele), não a ideal da espécie
+	for index in prey.inventory.slot_count():
+		var slot := prey.inventory.get_slot(index)
+		if not slot.is_empty():
+			foods.append(str(slot.get("id", "")))
+	var tiles := prey.taming.rules.snore_range_with(foods)
 	var cap := hunter.stats.predation.sleeper_range_cap_tiles
 	return (minf(tiles, cap) if cap > 0.0 else tiles) * _tile()
 

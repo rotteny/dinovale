@@ -710,6 +710,8 @@ func _test_title_single_player() -> void:
 	# com save válido
 	_check(SaveManager.new(root).write(_envelope("jogo")), "cria um save")
 	var title2 := _title(root)
+	var fake_clock := [10000]  # relógio fixo: as guardas de 350 e 560 ms não dependem da velocidade da máquina
+	title2.clock_msec = func() -> int: return fake_clock[0]
 	await tree.process_frame
 	var chosen2: Array[String] = []
 	title2.action_chosen.connect(func(id: String) -> void: chosen2.append(id))
@@ -727,10 +729,10 @@ func _test_title_single_player() -> void:
 	title2._input(_action("ui_accept"))
 	_check(chosen2.is_empty() and title2.view == "confirm", "o segundo clique de um duplo clique cai na guarda e é ignorado")
 	_check(title2.confirm_guard_msec == 500, "a guarda é de 500 ms (maior que a janela de duplo clique de alguns sistemas)")
-	title2._confirm_since = Time.get_ticks_msec() - 350
+	title2._confirm_since = int(title2.clock_msec.call()) - 350
 	title2._input(_action("ui_accept"))
 	_check(chosen2.is_empty() and title2.view == "confirm", "aos 350 ms a guarda ainda vale")
-	title2._confirm_since = Time.get_ticks_msec() - 560
+	title2._confirm_since = int(title2.clock_msec.call()) - 560
 	title2._input(_action("ui_accept"))
 	_check(chosen2 == [TitleScreen.NEW_GAME], "passada a guarda, Começar do zero vale")
 	chosen2.clear()

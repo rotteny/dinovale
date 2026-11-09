@@ -8,6 +8,8 @@ extends WorldTests
 func run() -> void:
 	await _test_old_save_with_den_slot_center()
 	_release_worlds()
+	await _test_corrupted_den_group_is_ignored()
+	_release_worlds()
 	await _test_tamed_wild_survives_continue()
 	_release_worlds()
 	await _test_taming_in_progress_survives_continue()
@@ -664,7 +666,8 @@ func _test_node(main: Main, def: ResourceNodeDef, node_id: String) -> ResourceNo
 	return node
 
 
-## E3a: save antigo com o bando de toca num centro sorteado: ao carregar, o bando vai para a toca, com o delta e a toca ligada.
+## E3a: save da revisão 2 real do mapa (g29 com 3 membros, o g29.0.2 órfão na revisão 3, centro sorteado): o bando vai para a toca,
+## o órfão some sem erro, o delta dos outros vale e a toca fica ligada.
 func _test_old_save_with_den_slot_center() -> void:
 	var den := [Vector2i.ZERO]
 	var dead_id := [""]
@@ -674,14 +677,17 @@ func _test_old_save_with_den_slot_center() -> void:
 		dead_id[0] = info["members"][0]
 		main.wild.creature_at(dead_id[0]).health.take_damage(1.0e9),
 		func(data: Dictionary) -> void:
+			data["world"]["map_revision"] = "d628d93ad13a91a0"  # a revisão 2 do mapa, antes das tocas
 			var found := false
 			for entry: Dictionary in data["world"]["wild_groups"]:
 				if entry["slot"] == "g29":
 					entry["center"] = [den[0].x + 9, den[0].y - 7]  # centro sorteado, como antes das tocas
 					found = true
-			_check(found, "migração: o save de teste traz o bando g29 com centro antigo"))
+			_check(found, "migração: o save de teste traz o bando g29 com centro antigo")
+			data["world"]["wild"].append({"id": "g29.0.2", "dead": true})  # o 3º membro da revisão 2: não existe na 3
+			data["world"]["wild"].append({"id": "g29.0.9", "tamed": true}))
 	var info := after.wild.slot_info("g29")
-	_check(info["center"] == den[0], "migração: o centro do bando de toca volta a ser o da toca")
+	_check(info["center"] == den[0] and info["gen"] == 0, "migração: o centro do bando de toca volta a ser o da toca (geração 0)")
 	var alive := 0
 	var homed := true
 	for member_id: String in info["members"]:
@@ -691,3 +697,28 @@ func _test_old_save_with_den_slot_center() -> void:
 			homed = homed and creature.state_machine.home != null
 	_check(after.wild.creature_at(dead_id[0]) == null and alive == info["members"].size() - 1 and homed,
 			"migração: quem morreu segue morto (delta por id) e os vivos têm a toca ligada")
+	_check(info["members"].size() == 2 and after.wild.creature_at("g29.0.2") == null and not (info["members"] as Array).has("g29.0.2"),
+			"migração: o 3º membro da revisão 2 (g29.0.2) fica órfão: ignorado, sem criatura e sem erro")
+	_check(after.hud.notice_label().text.contains("mapa mudou"), "migração: a HUD avisa que o mapa mudou")
+
+
+## Save corrompido no bando de toca (geração negativa, lixo no centro): a vaga fica na geração 0, na toca, sem criar membros estranhos.
+func _test_corrupted_den_group_is_ignored() -> void:
+	var den := [Vector2i.ZERO]
+	var after := await _save_edit_continue("wild_bad_den", func(main: Main) -> void:
+		den[0] = main.wild.slot_info("g29")["center"]
+		main.wild.creature_at(main.wild.slot_info("g29")["members"][0]).health.take_damage(1.0e9),
+		func(data: Dictionary) -> void:
+			for entry: Dictionary in data["world"]["wild_groups"]:
+				if entry["slot"] == "g29":
+					entry["gen"] = -3
+					entry["center"] = "lixo"
+			data["world"]["wild_groups"].append({"slot": "g30", "gen": "abc", "center": [1, 2, 3]}))
+	var info := after.wild.slot_info("g29")
+	var ids_ok := true
+	for member_id: String in info["members"]:
+		ids_ok = ids_ok and member_id.begins_with("g29.0.")
+	_check(info["gen"] == 0 and info["center"] == den[0] and ids_ok,
+			"corrompido: geração negativa não vale; o bando fica na geração 0, na toca")
+	var g30 := after.wild.slot_info("g30")
+	_check(g30["gen"] == 0 and not g30["waiting"], "corrompido: geração não numérica também é ignorada")

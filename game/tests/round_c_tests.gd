@@ -51,8 +51,10 @@ func _test_tamed_level_text_once() -> void:
 	var main := await _world("c_level_text")
 	var mine := main.wild.creature_at(_wid(main, 0))
 	var theirs := main.wild.creature_at(_wid(main, 1))
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 55  # posição sempre a mesma: o teste não oscila
 	for creature: Dino in [mine, theirs]:
-		creature.global_position = main.player.global_position + Vector2(randf_range(-40.0, 40.0), randf_range(20.0, 40.0))
+		creature.global_position = main.player.global_position + Vector2(rng.randf_range(-40.0, 40.0), rng.randf_range(20.0, 40.0))
 	main.zone.reclassify()
 	await _root.get_tree().process_frame
 	var mine_view := _view_of_dino(main, mine)
@@ -256,8 +258,10 @@ func _test_highlight_and_markers() -> void:
 	var wild_one := main.wild.creature_at(_wid(main, 2))
 	_tame_for(mine, main.player.player_id)
 	_tame_for(theirs, "outro")
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 260
 	for creature: Dino in [mine, theirs, wild_one]:  # perto do jogador: na zona ativa, com view e placa
-		creature.global_position = main.player.global_position + Vector2(randf_range(-40.0, 40.0), randf_range(20.0, 40.0))
+		creature.global_position = main.player.global_position + Vector2(rng.randf_range(-40.0, 40.0), rng.randf_range(20.0, 40.0))
 	main.zone.reclassify()
 	await _root.get_tree().process_frame
 	await _root.get_tree().process_frame

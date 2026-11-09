@@ -43,3 +43,11 @@ func attack_loss(attacker_kind: String, health_lost_percent: float) -> float:
 ## Raio do ronco de quem está sendo domado com a comida `food_id`.
 func snore_range(food_id: String) -> float:
 	return snore_tiles + snore_bonus_by_food.get(food_id, 0.0)
+
+
+## Alcance do ronco com as comidas que o dormindo tem no alforje: vale o maior bônus entre elas (sem comida, o base).
+func snore_range_with(food_ids: Array[String]) -> float:
+	var best := 0.0
+	for food_id in food_ids:
+		best = maxf(best, snore_bonus_by_food.get(food_id, 0.0))
+	return snore_tiles + best

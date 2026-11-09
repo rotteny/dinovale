@@ -54,7 +54,18 @@ func _test_a32_tamed_is_prey() -> void:
 	var asleep_wild := _herd(wild, _herbivore_stats(), Vector2(100.0, 0.0), Vector2(0.0, 900.0), 4)
 	asleep_wild[0].torpor.add_torpor(asleep_wild[0].torpor.max_torpor)
 	_run(wild, 2.0)
-	_check(_target(wild, wild_hunter) != asleep_wild[0], "A32: selvagem nocauteado (ou em doma) não é presa")
+	_check(_target(wild, wild_hunter) != asleep_wild[0],
+			"A32: selvagem em doma NÃO é presa de espécie que não escuta o ronco (sem hears_sleepers)")
+	var listening := _world()
+	listening["frozen"] = true
+	var listener_stats := _carnivore_stats()
+	listener_stats.predation.hears_sleepers = true
+	var listener := _dino(listening, listener_stats, Vector2.ZERO, "c1")
+	var asleep_heard := _herd(listening, _herbivore_stats(), Vector2(100.0, 0.0), Vector2(0.0, 900.0), 4)
+	asleep_heard[0].torpor.add_torpor(asleep_heard[0].torpor.max_torpor)
+	_run(listening, 2.0)
+	_check(_target(listening, listener) == asleep_heard[0],
+			"A32 (D-E4, reverte o D15): selvagem em doma é presa de espécie com hears_sleepers, dentro do ronco")
 	var floor_world := _world()
 	floor_world["frozen"] = true
 	var floor_hunter := _dino(floor_world, _carnivore_stats(), Vector2.ZERO, "c1")

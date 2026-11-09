@@ -57,6 +57,8 @@ const BACKDROP_VIEWS: Array[String] = ["menu", "single", "confirm"]
 
 var settings: GameSettings
 var view: String = "menu"
+## Relógio em ms da guarda de confirmação; o teste injeta um fixo (sem depender da velocidade da máquina).
+var clock_msec: Callable = Time.get_ticks_msec
 
 var _menu := MenuColumn.new()
 var _single_menu := MenuColumn.new()
@@ -396,7 +398,7 @@ func _on_single_activated(id: String) -> void:
 			if _has_save_files:
 				_confirm_menu.reset_selection()
 				_show("confirm")
-				_confirm_since = Time.get_ticks_msec()
+				_confirm_since = clock_msec.call()
 			else:
 				_choose(NEW_GAME)
 		BACK:
@@ -406,7 +408,7 @@ func _on_single_activated(id: String) -> void:
 func _on_confirm_activated(id: String) -> void:
 	if id == CANCEL:
 		_show("single")
-	elif id == START_NEW and Time.get_ticks_msec() - _confirm_since >= confirm_guard_msec:
+	elif id == START_NEW and int(clock_msec.call()) - _confirm_since >= confirm_guard_msec:
 		_choose(NEW_GAME)
 
 

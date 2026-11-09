@@ -127,7 +127,7 @@ func _test_a12_cooldown() -> void:
 	_check(within.size() >= 4 and within.size() <= 6, "A12: em 8,4 s de contato saem 4 a 6 mordidas (%d), 8 de dano cada" % within.size())
 	_check(is_equal_approx(RAPTOR.base_damage * 5.0, 40.0), "A12: 5 mordidas = 40 de vida")
 	# Unidade: a recarga segura o aviso mesmo com a fase pronta.
-	var cycle := ThreatCycle.new(RAPTOR_PROFILE, RandomNumberGenerator.new())
+	var cycle := ThreatCycle.new(RAPTOR_PROFILE, _seeded_rng())
 	cycle.begin(48.0, TILE)
 	cycle.cooldown_left = 5.0
 	var lunged: Array[bool] = [false]
@@ -157,7 +157,7 @@ func _test_miss_still_cools_down() -> void:
 
 ## Se o alvo sai além do alcance durante o aviso, volta a fechar em vez de investir no vazio.
 func _test_windup_target_leaves() -> void:
-	var cycle := ThreatCycle.new(RAPTOR_PROFILE, RandomNumberGenerator.new())
+	var cycle := ThreatCycle.new(RAPTOR_PROFILE, _seeded_rng())
 	cycle.begin(48.0, TILE)
 	cycle._enter(Enums.ThreatPhase.WINDUP)
 	cycle.tick(DT, 30.0, TILE)
@@ -427,3 +427,10 @@ func _test_view_and_sounds() -> void:
 	_check(heard[0], "golpe: toca a mordida")
 	dino.health.take_damage(1.0)
 	_check(SfxPlayer.last_played == &"dino_dor", "dano recebido: toca dino_dor")
+
+
+## Gerador de semente fixa: o teste não depende do acaso.
+func _seeded_rng() -> RandomNumberGenerator:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 424242
+	return rng

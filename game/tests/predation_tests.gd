@@ -701,6 +701,10 @@ func _test_a30_performance() -> void:
 			system.tick(0.05)
 		per_tick = minf(per_tick, float(Time.get_ticks_usec() - started) / 200.0)
 	_check(per_tick < 300.0, "A30: o tick de predação custa %.0f us (< 300 us, headless)" % per_tick)
+	for _warm in 100:  # aquece (caches, alocações) antes de medir
+		zone.reclassify()
+		system.refresh_active()
+		system.tick(0.05)
 	var batches: Array[float] = []  # o pior quadro de cada lote; vale o menor (um pico de relógio ou de GC não reprova)
 	for _batch in 5:
 		var worst := 0.0  # com a reclassificação da zona e o `refresh_active` incluídos

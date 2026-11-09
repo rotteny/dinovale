@@ -42,6 +42,8 @@ const GATHER_DAMAGE: GatherDamageTable = preload("res://data/balance/gather_dama
 const GATHER_NO_TARGET := "no_target"
 const GATHER_DEPLETED := "depleted"
 const GATHER_FULL := "full"
+## Nada coube porque passaria do Peso máximo (vale mesmo se os slots também estão cheios).
+const GATHER_WEIGHT := "weight"
 const GATHER_BLOCKED := "blocked"
 const GATHER_TOO_FAR := "too_far"
 ## Tocou um nó que exige ferramenta sem ela: o toque machuca a mão e não coleta nada.
@@ -126,6 +128,8 @@ var _knock_speed: float = 0.0
 
 func _ready() -> void:
 	_apply_hitbox()
+	inventory.weight_limit = Items.CARRY.capacity_kg  # Peso (GDD 5.1): vale antes de qualquer `add` abaixo
+	inventory.worn = equipment  # o que está nas vagas de equipamento pesa, mesmo fora dos slots
 	hunger.decay_per_second = rules.hunger_decay_idle
 	hunger.recovery_per_second = rules.hunger_recovery_per_second
 	downed.rules = downed_rules
@@ -450,15 +454,20 @@ func strike(dino: Dino) -> bool:
 	_attack_timer = weapon.cooldown
 	hunger.spend(rules.hunger_cost_attack)
 	_hurt_hands(weapon.self_damage)
+	_wear_held_weapon()  # cada golpe aceito gasta 1 de durabilidade
+	attacked.emit()
+	return true
+
+
+## Gasta 1 de durabilidade da arma em mãos; se ela quebra, sai do atalho e avisa (`weapon_broke`).
+func _wear_held_weapon() -> void:
 	var held_iid := equipment.iid_in(EquipmentLayout.WEAPON)
-	var broken := equipment.wear(EquipmentLayout.WEAPON, 1)  # cada golpe aceito gasta 1 de durabilidade
+	var broken := equipment.wear(EquipmentLayout.WEAPON, 1)
 	if broken != "":
 		var slot := hotbar.slot_of_iid(held_iid)
 		if slot >= 0:
 			hotbar.clear(slot)
 		weapon_broke.emit(broken)
-	attacked.emit()
-	return true
 
 
 ## Dano que o jogador causa a si mesmo com as mãos (Soco em dino, colheita de árvore e de carcaça, toque em
@@ -594,9 +603,10 @@ func _strike_resource(node: ResourceNode) -> String:
 ## Colheita de um toque (arbusto, pedra avulsa, carcaça): entrega direto no inventário, o que couber.
 func _gather_by_touch(node: ResourceNode) -> String:
 	var def := node.def
-	var delivered := _deliver(node.component.pending_yields())
+	var wanted := node.component.pending_yields()
+	var delivered := _deliver(wanted)
 	if delivered.is_empty():
-		return _refuse_gather(GATHER_FULL)  # nada coube: o nó fica como estava, sem custo
+		return _refuse_gather(_full_reason(wanted))  # nada coube: o nó fica como estava, sem custo
 	var left := node.component.pending_yields()
 	for item_id: String in delivered:
 		left[item_id] = int(left[item_id]) - int(delivered[item_id])
@@ -609,12 +619,15 @@ func _gather_by_touch(node: ResourceNode) -> String:
 		node.harvest()
 	else:
 		node.component.leave(left)  # o que sobra fica no nó (sem esgotar)
-	var with_tool := _has_tool(def.tool_item_id)
+	var blade := def.is_carcass and current_weapon().cuts_carcass  # a Lança esfola sem machucar a mão
+	var with_tool := blade or _has_tool(def.tool_item_id)
+	if blade and left.is_empty():
+		_wear_held_weapon()  # 1 de durabilidade por carcaça esvaziada (GDD 5.6)
 	if not with_tool and def.hand_damage_per_item:
 		_hurt_hands(def.hand_self_damage * delivered_units)  # carcaça: 1 por item entregue, parcial ou não
 	elif not with_tool and left.is_empty():
 		_hurt_hands(def.hand_self_damage)  # o custo é por colheita COMPLETA, não por tentativa parcial
-	_gather_timer = _gather_cost(def, delivered_units)
+	_gather_timer = _gather_cost(def, delivered, delivered_units)
 	hunger.spend(rules.hunger_cost_gather_strike)
 	last_gather = delivered.duplicate()
 	for item_id: String in delivered:
@@ -624,10 +637,23 @@ func _gather_by_touch(node: ResourceNode) -> String:
 
 ## Recarga da coleta: só a carcaça tem (GDD 5.9b: 3 s por carne, proporcional às unidades entregues). Nó de toque
 ## (arbusto, pedra avulsa, fibra) NÃO trava o próximo: o jogador colhe o vizinho na hora (decisão do dono, 08/11).
-func _gather_cost(def: ResourceNodeDef, delivered_units: int) -> float:
+func _gather_cost(def: ResourceNodeDef, delivered: Dictionary, delivered_units: int) -> float:
 	if not def.hand_damage_per_item:
 		return 0.0
+	if not def.item_seconds.is_empty():  # por item (carne 3 s, couro 6 s), mais curto com a lâmina
+		var seconds := 0.0
+		for item_id: String in delivered:
+			seconds += float(def.item_seconds.get(item_id, 0.0)) * float(delivered[item_id])
+		return seconds * (current_weapon().skin_seconds_factor if def.is_carcass else 1.0)
 	return def.gather_seconds * float(delivered_units) / float(maxi(_total_units(def), 1))
+
+
+## Por que nada do que o nó dá coube: o Peso (se algum item passaria do limite) ou os slots.
+func _full_reason(wanted: Dictionary) -> String:
+	for item_id: String in wanted:
+		if inventory.refusal_for(item_id) == "weight_limit":
+			return GATHER_WEIGHT
+	return GATHER_FULL
 
 
 func _total_units(def: ResourceNodeDef) -> int:

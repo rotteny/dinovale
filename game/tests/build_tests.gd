@@ -38,6 +38,7 @@ func run() -> void:
 ## Jogador em `HOME`, material de sobra, receitas do abrigo aprendidas, ocupação e campo ligados. Sem mapa (terreno livre).
 func _setup(learn: bool = true, materials: bool = true) -> Dictionary:
 	var player := _player_at(BuildTests.center(HOME))
+	player.inventory.weight_limit = 0.0  # a obra pede mais que 50 kg de material; o Peso tem os testes dele (carry_tests)
 	for item_id: String in Items.all_ids():
 		player.inventory.remove(item_id, 9999)
 	if materials:

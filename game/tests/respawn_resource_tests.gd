@@ -342,6 +342,7 @@ func _test_gather_rules() -> void:
 	wood.component.def = touch_def
 	player.position = wood.position + Vector2(0, 10)
 	player.target = wood.interactable
+	player.inventory.weight_limit = 0.0  # este teste é do slot cheio; o Peso tem os dele (carry_tests)
 	var guard := 0
 	while player.inventory.room_for(Items.WOOD) >= TREE.yield_amount and guard < 1000:
 		player.inventory.add(Items.STONE, 1)

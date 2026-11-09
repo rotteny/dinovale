@@ -22,6 +22,7 @@ base_torpor = 120.0
 base_meals = 10
 difficulty = 1.5
 carcass_meat = 5
+carcass_leather = 2
 sheet_texture = ExtResource("2_dead")
 carcass_texture = SubResource("AtlasTexture_dead")
 hitbox_size = Vector2(14, 14)

@@ -173,6 +173,7 @@ func _test_unequip_without_room() -> void:
 	var iid := player.hotbar.iid_at(3)
 	player.request_equip(iid)
 	player._equip_timer = 0.0
+	player.inventory.weight_limit = 0.0  # teste de slot cheio, não de Peso
 	while player.inventory.room_for(Items.WOOD) > 0:
 		player.inventory.add(Items.WOOD, 1)
 	var before := player.to_dict()

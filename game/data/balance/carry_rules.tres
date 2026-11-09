@@ -1,0 +1,42 @@
+[gd_resource type="Resource" script_class="CarryRules" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/core/CarryRules.gd" id="1_rules"]
+
+[resource]
+script = ExtResource("1_rules")
+; GDD 5.1: capacidade do jogador de 50 kg, sem lentidão; impede pegar acima de 100%.
+capacity_kg = 50.0
+; Peso de uma unidade, em kg. Os da tabela de 5.1 e 5.9 vêm do GDD; os marcados [premissa] são nossos.
+; Peça e mobília pesam o MESMO que o material que as faz (carregar a parede = carregar a madeira dela): o abrigo
+; mínimo (4 fundações, 8 paredes, 1 porta) fecha nos 38,05 kg do GDD. [premissa] A Ração (0,2) pesa mais que o
+; material (3 bagas = 0,3 para 2 rações = 0,4): é a fabricação que sai mais pesada.
+item_weights = Dictionary[String, float]({
+"berry": 0.1,
+"meat": 0.5,
+"fern": 0.1,
+"sleep_fruit": 0.1,
+"wood": 1.0,
+"stone": 1.5,
+"fiber": 0.05,
+"stick": 0.05,
+"leather": 0.4,
+"tuber": 0.3,
+"vein_salt": 0.5,
+"ration_c": 0.2,
+"ration_b": 0.2,
+"ration_a": 0.2,
+"sleep_staff": 2.0,
+"wooden_spear": 2.0,
+"axe_stone": 2.5,
+"pickaxe_stone": 2.5,
+"workbench": 11.0,
+"campfire": 8.5,
+"fiber_basket": 0.6,
+"chest": 6.0,
+"leather_backpack": 2.5,
+"sleeping_bag": 0.4,
+"bed": 8.6,
+"foundation": 4.5,
+"wall": 2.0,
+"door": 4.05
+})

@@ -21,6 +21,10 @@ const TILE_PX := 16.0
 @export var yield_multiplier: float = 1.0
 @export var respawn_rate: float = 1.0
 
+## Só carcaça: `player_id` do dono do dino morto e até quando (instante do relógio do mundo) só ele esfola. "" = de todos.
+var carcass_owner: String = ""
+var exclusive_until: float = 0.0
+
 ## Leitor do relógio do mundo (ADR-006), repassado ao componente ao nascer.
 var clock: Callable = Callable()
 

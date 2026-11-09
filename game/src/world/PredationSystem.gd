@@ -606,8 +606,8 @@ func _step_eat(hunt: Hunt, delta: float, now: float) -> void:
 	var perception := _perception(hunter)
 	for player in _players(hunter):
 		distance_tests += 1
-		if _effective(hunter, player.global_position) <= perception:
-			_finish_eat(hunt, now, true)
+		if _effective(hunter, player.global_position) <= perception and not _barred(hunter, player.global_position):
+			_finish_eat(hunt, now, true)  # quem está no núcleo seguro (ou fora da toca dele) não interrompe a refeição
 			return
 	if not is_instance_valid(hunt.carcass) or hunt.carcass.component.depleted:
 		_finish_eat(hunt, now, true)

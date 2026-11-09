@@ -494,7 +494,7 @@ func _play_drop_sound(at: Vector2) -> void:
 
 
 func _on_gather_refused(reason: String) -> void:
-	var texts := {Player.GATHER_DEPLETED: "Já foi colhido.", Player.GATHER_FULL: "Inventário cheio.",
+	var texts := {Player.GATHER_DEPLETED: "Já foi colhido.", Player.GATHER_FULL: "Inventário cheio.", Player.GATHER_WEIGHT: "Peso máximo.",
 			Player.GATHER_TOO_FAR: "Longe demais.", Player.GATHER_NEEDS_TOOL: "Só a Picareta quebra pedra."}
 	_notify(str(texts.get(reason, "")), 1.5)
 

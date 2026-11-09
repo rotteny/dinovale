@@ -337,13 +337,14 @@ func _test_carcass_hand_cost_and_partial() -> void:
 			"o que cabe entra (2 itens)")
 	_check(is_equal_approx(player.health.current_health, hp - 2.0) and not carcass.component.depleted and carcass.visible,
 			"parcial: 1 de dano por item entregue (2), a carcaça segue")
-	_check(carcass.component.pending_yields() == {"meat": meat - 2}, "o resto fica na carcaça")
+	_check(carcass.component.pending_yields() == {"meat": meat - 2, "leather": 1}, "o resto (carne e couro) fica na carcaça")
 	player.tick(60.0)
 	main.authority.clock.advance(2.0)  # intervalo entre coletas
 	player.inventory.remove("meat", Items.max_stack("meat"))
+	player.inventory.capacity = 8  # espaço também para o couro, que ficou na carcaça
 	hp = player.health.current_health
 	_check(main.authority.request_gather(1, id) == RESULT.OK, "volta e leva o resto")
-	_check(is_equal_approx(player.health.current_health, hp - float(meat - 2)), "o resto custa 1 por item (%d)" % (meat - 2))
+	_check(is_equal_approx(player.health.current_health, hp - float(meat - 1)), "o resto custa 1 por item (%d)" % (meat - 1))
 	await _root.get_tree().physics_frame
 	await _root.get_tree().physics_frame
 	_check(main.carcasses.count() == 0 and main.authority.entity(id) == null, "esvaziada, a carcaça some e sai do registro")

@@ -64,6 +64,7 @@ func _test_partial_and_full() -> void:
 	var world := _field(player, clock)
 	var field: GroundItemField = world["field"]
 	var authority: WorldAuthority = world["authority"]
+	player.inventory.weight_limit = 0.0  # teste de slot cheio, não de Peso
 	player.inventory.add(Items.WOOD, player.inventory.stack_limit(Items.WOOD) - 1)  # uma pilha de madeira com 1 de folga
 	for filler in [Items.STONE, Items.MEAT, Items.FERN, Items.SLEEP_FRUIT, Items.FIBER, Items.BERRY]:
 		while player.inventory.room_for(filler) > 0 and player.inventory.add(filler, 1) == 0:

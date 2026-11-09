@@ -10,6 +10,11 @@ display_name = "Carcaça"
 item_id = "meat"
 yield_amount = 1
 gather_seconds = 3.0
+is_carcass = true
+item_seconds = Dictionary[String, float]({
+"leather": 6.0,
+"meat": 3.0
+})
 reach = 32.0
 respawn_seconds = 3600.0
 prompt = "tirar carne"

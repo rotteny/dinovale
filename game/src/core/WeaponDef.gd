@@ -15,3 +15,8 @@ extends Resource
 @export_range(0.0, 8.0) var reach_tiles: float = 0.0
 ## Stamina gasta por golpe (GDD 5.4). Ainda não cobrada: o campo é o dado; a cobrança entra com o combate (M1).
 @export_range(0.0, 50.0) var stamina_cost: float = 0.0
+
+## A arma corta carcaça (a Lança): esfolar com ela não machuca a mão e gasta 1 de durabilidade por carcaça esvaziada.
+@export var cuts_carcass: bool = false
+## Multiplicador do tempo de esfolar com esta arma (a Lança: 0,5, de 3 s e 6 s para 1,5 s e 3 s). 1 = como à mão.
+@export_range(0.1, 1.0) var skin_seconds_factor: float = 1.0

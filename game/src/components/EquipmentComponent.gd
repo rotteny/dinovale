@@ -62,6 +62,14 @@ func find_iid(iid: String) -> Dictionary:
 	return item_in(slot_of_iid(iid))
 
 
+## Peso do que está vestido ou empunhado, em gramas inteiras (conta no Peso, mas não ocupa slot).
+func weight_grams() -> int:
+	var total := 0
+	for slot_id: String in _worn:
+		total += Items.weight_grams(str(_worn[slot_id].get("id", "")))
+	return total
+
+
 ## Quantos do tipo estão equipados (cada vaga guarda 1).
 func count(item_id: String) -> int:
 	var total := 0
@@ -86,7 +94,7 @@ func equip(iid: String, slot_id: String = "") -> String:
 	var entry := inventory.remove_iid(iid)
 	var old := item_in(target)
 	if not old.is_empty() and not inventory.put_individual_at(origin, old):  # o antigo volta ao slot de onde o novo saiu
-		inventory.add_entry(entry)  # não deveria ocorrer: o slot do novo acabou de vagar
+		inventory.add_entry(entry, false)  # não deveria ocorrer: o slot do novo acabou de vagar
 		return REFUSED_FULL
 	_worn[target] = entry
 	changed.emit()
@@ -100,7 +108,7 @@ func unequip(slot_id: String) -> String:
 	var item := item_in(slot_id)
 	if item.is_empty():
 		return REFUSED_EMPTY_SLOT
-	if inventory.add_entry(item) != 0:
+	if inventory.add_entry(item, false) != 0:  # mover do corpo para a grade não muda o Peso total
 		return REFUSED_FULL
 	_worn.erase(slot_id)
 	changed.emit()

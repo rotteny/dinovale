@@ -163,7 +163,8 @@ func _test_prompt_released_when_carcass_expires() -> void:
 
 func _test_carcass_rules_and_oldest() -> void:
 	var main := await _quiet_world("d_oldest")
-	_check(main.carcasses.rules.fresh_seconds == 600.0 and main.carcasses.rules.max_carcasses == 8, "regras da carcaça vêm do dado (600 s, 8)")
+	_check(main.carcasses.rules.fresh_seconds == 600.0 and main.carcasses.rules.max_carcasses == 8,
+			"regras da carcaça vêm do dado (600 s, 8)")
 	var list: Array = []
 	for i in 8:
 		list.append({"species": "placeholder_dino", "level": 10, "x": float(i), "y": 0.0})
@@ -204,27 +205,29 @@ func _test_carcass_gather_time_and_recharge() -> void:
 		_kill(creature)
 		await _frames(2)
 	carcasses.assign(main.carcasses.nodes())
-	_check(carcasses.size() == 3 and carcasses[0].def.yield_amount == 5 and carcasses[0].def.gather_seconds == 15.0,
-			"3 s por carne: 5 de carne levam 15 s")
+	_check(carcasses.size() == 3 and carcasses[0].def.yield_amount == 5 and carcasses[0].def.gather_seconds == 21.0,
+			"3 s por carne e 6 s por couro: 5 de carne e 1 de couro levam 21 s")
 	player.tick(60.0)
 	_empty(player.inventory)
 	var first := main.authority.id_of(carcasses[0])
 	var second := main.authority.id_of(carcasses[1])
 	var third := main.authority.id_of(carcasses[2])
-	_check(main.authority.request_gather(1, first) == RESULT.OK and player.inventory.count("meat") == 5, "colheita inteira")
-	player.tick(14.9)
-	_check(main.authority.request_gather(1, second) == RESULT.COOLDOWN, "aos 14,9 s ainda recarrega (inteira = 15 s)")
+	_check(main.authority.request_gather(1, first) == RESULT.OK and player.inventory.count("meat") == 5
+			and player.inventory.count("leather") == 1,
+			"colheita inteira")
+	player.tick(20.9)
+	_check(main.authority.request_gather(1, second) == RESULT.COOLDOWN, "aos 20,9 s ainda recarrega (inteira = 21 s)")
 	player.tick(0.2)
 	main.authority.clock.advance(2.0)  # intervalo entre coletas (1 a 2 s)
-	_check(main.authority.request_gather(1, second) == RESULT.OK, "aos 15,1 s colhe de novo")
+	_check(main.authority.request_gather(1, second) == RESULT.OK, "aos 21,1 s colhe de novo")
 	# Parcial: cabem 2 de 5, a recarga é proporcional (6 s).
 	player.tick(60.0)
 	main.authority.clock.advance(2.0)
 	_empty(player.inventory)
 	player.inventory.capacity = 1
 	player.inventory.add("meat", Items.max_stack("meat") - 2)
-	_check(main.authority.request_gather(1, third) == RESULT.OK and carcasses[2].component.pending_yields() == {"meat": 3},
-			"parcial: leva 2, ficam 3")
+	_check(main.authority.request_gather(1, third) == RESULT.OK and carcasses[2].component.pending_yields() == {"meat": 3, "leather": 1},
+			"parcial: leva 2 de carne, ficam 3 de carne e o couro")
 	player.tick(5.9)
 	_check(main.authority.request_gather(1, third) == RESULT.COOLDOWN, "parcial: aos 5,9 s ainda recarrega (2/5 de 15 s = 6 s)")
 	player.tick(0.2)

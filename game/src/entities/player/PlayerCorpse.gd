@@ -79,6 +79,14 @@ func recover_into(to: InventoryComponent) -> int:
 	return moved
 
 
+## Por que nada do corpo coube em `bag`: "weight_limit" se o Peso barra algum item (o Peso vem primeiro), senão "inventory_full".
+func refusal_for(bag: InventoryComponent) -> String:
+	for entry in entries:
+		if bag.refusal_for(str(entry.get("id", ""))) == "weight_limit":
+			return "weight_limit"
+	return "inventory_full"
+
+
 ## Devolve à barra `hotbar` os atalhos que apontavam para itens que já voltaram ao inventário `bag`. Só ocupa vaga vazia
 ## e não repete o item; o que ainda não voltou fica para a próxima recuperação.
 func restore_hotbar(hotbar: HotbarComponent, bag: InventoryComponent) -> void:

@@ -26,6 +26,8 @@ const MAX_EXPIRY := 1.0e12
 ## Teto de posições aceito num save: 4x a capacidade máxima. Acima disso é dado hostil e a carga
 ## é recusada. O custo de cada posição também é limitado (ver `_sanitize`).
 const MAX_SAVED_SLOTS := MAX_CAPACITY * 4
+## Espaço de Peso "infinito" (inventário sem limite).
+const NO_WEIGHT_LIMIT := 1 << 30
 
 ## Quantidade de slots. Reduzir nunca descarta itens: só corta slots vazios do fim.
 @export_range(1, 64) var capacity: int = 8:
@@ -41,6 +43,13 @@ const MAX_SAVED_SLOTS := MAX_CAPACITY * 4
 ## Se aceita item individual (equipamento). A criatura não: o item não volta a ser achado
 ## e some da barra do jogador; então `add`, `add_entry`, `transfer*` e a carga o recusam.
 @export var accepts_individual: bool = true
+## Peso máximo carregado, em kg (GDD 5.1, PRO-09). 0 = sem limite (o alforje do dino). Passou disso, `room_for`, `add`,
+## `add_entry` e as transferências não aceitam mais nada: recusa por Peso, sem sobrar efeito colateral. Carregar um save
+## acima do limite é aceito (restaurar não recusa); só impede de pegar mais.
+@export_range(0.0, 10000.0) var weight_limit: float = 0.0
+## Vagas de equipamento do mesmo dono: o que está vestido ou empunhado pesa (não ocupa slot, mas conta no Peso).
+var worn: EquipmentComponent = null
+
 
 var _slots: Array[Dictionary] = []
 var _next_iid: int = 1
@@ -91,8 +100,49 @@ func stack_limit(item_id: String) -> int:
 	return mini(max_stack, Items.max_stack(item_id))
 
 
-## Quanto ainda cabe deste item.
+## Peso carregado agora, em gramas inteiras: a grade mais o que está nas vagas de equipamento.
+func carried_grams() -> int:
+	var total := worn.weight_grams() if worn != null else 0
+	for slot in _slots:
+		if not slot.is_empty():
+			total += Items.weight_grams(str(slot["id"])) * _amount(slot)
+	return total
+
+
+## Peso carregado agora, em kg (para a tela).
+func carried_weight() -> float:
+	return float(carried_grams()) / 1000.0
+
+
+## Espaço de Peso que sobra, em gramas (nunca negativo). Sem limite, `NO_WEIGHT_LIMIT`.
+func weight_room_grams() -> int:
+	if weight_limit <= 0.0:
+		return NO_WEIGHT_LIMIT
+	return maxi(roundi(weight_limit * 1000.0) - carried_grams(), 0)
+
+
+## Quantas unidades de `item_id` o Peso ainda deixa entrar (sem limite, `NO_WEIGHT_LIMIT`).
+func weight_units_for(item_id: String) -> int:
+	var unit := Items.weight_grams(item_id)
+	if weight_limit <= 0.0 or unit <= 0:
+		return NO_WEIGHT_LIMIT
+	return weight_room_grams() / unit
+
+
+## Por que `item_id` não entra agora: "weight_limit" (o Peso manda e vale mesmo se os slots também estiverem cheios),
+## "inventory_full" (sem slot) ou "" (cabe pelo menos uma unidade).
+func refusal_for(item_id: String) -> String:
+	if weight_units_for(item_id) < 1:
+		return "weight_limit"
+	return "inventory_full" if room_for(item_id) < 1 else ""
+
+
+## Quanto ainda cabe deste item: o menor entre o espaço dos slots e o do Peso.
 func room_for(item_id: String) -> int:
+	return mini(_slot_room_for(item_id), weight_units_for(item_id))
+
+
+func _slot_room_for(item_id: String) -> int:
 	var limit := stack_limit(item_id)
 	if limit <= 0 or (Items.is_individual(item_id) and not accepts_individual):
 		return 0
@@ -110,31 +160,36 @@ func room_for(item_id: String) -> int:
 func add(item_id: String, amount: int) -> int:
 	if amount <= 0 or stack_limit(item_id) <= 0 or (Items.is_individual(item_id) and not accepts_individual):
 		return maxi(amount, 0)
-	var left := amount
+	var allowed := mini(amount, weight_units_for(item_id))  # o Peso corta o que passa do limite
+	var left := allowed
 	if Items.is_individual(item_id):
 		while left > 0 and _put(_new_individual(item_id)):
 			left -= 1
 	else:
-		left = amount - _put_stack(item_id, amount, 0.0)
-	if left != amount:
+		left = allowed - _put_stack(item_id, allowed, 0.0)
+	if left != allowed:
 		changed.emit()
-	return left
+	return left + (amount - allowed)
 
 
 ## Guarda um item já existente (vindo de outro inventário), preservando `iid`, durabilidade
 ## e validade; devolve quanto NÃO coube (0 = tudo; o individual é 0 ou 1). Colisão de `iid`
 ## com um item daqui gera um novo. Entrada inválida (id desconhecido, contagem 0, individual
-## sem `iid`) é recusada inteira. `changed` sai se ao menos parte foi guardada.
-func add_entry(entry: Dictionary) -> int:
+## sem `iid`) é recusada inteira. `changed` sai se ao menos parte foi guardada. `check_weight` falso é só para mover item
+## entre a grade e as vagas do MESMO dono (equipar, tirar, trocar), que não muda o Peso total.
+func add_entry(entry: Dictionary, check_weight: bool = true) -> int:
 	var claimed := 1 if entry.has("iid") else maxi(SafeRead.integer(entry.get("count"), 0, 0, MAX_STACK), 0)
 	var item_id := SafeRead.text(entry.get("id"), "")
 	if claimed <= 0 or not Items.has(item_id) or Items.is_individual(item_id) != entry.has("iid"):
 		return claimed
+	var allowed := mini(claimed, weight_units_for(item_id)) if check_weight else claimed
 	var left := claimed
+	if allowed <= 0:
+		return claimed
 	if entry.has("iid"):
 		left = 0 if _put_entry(_clean_individual(item_id, entry)) else 1
 	else:
-		left = claimed - _put_stack(item_id, claimed, SafeRead.number(entry.get("expira_em"), 0.0, 0.0, MAX_EXPIRY))
+		left = claimed - _put_stack(item_id, allowed, SafeRead.number(entry.get("expira_em"), 0.0, 0.0, MAX_EXPIRY))
 	if left != claimed:
 		changed.emit()
 	return left
@@ -164,7 +219,7 @@ func put_individual_at(index: int, entry: Dictionary) -> bool:
 			_slots[index] = clean
 			changed.emit()
 			return true
-	return add_entry(entry) == 0
+	return add_entry(entry, false) == 0
 
 
 ## Retira até `amount` (do fim para o começo) e devolve quanto saiu de fato.

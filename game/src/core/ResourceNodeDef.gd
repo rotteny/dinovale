@@ -36,6 +36,11 @@ extends Resource
 ## O dano da mão vale POR ITEM entregue (a carcaça: 1 por item; GDD 5.6 e 5.9b), não por colheita completa. O tempo
 ## de `gather_seconds` também se reparte por item.
 @export var hand_damage_per_item: bool = false
+## É uma carcaça: coleta-se por `request_skin` (esfolar), não dá XP, tem dono por um tempo e nunca volta.
+@export var is_carcass: bool = false
+## Tempo de ação por unidade de cada item, à mão, em segundos (a carcaça: carne 3 s e couro 6 s; GDD 5.6). Vazio = o tempo
+## do tipo (`gather_seconds`). A lâmina (`WeaponDef.skin_seconds_factor`) multiplica.
+@export var item_seconds: Dictionary[String, float] = {}
 ## Dano ao jogador por toque quando a ferramenta obrigatória falta (a pedra: 1). O toque não coleta.
 @export_range(0.0, 20.0) var touch_self_damage: float = 0.0
 ## Recarga do toque sem ferramenta, em segundos.

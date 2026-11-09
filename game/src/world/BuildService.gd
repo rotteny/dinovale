@@ -138,9 +138,9 @@ func _remove_problem(actor: Player, cell: Vector2i, refund: Dictionary, receiver
 	elif not grid.dependents_of(cell).is_empty():
 		result = RESULT.WRONG_STATE
 		reason = "has_dependents"
-	elif not authority.drops_enabled and (receiver == null or not _refund_fits(receiver, refund)):
-		result = RESULT.REFUSED
-		reason = "inventory_full"
+	elif not authority.drops_enabled and (receiver == null or _refund_refusal(receiver, refund) != ""):
+		result = RESULT.REFUSED  # sem chão para o excedente cair, o reembolso inteiro precisa caber (nada some)
+		reason = _refund_refusal(receiver, refund) if receiver != null else "inventory_full"
 	elif not authority.drops_enabled and not _box_empty(cell):
 		result = RESULT.REFUSED  # sem chão para largar, o conteúdo não tem para onde ir: nada some
 		reason = REASON_BOX_NOT_EMPTY
@@ -158,8 +158,9 @@ func transfer_chest(actor_id: int, chest: Chest, into_chest: bool, index: int, a
 		return problem_found
 	var source := actor.inventory if into_chest else chest.inventory
 	var destination := chest.inventory if into_chest else actor.inventory
+	var item_id := str(source.get_slot(index).get("id", ""))
 	if source.transfer_slot(index, destination, amount) == 0:
-		return _outcome(RESULT.REFUSED, REASON_BOX_FULL)
+		return _outcome(RESULT.REFUSED, "weight_limit" if destination.refusal_for(item_id) == "weight_limit" else REASON_BOX_FULL)
 	return _outcome(RESULT.OK)
 
 
@@ -360,11 +361,18 @@ func _cell_in_range(cell: Vector2i) -> bool:
 	return absi(cell.x) <= BuildGrid.MAX_CELL and absi(cell.y) <= BuildGrid.MAX_CELL
 
 
-func _refund_fits(actor: Player, refund: Dictionary) -> bool:
+## Por que o reembolso inteiro não cabe em `receiver` ("" = cabe): o Peso das unidades SOMADAS passa do limite
+## ("weight_limit"), ou falta slot para algum item ("inventory_full").
+func _refund_refusal(receiver: Player, refund: Dictionary) -> String:
+	var grams := 0
 	for item_id: String in refund:
-		if actor.inventory.room_for(item_id) < int(refund[item_id]):
-			return false
-	return true
+		grams += Items.weight_grams(item_id) * int(refund[item_id])
+	if grams > receiver.inventory.weight_room_grams():
+		return "weight_limit"
+	for item_id: String in refund:
+		if receiver.inventory.room_for(item_id) < int(refund[item_id]):
+			return "inventory_full"
+	return ""
 
 
 func _outcome(result: Enums.ActionResult, reason: String = "") -> Dictionary:

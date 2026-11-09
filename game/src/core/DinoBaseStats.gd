@@ -19,8 +19,9 @@ const SEX_MALE := "m"
 ## Refeições para domesticar no nível base, com dificuldade 1,0.
 @export var base_meals: int = 5
 @export var difficulty: float = 1.0
-## Carne da carcaça no nível base (GDD 5.6; o couro ainda não existe no catálogo).
+## Carne e couro da carcaça no nível base (GDD 5.6); o rendimento por nível está em `DinoLevelRules`.
 @export var carcass_meat: int = 4
+@export var carcass_leather: int = 0
 ## Folha inteira do sprite (o PNG que o `sheet_path` descreve). Vazio = a folha da cena (a do Paquicéfalo).
 @export var sheet_texture: Texture2D
 ## Quadro "morto" da espécie (coluna 10 da folha): o desenho da carcaça.

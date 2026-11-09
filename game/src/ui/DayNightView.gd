@@ -26,6 +26,9 @@ const LIGHT_MIN_STRENGTH := 0.01
 
 var _modulate := CanvasModulate.new()
 var _light := PointLight2D.new()
+## Último valor escrito: só se escreve no nó quando muda (a tinta fica parada na maior parte do dia).
+var _last_tint: Color = Color(-1.0, -1.0, -1.0)
+var _last_radius_px: float = -1.0
 
 
 func _ready() -> void:
@@ -47,15 +50,21 @@ func tick(_delta: float) -> void:
 	if authority == null:
 		return
 	var tint := authority.day_cycle.tint_at(authority.clock.now())
-	_modulate.color = tint
-	var missing := Color(1.0 - tint.r, 1.0 - tint.g, 1.0 - tint.b, 1.0)
-	_light.visible = maxf(missing.r, maxf(missing.g, missing.b)) > LIGHT_MIN_STRENGTH
-	_light.color = missing
-	_light.energy = 1.0
+	if tint != _last_tint:
+		_last_tint = tint
+		_modulate.color = tint
+		var missing := Color(1.0 - tint.r, 1.0 - tint.g, 1.0 - tint.b, 1.0)
+		_light.visible = maxf(missing.r, maxf(missing.g, missing.b)) > LIGHT_MIN_STRENGTH
+		_light.color = missing
+		_light.energy = 1.0
 	var radius_px := authority.day_cycle.rules.light_radius_tiles * tile_px
-	_light.texture_scale = radius_px * 2.0 / float(LIGHT_TEXTURE_SIZE)
+	if radius_px != _last_radius_px:
+		_last_radius_px = radius_px
+		_light.texture_scale = radius_px * 2.0 / float(LIGHT_TEXTURE_SIZE)
 	if player != null:
-		_light.global_position = player.global_position + light_offset
+		var at := player.global_position + light_offset
+		if at != _light.global_position:
+			_light.global_position = at
 
 
 func tint_node() -> CanvasModulate:

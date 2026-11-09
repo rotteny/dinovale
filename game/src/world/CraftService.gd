@@ -72,9 +72,8 @@ func _craft_problem(actor_id: int, actor: Player, recipe: RecipeDef) -> Dictiona
 		return _outcome(RESULT.OUT_OF_RANGE, "no_workbench")
 	if not recipe.missing_from(actor.inventory).is_empty():
 		return _outcome(RESULT.REFUSED, "missing_materials")
-	if not _output_fits(actor, recipe):
-		return _outcome(RESULT.REFUSED, "inventory_full")
-	return _outcome(RESULT.OK)
+	var no_room := _room_problem(actor, recipe)
+	return _outcome(RESULT.REFUSED, no_room) if no_room != "" else _outcome(RESULT.OK)
 
 
 ## Cancelar a fabricação em curso, a pedido do jogador.
@@ -165,6 +164,17 @@ func _interruption(actor_id: int) -> String:
 	return ""
 
 
+## O Peso aguenta a troca do material pelo resultado? Há receita que sai MAIS PESADA que o material (a Ração C: 3 bagas, 0,3 kg,
+## viram 2 rações, 0,4 kg), e perto do limite a diferença estoura. DECISÃO (E10): o excedente NÃO cai no chão: a fabricação é
+## recusada ("Peso máximo") e o material fica intacto. O chão esconderia uma carga que o jogador não pode levar e ele perderia a
+## escolha de largar algo antes; fabricar é voluntário, então recusar é barato, e o material não se perde.
+func _weight_fits(actor: Player, recipe: RecipeDef) -> bool:
+	var grams := Items.weight_grams(recipe.output_id) * recipe.output_amount
+	for item_id: String in recipe.inputs:
+		grams -= Items.weight_grams(item_id) * int(recipe.inputs[item_id])
+	return grams <= actor.inventory.weight_room_grams()
+
+
 ## O resultado cabe? Com chão ligado sempre (o que não cabe cai); sem ele, só se couber no inventário.
 ## Sem chão, a conta é feita DEPOIS de gastar o material (num inventário de teste): o que sai libera lugar.
 func _output_fits(actor: Player, recipe: RecipeDef) -> bool:
@@ -179,6 +189,13 @@ func _output_fits(actor: Player, recipe: RecipeDef) -> bool:
 	return fits
 
 
+## Por que o resultado não cabe ("" = cabe): "weight_limit" (o Peso vem primeiro) ou "inventory_full".
+func _room_problem(actor: Player, recipe: RecipeDef) -> String:
+	if not _weight_fits(actor, recipe):
+		return "weight_limit"
+	return "" if _output_fits(actor, recipe) else "inventory_full"
+
+
 func _finish(actor_id: int) -> void:
 	var taken := _jobs.cancel(actor_id)
 	var actor := _actor(actor_id)
@@ -188,8 +205,8 @@ func _finish(actor_id: int) -> void:
 	var why := ""
 	if not recipe.missing_from(actor.inventory).is_empty():
 		why = "missing_materials"
-	elif not _output_fits(actor, recipe):
-		why = "inventory_full"
+	else:
+		why = _room_problem(actor, recipe)  # carregou algo no meio da fabricação: cancela e o material fica
 	if why != "":
 		authority.announce("craft_cancelled", {"item": Items.display_name(recipe.output_id), "reason": why})
 		return

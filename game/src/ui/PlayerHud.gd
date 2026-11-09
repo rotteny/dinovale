@@ -1,3 +1,4 @@
+# gdlint: ignore=max-public-methods
 # SPDX-License-Identifier: MIT
 class_name PlayerHud
 extends Control
@@ -49,6 +50,7 @@ var _hunger_bar := StatBar.new("Fome", Color(0.98, 0.85, 0.35), BAR_SIZE,
 var _stamina_bar := StatBar.new("Stamina", STAMINA_COLOR, BAR_SIZE,
 		preload("res://assets/sprites/ui/icon_stamina_8.png"), ICON_SIZE, true)
 var _downed_bar := StatBar.new("Caído", DOWNED_COLOR, BAR_SIZE, null, ICON_SIZE, true)
+var _weight_label := Label.new()
 var _xp_label := Label.new()
 var _xp_bar := StatBar.new("", Color(0.45, 0.6, 1.0), Vector2(StatBar.BAR_SIZE.x, 3.0))
 var _hotbar := HotbarBar.new()
@@ -82,6 +84,8 @@ func _ready() -> void:
 	for bar in [_health_bar, _hunger_bar, _stamina_bar, _downed_bar]:
 		bar.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN  # a linha ocupa só o seu tamanho, não a largura do aviso
 		bars.add_child(bar)
+	_outline(_weight_label)
+	bars.add_child(_weight_label)
 	_outline(_hunger_warning)
 	_hunger_warning.add_theme_color_override("font_color", HUNGER_WARNING_COLOR)
 	_hunger_warning.visible = false
@@ -152,6 +156,9 @@ func _ready() -> void:
 	player.stamina.stamina_changed.connect(_refresh_stamina)
 	player.stamina.exhausted.connect(_refresh_stamina_state)
 	player.stamina.recovered.connect(_refresh_stamina_state)
+	player.inventory.changed.connect(_refresh_weight)
+	player.equipment.changed.connect(_refresh_weight)
+	_refresh_weight()
 	player.downed.time_changed.connect(_downed_bar.set_values)
 	player.downed.state_changed.connect(_refresh_downed)
 	player.target_changed.connect(_on_target_changed)
@@ -257,6 +264,26 @@ func saber_badge() -> Label:
 ## Aviso de 3 s ao subir de nível (o log do jogo recebe o mesmo fato pelo código `player_level_up`).
 func _on_leveled_up(level: int, saber_gained: int) -> void:
 	show_notice(GameMessages.text_of("player_level_up", {"level": level, "saber": saber_gained}), player.progression.rules.notice_seconds)
+
+
+## "Peso 38,1/50 kg" (GDD 5.1): atual e máximo; no limite o texto fica amarelo. Só lê o inventário (a regra é dele).
+func _refresh_weight() -> void:
+	var limit := player.inventory.weight_limit
+	_weight_label.text = "Peso %s/%s kg" % [_kg(player.inventory.carried_weight()), _kg(limit)]
+	var full := limit > 0.0 and player.inventory.weight_room_grams() <= 0
+	_weight_label.add_theme_color_override("font_color", HUNGER_WARNING_COLOR if full else Color.WHITE)
+
+
+## Quilos com no máximo 2 casas e vírgula decimal ("38,05", "50").
+static func _kg(value: float) -> String:
+	var text := "%.2f" % value
+	if text.contains("."):
+		text = text.rstrip("0").rstrip(".")
+	return text.replace(".", ",")
+
+
+func weight_label() -> Label:
+	return _weight_label
 
 
 func hunger_bar() -> StatBar:

@@ -20,6 +20,7 @@ base_meals = 5
 size = 0
 difficulty = 1.0
 carcass_meat = 4
+carcass_leather = 1
 carcass_texture = SubResource("AtlasTexture_dead")
 hitbox_size = Vector2(24, 16)
 spawn_terrains = Array[int]([3, 4])

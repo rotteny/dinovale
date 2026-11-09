@@ -39,6 +39,7 @@ const ACTION_USE_ITEM := "use_item"
 const ACTION_EQUIP := "equip"
 const ACTION_UNEQUIP := "unequip"
 const ACTION_GATHER := "gather"
+const ACTION_SKIN := "skin"
 ## Motivo da recusa por intervalo entre coletas: sem mensagem no log (o indicador é visual).
 const REASON_GATHER_INTERVAL := "gather_interval"
 const ACTION_FACE := "face"
@@ -94,6 +95,8 @@ var crafting := CraftService.new()
 var combat := CombatService.new()
 ## Construir, remover e abrir porta (E8a): a lógica e a grade ficam no `BuildService`, filho desta autoridade.
 var build := BuildService.new()
+## Esfolar carcaça (E10, SOB-06): `request_skin` valida e o jogador entrega o que cabe.
+var skinning := CarcassService.new()
 var queries := InteractionQuery.new()
 
 ## Quantas varreduras do mouse (`pick_at`) já fizeram: o cursor as limita (serve a teste de custo).
@@ -112,7 +115,7 @@ var _day_phase_seen: int = -1
 
 
 func _init() -> void:
-	for service: Node in [crafting, build, combat, queries]:
+	for service: Node in [crafting, build, combat, queries, skinning]:
 		service.set("authority", self)
 		add_child(service)
 
@@ -581,10 +584,17 @@ func request_unequip(actor_id: int, slot_id: String) -> Enums.ActionResult:
 	return _answer(actor_id, ACTION_UNEQUIP, problem)
 
 
-## Colher o nó de recurso `target_id` (o id do alvo, nunca a mira local de quem pede).
+## Esfolar a carcaça `target_id` (carne e couro que couberem; o resto fica nela). Regras no `CarcassService`.
+func request_skin(actor_id: int, target_id: int) -> Enums.ActionResult:
+	return _service_answer(actor_id, ACTION_SKIN, skinning.skin(actor_id, entity(target_id) as ResourceNode))
+
+
+## Colher o nó de recurso `target_id` (o id do alvo, nunca a mira local de quem pede). Carcaça é `request_skin`.
 func request_gather(actor_id: int, target_id: int) -> Enums.ActionResult:
 	var actor := _live_player(actor_id)
 	var node := entity(target_id) as ResourceNode
+	if node != null and node.def != null and node.def.is_carcass:
+		return request_skin(actor_id, target_id)
 	var problem := _actor_problem(actor_id, actor)
 	if problem == Enums.ActionResult.OK:
 		problem = Enums.ActionResult.OK if node != null else Enums.ActionResult.UNKNOWN_TARGET
@@ -658,7 +668,7 @@ func request_pickup(actor_id: int, target_id: int) -> Enums.ActionResult:
 		problem = Enums.ActionResult.NOT_OWNER
 	if problem == Enums.ActionResult.OK and actor.inventory.room_for(item.item_id) <= 0:
 		problem = Enums.ActionResult.REFUSED
-		_reason = "inventory_full"
+		_reason = actor.inventory.refusal_for(item.item_id)  # Peso máximo ou inventário cheio (o Peso vem primeiro)
 	if problem == Enums.ActionResult.OK:
 		var item_id := item.item_id
 		var entry := item.entry.duplicate(true)  # individual: volta com a durabilidade que tinha
@@ -683,7 +693,7 @@ func request_recover_corpse(actor_id: int, corpse_id: int) -> Enums.ActionResult
 		var moved := corpse.recover_into(actor.inventory)
 		if moved <= 0:
 			problem = Enums.ActionResult.REFUSED
-			_reason = "inventory_full"
+			_reason = corpse.refusal_for(actor.inventory)
 		else:
 			corpse.restore_hotbar(actor.hotbar, actor.inventory)  # os atalhos voltam para onde estavam
 			announce("corpse_recovered", {"amount": moved, "left": corpse.item_count()})
@@ -782,7 +792,7 @@ func _gather_result(reason: String) -> Enums.ActionResult:
 			return Enums.ActionResult.WRONG_STATE
 		Player.GATHER_NEEDS_TOOL:
 			return Enums.ActionResult.OK  # o toque aconteceu (a mão doeu); só não coletou: a recusa vai no sinal do jogador
-	_reason = "inventory_full" if reason == Player.GATHER_FULL else ""
+	_reason = "inventory_full" if reason == Player.GATHER_FULL else ("weight_limit" if reason == Player.GATHER_WEIGHT else "")
 	return Enums.ActionResult.REFUSED
 
 

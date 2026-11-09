@@ -48,6 +48,9 @@ const WEAPONS: Dictionary[String, WeaponDef] = {
 	WOODEN_SPEAR: preload("res://data/weapons/wooden_spear.tres"),
 }
 
+## Peso de cada item e capacidade de carga (dados).
+const CARRY: CarryRules = preload("res://data/balance/carry_rules.tres")
+
 ## Vagas de equipamento (dados).
 const EQUIPMENT: EquipmentLayout = preload("res://data/equipment/layout.tres")
 
@@ -87,6 +90,12 @@ static func hotbar_allowed(item_id: String) -> bool:
 		return true
 	var def := EQUIPMENT.slot_def(slot)
 	return def != null and def.hotbar
+
+
+## Peso de uma unidade em gramas (0 para id desconhecido).
+static func weight_grams(item_id: String) -> int:
+	var def := get_def(item_id)
+	return def.weight_grams() if def != null else 0
 
 
 static func durability_max(item_id: String) -> int:
@@ -146,6 +155,7 @@ static func _catalog() -> Dictionary:
 			ItemDef.new(TUBER, "Tubérculo", 20, Color(0.7, 0.55, 0.4)),
 			ItemDef.new(VEIN_SALT, "Sal-de-veio", 20, Color(0.85, 0.85, 0.9)),
 		]:
+			def.weight = CARRY.weight_of(def.id)
 			_defs[def.id] = def
 		# Durabilidade do Bastão: 120 (GDD 5.9). Só o campo; nada gasta ainda.
 		_defs[SLEEP_STAFF].durability_max = 120

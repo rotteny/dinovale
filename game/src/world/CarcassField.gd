@@ -7,10 +7,17 @@ extends Node2D
 ## vai ao save e some quando esvazia ou depois de `rules.fresh_seconds`. O morto não volta: o delta dos selvagens
 ## já o marca como morto, e a carcaça é só uma entidade nova de mundo.
 ##
-## Fora deste recorte (GDD 5.6): couro, carniça (10 a 20 min), sacolinha com o alforje e dono exclusivo por 120 s.
+## Esfolar é `request_skin` (`CarcassService`): carne e couro por espécie e nível, o que não cabe no Peso ou nos slots fica na
+## carcaça, e a do dino domado é só do dono por `rules.owner_exclusive_seconds`. Fora deste recorte (GDD 5.6): carniça
+## (10 a 20 min) e sacolinha com o alforje.
 
 const BASE_DEF: ResourceNodeDef = preload("res://data/resources/carcass_meat.tres")
-const SPECIES: Dictionary = {"placeholder_dino": preload("res://data/dino/placeholder_dino.tres")}
+const SPECIES: Dictionary = {
+	"placeholder_dino": preload("res://data/dino/placeholder_dino.tres"),
+	"utahraptor": preload("res://data/dino/utahraptor.tres"),
+}
+## Versão do formato de cada carcaça no save: 2 = com couro e dono. Sem a chave (save antigo) a carcaça só tinha carne.
+const ENTRY_FORMAT := 2
 const LEVEL_RULES: DinoLevelRules = preload("res://data/balance/dino_level_rules.tres")
 ## Os pés do dino ficam abaixo do centro do corpo (corpo de 16 px de altura).
 const FEET_OFFSET := Vector2(0.0, 8.0)
@@ -62,7 +69,8 @@ func nodes() -> Array[ResourceNode]:
 func spawn_from(creature: Dino) -> ResourceNode:
 	if not is_instance_valid(creature) or _stats_of(creature.stats.id) == null:
 		return null
-	return _spawn(creature.stats.id, creature.level, creature.global_position + FEET_OFFSET, _now(), 0)
+	var owner_id := creature.owner_player_id if creature.state_machine.is_tamed else ""
+	return _spawn(creature.stats.id, creature.level, creature.global_position + FEET_OFFSET, _now(), 0, owner_id)
 
 
 func _stats_of(species: String) -> DinoBaseStats:
@@ -98,18 +106,27 @@ func set_meat(node: ResourceNode, left: int) -> void:
 
 
 ## Nasce uma carcaça inteira (quem restaura aplica o que sobrou depois); `entity_id` > 0 pede esse id (restaura).
-func _spawn(species: String, level: int, point: Vector2, born_at: float, entity_id: int) -> ResourceNode:
+func _spawn(species: String, level: int, point: Vector2, born_at: float, entity_id: int, owner_id: String = "") -> ResourceNode:
 	var stats := _stats_of(species)
 	var meat := LEVEL_RULES.carcass_meat(stats.carcass_meat, level)
+	var leather := LEVEL_RULES.carcass_leather(stats.carcass_leather, level)
 	var def := BASE_DEF.duplicate() as ResourceNodeDef
 	def.id = "carcass_%s" % species
+	def.display_name = "Carcaça de %s" % stats.display_name
 	def.yield_amount = meat
-	def.gather_seconds = BASE_DEF.gather_seconds * float(meat)  # 3 s por carne à mão (GDD 5.9b)
+	if leather > 0:
+		def.extra_yields = {Items.LEATHER: leather}
+	# O tempo é por unidade (`item_seconds`: 3 s a carne e 6 s o couro à mão); `gather_seconds` fica como o total à mão.
+	def.gather_seconds = 0.0
+	for item_id: String in def.total_yields():
+		def.gather_seconds += float(BASE_DEF.item_seconds.get(item_id, 0.0)) * float(def.total_yields()[item_id])
 	def.texture = stats.carcass_texture
 	var node: ResourceNode = ResourceField.NodeScene.instantiate()
 	node.node_id = ""
 	node.def = def
 	node.position = point
+	node.carcass_owner = owner_id
+	node.exclusive_until = born_at + rules.owner_exclusive_seconds if owner_id != "" else 0.0
 	node.occupancy = occupancy
 	node.clock = clock
 	while _items.size() >= rules.max_carcasses:
@@ -152,8 +169,10 @@ func to_list() -> Array:
 		var entry := {
 			"id": authority.id_of(node) if authority != null else 0,
 			"species": item["species"], "level": item["level"],
-			"x": node.position.x, "y": node.position.y, "born_at": item["born_at"],
+			"x": node.position.x, "y": node.position.y, "born_at": item["born_at"], "format": ENTRY_FORMAT,
 		}
+		if node.carcass_owner != "":
+			entry["owner"] = node.carcass_owner
 		if node.component.is_partial():
 			entry["left"] = node.component.leftover.duplicate()
 		list.append(entry)
@@ -178,8 +197,14 @@ func restore_list(list: Array) -> void:
 		# `born_at` não passa do relógio (já reposto) e não é mais velho que o prazo: o vencido some no 1º tick.
 		var current := _now()
 		var born_at := SafeRead.number(data.get("born_at"), current, current - rules.fresh_seconds, current)
-		var node := _spawn(species, level, point, born_at, SafeRead.integer(data.get("id"), 0, 0, 1 << 30))
+		var owner_id := SafeRead.text(data.get("owner"), "")
+		if owner_id.length() > WorldAuthority.MAX_ID_LENGTH:
+			owner_id = ""
+		var node := _spawn(species, level, point, born_at, SafeRead.integer(data.get("id"), 0, 0, 1 << 30), owner_id)
 		var left := _clean_left(data.get("left"), node.def)
+		# Save antigo (sem `format`): só havia carne. Uma carcaça pela metade não perde o couro que ainda não existia.
+		if not left.is_empty() and SafeRead.integer(data.get("format"), 1, 0, 1000) < ENTRY_FORMAT and node.def.extra_yields.has(Items.LEATHER):
+			left[Items.LEATHER] = int(node.def.extra_yields[Items.LEATHER])
 		if not left.is_empty():
 			node.component.leave(left)
 

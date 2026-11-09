@@ -57,6 +57,13 @@ func carcass_meat(base_meat: int, level: int) -> int:
 	return maxi(roundi(float(base_meat) * _factor(level, carcass_slope, carcass_floor)), 1)
 
 
+## Couro da carcaça: o mesmo fator da carne, mas base 0 = espécie sem couro (sem o mínimo de 1).
+func carcass_leather(base_leather: int, level: int) -> int:
+	if base_leather <= 0:
+		return 0
+	return maxi(roundi(float(base_leather) * _factor(level, carcass_slope, carcass_floor)), 1)
+
+
 func max_health(base: float, level: int) -> float:
 	return base * health_factor(level)
 

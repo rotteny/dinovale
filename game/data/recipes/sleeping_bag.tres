@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="RecipeDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/core/RecipeDef.gd" id="1_recipe"]
+
+[resource]
+script = ExtResource("1_recipe")
+id = "sleeping_bag"
+display_name = "Saco de dormir"
+inputs = Dictionary[String, int]({
+"fiber": 8
+})
+output_id = "sleeping_bag"
+output_amount = 1
+; [premissa] tempo: 3 s à mão e 4 s na Bancada (a spec só fixa os 4 s da Bancada)
+seconds = 3.0
+station = "hand"
+; custo em Saber: 1 por receita (shiro.md 5.2, "7 Saber"); o grupo é aprendido junto, pagando uma vez
+saber_cost = 1

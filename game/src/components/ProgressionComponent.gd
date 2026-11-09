@@ -12,16 +12,32 @@ signal xp_changed(level: int, xp: int, needed: int)
 signal leveled_up(level: int, saber_gained: int)
 ## O Saber livre mudou (gasto ou ganho).
 signal saber_changed(free: int)
+## Aprendeu uma receita (e as do mesmo grupo). Carregar um save NUNCA emite isto.
+signal recipe_learned(recipe_id: String)
 
-const FORMAT_VERSION := 1
+const FORMAT_VERSION := 2
 ## Teto de uma concessão: dado externo não confiável não pode girar o laço por um valor absurdo.
 const MAX_GRANT := 1000000
+## Teto da lista de receitas lida de um save (dado externo): bem acima das 17 do jogo, abaixo de algo que pese.
+const MAX_SAVED_RECIPES := 64
+## Motivos das recusas de `learn` (chaves de `GameMessages.REASONS`).
+const REASON_UNKNOWN := "unknown_recipe"
+const REASON_NOT_LEARNABLE := "recipe_not_learnable"
+const REASON_ALREADY := "recipe_already_learned"
+const REASON_NO_SABER := "no_saber"
 
 @export var rules: ProgressionRules = preload("res://data/balance/progression_rules.tres")
 
 var level: int = 1
 var xp: int = 0
-var saber_spent: int = 0
+## Livro de receitas contra o qual o custo é conferido (a autoridade põe o dela ao registrar o jogador).
+var recipe_book: RecipeBook = RecipeBook.with_defaults()
+## Ids das receitas aprendidas com Saber (as conhecidas de início não entram). Ordem de aprendizado.
+var learned: Array[String] = []
+## Saber gasto: DERIVADO das receitas aprendidas (cada grupo conta uma vez). Só leitura.
+var saber_spent: int:
+	get:
+		return recipe_book.cost_of(learned)
 
 
 func xp_needed() -> int:
@@ -80,28 +96,61 @@ func grant_tame(final_level: int) -> int:
 	return grant_xp(rules.tame_xp(final_level))
 
 
-## Gasta Saber (a E7b chama ao aprender receita). `false` e nada muda se não houver o bastante.
-func spend_saber(amount: int) -> bool:
-	if amount <= 0 or amount > saber_free():
-		return false
-	saber_spent += amount
+## O jogador conhece a receita? Conhecida de início (custo 0) ou aprendida.
+func knows(recipe: RecipeDef) -> bool:
+	return recipe != null and (recipe.is_known_at_start() or learned.has(recipe.id))
+
+
+## Aprende `recipe_id` gastando Saber (a AUTORIDADE chama). Devolve "" se aprendeu, ou o motivo da recusa (nada muda).
+## Aprender uma receita de grupo ensina o grupo todo, pagando o custo uma vez.
+func learn(recipe_id: String) -> String:
+	var recipe := recipe_book.find(recipe_id)
+	if recipe == null:
+		return REASON_UNKNOWN
+	if recipe.is_known_at_start():
+		return REASON_NOT_LEARNABLE
+	if learned.has(recipe.id):
+		return REASON_ALREADY
+	if recipe.saber_cost > saber_free():
+		return REASON_NO_SABER
+	for member in recipe_book.group_of(recipe):
+		if not learned.has(member.id):
+			learned.append(member.id)
+	recipe_learned.emit(recipe.id)
 	saber_changed.emit(saber_free())
-	return true
+	return ""
 
 
 func to_dict() -> Dictionary:
-	return {"version": FORMAT_VERSION, "level": level, "xp": xp, "saber_spent": saber_spent}
+	return {"version": FORMAT_VERSION, "level": level, "xp": xp, "recipes": learned.duplicate()}
 
 
-## Restaura sem emitir `leveled_up` (carregar não é evento de jogo). Campo ausente ou inválido fica como está; número fora da
-## faixa é LIMITADO (nível acima do teto vira o teto, XP acima do que o nível pede fica no limite, Saber gasto acima do total
-## cai no total): ajustar a curva depois não pune quem já tinha salvo.
+## Restaura sem emitir `leveled_up` nem `recipe_learned` (carregar não é evento de jogo). Campo ausente ou inválido fica como
+## está; número fora da faixa é LIMITADO (nível acima do teto vira o teto, XP acima do que o nível pede fica no limite).
+## As receitas valem na ordem salva, só as que existem, são aprendíveis e cabem no Saber do nível; o resto é descartado.
+## Save v1 guardava `saber_spent` sem receitas: o campo é ignorado (0 gasto, nada inventado).
 func from_dict(data: Dictionary) -> void:
 	level = int(SafeRead.number(data.get("level"), level, 1.0, rules.level_max))
 	var needed := xp_needed()
 	xp = int(SafeRead.number(data.get("xp"), xp, 0.0, maxi(needed - 1, 0))) if needed > 0 else 0
-	saber_spent = int(SafeRead.number(data.get("saber_spent"), saber_spent, 0.0, saber_total()))
-	saber_spent = clampi(saber_spent, 0, saber_total())  # o valor de antes (padrão de dado inválido) também tem de caber no nível lido
+	_restore_recipes(SafeRead.list(data.get("recipes")))
 	xp = mini(xp, maxi(needed - 1, 0))  # o XP de antes pode não caber no nível lido
 	xp_changed.emit(level, xp, needed)
 	saber_changed.emit(saber_free())
+
+
+## Receitas do save: validadas uma a uma (nunca aborta). Substitui as de agora (o save é a fonte da verdade).
+func _restore_recipes(saved: Array) -> void:
+	learned = []
+	for entry: Variant in saved.slice(0, MAX_SAVED_RECIPES):
+		if typeof(entry) != TYPE_STRING:
+			continue
+		var recipe := recipe_book.find(str(entry))
+		if recipe == null or recipe.is_known_at_start() or learned.has(recipe.id):
+			continue
+		var candidate: Array[String] = learned.duplicate()
+		for member in recipe_book.group_of(recipe):
+			if not candidate.has(member.id):
+				candidate.append(member.id)
+		if recipe_book.cost_of(candidate) <= saber_total():
+			learned = candidate

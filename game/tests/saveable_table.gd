@@ -112,7 +112,8 @@ func _inventory_case() -> Array:
 func _progression_case() -> Array:
 	var original: ProgressionComponent = _track.call(ProgressionComponent.new())
 	original.grant_xp(100)
-	original.spend_saber(1)
+	original.grant_xp(5000)
+	original.learn("workbench")
 	return [original, _track.call(ProgressionComponent.new())]
 
 

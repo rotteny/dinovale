@@ -38,9 +38,30 @@ func begin_craft(actor_id: int, recipe_id: String) -> Dictionary:
 	return _outcome(RESULT.OK)
 
 
+## Aprende `recipe_id` para `actor_id` gastando Saber (E7b, PRO-13). A autoridade valida tudo: ator vivo, id, receita
+## aprendível e ainda não aprendida, Saber livre. O cliente só pede; nada do que ele diga muda o gasto.
+func learn(actor_id: int, recipe_id: String) -> Dictionary:
+	var actor := _actor(actor_id)
+	if actor == null:
+		return _no_actor(actor_id)
+	if recipe_id.length() > WorldAuthority.MAX_ID_LENGTH:
+		return _outcome(RESULT.INVALID_ARGUMENT, ProgressionComponent.REASON_UNKNOWN)
+	var reason := actor.progression.learn(recipe_id)
+	match reason:
+		"":
+			var recipe := recipe_book.find(recipe_id)
+			authority.owner_event.emit(actor.player_id, "recipe_learned", {"item": recipe.display_name, "recipe": recipe.id})
+			return _outcome(RESULT.OK)
+		ProgressionComponent.REASON_UNKNOWN:
+			return _outcome(RESULT.INVALID_ARGUMENT, reason)
+		ProgressionComponent.REASON_NO_SABER:
+			return _outcome(RESULT.REFUSED, reason)
+	return _outcome(RESULT.WRONG_STATE, reason)
+
+
 ## Por que a receita não pode ser fabricada agora (`result` OK = pode).
 func _craft_problem(actor_id: int, actor: Player, recipe: RecipeDef) -> Dictionary:
-	if not recipe_book.is_known(recipe):
+	if not actor.progression.knows(recipe):
 		return _outcome(RESULT.REFUSED, "recipe_locked")
 	if _jobs.is_crafting(actor_id):
 		return _outcome(RESULT.WRONG_STATE, "already_crafting")

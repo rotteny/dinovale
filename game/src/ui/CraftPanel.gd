@@ -112,7 +112,7 @@ func refresh() -> void:
 		child.queue_free()
 	var actor_id := authority.id_of(player)
 	var crafting := not authority.crafting.job(actor_id).is_empty()
-	for recipe in authority.crafting.recipe_book.known():
+	for recipe in authority.crafting.recipe_book.known_by(player.progression):
 		_list.add_child(_row(recipe, crafting))
 	if player.inventory.count(Items.WORKBENCH) > 0:
 		var place := Button.new()
@@ -132,7 +132,7 @@ func _signature() -> String:
 	var actor_id := authority.id_of(player)
 	var parts: PackedStringArray = [str(authority.crafting.job(actor_id).get("recipe", "")),
 			str(player.inventory.count(Items.WORKBENCH) > 0)]
-	for recipe in authority.crafting.recipe_book.known():
+	for recipe in authority.crafting.recipe_book.known_by(player.progression):
 		parts.append("%s=%s" % [recipe.id, needs_text(recipe, player.inventory)])
 	return "|".join(parts)
 

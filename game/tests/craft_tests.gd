@@ -79,17 +79,19 @@ func _test_recipe_data() -> void:
 		"axe_stone": {Items.WOOD: 3, Items.STONE: 2, Items.FIBER: 1},
 		"pickaxe_stone": {Items.WOOD: 3, Items.STONE: 3, Items.FIBER: 1},
 		"sleep_staff": {Items.WOOD: 3, Items.FIBER: 2},
-		"workbench": {Items.WOOD: 8, Items.STONE: 2},
 	}
-	var ok := book.all().size() == expected.size()
+	var ok := book.all().size() == 17
 	for recipe_id: String in expected:
 		var recipe := book.find(recipe_id)
 		ok = ok and recipe != null and recipe.is_valid() and recipe.output_id == recipe_id and recipe.station == "hand" \
-				and recipe.known_at_start and recipe.inputs.size() == (expected[recipe_id] as Dictionary).size()
+				and recipe.is_known_at_start() and recipe.inputs.size() == (expected[recipe_id] as Dictionary).size()
 		if recipe != null:
 			for item_id: String in expected[recipe_id]:
 				ok = ok and int(recipe.inputs.get(item_id, 0)) == int(expected[recipe_id][item_id])
-	_check(ok, "receitas da E7a em dados: Lança, Machado, Picareta, Bastão e Bancada com os números de receitas.md")
+	_check(ok, "receitas conhecidas em dados: Lança, Machado, Picareta e Bastão com os números de receitas.md")
+	var bench := book.find("workbench")
+	_check(bench != null and bench.inputs == {Items.WOOD: 8, Items.STONE: 2} and bench.station == "hand" and bench.saber_cost == 1,
+			"a Bancada deixou de ser conhecida provisória: custa 1 Saber")
 	_check(book.find("workbench").seconds == 4.0 and Items.durability_max(SPEAR) == 80
 			and Items.weapon_of(SPEAR).damage == 12.0, "Bancada leva 4 s; Lança: dano 12 e durabilidade 80 em dados")
 	var broken := RecipeDef.new()
@@ -124,7 +126,7 @@ func _test_unknown_and_locked_recipe() -> void:
 	locked.id = "secret"
 	locked.inputs = {Items.WOOD: 1}
 	locked.output_id = Items.FIBER
-	locked.known_at_start = false
+	locked.saber_cost = 1
 	authority.crafting.recipe_book.add(locked)
 	_check(authority.request_craft(1, "secret") == Enums.ActionResult.REFUSED and authority.crafting.job(1).is_empty(),
 			"receita não conhecida: recusada")
@@ -170,7 +172,8 @@ func _test_panel_lists_and_progress() -> void:
 	var recipe := authority.crafting.recipe_book.find("axe_stone")
 	_check(panel.visible and CraftPanel.needs_text(recipe, player.inventory) == "Madeira 3/3, !Pedra 1/2, !Fibra 0/1",
 			"o painel mostra o que falta de material")
-	_check(panel._list.get_child_count() == authority.crafting.recipe_book.known().size(), "o painel lista as receitas conhecidas")
+	var known_count := authority.crafting.recipe_book.known_by(player.progression).size()
+	_check(panel._list.get_child_count() == known_count, "o painel lista as receitas conhecidas")
 	player.inventory.add(Items.STONE, 1)
 	player.inventory.add(Items.FIBER, 1)
 	panel.refresh()

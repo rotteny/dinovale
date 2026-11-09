@@ -22,6 +22,23 @@ const AXE_STONE := "axe_stone"
 const PICKAXE_STONE := "pickaxe_stone"
 ## Peça que se coloca no mundo (E7a): vira a entidade `Workbench` por `WorldAuthority.request_place`.
 const WORKBENCH := "workbench"
+## Itens das receitas da E7b que AINDA NÃO TÊM USO (entram como item, sem efeito; cada um ganha o efeito na etapa dele).
+const CAMPFIRE := "campfire"
+const FIBER_BASKET := "fiber_basket"
+const CHEST := "chest"
+const LEATHER_BACKPACK := "leather_backpack"
+const SLEEPING_BAG := "sleeping_bag"
+const BED := "bed"
+const FOUNDATION := "foundation"
+const WALL := "wall"
+const DOOR := "door"
+const RATION_C := "ration_c"
+const RATION_B := "ration_b"
+const RATION_A := "ration_a"
+## Materiais só de receita (sem fonte no mundo ainda): couro (carcaça), tubérculo e sal-de-veio (Ração B e A).
+const LEATHER := "leather"
+const TUBER := "tuber"
+const VEIN_SALT := "vein_salt"
 ## Itens que `request_place` sabe colocar.
 const PLACEABLE: Array[String] = [WORKBENCH]
 
@@ -112,6 +129,22 @@ static func _catalog() -> Dictionary:
 			ItemDef.new(AXE_STONE, "Machado de pedra", 1, Color(0.55, 0.55, 0.6)),
 			ItemDef.new(PICKAXE_STONE, "Picareta de pedra", 1, Color(0.5, 0.5, 0.58)),
 			ItemDef.new(WORKBENCH, "Bancada comum", 1, Color(0.6, 0.42, 0.22)),
+			# E7b [premissa de pilha, `catalogo.md`: peça de mobília 1, material 20, Ração 20].
+			ItemDef.new(CAMPFIRE, "Fogueira", 1, Color(0.85, 0.45, 0.15)),
+			ItemDef.new(FIBER_BASKET, "Cesto de fibra", 1, Color(0.7, 0.65, 0.35)),
+			ItemDef.new(CHEST, "Baú", 1, Color(0.5, 0.35, 0.18)),
+			ItemDef.new(LEATHER_BACKPACK, "Mochila de couro", 1, Color(0.55, 0.32, 0.2)),
+			ItemDef.new(SLEEPING_BAG, "Saco de dormir", 1, Color(0.45, 0.5, 0.7)),
+			ItemDef.new(BED, "Cama", 1, Color(0.7, 0.5, 0.5)),
+			ItemDef.new(FOUNDATION, "Fundação de madeira", 20, Color(0.6, 0.45, 0.28)),
+			ItemDef.new(WALL, "Parede de madeira", 20, Color(0.58, 0.4, 0.24)),
+			ItemDef.new(DOOR, "Porta de madeira", 5, Color(0.52, 0.36, 0.2)),
+			ItemDef.new(RATION_C, "Ração C", 20, Color(0.65, 0.7, 0.4)),
+			ItemDef.new(RATION_B, "Ração B", 20, Color(0.6, 0.72, 0.35)),
+			ItemDef.new(RATION_A, "Ração A", 20, Color(0.55, 0.75, 0.3)),
+			ItemDef.new(LEATHER, "Couro", 20, Color(0.6, 0.4, 0.3)),
+			ItemDef.new(TUBER, "Tubérculo", 20, Color(0.7, 0.55, 0.4)),
+			ItemDef.new(VEIN_SALT, "Sal-de-veio", 20, Color(0.85, 0.85, 0.9)),
 		]:
 			_defs[def.id] = def
 		# Durabilidade do Bastão: 120 (GDD 5.9). Só o campo; nada gasta ainda.

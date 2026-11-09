@@ -77,6 +77,7 @@ var ground: GroundItemField
 ## Bancadas colocadas (E7a) e o painel de fabricação (tecla C).
 var workbenches: WorkbenchField
 var craft_panel: CraftPanel
+var recipes_panel: RecipesPanel
 ## Log do sistema (eventos da autoridade traduzidos em um lugar só) e a vista dele no canto de baixo.
 var message_log: MessageLog
 var message_log_view: MessageLogView
@@ -123,6 +124,7 @@ func _ready() -> void:
 	screen.hotbar_assign_requested.connect(_on_hotbar_assign_requested)
 	_wire_mouse_ui()
 	_wire_craft_panel()
+	_wire_recipes_panel()
 	player.downed.state_changed.connect(func(_downed: bool) -> void: sync_incapacity_lock())
 	screen.opened.connect(func() -> void: player.input_locked = true)
 	screen.closed.connect(func() -> void: player.input_locked = false)
@@ -638,6 +640,17 @@ func _wire_craft_panel() -> void:
 	craft_panel.place_requested.connect(_on_place_requested)
 	player.inventory.changed.connect(craft_panel.refresh)
 	authority.game_event.connect(func(_code: String, _params: Dictionary) -> void: craft_panel.refresh())
+
+
+## A aba Receitas (tecla P) só observa: Aprender vira pedido à autoridade, que valida o Saber.
+func _wire_recipes_panel() -> void:
+	RecipesPanel.ensure_action()
+	recipes_panel = RecipesPanel.new()
+	recipes_panel.recipe_book = authority.crafting.recipe_book
+	recipes_panel.player = player
+	screen.get_parent().add_child(recipes_panel)
+	recipes_panel.learn_requested.connect(func(recipe_id: String) -> void: authority.request_learn_recipe(authority.id_of(player), recipe_id))
+	player.progression.saber_changed.connect(func(_free: int) -> void: recipes_panel.refresh())
 
 
 ## Colocar a peça um tile e meio à frente do jogador (a autoridade valida o ponto).

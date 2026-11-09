@@ -59,10 +59,11 @@ func _test_component_levels() -> void:
 	levels.clear()
 	_check(comp.grant_xp(45 + 60 + 75 + 20) == 3 and comp.level == 5 and comp.xp == 20 and levels == [[5, 5]],
 			"uma concessão cruza 3 níveis: UM sinal, nível 5, Saber somado (2 + 1 + 2 = 5)")
-	_check(comp.saber_free() == 6 and not comp.spend_saber(7) and comp.saber_free() == 6
-			and not comp.spend_saber(0) and not comp.spend_saber(-1),
-			"gastar mais que o livre, zero ou negativo recusa e nada muda")
-	_check(comp.spend_saber(2) and comp.saber_free() == 4 and comp.saber_spent == 2, "gastar 2 de 6 deixa 4 livres")
+	_check(comp.saber_free() == 6 and comp.learn("nao_existe") == "unknown_recipe" and comp.learn("axe_stone") == "recipe_not_learnable"
+			and comp.saber_free() == 6, "receita inexistente ou conhecida de início recusa e nada muda")
+	_check(_progress().learn("workbench") == "no_saber", "sem Saber livre a receita recusa")
+	_check(comp.learn("workbench") == "" and comp.learn("bed") == "" and comp.saber_free() == 4 and comp.saber_spent == 2,
+			"aprender 2 receitas de 1 Saber, com 6, deixa 4 livres")
 	_check(comp.grant_xp(0) == 0 and comp.grant_xp(-9) == 0 and comp.level == 5, "XP zero ou negativo não faz nada")
 	comp.grant_xp(RULES.xp_total_to_reach(20))
 	_check(comp.level == 20 and comp.is_max_level() and comp.xp == 0 and comp.saber_total() == 24, "chega ao teto 20 com 24 Saber no total")
@@ -78,7 +79,8 @@ func _test_save_and_migration() -> void:
 	var player := _player_at(Vector2.ZERO)
 	var comp := player.progression
 	comp.grant_xp(30 + 45 + 60 + 75 + 20)
-	comp.spend_saber(2)
+	comp.learn("workbench")
+	comp.learn("bed")
 	var wire := JSON.stringify(player.to_dict())
 	var json := JSON.new()
 	_check(json.parse(wire) == OK, "o jogador com nível vira JSON")
@@ -119,7 +121,7 @@ func _test_save_and_migration() -> void:
 				and p.saber_spent >= 0 and p.saber_spent <= p.saber_total() and p.saber_free() >= 0, "dado hostil (%s): limitado, sem abortar" % label)
 	var capped := _player_at(Vector2.ZERO)
 	var over := base.duplicate(true)
-	over["progression"] = {"level": 99, "xp": 5, "saber_spent": 3}
+	over["progression"] = {"level": 99, "xp": 5, "recipes": ["workbench", "bed", "ration_c"]}
 	capped.from_dict(over)
 	_check(capped.progression.level == 20 and capped.progression.xp == 0 and capped.progression.saber_spent == 3,
 			"nível salvo acima do teto vira o teto, sem XP")
@@ -316,7 +318,7 @@ func _test_hud() -> void:
 			"subir de nível: rótulo Nv 2 e selo de Saber")
 	_check(hud.notice_label().visible and hud.notice_label().text == "Nível 2: +1 Saber", "subir de nível: aviso com o texto do log")
 	_check(RULES.notice_seconds == 3.0, "o aviso dura 3 s (dado)")
-	player.progression.spend_saber(1)
+	player.progression.learn("workbench")
 	_check(not hud.saber_badge().visible, "o selo some quando o Saber acaba")
 	# O aviso some em 3 s.
 	await _root.get_tree().create_timer(2.5).timeout

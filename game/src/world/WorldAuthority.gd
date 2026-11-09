@@ -47,6 +47,7 @@ const ACTION_DROP := "drop"
 const ACTION_RECOVER := "recover_corpse"
 const ACTION_CRAFT := "craft"
 const ACTION_CANCEL_CRAFT := "cancel_craft"
+const ACTION_LEARN_RECIPE := "learn_recipe"
 const ACTION_PLACE := "place"
 ## Quantidade de `request_transfer_slot` que significa "a pilha toda".
 const TRANSFER_ALL := -1
@@ -161,6 +162,7 @@ func _watch(node: Node) -> void:
 			combat.on_dino_attack(dino, target, damage, episode))
 	elif node is Player:
 		var player := node as Player
+		player.progression.recipe_book = crafting.recipe_book  # o custo das receitas vem do livro DESTE mundo
 		# Subir de nível é aviso só do próprio jogador (no co-op, cada um lê os seus).
 		player.progression.leveled_up.connect(func(level: int, saber_gained: int) -> void:
 			owner_event.emit(player.player_id, "player_level_up", {"level": level, "saber": saber_gained}))
@@ -678,6 +680,11 @@ func request_drop(actor_id: int, index: int, amount: int = TRANSFER_ALL) -> Enum
 ## Fabricar a receita `recipe_id` (regras e tarefa no `CraftService`). O material só sai no FIM.
 func request_craft(actor_id: int, recipe_id: String) -> Enums.ActionResult:
 	return _service_answer(actor_id, ACTION_CRAFT, crafting.begin_craft(actor_id, recipe_id))
+
+
+## Aprender a receita `recipe_id` gastando Saber (E7b). Regras no `CraftService`; o gasto deriva das receitas aprendidas.
+func request_learn_recipe(actor_id: int, recipe_id: String) -> Enums.ActionResult:
+	return _service_answer(actor_id, ACTION_LEARN_RECIPE, crafting.learn(actor_id, recipe_id))
 
 
 ## Cancelar a fabricação em curso, a pedido do jogador.

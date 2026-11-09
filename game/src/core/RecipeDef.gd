@@ -17,8 +17,15 @@ const STATION_WORKBENCH := "workbench"
 ## Segundos de fabricação.
 @export_range(0.1, 600.0) var seconds: float = 3.0
 @export var station: String = STATION_HAND
-## Conhecida desde o início. Provisório na E7a: na E7b o resto passa a ser aprendido com Saber.
-@export var known_at_start: bool = true
+## Saber que a receita custa para ser aprendida. 0 = conhecida desde o início. Lista plana (D18): sem pré-requisito.
+@export_range(0, 100) var saber_cost: int = 0
+## Receitas do mesmo grupo (ex.: as três peças do abrigo) são aprendidas juntas e o Saber é pago UMA vez. "" = sem grupo.
+@export var learn_group: String = ""
+
+
+## Conhecida desde o início (não custa Saber).
+func is_known_at_start() -> bool:
+	return saber_cost <= 0
 
 
 ## A receita é coerente com o catálogo? (ids de item existentes, quantidades positivas, estação válida.)

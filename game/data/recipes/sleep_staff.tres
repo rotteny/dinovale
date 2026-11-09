@@ -12,7 +12,6 @@ inputs = Dictionary[String, int]({
 })
 output_id = "sleep_staff"
 output_amount = 1
-; [premissa] tempo de fabricação (a spec só fixa os 4 s da Bancada; os 3 s da mão são escolha da E7a)
+; [premissa] tempo: 3 s à mão e 4 s na Bancada (a spec só fixa os 4 s da Bancada)
 seconds = 3.0
 station = "hand"
-known_at_start = true

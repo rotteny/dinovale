@@ -183,7 +183,9 @@ func _test_panel_lists_and_progress() -> void:
 	var recipe := authority.crafting.recipe_book.find("axe_stone")
 	_check(panel.visible and CraftPanel.needs_text(recipe, player.inventory) == "Madeira 3/3, !Pedra 1/2, !Fibra 0/1",
 			"o painel mostra o que falta de material")
-	var known_count := authority.crafting.recipe_book.known_by(player.progression).size()
+	var known_count := 0
+	for known in authority.crafting.recipe_book.known_by(player.progression):
+		known_count += 0 if known.places_in_world else 1  # peça do mundo (Baú, fundação...) sai do modo construção, não daqui
 	_check(panel._list.get_child_count() == known_count, "o painel lista as receitas conhecidas")
 	player.inventory.add(Items.STONE, 1)
 	player.inventory.add(Items.FIBER, 1)

@@ -89,6 +89,7 @@ const REASONS: Dictionary = {
 	"no_door": "Isso não é uma porta.",
 	"not_yours": "Essa peça é de outro jogador.",
 	"has_dependents": "Tire antes as peças apoiadas nela.",
+	"chest_not_empty": "Esvazie o baú antes de tirá-lo.",
 	"build_in_world": "Isso se constrói no mundo (tecla B).",
 }
 

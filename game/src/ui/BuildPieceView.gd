@@ -8,6 +8,7 @@ const TEXTURES: Dictionary[String, Texture2D] = {
 	"foundation": preload("res://assets/sprites/pecas/foundation.png"),
 	"wall": preload("res://assets/sprites/pecas/wall.png"),
 	"door": preload("res://assets/sprites/pecas/door_closed.png"),
+	"chest": preload("res://assets/sprites/pecas/chest.png"),
 	"door_open": preload("res://assets/sprites/pecas/door_open.png"),
 }
 

@@ -185,6 +185,14 @@ func has_line(from: Vector2i, to: Vector2i, size_class: Enums.DinoSize, extra_cl
 	return true
 
 
+func line_blocked(from: Vector2, to: Vector2) -> bool:
+	var line := GridLine.cells(from, to, float(rules.tile_px))
+	for index in range(1, line.size() - 1):
+		if is_blocked(line[index]):
+			return true
+	return false
+
+
 func _nearest_open(grid: AStarGrid2D, cell: Vector2i, max_radius: int = 3) -> Vector2i:
 	if not in_bounds(cell):
 		return Vector2i(-1, -1)

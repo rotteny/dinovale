@@ -259,9 +259,10 @@ func _build_zone() -> void:
 	workbenches.attach(authority.build.grid, float(map.tile))
 	authority.crafting.workbenches = workbenches
 	navigation.watch_build(authority.build.grid, float(map.tile))  # o grid dos dinos conhece parede, porta fechada e Bancada
-	authority.crafting.entry_dropped.connect(func(entry: Dictionary, at: Vector2, _dropper_id: String) -> void:
-		ground.spawn_entry(entry, at)
-		_play_drop_sound(at))
+	for dropper: Signal in [authority.crafting.entry_dropped, authority.build.entry_dropped]:  # item individual no chão
+		dropper.connect(func(entry: Dictionary, at: Vector2, _dropper_id: String) -> void:
+			ground.spawn_entry(entry, at)
+			_play_drop_sound(at))
 	wild = WildPopulation.new()
 	wild.name = "Wild"
 	wild.y_sort_enabled = true
@@ -698,6 +699,11 @@ func _on_interaction_granted(actor_id: int, target_id: int) -> void:
 	var target := authority.entity(target_id)
 	if target is ResourceNode:
 		authority.request_gather(actor_id, target_id)  # o alvo é o que a interação concedeu, não a mira local
+		return
+	var chest := target as Chest
+	if chest != null:
+		_screen_target_id = target_id
+		screen.open_container(player.inventory, chest.inventory, chest.interactable, "Baú")
 		return
 	var target_dino := target as Dino
 	if target_dino != null:

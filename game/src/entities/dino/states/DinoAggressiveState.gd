@@ -16,6 +16,7 @@ var _far_time := 0.0
 var _lunge_direction := Vector2.ZERO
 var _steered_phase := Enums.ThreatPhase.NONE
 var _fleeing := false
+var _routing := false  # a linha até o alvo está (ou esteve) tapada: segue o caminho até chegar ao alcance
 var _flee_time := 0.0
 
 
@@ -28,6 +29,7 @@ func enter() -> void:
 	machine.episode_id += 1
 	_steered_phase = Enums.ThreatPhase.NONE
 	_fleeing = false
+	_routing = false
 	_flee_time = 0.0
 	machine.is_helper = false  # quem chama o ajudante liga o teto depois de entrar (`provoke_as_helper`)
 	if machine.threat_cycle != null:
@@ -79,8 +81,26 @@ func tick(delta: float) -> void:
 		machine.transition_to(Enums.DinoStateId.IDLE)
 		return
 	if machine.threat_cycle != null:
-		machine.threat_cycle.tick(delta, machine.target_distance(), machine.tile_px)
+		machine.threat_cycle.tick(delta, _cycle_distance(), machine.tile_px)
 	_steer(delta)
+
+
+## Distância que o ciclo de ameaça enxerga. Com parede, porta fechada, árvore ou rocha no meio do caminho reto até o alvo, ele
+## está "longe" (INF): o bravo só chega ao rodeio e à investida com a linha livre, e antes disso segue o caminho do
+## `PathFollower` (dá a volta pelo vão, ou desiste quando não há rota). Sem isso a investida iria de cabeça na parede. Uma vez
+## em rota, só sai dela com a linha livre E o alvo ao alcance do golpe: soltar na primeira fresta (a boca de uma porta aberta)
+## faria o rodeio empurrá-lo de lado e o bravo nunca entraria.
+func _cycle_distance() -> float:
+	var provider := machine.follower.provider
+	var distance := machine.target_distance()
+	if provider == null or not machine.target_known:
+		_routing = false
+		return distance
+	if provider.line_blocked(machine.self_position, machine.target_position):
+		_routing = true
+	elif _routing and distance <= machine.threat_cycle.profile.attack_reach_px:
+		_routing = false
+	return INF if _routing else distance
 
 
 func _should_calm() -> bool:
@@ -159,7 +179,7 @@ func _steer_cycle(delta: float) -> void:
 			_follow(delta)
 		Enums.ThreatPhase.CIRCLE:
 			machine.speed_multiplier = chase * profile.circle_speed_factor
-			machine.desired_direction = _circle_direction(toward, profile)
+			machine.desired_direction = _clear_circle(_circle_direction(toward, profile))
 		Enums.ThreatPhase.LUNGE:
 			if _steered_phase != Enums.ThreatPhase.LUNGE:
 				_lunge_direction = toward
@@ -169,6 +189,16 @@ func _steer_cycle(delta: float) -> void:
 		_:
 			machine.desired_direction = Vector2.ZERO
 	_steered_phase = phase
+
+
+## O rodeio só anda por onde o bravo ainda enxerga o alvo: se o próximo passo (um tile) tapa a linha (a boca de uma porta, um
+## vão entre paredes), ele fica parado até a hora de investir, em vez de ser empurrado de lado para fora da fresta.
+func _clear_circle(direction: Vector2) -> Vector2:
+	var provider := machine.follower.provider
+	if provider != null and direction != Vector2.ZERO \
+			and provider.line_blocked(machine.self_position + direction * machine.tile_px, machine.target_position):
+		return Vector2.ZERO
+	return direction
 
 
 ## Tangente ao alvo, no sentido do episódio, com correção do raio: o dino não espirala para dentro nem para fora.

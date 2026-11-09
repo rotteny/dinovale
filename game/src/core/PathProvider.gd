@@ -26,6 +26,12 @@ func is_blocked(_cell: Vector2i) -> bool:
 	return false
 
 
+## Há obstáculo (terreno, árvore, rocha, parede ou porta fechada) no caminho reto entre dois pontos do mundo, em pixels? As
+## células de cada ponta não contam (quem está colado no obstáculo continua do lado dele). Sem grade, nada bloqueia.
+func line_blocked(_from: Vector2, _to: Vector2) -> bool:
+	return false
+
+
 ## Avisa que a célula mudou. Quem segura um caminho que passa por ela o refaz.
 func invalidate(cell: Vector2i) -> void:
 	cell_invalidated.emit(cell)

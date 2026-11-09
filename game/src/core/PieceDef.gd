@@ -20,6 +20,8 @@ extends Resource
 @export var gives_support: bool = false
 ## Abre e fecha (porta).
 @export var toggleable: bool = false
+## Quantas posições de inventário a peça guarda (Baú). 0 = não guarda nada. O conteúdo vive na `BuildGrid` e vai ao save com a peça.
+@export_range(0, 64) var container_slots: int = 0
 ## Quantas dessas peças o mundo comporta. 0 = só vale o teto geral de peças.
 @export_range(0, 100000) var max_count: int = 0
 

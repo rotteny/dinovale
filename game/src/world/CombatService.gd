@@ -135,6 +135,8 @@ func on_dino_attack(dino: Dino, target: Node2D, damage: float, episode: int) -> 
 		return
 	if dino.global_position.distance_to(target.global_position) > profile.attack_reach_px + profile.reach_slack_px:
 		return
+	if authority.build.grid.segment_blocked(dino.global_position, target.global_position):
+		return  # parede ou porta fechada entre os dois: a mordida não atravessa (a distância sozinha não basta)
 	_last_strike[attacker_id] = cycle.strike_count
 	var hits := resolve_dino_attack(attacker_id, target_id, damage)
 	_knock_back(dino, target, profile, hits.has(target_id))

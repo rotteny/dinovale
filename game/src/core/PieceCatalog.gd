@@ -7,6 +7,7 @@ const DEFAULT_PIECES: Array[PieceDef] = [
 	preload("res://data/build/foundation.tres"),
 	preload("res://data/build/wall.tres"),
 	preload("res://data/build/door.tres"),
+	preload("res://data/build/chest.tres"),
 	preload("res://data/build/workbench.tres"),
 ]
 

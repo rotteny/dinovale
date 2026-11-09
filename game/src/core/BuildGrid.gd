@@ -12,6 +12,10 @@ signal piece_added(cell: Vector2i)
 signal piece_removed(cell: Vector2i, piece: Dictionary)
 ## A porta da célula abriu ou fechou.
 signal door_changed(cell: Vector2i)
+## `from_dict` vai trocar a grade inteira (começou) e já trocou (terminou): quem ouve peça a peça pode juntar o trabalho em um lote
+## só (a navegação refaz as grades de busca uma vez, não a cada uma das milhares de peças). Também são sinais de vista.
+signal load_started
+signal load_finished
 
 const FORMAT_VERSION := 1
 ## Célula além disto é dado ruim (o mapa tem 256, mas o save é de fora: o teto só evita número absurdo).
@@ -24,7 +28,22 @@ var rules: BuildRules = preload("res://data/balance/build_rules.tres")
 ## para descartar peça de save editado. Sem ele, vale tudo.
 var fixed_check: Callable = Callable()
 
+## Itens de peça (a Bancada) que a MIGRAÇÃO de um save antigo não conseguiu pôr no grid (terreno, núcleo, célula ocupada, teto):
+## item -> quantidade, refeito a cada `from_dict`. Quem carrega os devolve ao jogador, para nenhuma Bancada sumir.
+var unplaced_items: Dictionary = {}
+
 var _cells: Dictionary[Vector2i, Dictionary] = {}
+## Conteúdo das peças que guardam coisas (Baú): um inventário por célula, criado com a peça e liberado com ela. É a fonte da
+## verdade do conteúdo: o nó do mundo só aponta para ele, e o save o leva junto da peça. Fica fora da árvore (sem `_process`).
+var _boxes: Dictionary[Vector2i, InventoryComponent] = {}
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_PREDELETE:
+		for box: InventoryComponent in _boxes.values():
+			if is_instance_valid(box):
+				box.free()
+		_boxes.clear()
 
 
 func count() -> int:
@@ -67,6 +86,21 @@ func blocks(cell: Vector2i) -> bool:
 	return def != null and def.blocks_body and not is_open(cell)
 
 
+## O inventário da peça de `cell` (Baú), ou null se ela não guarda nada.
+func container_at(cell: Vector2i) -> InventoryComponent:
+	return _boxes.get(cell)
+
+
+## Há parede (peça sólida agora) no caminho reto de `from` a `to` (pixels do mundo)? A célula de quem está em cada ponta
+## não conta: quem está colado na parede continua do lado dela. A mordida do bravo passa por aqui: golpe não atravessa parede.
+func segment_blocked(from: Vector2, to: Vector2) -> bool:
+	var line := GridLine.cells(from, to, rules.tile_px)
+	for index in range(1, line.size() - 1):
+		if blocks(line[index]):
+			return true
+	return false
+
+
 ## Há peça de apoio (fundação) em volta de `cell` (até `support_radius`, sem contar a própria célula)?
 func has_support(cell: Vector2i) -> bool:
 	var radius := rules.support_radius
@@ -102,6 +136,11 @@ func add(cell: Vector2i, piece_id: String, rotation: int = 0, owner: String = ""
 		return false
 	_cells[cell] = {"piece": piece_id, "rot": posmod(rotation, 4), "owner": owner.substr(0, MAX_OWNER_LENGTH),
 			"open": open and def.toggleable, "id": maxi(entity_id, 0)}
+	if def.container_slots > 0:
+		var box := InventoryComponent.new()
+		box.capacity = def.container_slots
+		box.iid_prefix = "c"
+		_boxes[cell] = box
 	piece_added.emit(cell)
 	return true
 
@@ -113,6 +152,10 @@ func remove(cell: Vector2i) -> Dictionary:
 	var piece: Dictionary = _cells[cell]
 	_cells.erase(cell)
 	piece_removed.emit(cell, piece)
+	var box: InventoryComponent = _boxes.get(cell)
+	if box != null:  # depois do sinal: quem ouvia ainda lê o conteúdo; o serviço já tirou o que devia largar
+		_boxes.erase(cell)
+		box.free()
 	return piece
 
 
@@ -143,24 +186,39 @@ func to_dict() -> Dictionary:
 			entry["open"] = true
 		if int(piece["id"]) > 0:
 			entry["id"] = piece["id"]
+		var box: InventoryComponent = _boxes.get(cell)
+		if box != null and not box.is_empty():
+			entry["items"] = box.to_dict()
 		pieces.append(entry)
 	return {"version": FORMAT_VERSION, "pieces": pieces}
+
+
+## A `version` do bloco é a que este código entende? (ausente vale: bloco montado pela migração da Bancada antiga.)
+static func version_ok(data: Dictionary) -> bool:
+	return SafeRead.format_version(data, FORMAT_VERSION) != 0
 
 
 ## Restaura a grade no lugar da de agora. Dado de fora: o que não vale é descartado (entrada que não é dicionário, peça
 ## desconhecida, célula fora da faixa, repetida, em terreno ou núcleo que não servem, acima do teto, apoiada em nada); o
 ## resto é saneado. Peça que precisa de apoio entra depois das que não precisam, então a ordem do arquivo não importa.
-## Nunca emite evento de jogo; devolve sempre true (só sanea).
+## Nunca emite evento de jogo. Devolve false (e NADA muda) só quando a `version` do bloco é inválida ou maior que a conhecida;
+## fora isso devolve true (só sanea). Quem carrega confere `version_ok` antes de tocar no resto do save.
 func from_dict(data: Dictionary) -> bool:
+	if not version_ok(data):
+		return false  # versão de outro formato: nada é aplicado (a grade de agora fica como está)
+	load_started.emit()
 	for cell: Vector2i in _cells.keys():
 		remove(cell)
+	unplaced_items = {}
+	var legacy := SafeRead.flag(data.get("legacy_benches"), false)
 	var entries: Array = []
 	var seen: Dictionary = {}
 	for raw: Variant in SafeRead.list(data.get("pieces")):
 		var entry := _read_entry(raw)
-		if entry.is_empty() or seen.has(entry["cell"]):
+		if entry.is_empty():
 			continue
-		if fixed_check.is_valid() and str(fixed_check.call(entry["cell"])) != "":
+		if seen.has(entry["cell"]) or (fixed_check.is_valid() and str(fixed_check.call(entry["cell"])) != ""):
+			_note_unplaced(entry, legacy)
 			continue
 		seen[entry["cell"]] = true
 		entries.append(entry)
@@ -169,7 +227,11 @@ func from_dict(data: Dictionary) -> bool:
 			var def := catalog.find(str(entry["piece"]))
 			if def.needs_support != needs_support or (needs_support and not has_support(entry["cell"])):
 				continue
-			add(entry["cell"], entry["piece"], entry["rot"], entry["owner"], entry["id"], entry["open"])
+			if add(entry["cell"], entry["piece"], entry["rot"], entry["owner"], entry["id"], entry["open"]):
+				_load_contents(entry["cell"], entry["items"])
+			else:
+				_note_unplaced(entry, legacy)
+	load_finished.emit()
 	return true
 
 
@@ -203,9 +265,28 @@ func _read_entry(raw: Variant) -> Dictionary:
 		return {}  # coordenada ausente, que não é número inteiro ou fora da faixa: a entrada não vale
 	return {"cell": Vector2i(x, y), "piece": piece_id, "rot": posmod(SafeRead.integer(data.get("rot"), 0, -1000, 1000), 4),
 			"owner": SafeRead.text(data.get("owner"), "").substr(0, MAX_OWNER_LENGTH),
-			"open": SafeRead.flag(data.get("open"), false),
+			"open": SafeRead.flag(data.get("open"), false), "items": SafeRead.dict(data.get("items")),
 			# Id fora da faixa vira 0 (o próximo livre): um id no teto empurraria o contador e o próximo load seria recusado.
 			"id": SafeRead.integer(data.get("id"), 0, 0, SaveMigrations.MAX_ENTITY_ID - 1)}
+
+
+## Peça de item (Bancada) que a migração não pôde pôr: conta para ser devolvida, até o teto de peças do tipo (um save não rende
+## mais Bancadas do que o mundo comporta).
+func _note_unplaced(entry: Dictionary, legacy: bool) -> void:
+	var def := catalog.find(str(entry["piece"]))
+	if not legacy or def == null or def.item_id == "":
+		return
+	var held := int(unplaced_items.get(def.item_id, 0))
+	if def.max_count == 0 or held < def.max_count:
+		unplaced_items[def.item_id] = held + 1
+
+
+## O conteúdo gravado vai para o inventário da peça. Dado de fora: o que o inventário recusa (formato ruim, item que não
+## cabe) deixa o Baú vazio, e a peça fica; nunca aborta a carga da grade.
+func _load_contents(cell: Vector2i, items: Dictionary) -> void:
+	var box: InventoryComponent = _boxes.get(cell)
+	if box != null and not items.is_empty():
+		box.from_dict(items)
 
 
 func _gives_support(cell: Vector2i) -> bool:

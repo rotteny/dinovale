@@ -52,6 +52,8 @@ var _other: InventoryComponent = null
 var _asked_slot: Dictionary = {}
 var _asked_destination: InventoryComponent = null
 var _source: InteractableArea = null
+## O outro lado é um Baú (não uma criatura): muda o título e os textos de recusa.
+var _container_mode := false
 var _title := Label.new()
 var _player_grid := GridContainer.new()
 var _other_column := VBoxContainer.new()
@@ -178,6 +180,13 @@ func open_with(own: InventoryComponent, other: InventoryComponent, source: Inter
 	opened.emit()
 
 
+## Abre o inventário do jogador ao lado do conteúdo de um Baú (transfere nos dois sentidos, pelo mesmo caminho da criatura).
+func open_container(own: InventoryComponent, box: InventoryComponent, source: InteractableArea, title: String) -> void:
+	open_with(own, box, source, title)
+	_container_mode = true
+	_title.text = title
+
+
 func close() -> void:
 	if not is_open:
 		return
@@ -200,6 +209,7 @@ func close() -> void:
 			_source.tree_exiting.disconnect(close)
 	_other = null
 	_source = null
+	_container_mode = false
 	var focused := get_viewport().gui_get_focus_owner() if is_inside_tree() else null
 	if focused != null:
 		focused.release_focus()
@@ -576,7 +586,7 @@ func show_transfer_refusal(result: Enums.ActionResult = Enums.ActionResult.REFUS
 		Enums.ActionResult.NOT_OWNER:
 			_notice.text = "Essa criatura é de outro."
 		Enums.ActionResult.WRONG_STATE, Enums.ActionResult.INVALID_TARGET, Enums.ActionResult.UNKNOWN_TARGET:
-			_notice.text = "A criatura não aceita isso agora."
+			_notice.text = "O baú não está mais lá." if _container_mode else "A criatura não aceita isso agora."
 		Enums.ActionResult.REFUSED:
 			if not _asked_slot.is_empty() and _asked_destination != null:
 				_notice.text = _refusal_text(_asked_slot, _asked_destination)

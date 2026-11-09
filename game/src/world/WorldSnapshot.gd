@@ -137,6 +137,8 @@ static func restore(data: Dictionary, player: Player, dino: Dino, field: Resourc
 		return false
 	if not SafeRead.dict(data.get("world")).has("next_entity_id") or next_entity_id_of(data) < 1:
 		return false  # no v5 o contador de ids é obrigatório (ADR-007): sem ele um id novo poderia repetir um salvo
+	if build != null and not BuildGrid.version_ok(build_block_of(data, build.rules.tile_px)):
+		return false  # bloco da grade de versão desconhecida: a carga é tudo ou nada, e a decisão vem antes de mexer em qualquer coisa
 	var saved_dino: Variant = _find(data, "entities", "type", TYPE_DINO)
 	var before_player := player.to_dict()
 	var before_dino := dino.to_dict() if is_instance_valid(dino) else {}
@@ -181,6 +183,7 @@ static func restore(data: Dictionary, player: Player, dino: Dino, field: Resourc
 		corpses.restore_list(SafeRead.list(SafeRead.dict(data.get("world")).get("corpses")))
 	if build != null:  # peça do mundo, como o chão; save anterior à E8a só tem `workbenches` (migra), e antes da E7a nada
 		build.from_dict(build_block_of(data, build.rules.tile_px))
+		return_unplaced(build, player, authority)
 	if field != null and same_map_id:
 		field.restore_list(SafeRead.list(SafeRead.dict(data.get("world")).get("resource_nodes")))
 	if is_instance_valid(dino) and saved_dino == null:
@@ -193,8 +196,18 @@ static func restore(data: Dictionary, player: Player, dino: Dino, field: Resourc
 static func build_block_of(data: Dictionary, tile_px: float) -> Dictionary:
 	var world := SafeRead.dict(data.get("world"))
 	if world.has("build"):
-		return SafeRead.dict(world.get("build"))
-	return {"pieces": BuildGrid.pieces_from_legacy_benches(SafeRead.list(world.get("workbenches")), tile_px)}
+		var block := SafeRead.dict(world.get("build")).duplicate()
+		block.erase("legacy_benches")  # a marca de migração é só nossa: um save novo não a traz
+		return block
+	return {"pieces": BuildGrid.pieces_from_legacy_benches(SafeRead.list(world.get("workbenches")), tile_px), "legacy_benches": true}
+
+
+## A Bancada de um save antigo que não coube no grid volta como item: vai ao inventário e, se não couber, cai aos pés do jogador.
+static func return_unplaced(build: BuildGrid, player: Player, authority: WorldAuthority) -> void:
+	for item_id: String in build.unplaced_items:
+		var left := player.inventory.add(item_id, int(build.unplaced_items[item_id]))
+		if left > 0 and authority != null:
+			authority.items_dropped.emit(item_id, left, player.global_position, player.player_id)
 
 
 ## Próximo `entity_id` livre gravado no mundo (0 se ausente ou inválido).

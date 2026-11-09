@@ -102,6 +102,9 @@ func _suites() -> Array:
 		["ClickCollectTests", ClickCollectTests.new, true],
 		["CraftTests", CraftTests.new, true],
 		["BuildTests", BuildTests.new, true],
+		["BuildReviewTests", BuildReviewTests.new, true],
+		["ChestTests", ChestTests.new, true],
+		["ShelterTests", ShelterTests.new, true],
 		["RecipeLearningTests", RecipeLearningTests.new, true],
 		["NetFlowTests", NetFlowTests.new, false],
 	]

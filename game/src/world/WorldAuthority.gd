@@ -455,6 +455,9 @@ func request_transfer_slot(actor_id: int, from_id: int, index: int, to_id: int, 
 	var problem := _actor_problem(actor_id, actor)
 	if problem == Enums.ActionResult.OK:
 		problem = Enums.ActionResult.OK if feeding or taking else Enums.ActionResult.INVALID_ARGUMENT
+	var chest := entity(to_id if feeding else from_id) as Chest
+	if problem == Enums.ActionResult.OK and chest != null:  # o outro lado é um Baú: alcance e espaço são do `BuildService`
+		return _service_answer(actor_id, ACTION_TRANSFER, build.transfer_chest(actor_id, chest, feeding, index, amount))
 	if problem == Enums.ActionResult.OK:
 		problem = _transfer_problem(actor, dino, index, feeding, amount)
 	if problem == Enums.ActionResult.OK:

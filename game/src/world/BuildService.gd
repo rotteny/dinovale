@@ -6,6 +6,10 @@ extends Node
 ## `problem` é a mesma validação sem efeito: o ghost da UI a usa para pintar verde ou vermelho, e `build` a repete antes de
 ## gastar o material (a UI nunca decide nada). Nada do que o cliente diz muda o custo, o alcance ou o lugar.
 
+## Um item individual do Baú caiu no chão (o Baú foi removido): quem desenha o chão o recolhe. Os empilháveis saem por
+## `WorldAuthority.items_dropped`, como em todo drop.
+signal entry_dropped(entry: Dictionary, at: Vector2, dropper_id: String)
+
 const RESULT := Enums.ActionResult
 const REASON_TERRAIN := "bad_terrain"
 const REASON_OCCUPIED := "occupied"
@@ -13,6 +17,8 @@ const REASON_SAFE_CORE := "safe_core"
 const REASON_LIMIT := "place_limit"
 const REASON_NO_SUPPORT := "no_support"
 const REASON_BODY := "body_in_way"
+const REASON_BOX_FULL := "no_space"
+const REASON_BOX_NOT_EMPTY := "chest_not_empty"
 
 var authority: WorldAuthority = null
 var grid := BuildGrid.new()
@@ -83,20 +89,41 @@ func remove(actor_id: int, cell: Vector2i) -> Dictionary:
 		return _no_actor(actor_id)
 	var def := grid.def_at(cell)
 	var refund := refund_of(def) if def != null else {}
-	var problem_found := _remove_problem(actor, cell, refund)
+	var owner_id := str(grid.piece_at(cell).get("owner", ""))
+	var receiver := _refund_receiver(actor, owner_id)
+	var problem_found := _remove_problem(actor, cell, refund, receiver)
 	if problem_found["result"] != RESULT.OK:
 		return problem_found
+	_drop_contents(actor, cell)
 	grid.remove(cell)
 	for item_id: String in refund:
-		var left := actor.inventory.add(item_id, int(refund[item_id]))
-		if left > 0:
-			authority.items_dropped.emit(item_id, left, actor.global_position, actor.player_id)
+		_give_refund(actor, receiver, owner_id, item_id, int(refund[item_id]), center_of(cell))
 	authority.announce("piece_removed", {"piece": def.display_name})
 	return _outcome(RESULT.OK)
 
 
+## Quem recebe o material de uma peça removida: o DONO dela (com `shared_pieces`, quem remove pode não ser o dono). Peça sem dono
+## ou do próprio ator volta ao ator; dono fora do mundo = null (o material cai no chão, junto da peça).
+func _refund_receiver(actor: Player, owner_id: String) -> Player:
+	if owner_id == "" or owner_id == actor.player_id:
+		return actor
+	return authority.player_body(owner_id) as Player
+
+
+## Entrega `amount` de `item_id` ao `receiver`; o que não cabe, ou tudo se o dono não está no mundo, cai no chão: aos pés de quem
+## removeu se o material era dele, junto da peça (`at`) se era de outro.
+func _give_refund(actor: Player, receiver: Player, owner_id: String, item_id: String, amount: int, at: Vector2) -> void:
+	var left := receiver.inventory.add(item_id, amount) if receiver != null else amount
+	if left <= 0:
+		return
+	if receiver == actor:
+		authority.items_dropped.emit(item_id, left, actor.global_position, actor.player_id)
+	else:
+		authority.items_dropped.emit(item_id, left, at, owner_id)  # o dono tem a preferência de recolher
+
+
 ## Por que `actor` não pode remover a peça de `cell` (`result` OK = pode).
-func _remove_problem(actor: Player, cell: Vector2i, refund: Dictionary) -> Dictionary:
+func _remove_problem(actor: Player, cell: Vector2i, refund: Dictionary, receiver: Player) -> Dictionary:
 	var result := RESULT.OK
 	var reason := ""
 	if not grid.has_piece(cell):
@@ -110,10 +137,45 @@ func _remove_problem(actor: Player, cell: Vector2i, refund: Dictionary) -> Dicti
 	elif not grid.dependents_of(cell).is_empty():
 		result = RESULT.WRONG_STATE
 		reason = "has_dependents"
-	elif not authority.drops_enabled and not _refund_fits(actor, refund):
+	elif not authority.drops_enabled and (receiver == null or not _refund_fits(receiver, refund)):
 		result = RESULT.REFUSED
 		reason = "inventory_full"
+	elif not authority.drops_enabled and not _box_empty(cell):
+		result = RESULT.REFUSED  # sem chão para largar, o conteúdo não tem para onde ir: nada some
+		reason = REASON_BOX_NOT_EMPTY
 	return _outcome(result, reason)
+
+
+## Mover o slot `index` entre o jogador e o Baú `chest` (`into_chest`: do jogador para o Baú). Alcance, vivo, índice e quantidade
+## são conferidos aqui; só vai o que o destino comporta, e o que não cabe fica onde estava (nada se perde nem se duplica).
+func transfer_chest(actor_id: int, chest: Chest, into_chest: bool, index: int, amount: int) -> Dictionary:
+	var actor := _actor(actor_id)
+	if actor == null:
+		return _no_actor(actor_id)
+	var problem_found := _chest_problem(actor, chest, index, amount, into_chest)
+	if problem_found["result"] != RESULT.OK:
+		return problem_found
+	var source := actor.inventory if into_chest else chest.inventory
+	var destination := chest.inventory if into_chest else actor.inventory
+	if source.transfer_slot(index, destination, amount) == 0:
+		return _outcome(RESULT.REFUSED, REASON_BOX_FULL)
+	return _outcome(RESULT.OK)
+
+
+## Por que `actor` não pode mexer no slot `index` do Baú (`result` OK = pode): Baú vivo e na grade, ao alcance, posição e quantidade.
+func _chest_problem(actor: Player, chest: Chest, index: int, amount: int, into_chest: bool) -> Dictionary:
+	var cell := cell_of(chest.global_position)
+	if not is_instance_valid(chest) or chest.inventory == null or grid.container_at(cell) != chest.inventory:
+		return _outcome(RESULT.INVALID_TARGET, "no_piece")
+	if actor.global_position.distance_to(center_of(cell)) > rules.reach_tiles * rules.tile_px:
+		return _outcome(RESULT.OUT_OF_RANGE)
+	var source := actor.inventory if into_chest else chest.inventory
+	if index < 0 or index >= source.slot_count():
+		return _outcome(RESULT.INVALID_ARGUMENT)
+	var stack := int(source.get_slot(index).get("count", 1))
+	if amount != WorldAuthority.TRANSFER_ALL and (amount < 1 or amount > stack):
+		return _outcome(RESULT.INVALID_ARGUMENT)
+	return _outcome(RESULT.OK)
 
 
 ## Abrir ou fechar a porta da célula. Fechar com alguém dentro do tile é recusado (ninguém fica preso na parede).
@@ -216,6 +278,28 @@ func cell_of(point: Vector2) -> Vector2i:
 ## O centro da célula, em pixels do mundo.
 func center_of(cell: Vector2i) -> Vector2:
 	return (Vector2(cell) + Vector2(0.5, 0.5)) * rules.tile_px
+
+
+## O que a peça guarda cai no chão aos pés dela (o dono é quem removeu): empilháveis pelo sinal de drop da autoridade,
+## individuais pelo `entry_dropped`. Sem chão (`drops_enabled` falso) `_remove_problem` já recusou se havia conteúdo.
+func _drop_contents(actor: Player, cell: Vector2i) -> void:
+	var box := grid.container_at(cell)
+	if box == null:
+		return
+	var at := center_of(cell)
+	for index in box.slot_count():
+		var slot := box.get_slot(index)
+		if slot.is_empty():
+			continue
+		if slot.has("iid"):
+			entry_dropped.emit(slot, at, actor.player_id)
+		else:
+			authority.items_dropped.emit(str(slot["id"]), int(slot["count"]), at, actor.player_id)
+
+
+func _box_empty(cell: Vector2i) -> bool:
+	var box := grid.container_at(cell)
+	return box == null or box.is_empty()
 
 
 func _pay(actor: Player, def: PieceDef) -> void:

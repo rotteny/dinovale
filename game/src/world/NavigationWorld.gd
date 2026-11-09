@@ -12,6 +12,8 @@ var _blocking: Dictionary = {}  # ResourceNode -> Rect2 que ele cobre agora (só
 var _build_grid: BuildGrid = null  # só o campo guarda a grade: a grade guarda o Callable do nó, sem ciclo de referência
 var _build_tile: float = 16.0
 var _build_blocked: Dictionary = {}  # Vector2i (célula da BuildGrid) -> Rect2 que a peça sólida cobre agora
+var _loading: bool = false  # a grade de construção está sendo trocada por um save: as células mudam em lote
+var _load_changed: Array[Vector2i] = []
 
 
 func _physics_process(delta: float) -> void:
@@ -59,11 +61,36 @@ func _sync(node: ResourceNode) -> void:
 func watch_build(build_grid: BuildGrid, tile: float) -> void:
 	_build_grid = build_grid
 	_build_tile = tile
+	if build_grid.count() > 0:
+		_begin_build_batch()
 	for cell in build_grid.cells():
 		_sync_build_cell(cell)
+	_end_build_batch()
+	build_grid.load_started.connect(_begin_build_batch)
+	build_grid.load_finished.connect(_end_build_batch)
 	build_grid.piece_added.connect(_sync_build_cell)
 	build_grid.piece_removed.connect(_on_build_piece_removed)
 	build_grid.door_changed.connect(_sync_build_cell)
+
+
+## Carga em lote: as peças trocadas entram sem refazer as grades de busca; no fim elas são refeitas uma vez, e os caminhos que
+## passavam pelas células mudadas são avisados (`cell_invalidated`, que o modo em lote adia).
+func _begin_build_batch() -> void:
+	if provider == null or _loading:
+		return
+	_loading = true
+	_load_changed.clear()
+	provider.begin_bulk()
+
+
+func _end_build_batch() -> void:
+	if not _loading:
+		return
+	_loading = false
+	provider.end_bulk()
+	for cell in _load_changed:
+		provider.invalidate(cell)
+	_load_changed.clear()
 
 
 func _on_build_piece_removed(cell: Vector2i, _piece: Dictionary) -> void:
@@ -77,6 +104,8 @@ func _sync_build_cell(cell: Vector2i) -> void:
 	var now_blocking := _build_grid.blocks(cell)
 	if was_blocking == now_blocking:
 		return
+	if _loading:
+		_load_changed.append(cell)
 	if now_blocking:
 		var rect := Rect2(Vector2(cell) * _build_tile, Vector2(_build_tile, _build_tile))
 		_build_blocked[cell] = rect

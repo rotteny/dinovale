@@ -122,7 +122,7 @@ func _codes(world: Dictionary) -> Array[String]:
 func _test_data() -> void:
 	var catalog := PieceCatalog.with_defaults()
 	var book := RecipeBook.with_defaults()
-	var ok := catalog.all().size() == 4
+	var ok := catalog.all().size() == 5
 	for piece in catalog.all():
 		ok = ok and piece.is_valid()
 	_check(ok and catalog.find("wall").needs_support and catalog.find("door").toggleable and catalog.find("foundation").gives_support
@@ -134,6 +134,9 @@ func _test_data() -> void:
 	_check(wood_total == 32 and 4 * 1 == 4 and book.find("foundation").places_in_world and book.find("wall").places_in_world
 			and book.find("door").places_in_world and not book.find("workbench").places_in_world,
 			"abrigo mínimo (4 fundações, 8 paredes, 1 porta) = 32 madeira, 4 pedra, 1 fibra; as peças se constroem no mundo")
+	_check(book.find("chest").places_in_world and book.find("chest").is_known_at_start() and book.find("chest").inputs == {WOOD: 6}
+			and catalog.find("chest").recipe_id == "chest" and catalog.find("chest").container_slots > 0,
+			"Baú: receita conhecida (Saber 0), 6 madeira, vira peça do mundo e guarda")
 	_check(BASE_RULES.tile_px == float(IslandMap.default_map().tile) and BASE_RULES.tile_px == 16.0
 			and BASE_RULES.refund_percent == 100
 			and BASE_RULES.support_radius == 1, "a grade usa o tile de 16 px do GDD e do mapa")
@@ -552,10 +555,11 @@ func _test_minimal_shelter_exact_cost() -> void:
 	player.position = BuildTests.center(Vector2i(11, 11))  # no meio das fundações
 	var origin := Vector2i(10, 10)
 	var floor_cells: Array[Vector2i] = [origin, origin + Vector2i(1, 0), origin + Vector2i(0, 1), origin + Vector2i(1, 1)]
-	var ring: Array[Vector2i] = [Vector2i(9, 10), Vector2i(9, 11), Vector2i(12, 10), Vector2i(12, 11), Vector2i(10, 9), Vector2i(11,
-			9),
-			Vector2i(10, 12), Vector2i(11, 12)]  # 8 paredes em volta; a porta vai num canto livre
-	var door_cell := Vector2i(9, 9)
+	# 8 paredes: 7 nas bordas e a oitava no canto (9, 9); a porta ocupa a borda (12, 10). Porta em canto não passa ninguém
+	# (a navegação não corta quina), então o abrigo nunca teria entrada.
+	var ring: Array[Vector2i] = [Vector2i(9, 10), Vector2i(9, 11), Vector2i(12, 11), Vector2i(10, 9), Vector2i(11, 9),
+			Vector2i(10, 12), Vector2i(11, 12), Vector2i(9, 9)]
+	var door_cell := Vector2i(12, 10)
 	var ok := true
 	for cell in floor_cells:
 		ok = ok and _ask(world, "foundation", cell)["result"] == OK
@@ -567,6 +571,20 @@ func _test_minimal_shelter_exact_cost() -> void:
 	_check(_ask(world, "door", door_cell)["result"] == OK and _count(world, WOOD) == 0 and _count(world, Items.FIBER) == 0
 			and grid.count() == 13 and grid.count_of("wall") == 8 and grid.count_of("foundation") == 4 and grid.count_of("door") == 1,
 			"com a porta, o abrigo gasta exatamente 32 madeira, 4 pedra e 1 fibra e fica de pé")
+	var provider := GridPathProvider.new()
+	provider.setup(64, PackedByteArray())
+	provider.end_bulk()
+	var navigation := NavigationWorld.new()
+	_track.call(navigation)
+	navigation.provider = provider
+	navigation.watch_build(grid, TILE)
+	var outside := Vector2i(16, 10)
+	var inside := Vector2i(11, 10)
+	_check(grid.blocks(door_cell) and _path(navigation, outside, inside).status == PathResult.Status.NO_PATH,
+			"abrigo mínimo com a porta fechada: sem rota até dentro")
+	grid.set_open(door_cell, true)
+	var through := _path(navigation, outside, inside)
+	_check(through.is_ok() and through.touches(door_cell), "e com a porta aberta há rota até dentro, pela porta")
 	# Um a menos de madeira: a última peça é recusada e o inventário fica inteiro.
 	var short := _setup(true, false)
 	var short_player: Player = short["player"]
@@ -650,7 +668,8 @@ func _test_build_mode_ui() -> void:
 	mode.door_requested.connect(func(cell: Vector2i) -> void: doors.append(cell))
 	_check(not mode.click(MOUSE_BUTTON_LEFT, Vector2.ZERO) and built.is_empty(), "com o modo desligado, o clique não faz nada")
 	mode.set_active(true)
-	_check(mode.active and menu.visible and menu._list.get_child_count() == 3, "B liga o modo e abre o menu com as 3 peças")
+	_check(mode.active and menu.visible and menu._list.get_child_count() == 4,
+			"B liga o modo e abre o menu com as 4 peças (fundação, parede, porta e Baú)")
 	_check(menu.cost_text(grid.catalog.find("foundation")) == "Madeira 3/3, Pedra 1/1"
 			and menu.cost_text(grid.catalog.find("door")) == "Madeira 4/4, Fibra 1/1", "o menu mostra o custo")
 	mode.select("nope")
@@ -697,7 +716,7 @@ func _test_main_wiring_and_save() -> void:
 	var authority := main.authority
 	var player := main.player
 	_check(main.workbenches is BuildField and main.build_mode != null and main.build_menu != null
-			and authority.build.map == main.map and authority.build.grid.catalog.all().size() == 4,
+			and authority.build.map == main.map and authority.build.grid.catalog.all().size() == 5,
 					"a Main liga a grade, o campo e o modo construção")
 	var map := main.map
 	var core := SafeCore.new(main.respawn_rules, main.predation_rules.spawn_safe_margin_tiles, float(map.tile))

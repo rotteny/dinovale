@@ -9,6 +9,9 @@ extends Node
 var provider: GridPathProvider = null
 
 var _blocking: Dictionary = {}  # ResourceNode -> Rect2 que ele cobre agora (só os que estão bloqueando)
+var _build_grid: BuildGrid = null  # só o campo guarda a grade: a grade guarda o Callable do nó, sem ciclo de referência
+var _build_tile: float = 16.0
+var _build_blocked: Dictionary = {}  # Vector2i (célula da BuildGrid) -> Rect2 que a peça sólida cobre agora
 
 
 func _physics_process(delta: float) -> void:
@@ -51,23 +54,33 @@ func _sync(node: ResourceNode) -> void:
 		_blocking.erase(node)
 
 
-## Passa a marcar como bloqueado, na grade, o tile de cada Bancada colocada, e a liberar quando ela sai (ou o save a troca).
-func watch_workbenches(field: WorkbenchField) -> void:
-	for bench in field.benches():
-		_block_bench(bench, field.tile_px)
-	field.bench_placed.connect(func(bench: Workbench) -> void: _block_bench(bench, field.tile_px))
-	field.bench_removed.connect(_unblock_bench)
+## Passa a marcar como bloqueada, na grade dos dinos, a célula de cada peça sólida da `BuildGrid` (parede, porta fechada,
+## Bancada), e a liberar quando ela sai, é trocada por um save ou a porta abre. A porta aberta libera o caminho.
+func watch_build(build_grid: BuildGrid, tile: float) -> void:
+	_build_grid = build_grid
+	_build_tile = tile
+	for cell in build_grid.cells():
+		_sync_build_cell(cell)
+	build_grid.piece_added.connect(_sync_build_cell)
+	build_grid.piece_removed.connect(_on_build_piece_removed)
+	build_grid.door_changed.connect(_sync_build_cell)
 
 
-func _block_bench(bench: Workbench, tile: float) -> void:
-	if provider == null or _blocking.has(bench):
+func _on_build_piece_removed(cell: Vector2i, _piece: Dictionary) -> void:
+	_sync_build_cell(cell)
+
+
+func _sync_build_cell(cell: Vector2i) -> void:
+	if provider == null or _build_grid == null:
 		return
-	var rect := Rect2(bench.position - Vector2(tile, tile) * 0.5, Vector2(tile, tile))
-	_blocking[bench] = rect
-	provider.add_obstacle(rect)
-
-
-func _unblock_bench(bench: Workbench) -> void:
-	if provider != null and _blocking.has(bench):
-		provider.remove_obstacle(_blocking[bench] as Rect2)
-		_blocking.erase(bench)
+	var was_blocking := _build_blocked.has(cell)
+	var now_blocking := _build_grid.blocks(cell)
+	if was_blocking == now_blocking:
+		return
+	if now_blocking:
+		var rect := Rect2(Vector2(cell) * _build_tile, Vector2(_build_tile, _build_tile))
+		_build_blocked[cell] = rect
+		provider.add_obstacle(rect)
+	else:
+		provider.remove_obstacle(_build_blocked[cell] as Rect2)
+		_build_blocked.erase(cell)

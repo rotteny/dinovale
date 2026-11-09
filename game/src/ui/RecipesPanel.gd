@@ -112,6 +112,7 @@ func _row(recipe: RecipeDef) -> Control:
 	row.add_child(text)
 	if state != RecipeStatus.State.KNOWN:
 		var button := Button.new()
+		button.focus_mode = Control.FOCUS_NONE  # o botão não come o Espaço (ataque)
 		button.text = "Aprender"
 		button.disabled = state != RecipeStatus.State.LEARNABLE
 		var recipe_id := recipe.id

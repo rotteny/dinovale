@@ -22,8 +22,55 @@ func run() -> void:
 	_test_migration()
 	_test_hostile_save()
 	_test_level_six_learns_everything()
+	_test_group_cost_must_match()
+	_test_future_progression_version()
 	_test_status_and_panel()
 	_release_worlds()
+
+
+## Grupo de aprendizado com custos diferentes (g1 = 1, g2 = 3): o livro recusa o segundo membro (senão se pagaria só o do primeiro).
+func _test_group_cost_must_match() -> void:
+	var book := RecipeBook.new()
+	var first := _group_recipe("g_a", "grupo", 1)
+	var cheap_twin := _group_recipe("g_b", "grupo", 1)
+	var dear_twin := _group_recipe("g_c", "grupo", 3)
+	_check(book.add(first) and book.add(cheap_twin) and not book.add(dear_twin) and book.find("g_c") == null
+			and book.group_of(first).size() == 2, "grupo com custos 1 e 3: o membro de custo diferente não entra; o de custo igual entra")
+	_check(book.add(_group_recipe("g_a", "grupo", 1)) and not book.add(_group_recipe("g_a", "grupo", 3)),
+			"trocar uma receita do grupo por outra de custo diferente também é recusado")
+	_check(book.add(_group_recipe("solta", "", 5)) and book.add(_group_recipe("outro", "outro_grupo", 3)),
+			"receita sem grupo ou de outro grupo não é afetada")
+	var shipped := true
+	var shipped_book := RecipeBook.with_defaults()
+	for recipe in shipped_book.all():
+		shipped = shipped and shipped_book.group_of(recipe).all(func(member: RecipeDef) -> bool: return member.saber_cost == recipe.saber_cost)
+	_check(shipped, "as receitas do jogo respeitam a regra")
+
+
+func _group_recipe(recipe_id: String, group: String, cost: int) -> RecipeDef:
+	var recipe := RecipeDef.new()
+	recipe.id = recipe_id
+	recipe.inputs = {Items.WOOD: 1}
+	recipe.output_id = Items.FIBER
+	recipe.saber_cost = cost
+	recipe.learn_group = group
+	return recipe
+
+
+## Bloco de progressão com `version` maior que a conhecida: o save é recusado inteiro (como inventário, barra e equipamento).
+func _test_future_progression_version() -> void:
+	var player := _player_at(Vector2.ZERO)
+	player.progression.grant_xp(1000)
+	var saved := player.to_dict()
+	var future: Dictionary = saved.duplicate(true)
+	(future["progression"] as Dictionary)["version"] = ProgressionComponent.FORMAT_VERSION + 1
+	var target := _player_at(Vector2.ZERO)
+	_check(not target.from_dict(future) and target.progression.level == 1,
+			"progressão de versão futura: o save é recusado e nada muda")
+	var invalid: Dictionary = saved.duplicate(true)
+	(invalid["progression"] as Dictionary)["version"] = "x"
+	_check(not target.from_dict(invalid) and target.progression.level == 1, "versão inválida da progressão também é recusada")
+	_check(target.from_dict(saved) and target.progression.level == player.progression.level, "a versão conhecida carrega")
 
 
 ## Jogador ligado a uma autoridade, com os avisos do dono guardados em `events`.
@@ -74,7 +121,9 @@ func _test_learn_without_saber() -> void:
 	var result := authority.request_learn_recipe(world["id"], "workbench")
 	_check(result == Enums.ActionResult.REFUSED and player.progression.learned.is_empty() and player.progression.saber_spent == 0
 			and "recipe_learned" not in world["events"], "aprender sem Saber: recusado e nada muda")
-	_check(authority.request_craft(world["id"], "workbench") == Enums.ActionResult.REFUSED, "e a Bancada segue travada para fabricar")
+	var crafted := authority.crafting.begin_craft(world["id"], "workbench")
+	_check(crafted["result"] == Enums.ActionResult.REFUSED and crafted["reason"] == "recipe_locked",
+			"e a Bancada segue travada para fabricar, pelo motivo `recipe_locked`")
 	_check(GameMessages.reason_text("no_saber") != "" and GameMessages.reason_text("recipe_already_learned") != "", "os motivos têm texto")
 
 

@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="PieceDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/core/PieceDef.gd" id="1_piece"]
+
+[resource]
+script = ExtResource("1_piece")
+id = "workbench"
+display_name = "Bancada comum"
+item_id = "workbench"
+blocks_body = true
+max_count = 64

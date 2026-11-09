@@ -54,6 +54,7 @@ func _ready() -> void:
 	_status.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	footer.add_child(_status)
 	_cancel = Button.new()
+	_cancel.focus_mode = Control.FOCUS_NONE  # o botão não come o Espaço (ataque)
 	_cancel.text = "Cancelar"
 	_cancel.pressed.connect(func() -> void: cancel_requested.emit())
 	footer.add_child(_cancel)
@@ -113,9 +114,11 @@ func refresh() -> void:
 	var actor_id := authority.id_of(player)
 	var crafting := not authority.crafting.job(actor_id).is_empty()
 	for recipe in authority.crafting.recipe_book.known_by(player.progression):
-		_list.add_child(_row(recipe, crafting))
+		if not recipe.places_in_world:  # fundação, parede e porta saem do modo construção (B), não daqui
+			_list.add_child(_row(recipe, crafting))
 	if player.inventory.count(Items.WORKBENCH) > 0:
 		var place := Button.new()
+		place.focus_mode = Control.FOCUS_NONE  # o botão não come o Espaço (ataque)
 		place.text = "Colocar %s" % Items.display_name(Items.WORKBENCH)
 		place.pressed.connect(func() -> void: place_requested.emit(Items.WORKBENCH))
 		_list.add_child(place)
@@ -133,7 +136,8 @@ func _signature() -> String:
 	var parts: PackedStringArray = [str(authority.crafting.job(actor_id).get("recipe", "")),
 			str(player.inventory.count(Items.WORKBENCH) > 0)]
 	for recipe in authority.crafting.recipe_book.known_by(player.progression):
-		parts.append("%s=%s" % [recipe.id, needs_text(recipe, player.inventory)])
+		if not recipe.places_in_world:
+			parts.append("%s=%s" % [recipe.id, needs_text(recipe, player.inventory)])
 	return "|".join(parts)
 
 
@@ -146,6 +150,7 @@ func _row(recipe: RecipeDef, crafting: bool) -> Control:
 	text.text = "%s\n%s" % [recipe.display_name, needs_text(recipe, player.inventory)]
 	row.add_child(text)
 	var button := Button.new()
+	button.focus_mode = Control.FOCUS_NONE  # o botão não come o Espaço (ataque)
 	button.text = "Fazer"
 	button.disabled = crafting or not recipe.missing_from(player.inventory).is_empty()
 	var recipe_id := recipe.id

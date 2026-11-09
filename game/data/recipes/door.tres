@@ -18,3 +18,4 @@ station = "hand"
 ; custo em Saber: 1 por receita (shiro.md 5.2, "7 Saber"); o grupo é aprendido junto, pagando uma vez
 saber_cost = 1
 learn_group = "shelter"
+places_in_world = true

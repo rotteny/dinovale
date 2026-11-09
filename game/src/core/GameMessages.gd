@@ -38,6 +38,9 @@ const EVENTS: Dictionary = {
 	"craft_done": {"kind": Kind.SUCCESS, "text": "{item} pronto."},
 	"craft_cancelled": {"kind": Kind.WARNING, "text": "Fabricação de {item} cancelada."},
 	"item_placed": {"kind": Kind.INFO, "text": "{item} colocada."},
+	"piece_built": {"kind": Kind.INFO, "text": "{piece} construída."},
+	"piece_removed": {"kind": Kind.INFO, "text": "{piece} removida."},
+	"door_toggled": {"kind": Kind.INFO, "text": "{piece}: {state}."},
 	"action_refused": {"kind": Kind.WARNING, "text": "{reason}"},
 }
 
@@ -79,6 +82,14 @@ const REASONS: Dictionary = {
 	"occupied": "Já tem algo nesse lugar.",
 	"safe_core": "Não dá para colocar no refúgio.",
 	"place_limit": "Peças demais no mundo.",
+	"unknown_piece": "Peça desconhecida.",
+	"no_support": "Precisa de uma fundação ao lado.",
+	"body_in_way": "Tem alguém no lugar.",
+	"no_piece": "Não há peça aí.",
+	"no_door": "Isso não é uma porta.",
+	"not_yours": "Essa peça é de outro jogador.",
+	"has_dependents": "Tire antes as peças apoiadas nela.",
+	"build_in_world": "Isso se constrói no mundo (tecla B).",
 }
 
 ## Motivo padrão de cada resultado negado da autoridade.

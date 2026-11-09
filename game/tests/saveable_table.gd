@@ -14,6 +14,7 @@ const PlayerScene := preload("res://src/entities/player/Player.tscn")
 
 # SAVEABLES-BEGIN
 const SCRIPTS: Array[String] = [
+	"res://src/core/BuildGrid.gd",
 	"res://src/components/DownedComponent.gd",
 	"res://src/components/EquipmentComponent.gd",
 	"res://src/components/HealthComponent.gd",
@@ -44,6 +45,7 @@ func _init(host: Node, track: Callable) -> void:
 ## Devolve `[original, restaurado]`, ou `[]` se o script não tem caso na tabela.
 func build(script_path: String) -> Array:
 	var cases := {
+		"res://src/core/BuildGrid.gd": _build_grid_case,
 		"res://src/components/DownedComponent.gd": _downed_case,
 		"res://src/components/EquipmentComponent.gd": _equipment_case,
 		"res://src/components/HealthComponent.gd": _health_case,
@@ -62,6 +64,15 @@ func build(script_path: String) -> Array:
 	if not cases.has(script_path):
 		return []
 	return cases[script_path].call()
+
+
+func _build_grid_case() -> Array:
+	var original := BuildGrid.new()
+	original.add(Vector2i(3, 4), "foundation", 1, "dono")
+	original.add(Vector2i(4, 4), "door", 2, "dono")
+	original.set_open(Vector2i(4, 4), true)
+	original.add(Vector2i(3, 3), "wall", 3)
+	return [original, BuildGrid.new()]
 
 
 func _downed_case() -> Array:

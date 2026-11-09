@@ -95,6 +95,9 @@ static func _shape_is_valid(data: Dictionary) -> bool:
 	var versions_ok := SafeRead.format_version(saved_inventory, InventoryComponent.FORMAT_VERSION) != 0 \
 			and SafeRead.format_version(saved_hotbar, HotbarComponent.FORMAT_VERSION) != 0 \
 			and SafeRead.format_version(saved_equipment, EquipmentComponent.FORMAT_VERSION) != 0
+	# Bloco de progressão de versão futura: como no resto do save, recusa (nada é aplicado); versão ausente ou conhecida vale.
+	var saved_progression := SafeRead.dict(data.get("progression"))
+	versions_ok = versions_ok and SafeRead.format_version(saved_progression, ProgressionComponent.FORMAT_VERSION) != 0
 	var hotbar_ok := not saved_hotbar.has("slots") or typeof(saved_hotbar["slots"]) == TYPE_ARRAY
 	return versions_ok and hotbar_ok and (not data.has("equipment") or saved_inventory.has("slots"))
 

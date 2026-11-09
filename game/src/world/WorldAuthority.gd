@@ -49,6 +49,9 @@ const ACTION_CRAFT := "craft"
 const ACTION_CANCEL_CRAFT := "cancel_craft"
 const ACTION_LEARN_RECIPE := "learn_recipe"
 const ACTION_PLACE := "place"
+const ACTION_BUILD := "build"
+const ACTION_REMOVE_PIECE := "remove_piece"
+const ACTION_TOGGLE_DOOR := "toggle_door"
 ## Quantidade de `request_transfer_slot` que significa "a pilha toda".
 const TRANSFER_ALL := -1
 ## Tamanho máximo de `iid` e de nome de vaga aceitos (dado vindo de fora não é confiável).
@@ -87,6 +90,8 @@ var herd := HerdCall.new()
 var crafting := CraftService.new()
 ## Resolução de golpe de criatura e consulta do cursor: serviços filhos; os métodos públicos abaixo os repassam (fachada).
 var combat := CombatService.new()
+## Construir, remover e abrir porta (E8a): a lógica e a grade ficam no `BuildService`, filho desta autoridade.
+var build := BuildService.new()
 var queries := InteractionQuery.new()
 
 ## Quantas varreduras do mouse (`pick_at`) já fizeram: o cursor as limita (serve a teste de custo).
@@ -103,7 +108,7 @@ var _next_id: int = 1
 
 
 func _init() -> void:
-	for service: Node in [crafting, combat, queries]:
+	for service: Node in [crafting, build, combat, queries]:
 		service.set("authority", self)
 		add_child(service)
 
@@ -694,7 +699,22 @@ func request_cancel_craft(actor_id: int) -> Enums.ActionResult:
 
 ## Colocar no mundo a peça `item_id` (de `Items.PLACEABLE`) no tile de `point`, gastando 1 do inventário.
 func request_place(actor_id: int, item_id: String, point: Vector2) -> Enums.ActionResult:
-	return _service_answer(actor_id, ACTION_PLACE, crafting.place(actor_id, item_id, point))
+	return _service_answer(actor_id, ACTION_PLACE, build.place_item(actor_id, item_id, point))
+
+
+## Construir a peça `piece_id` (fundação, parede, porta) na célula `cell` com `rotation` (0 a 3), pagando o material da receita.
+func request_build(actor_id: int, piece_id: String, cell: Vector2i, rotation: int) -> Enums.ActionResult:
+	return _service_answer(actor_id, ACTION_BUILD, build.build(actor_id, piece_id, cell, rotation))
+
+
+## Remover a peça da célula `cell`; o material volta ao inventário (ou ao chão).
+func request_remove_piece(actor_id: int, cell: Vector2i) -> Enums.ActionResult:
+	return _service_answer(actor_id, ACTION_REMOVE_PIECE, build.remove(actor_id, cell))
+
+
+## Abrir ou fechar a porta da célula `cell`.
+func request_toggle_door(actor_id: int, cell: Vector2i) -> Enums.ActionResult:
+	return _service_answer(actor_id, ACTION_TOGGLE_DOOR, build.toggle_door(actor_id, cell))
 
 
 ## Fecha o pedido do serviço: `{result, reason}` vira o motivo e a resposta padrão.

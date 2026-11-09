@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="BuildRules" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/core/BuildRules.gd" id="1_rules"]
+
+[resource]
+script = ExtResource("1_rules")
+tile_px = 16.0
+reach_tiles = 3.0
+door_reach_tiles = 2.0
+refund_percent = 100
+support_radius = 1
+max_pieces = 4096
+shared_pieces = true
+build_in_safe_core = false

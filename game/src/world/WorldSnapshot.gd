@@ -44,7 +44,7 @@ static func new_world_seed() -> int:
 static func capture(player: Player, dino: Dino, game_version: String, saved_at: String,
 		field: ResourceField = null, respawn_count: int = 0, next_entity_id: int = 0,
 		wild: WildPopulation = null, carcasses: CarcassField = null, world_time: float = 0.0,
-		ground: GroundItemField = null, corpses: CorpseField = null, workbenches: WorkbenchField = null) -> Dictionary:
+		ground: GroundItemField = null, corpses: CorpseField = null, build: BuildGrid = null) -> Dictionary:
 	var life := LIFE_ALIVE
 	if player.health.is_dead():
 		life = LIFE_DEAD_PENDING_CHOICE
@@ -73,7 +73,7 @@ static func capture(player: Player, dino: Dino, game_version: String, saved_at: 
 		"carcasses": carcasses.to_list() if carcasses != null else [],  # mundo: carcaças de dinos mortos
 		"ground_items": ground.to_list() if ground != null else [],  # mundo: itens soltos no chão
 		"corpses": corpses.to_list() if corpses != null else [],  # mundo: corpos dos jogadores mortos (itens e prazo)
-		"workbenches": workbenches.to_list() if workbenches != null else [],  # mundo: Bancadas colocadas (E7a)
+		"build": build.to_dict() if build != null else {},  # mundo: a grade de construção, com a Bancada (E8a; antes `workbenches`)
 		"respawn_count": respawn_count,
 	}
 	if wild != null:
@@ -130,7 +130,7 @@ static func respawn_count_of(data: Dictionary) -> int:
 ## `was_dead_pending_choice` e abre a tela de morte; a escolha de respawn é a única saída.
 static func restore(data: Dictionary, player: Player, dino: Dino, field: ResourceField = null,
 		wild: WildPopulation = null, carcasses: CarcassField = null, authority: WorldAuthority = null,
-		ground: GroundItemField = null, corpses: CorpseField = null, workbenches: WorkbenchField = null) -> bool:
+		ground: GroundItemField = null, corpses: CorpseField = null, build: BuildGrid = null) -> bool:
 	var local_id := local_player_id_of(data)
 	var saved_player: Variant = _find(data, "players", "player_id", local_id)
 	if saved_player == null:
@@ -179,13 +179,22 @@ static func restore(data: Dictionary, player: Player, dino: Dino, field: Resourc
 		ground.restore_list(SafeRead.list(SafeRead.dict(data.get("world")).get("ground_items")))
 	if corpses != null:  # entidade de mundo como a carcaça: o prazo é instante do relógio (já reposto), não corre com o jogo fechado
 		corpses.restore_list(SafeRead.list(SafeRead.dict(data.get("world")).get("corpses")))
-	if workbenches != null:  # peça do mundo, como o chão; save anterior à E7a não tem a lista (sem Bancada)
-		workbenches.restore_list(SafeRead.list(SafeRead.dict(data.get("world")).get("workbenches")))
+	if build != null:  # peça do mundo, como o chão; save anterior à E8a só tem `workbenches` (migra), e antes da E7a nada
+		build.from_dict(build_block_of(data, build.rules.tile_px))
 	if field != null and same_map_id:
 		field.restore_list(SafeRead.list(SafeRead.dict(data.get("world")).get("resource_nodes")))
 	if is_instance_valid(dino) and saved_dino == null:
 		dino.queue_free()
 	return true
+
+
+## O bloco da grade de construção do save: `world.build` (E8a) ou, num save anterior, as Bancadas de `world.workbenches` em pixels
+## convertidas para a célula que as contém (`BuildGrid.pieces_from_legacy_benches`). Nenhum dos dois: grade vazia.
+static func build_block_of(data: Dictionary, tile_px: float) -> Dictionary:
+	var world := SafeRead.dict(data.get("world"))
+	if world.has("build"):
+		return SafeRead.dict(world.get("build"))
+	return {"pieces": BuildGrid.pieces_from_legacy_benches(SafeRead.list(world.get("workbenches")), tile_px)}
 
 
 ## Próximo `entity_id` livre gravado no mundo (0 se ausente ou inválido).

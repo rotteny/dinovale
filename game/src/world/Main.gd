@@ -74,8 +74,11 @@ var predation: PredationSystem
 var corpses: CorpseField
 ## Itens soltos no chão (a colheita por golpes derruba aqui; o jogador também larga).
 var ground: GroundItemField
-## Bancadas colocadas (E7a) e o painel de fabricação (tecla C).
-var workbenches: WorkbenchField
+## Peças construídas (E7a/E8a: a Bancada migrou para a grade) e o painel de fabricação (tecla C).
+var workbenches: BuildField
+## Modo construção (tecla B) e o menu de peças dele.
+var build_mode: BuildMode
+var build_menu: BuildMenu
 var craft_panel: CraftPanel
 var recipes_panel: RecipesPanel
 ## Log do sistema (eventos da autoridade traduzidos em um lugar só) e a vista dele no canto de baixo.
@@ -125,6 +128,7 @@ func _ready() -> void:
 	_wire_mouse_ui()
 	_wire_craft_panel()
 	_wire_recipes_panel()
+	_wire_build_mode()
 	player.downed.state_changed.connect(func(_downed: bool) -> void: sync_incapacity_lock())
 	screen.opened.connect(func() -> void: player.input_locked = true)
 	screen.closed.connect(func() -> void: player.input_locked = false)
@@ -142,7 +146,7 @@ func _ready() -> void:
 	scheduler.carcasses = carcasses
 	scheduler.ground = ground
 	scheduler.corpses = corpses
-	scheduler.workbenches = workbenches
+	scheduler.build = authority.build.grid
 	scheduler.authority = authority
 	scheduler.saved.connect(_on_saved)
 	add_child(scheduler)
@@ -246,18 +250,15 @@ func _build_zone() -> void:
 		ground.spawn_scatter(item_id, amount, at, dropper_id)
 		_play_drop_sound(at))
 	add_child(ground)
-	workbenches = WorkbenchField.new()
-	workbenches.name = "Workbenches"
+	workbenches = BuildField.new()
+	workbenches.name = "Build"
 	workbenches.y_sort_enabled = true
 	workbenches.authority = authority
-	workbenches.map = map
-	workbenches.occupancy = occupancy
-	workbenches.resources = resources
-	workbenches.tile_px = float(map.tile)
-	workbenches.safe_core = SafeCore.new(respawn_rules, predation_rules.spawn_safe_margin_tiles, float(map.tile))
 	add_child(workbenches)
+	authority.build.setup(map, occupancy, SafeCore.new(respawn_rules, predation_rules.spawn_safe_margin_tiles, float(map.tile)), resources)
+	workbenches.attach(authority.build.grid, float(map.tile))
 	authority.crafting.workbenches = workbenches
-	navigation.watch_workbenches(workbenches)  # o grid dos dinos conhece o tile da Bancada
+	navigation.watch_build(authority.build.grid, float(map.tile))  # o grid dos dinos conhece parede, porta fechada e Bancada
 	authority.crafting.entry_dropped.connect(func(entry: Dictionary, at: Vector2, _dropper_id: String) -> void:
 		ground.spawn_entry(entry, at)
 		_play_drop_sound(at))
@@ -336,7 +337,7 @@ func save_game(reason: SaveManager.Reason) -> bool:
 func _continue_saved_game() -> void:
 	var outcome := save_manager.load_first(
 			func(data: Dictionary) -> bool: return WorldSnapshot.restore(data, player, dino, resources, wild, carcasses, authority, ground, corpses,
-					workbenches))
+					authority.build.grid))
 	if outcome.status == SaveManager.Status.OK:
 		world_seed = wild.world_seed  # o save pode ter outra semente: a disposição dos bandos já foi refeita por ela
 		ground.world_seed = world_seed
@@ -640,6 +641,29 @@ func _wire_craft_panel() -> void:
 	craft_panel.place_requested.connect(_on_place_requested)
 	player.inventory.changed.connect(craft_panel.refresh)
 	authority.game_event.connect(func(_code: String, _params: Dictionary) -> void: craft_panel.refresh())
+
+
+## O modo construção (tecla B) só observa: o que o jogador quer vira pedido à autoridade, que valida tudo.
+func _wire_build_mode() -> void:
+	BuildMode.ensure_actions()
+	build_menu = BuildMenu.new()
+	build_menu.catalog = authority.build.grid.catalog
+	build_menu.recipe_book = authority.crafting.recipe_book
+	build_menu.player = player
+	screen.get_parent().add_child(build_menu)
+	build_mode = BuildMode.new()
+	build_mode.name = "BuildMode"
+	build_mode.authority = authority
+	build_mode.player = player
+	build_mode.menu = build_menu
+	add_child(build_mode)
+	var actor_id := func() -> int: return authority.id_of(player)
+	build_mode.build_requested.connect(func(piece_id: String, cell: Vector2i, rotation: int) -> void:
+		authority.request_build(actor_id.call(), piece_id, cell, rotation))
+	build_mode.remove_requested.connect(func(cell: Vector2i) -> void: authority.request_remove_piece(actor_id.call(), cell))
+	build_mode.door_requested.connect(func(cell: Vector2i) -> void: authority.request_toggle_door(actor_id.call(), cell))
+	player.inventory.changed.connect(build_menu.refresh)
+	player.downed.state_changed.connect(func(_downed: bool) -> void: build_mode.set_active(false))
 
 
 ## A aba Receitas (tecla P) só observa: Aprender vira pedido à autoridade, que valida o Saber.

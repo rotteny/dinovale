@@ -1,7 +1,8 @@
 # SPDX-License-Identifier: MIT
 class_name CraftService
 extends Node
-## Regras de fabricação e de colocar peça (E7a), filho da `WorldAuthority` (que mantém o contrato `request_*`: valida o ator
+## Regras de fabricação (E7a; colocar peça passou ao `BuildService` na E8a), filho da `WorldAuthority` (que mantém o contrato
+## `request_*`: valida o ator
 ## e fecha a resposta com o motivo daqui). Cada pedido devolve `{result, reason}`. O material só sai no FIM da fabricação:
 ## salvar e fechar no meio não perde nada e cancelar não tem o que devolver. Andar, cair, afastar-se da Bancada ou perder o
 ## material cancela. A fabricação em andamento não vai ao save.
@@ -15,8 +16,8 @@ const RESULT := Enums.ActionResult
 var authority: WorldAuthority = null
 var recipe_book: RecipeBook = RecipeBook.with_defaults()
 var rules: CraftRules = preload("res://data/balance/craft_rules.tres")
-## Bancadas colocadas (a `Main` liga). Sem o campo, receita de estação "workbench" e `place` recusam.
-var workbenches: WorkbenchField = null
+## As peças do mundo (a `Main` liga): de onde saem as Bancadas. Sem o campo, receita de estação "workbench" recusa.
+var workbenches: BuildField = null
 
 var _jobs := CraftSystem.new()
 
@@ -29,6 +30,8 @@ func begin_craft(actor_id: int, recipe_id: String) -> Dictionary:
 	var recipe: RecipeDef = recipe_book.find(recipe_id) if recipe_id.length() <= WorldAuthority.MAX_ID_LENGTH else null
 	if recipe == null:
 		return _outcome(RESULT.INVALID_ARGUMENT, "unknown_recipe")
+	if recipe.places_in_world:
+		return _outcome(RESULT.WRONG_STATE, "build_in_world")  # fundação, parede e porta se constroem no mundo (B)
 	var problem := _craft_problem(actor_id, actor, recipe)
 	if problem["result"] != RESULT.OK:
 		return problem
@@ -119,35 +122,6 @@ func tick(delta: float) -> void:
 		_finish(actor_id)
 
 
-## Colocar a peça `item_id` no tile de `point`, gastando 1 do inventário. Valida item, número finito, alcance, posse e o
-## ponto (`WorkbenchField.problem_at`: núcleo seguro, terreno, sobreposição).
-func place(actor_id: int, item_id: String, point: Vector2) -> Dictionary:
-	var actor := _actor(actor_id)
-	if actor == null:
-		return _no_actor(actor_id)
-	var problem := _place_problem(actor, item_id, point)
-	if problem["result"] != RESULT.OK:
-		return problem
-	actor.inventory.remove(item_id, 1)
-	workbenches.place(point)
-	authority.announce("item_placed", {"item": Items.display_name(item_id)})
-	return _outcome(RESULT.OK)
-
-
-func _place_problem(actor: Player, item_id: String, point: Vector2) -> Dictionary:
-	if not Items.PLACEABLE.has(item_id) or not point.is_finite() \
-			or absf(point.x) > WorkbenchField.MAX_COORD or absf(point.y) > WorkbenchField.MAX_COORD:
-		return _outcome(RESULT.INVALID_ARGUMENT)
-	if workbenches == null:
-		return _outcome(RESULT.REFUSED, "cannot_place")
-	if actor.global_position.distance_to(workbenches.snap(point)) > rules.place_reach_tiles * authority.rules.tile_size:
-		return _outcome(RESULT.OUT_OF_RANGE)
-	if actor.inventory.count(item_id) < 1:
-		return _outcome(RESULT.REFUSED, "no_item")
-	var blocked := workbenches.problem_at(point)
-	return _outcome(RESULT.WRONG_STATE, blocked) if blocked != "" else _outcome(RESULT.OK)
-
-
 func _outcome(result: Enums.ActionResult, reason: String = "") -> Dictionary:
 	return {"result": result, "reason": reason}
 
@@ -167,7 +141,7 @@ func _reach_px() -> float:
 
 
 func _bench_near(actor: Player) -> Workbench:
-	return workbenches.nearest_within(actor.global_position, _reach_px()) if workbenches != null else null
+	return workbenches.nearest_workbench(actor.global_position, _reach_px()) if workbenches != null else null
 
 
 ## Por que a fabricação em curso não pode seguir ("" = segue).
@@ -216,7 +190,8 @@ func _finish(actor_id: int) -> void:
 	for item_id: String in recipe.inputs:
 		actor.inventory.remove(item_id, int(recipe.inputs[item_id]))
 	_deliver(actor, recipe)
-	authority.announce("craft_done", {"item": Items.display_name(recipe.output_id), "amount": recipe.output_amount, "recipe": recipe.id})
+	authority.announce("craft_done", {"item": Items.display_name(recipe.output_id), "amount": recipe.output_amount,
+			"recipe": recipe.id})
 	authority.grant_craft_xp(actor_id)
 
 

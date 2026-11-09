@@ -31,7 +31,7 @@ var wild: WildPopulation
 var carcasses: CarcassField
 var ground: GroundItemField
 var corpses: CorpseField
-var workbenches: WorkbenchField
+var build: BuildGrid
 ## Contador de respawns do mundo, semente do sorteio de ponto (quem renasce atualiza).
 var respawn_count: int = 0
 ## Autoridade do mundo (opcional): dela vem o próximo `entity_id` livre, que o save leva.
@@ -124,7 +124,7 @@ func _flush() -> bool:
 	var envelope := WorldSnapshot.capture(player, live_dino, _game_version(),
 			Time.get_datetime_string_from_system(true), field, respawn_count,
 			authority.next_entity_id() if authority != null else 0, wild, carcasses,
-			authority.clock.now() if authority != null else 0.0, ground, corpses, workbenches)
+			authority.clock.now() if authority != null else 0.0, ground, corpses, build)
 	var ok := manager.write(envelope)
 	last_duration_usec = Time.get_ticks_usec() - started
 	_saving = false

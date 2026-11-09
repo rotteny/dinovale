@@ -38,12 +38,23 @@ static func with_defaults() -> RecipeBook:
 
 ## Adiciona (ou troca, pelo id) uma receita válida. Devolve false se a receita é inválida.
 func add(recipe: RecipeDef) -> bool:
-	if recipe == null or not recipe.is_valid():
+	if recipe == null or not recipe.is_valid() or _group_cost_conflicts(recipe):
 		return false
 	if not _recipes.has(recipe.id):
 		_order.append(recipe.id)
 	_recipes[recipe.id] = recipe
 	return true
+
+
+## Receita de grupo com custo de Saber diferente do dos outros membros do grupo? (aprender o grupo cobra UM custo: com custos
+## diferentes o jogador pagaria o do primeiro membro; por isso o livro recusa.)
+func _group_cost_conflicts(recipe: RecipeDef) -> bool:
+	if recipe.learn_group == "":
+		return false
+	for other: RecipeDef in _recipes.values():
+		if other.id != recipe.id and other.learn_group == recipe.learn_group and other.saber_cost != recipe.saber_cost:
+			return true
+	return false
 
 
 ## Receita pelo id, ou null.

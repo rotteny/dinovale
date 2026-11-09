@@ -21,6 +21,8 @@ const STATION_WORKBENCH := "workbench"
 @export_range(0, 100) var saber_cost: int = 0
 ## Receitas do mesmo grupo (ex.: as três peças do abrigo) são aprendidas juntas e o Saber é pago UMA vez. "" = sem grupo.
 @export var learn_group: String = ""
+## Peça de construção (E8a): paga-se o material direto ao construir no mundo (`BuildService`), não se fabrica em item.
+@export var places_in_world: bool = false
 
 
 ## Conhecida desde o início (não custa Saber).

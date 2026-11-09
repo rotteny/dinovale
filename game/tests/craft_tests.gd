@@ -45,12 +45,21 @@ func _setup(with_field: bool = false) -> Dictionary:
 	authority.game_event.connect(func(code: String, params: Dictionary) -> void:
 		(world["events"] as Array[Dictionary]).append({"code": code, "params": params}))
 	if with_field:
-		var field := WorkbenchField.new()
+		var field := BuildField.new()
 		_track.call(field)
 		field.authority = authority
+		field.attach(authority.build.grid, TILE)
 		authority.crafting.workbenches = field
 		world["field"] = field
 	return world
+
+
+## Põe uma Bancada na célula que contém `point` (pela grade, sem pedido) e devolve o nó dela.
+func _put_bench(world: Dictionary, point: Vector2) -> Workbench:
+	var service: BuildService = (world["authority"] as WorldAuthority).build
+	var cell := service.cell_of(point)
+	service.grid.add(cell, "workbench")
+	return (world["field"] as BuildField).bench_in(cell)
 
 
 func _codes(world: Dictionary) -> Array[String]:
@@ -130,7 +139,8 @@ func _test_unknown_and_locked_recipe() -> void:
 	authority.crafting.recipe_book.add(locked)
 	_check(authority.request_craft(1, "secret") == Enums.ActionResult.REFUSED and authority.crafting.job(1).is_empty(),
 			"receita não conhecida: recusada")
-	_check(authority.request_craft(1, "axe_stone") == RESULT_OK and authority.request_craft(1, "axe_stone") == Enums.ActionResult.WRONG_STATE,
+	_check(authority.request_craft(1, "axe_stone") == RESULT_OK and authority.request_craft(1,
+			"axe_stone") == Enums.ActionResult.WRONG_STATE,
 			"uma fabricação por vez")
 
 
@@ -153,7 +163,8 @@ func _test_unknown_actor_and_client_panel() -> void:
 	var before := JSON.stringify(player.inventory.to_dict())
 	panel.craft_requested.emit("axe_stone")
 	authority.crafting.tick(100.0)
-	_check(asked == ["axe_stone"] and JSON.stringify(player.inventory.to_dict()) == before and player.inventory.count(Items.AXE_STONE) == 0,
+	_check(asked == ["axe_stone"] and JSON.stringify(player.inventory.to_dict()) == before
+			and player.inventory.count(Items.AXE_STONE) == 0,
 			"o cliente não fabrica sem a autoridade: o pedido é só um sinal")
 
 
@@ -259,14 +270,15 @@ func _test_cancel_by_walking_and_falling() -> void:
 	(again["authority"] as WorldAuthority).request_craft(1, "axe_stone")
 	other.inventory.remove(Items.WOOD, 3)  # gastou o material no meio: a fabricação não conclui
 	(again["authority"] as WorldAuthority).crafting.tick(5.0)
-	_check(other.inventory.count(Items.AXE_STONE) == 0 and "craft_done" not in _codes(again), "sem o material no fim, cancela sem entregar")
+	_check(other.inventory.count(Items.AXE_STONE) == 0 and "craft_done" not in _codes(again),
+			"sem o material no fim, cancela sem entregar")
 
 
 func _test_workbench_range() -> void:
 	var world := _setup(true)
 	var player: Player = world["player"]
 	var authority: WorldAuthority = world["authority"]
-	var field: WorkbenchField = world["field"]
+	var field: BuildField = world["field"]
 	var bench_recipe := RecipeDef.new()
 	bench_recipe.id = "bench_only"
 	bench_recipe.inputs = {Items.WOOD: 1}
@@ -277,9 +289,9 @@ func _test_workbench_range() -> void:
 	player.inventory.add(Items.WOOD, 5)
 	_check(authority.request_craft(1, "bench_only") == Enums.ActionResult.OUT_OF_RANGE and authority.crafting.job(1).is_empty(),
 			"receita de Bancada sem Bancada por perto: recusada")
-	field.place(Vector2(40.0, 8.0))  # centro (40, 8): a 40 px do jogador em (0,0): 2,5 tiles
+	_put_bench(world, Vector2(40.0, 8.0))  # centro (40, 8): a 40 px do jogador em (0,0): 2,5 tiles
 	_check(authority.request_craft(1, "bench_only") == Enums.ActionResult.OUT_OF_RANGE, "a 2,5 tiles: longe demais")
-	field.place(Vector2(24.0, 8.0))  # centro (24, 8): ~25,3 px = 1,58 tile
+	_put_bench(world, Vector2(24.0, 8.0))  # centro (24, 8): ~25,3 px = 1,58 tile
 	_check(authority.request_craft(1, "bench_only") == RESULT_OK, "a menos de 2 tiles: aceita")
 	_run_job(authority, 3.9)
 	_check(player.inventory.count(Items.FIBER) == 0, "a 4 s de trabalho, ainda não acabou")
@@ -305,7 +317,8 @@ func _test_inventory_full_drops() -> void:
 	authority.request_craft(1, "axe_stone")
 	_run_job(authority, 3.5)
 	_check(player.inventory.count(Items.AXE_STONE) == 0 and entries.size() == 1 and entries[0]["id"] == Items.AXE_STONE
-			and int(entries[0]["durab"]) == 150 and str(entries[0]["iid"]) != "", "inventário cheio: o Machado cai no chão, com a durabilidade")
+			and int(entries[0]["durab"]) == 150 and str(entries[0]["iid"]) != "",
+					"inventário cheio: o Machado cai no chão, com a durabilidade")
 	_check(player.inventory.count(Items.WOOD) == 7 and "craft_done" in _codes(world), "o material foi gasto e a fabricação concluiu")
 	# sem chão ligado e sem lugar, o pedido é recusado para não perder item
 	var closed := _setup()
@@ -316,7 +329,8 @@ func _test_inventory_full_drops() -> void:
 	other.inventory.add(Items.STONE, 10)
 	other.inventory.add(Items.FIBER, 10)
 	other.inventory.capacity = 3
-	_check(closed_authority.request_craft(1, "axe_stone") == Enums.ActionResult.REFUSED, "sem chão e sem lugar: recusa (nada se perde)")
+	_check(closed_authority.request_craft(1, "axe_stone") == Enums.ActionResult.REFUSED,
+			"sem chão e sem lugar: recusa (nada se perde)")
 
 
 # ----------------------------------------------------------------------------- colocar
@@ -325,8 +339,8 @@ func _test_place_rules() -> void:
 	var world := _setup(true)
 	var player: Player = world["player"]
 	var authority: WorldAuthority = world["authority"]
-	var field: WorkbenchField = world["field"]
-	_check(authority.request_place(1, Items.WORKBENCH, Vector2(24, 0)) == Enums.ActionResult.REFUSED and field.count() == 0,
+	var field: BuildField = world["field"]
+	_check(authority.request_place(1, Items.WORKBENCH, Vector2(24, 0)) == Enums.ActionResult.REFUSED and field.count_benches() == 0,
 			"sem o item, não coloca")
 	player.inventory.add(Items.WORKBENCH, 2)
 	_check(authority.request_place(1, Items.WOOD, Vector2(24, 0)) == Enums.ActionResult.INVALID_ARGUMENT
@@ -334,22 +348,25 @@ func _test_place_rules() -> void:
 			and authority.request_place(1, Items.WORKBENCH, Vector2(NAN, 0)) == Enums.ActionResult.INVALID_ARGUMENT,
 			"item que não se coloca e número não finito são pedido inválido")
 	_check(authority.request_place(1, Items.WORKBENCH, Vector2(400, 0)) == Enums.ActionResult.OUT_OF_RANGE, "longe demais do ponto")
-	_check(authority.request_place(1, Items.WORKBENCH, Vector2(24, 0)) == RESULT_OK and field.count() == 1
+	_check(authority.request_place(1, Items.WORKBENCH, Vector2(24, 0)) == RESULT_OK and field.count_benches() == 1
 			and player.inventory.count(Items.WORKBENCH) == 1, "coloca e gasta 1 do inventário")
-	var bench := field.bench_at(Vector2(24, 0))
-	_check(bench != null and bench.position == Vector2(24, 8) and authority.id_of(bench) > 0, "no centro do tile, registrada na autoridade")
-	_check(authority.request_place(1, Items.WORKBENCH, Vector2(26, 3)) == Enums.ActionResult.WRONG_STATE and field.count() == 1
+	var bench := field.bench_in(Vector2i(1, 0))
+	_check(bench != null and bench.position == Vector2(24, 8) and authority.id_of(bench) > 0,
+			"no centro do tile, registrada na autoridade")
+	_check(authority.request_place(1, Items.WORKBENCH, Vector2(26, 3)) == Enums.ActionResult.WRONG_STATE and field.count_benches() == 1
 			and player.inventory.count(Items.WORKBENCH) == 1, "sobrepor outra Bancada (mesmo tile) é recusado e nada se gasta")
 	_check(authority.request_place(1, Items.WORKBENCH, Vector2(8, 8)) == Enums.ActionResult.OK, "tile vizinho serve")
-	var occupied := ((world["field"] as WorkbenchField).problem_at(Vector2(24, 0)))
-	_check(occupied == WorkbenchField.REASON_OCCUPIED, "o motivo é 'occupied'")
+	_check(authority.build.spot_problem(Vector2i(1, 0),
+			authority.build.grid.catalog.find("workbench")) == BuildService.REASON_OCCUPIED,
+			"o motivo é 'occupied'")
 	var capped := _setup(true)
-	var capped_field: WorkbenchField = capped["field"]
-	capped_field.rules = CraftRules.new()
-	capped_field.rules.max_workbenches = 1
+	var capped_authority: WorldAuthority = capped["authority"]
+	var capped_def: PieceDef = capped_authority.build.grid.catalog.find("workbench").duplicate()  # o recurso é compartilhado: copia
+	capped_def.max_count = 1
+	capped_authority.build.grid.catalog.add(capped_def)
 	(capped["player"] as Player).inventory.add(Items.WORKBENCH, 1)
-	capped_field.place(Vector2(100, 100))
-	_check((capped["authority"] as WorldAuthority).request_place(1, Items.WORKBENCH, Vector2(24, 0)) == Enums.ActionResult.WRONG_STATE,
+	_put_bench(capped, Vector2(100, 100))
+	_check(capped_authority.request_place(1, Items.WORKBENCH, Vector2(24, 0)) == Enums.ActionResult.WRONG_STATE,
 			"teto de peças no mundo")
 
 
@@ -358,57 +375,47 @@ func _test_place_in_safe_core_and_sea() -> void:
 	var world := _setup(true)
 	var player: Player = world["player"]
 	var authority: WorldAuthority = world["authority"]
-	var field: WorkbenchField = world["field"]
-	field.map = map
-	field.safe_core = SafeCore.new(RESPAWN, 8.0, TILE)
+	var field: BuildField = world["field"]
+	var core := SafeCore.new(RESPAWN, 8.0, TILE)
+	authority.build.setup(map, null, core, null)
 	player.inventory.add(Items.WORKBENCH, 3)
 	var core_point := RESPAWN.available_regions()[0].area.get_center()
 	player.position = core_point
-	_check(field.problem_at(core_point + Vector2(TILE, 0)) == WorkbenchField.REASON_SAFE_CORE
+	var core_cell := authority.build.cell_of(core_point + Vector2(TILE, 0))
+	_check(authority.build.fixed_problem(core_cell) == BuildService.REASON_SAFE_CORE
 			and authority.request_place(1, Items.WORKBENCH, core_point + Vector2(TILE, 0)) == Enums.ActionResult.WRONG_STATE,
 			"dentro do núcleo seguro: recusado")
 	var sea := Vector2(-TILE, -TILE)  # fora do mapa: nem terra nem andável
 	player.position = sea
-	_check(field.problem_at(sea) == WorkbenchField.REASON_TERRAIN
-			and authority.request_place(1, Items.WORKBENCH, sea) == Enums.ActionResult.WRONG_STATE and field.count() == 0,
+	_check(authority.build.fixed_problem(authority.build.cell_of(sea)) == BuildService.REASON_TERRAIN
+			and authority.request_place(1, Items.WORKBENCH, sea) == Enums.ActionResult.WRONG_STATE and field.count_benches() == 0,
 			"terreno não andável: recusado")
-	var free_point := Vector2.ZERO
-	var found := false
-	for y in range(40, map.size - 40, 12):
-		for x in range(40, map.size - 40, 12):
-			var point := map.center_of(Vector2i(x, y))
-			if map.is_land(Vector2i(x, y)) and not field.safe_core.contains(point):
-				free_point = point
-				found = true
-				break
-		if found:
-			break
+	var free_point := _land_point(map, core)
 	player.position = free_point
-	_check(found and field.problem_at(free_point) == "" and authority.request_place(1, Items.WORKBENCH, free_point) == RESULT_OK,
+	_check(free_point != Vector2.ZERO and authority.build.fixed_problem(authority.build.cell_of(free_point)) == ""
+			and authority.request_place(1, Items.WORKBENCH, free_point) == RESULT_OK,
 			"em terra firme e fora do núcleo: coloca")
 
 
 func _test_workbench_save() -> void:
 	var world := _setup(true)
 	var authority: WorldAuthority = world["authority"]
-	var field: WorkbenchField = world["field"]
-	var first := field.place(Vector2(40, 40))
-	field.place(Vector2(100, 56))
+	var field: BuildField = world["field"]
+	var first := _put_bench(world, Vector2(40, 40))
+	_put_bench(world, Vector2(100, 56))
 	var first_id := authority.id_of(first)
-	var saved: Array = JSON.parse_string(JSON.stringify(field.to_list()))
+	var saved: Dictionary = JSON.parse_string(JSON.stringify(authority.build.grid.to_dict()))
 	var other := _setup(true)
-	var other_field: WorkbenchField = other["field"]
-	other_field.place(Vector2(5, 5))  # o que havia some: a lista salva manda
-	other_field.restore_list(saved)
-	var restored := other_field.bench_at(Vector2(40, 40))
-	_check(other_field.count() == 2 and restored != null and restored.position == first.position
-			and (other["authority"] as WorldAuthority).id_of(restored) == first_id and other_field.bench_at(Vector2(100, 56)) != null
-			and other_field.bench_at(Vector2(5, 5)) == null, "save e load da Bancada: posições e ids voltam, o resto sai")
-	other_field.restore_list([{"x": "lixo", "y": 3}, 5, {"x": 1e30, "y": 0}, {"x": 8, "y": 8}, {"x": 8, "y": 8}, {}])
-	_check(other_field.count() == 2 and other_field.bench_at(Vector2(8, 8)) != null,
-			"dado ruim: entrada inválida cai fora, coordenada gigante é limitada e o tile repetido vale uma vez")
+	var other_authority: WorldAuthority = other["authority"]
+	var other_field: BuildField = other["field"]
+	_put_bench(other, Vector2(5, 5))  # o que havia some: a grade salva manda
+	other_authority.build.grid.from_dict(saved)
+	var restored := other_field.bench_in(Vector2i(2, 2))
+	_check(other_field.count_benches() == 2 and restored != null and restored.position == first.position
+			and other_authority.id_of(restored) == first_id and other_field.bench_in(Vector2i(6, 3)) != null
+			and other_field.bench_in(Vector2i(0, 0)) == null, "save e load da Bancada: posições e ids voltam, o resto sai")
 	_check(not (other["events"] as Array).any(func(event: Dictionary) -> bool: return str(event["code"]).begins_with("craft_") \
-			or event["code"] == "item_placed"), "restaurar não dispara evento de jogo")
+			or event["code"] in ["item_placed", "piece_built"]), "restaurar não dispara evento de jogo")
 
 
 ## Save editado: Bancada no mar ou no núcleo seguro é descartada e id no teto não empurra o contador (o próximo load seria recusado).
@@ -416,15 +423,18 @@ func _test_restore_validates_saved_benches() -> void:
 	var map := IslandMap.default_map()
 	var world := _setup(true)
 	var authority: WorldAuthority = world["authority"]
-	var field: WorkbenchField = world["field"]
-	field.map = map
-	field.safe_core = SafeCore.new(RESPAWN, 8.0, TILE)
-	var core_point := RESPAWN.available_regions()[0].area.get_center()
-	var land := _land_point(map, field)
-	field.restore_list([{"id": 0, "x": -TILE, "y": -TILE}, {"id": 0, "x": core_point.x, "y": core_point.y},
-			{"id": 1 << 30, "x": land.x, "y": land.y}])
-	_check(field.count() == 1 and field.bench_at(land) != null, "restaurar descarta Bancada no mar e no núcleo seguro, e guarda a boa")
-	_check(authority.id_of(field.bench_at(land)) < SaveMigrations.MAX_ENTITY_ID - 1
+	var field: BuildField = world["field"]
+	var core := SafeCore.new(RESPAWN, 8.0, TILE)
+	authority.build.setup(map, null, core, null)
+	var core_cell := authority.build.cell_of(RESPAWN.available_regions()[0].area.get_center())
+	var land := _land_point(map, core)
+	var land_cell := authority.build.cell_of(land)
+	authority.build.grid.from_dict({"pieces": [{"piece": "workbench", "x": -1, "y": -1}, {"piece": "workbench", "x": core_cell.x,
+			"y": core_cell.y},
+			{"piece": "workbench", "x": land_cell.x, "y": land_cell.y, "id": 1 << 30}]})
+	_check(field.count_benches() == 1 and field.bench_in(land_cell) != null,
+			"restaurar descarta Bancada no mar e no núcleo seguro, e guarda a boa")
+	_check(authority.id_of(field.bench_in(land_cell)) < SaveMigrations.MAX_ENTITY_ID - 1
 			and authority.next_entity_id() < SaveMigrations.MAX_ENTITY_ID, "id no teto vira o próximo livre: o contador não dispara")
 	var ground := GroundItemField.new()
 	_track.call(ground)
@@ -436,11 +446,11 @@ func _test_restore_validates_saved_benches() -> void:
 
 
 ## Um ponto de terra firme fora do núcleo seguro.
-func _land_point(map: IslandMap, field: WorkbenchField) -> Vector2:
+func _land_point(map: IslandMap, core: SafeCore) -> Vector2:
 	for y in range(40, map.size - 40, 12):
 		for x in range(40, map.size - 40, 12):
 			var point := map.center_of(Vector2i(x, y))
-			if map.is_land(Vector2i(x, y)) and not field.safe_core.contains(point):
+			if map.is_land(Vector2i(x, y)) and not core.contains(point):
 				return point
 	return Vector2.ZERO
 
@@ -448,22 +458,21 @@ func _land_point(map: IslandMap, field: WorkbenchField) -> Vector2:
 func _test_navigation_blocks_bench() -> void:
 	var map := IslandMap.default_map()
 	var world := _setup(true)
-	var field: WorkbenchField = world["field"]
-	field.map = map
-	field.safe_core = SafeCore.new(RESPAWN, 8.0, TILE)
+	var authority: WorldAuthority = world["authority"]
+	var core := SafeCore.new(RESPAWN, 8.0, TILE)
 	var navigation := NavigationWorld.new()
 	_track.call(navigation)
 	navigation.setup(map, preload("res://data/world/world_rules.tres"), preload("res://data/balance/navigation_rules.tres"), null)
-	navigation.watch_workbenches(field)
-	var point := _land_point(map, field)
+	navigation.watch_build(authority.build.grid, TILE)
+	var point := _land_point(map, core)
 	var cell := map.cell_of(point)
 	_check(not navigation.provider.is_blocked(cell), "preparo: o tile está livre na grade")
-	var bench := field.place(point)
+	_put_bench(world, point)
 	_check(navigation.provider.is_blocked(cell), "colocar a Bancada bloqueia o tile na grade dos dinos")
-	field.remove(bench)
+	authority.build.grid.remove(cell)
 	_check(not navigation.provider.is_blocked(cell), "remover libera o tile")
-	field.place(point)
-	field.restore_list([])  # carregar um save sem a Bancada
+	_put_bench(world, point)
+	authority.build.grid.from_dict({})  # carregar um save sem a Bancada
 	_check(not navigation.provider.is_blocked(cell), "carregar um save que troca as Bancadas libera o tile")
 
 
@@ -530,21 +539,35 @@ func _test_craft_edge_cases() -> void:
 func _test_workbench_snapshot_and_old_save() -> void:
 	var world := _setup(true)
 	var player: Player = world["player"]
-	var field: WorkbenchField = world["field"]
-	field.place(Vector2(72, 72))
-	var envelope := WorldSnapshot.capture(player, null, "t", "now", null, 0, 10, null, null, 0.0, null, null, field)
+	var authority: WorldAuthority = world["authority"]
+	_put_bench(world, Vector2(72, 72))
+	var envelope := WorldSnapshot.capture(player, null, "t", "now", null, 0, 10, null, null, 0.0, null, null, authority.build.grid)
 	var parsed: Dictionary = JSON.parse_string(JSON.stringify(envelope))
-	_check(parsed["world"]["workbenches"].size() == 1 and SaveManager.validate_envelope(parsed) == "",
-			"o envelope leva as Bancadas e segue válido")
+	_check((parsed["world"]["build"]["pieces"] as Array).size() == 1 and not (parsed["world"] as Dictionary).has("workbenches")
+			and SaveManager.validate_envelope(parsed) == "", "o envelope leva a grade de construção (com a Bancada) e segue válido")
 	var other := _setup(true)
-	var other_field: WorkbenchField = other["field"]
-	other_field.place(Vector2(1, 1))
-	_check(WorldSnapshot.restore(parsed, other["player"], null, null, null, null, other["authority"], null, null, other_field)
-			and other_field.count() == 1 and other_field.bench_at(Vector2(72, 72)) != null, "WorldSnapshot.restore recoloca a Bancada")
+	var other_authority: WorldAuthority = other["authority"]
+	var other_field: BuildField = other["field"]
+	_put_bench(other, Vector2(1, 1))
+	_check(WorldSnapshot.restore(parsed, other["player"], null, null, null, null, other_authority, null, null,
+			other_authority.build.grid)
+			and other_field.count_benches() == 1 and other_field.bench_in(Vector2i(4, 4)) != null,
+					"WorldSnapshot.restore recoloca a Bancada")
 	var old: Dictionary = parsed.duplicate(true)
-	(old["world"] as Dictionary).erase("workbenches")  # save anterior à E7a
-	_check(WorldSnapshot.restore(old, other["player"], null, null, null, null, other["authority"], null, null, other_field)
-			and other_field.count() == 0, "save sem a lista (anterior à E7a) carrega, sem Bancada")
+	(old["world"] as Dictionary).erase("build")  # save anterior à E7a: sem Bancada
+	_check(WorldSnapshot.restore(old, other["player"], null, null, null, null, other_authority, null, null, other_authority.build.grid)
+			and other_field.count_benches() == 0, "save sem a lista (anterior à E7a) carrega, sem Bancada")
+	# Save da E7a: `world.workbenches` em pixels migra para a célula que contém o ponto (e lixo cai fora).
+	var legacy: Dictionary = parsed.duplicate(true)
+	(legacy["world"] as Dictionary).erase("build")
+	(legacy["world"] as Dictionary)["workbenches"] = [{"id": 0, "x": 40.0, "y": 40.0}, {"id": 0, "x": 100.0, "y": 56.0}, {"x": "lixo",
+			"y": 1}, 7]
+	_check(WorldSnapshot.restore(legacy, other["player"], null, null, null, null, other_authority, null, null,
+			other_authority.build.grid)
+			and other_field.count_benches() == 2 and other_field.bench_in(Vector2i(2, 2)) != null and other_field.bench_in(Vector2i(6,
+					3)) != null
+			and (other_authority.build.grid.to_dict()["pieces"] as Array)[0]["piece"] == "workbench",
+			"save da E7a (`world.workbenches` em pixels) migra para a célula do grid")
 
 
 # ----------------------------------------------------------------------------- Lança
@@ -591,4 +614,5 @@ func _test_spear_kills_dodo_in_two_hits() -> void:
 	var maker_authority: WorldAuthority = crafted["authority"]
 	maker_authority.request_craft(1, "wooden_spear")
 	maker_authority.crafting.tick(3.5)
-	_check(maker.inventory.count(SPEAR) == 1 and maker.inventory.count(Items.STICK) == 0, "a Lança sai da receita (2 graveto + 3 madeira)")
+	_check(maker.inventory.count(SPEAR) == 1 and maker.inventory.count(Items.STICK) == 0,
+			"a Lança sai da receita (2 graveto + 3 madeira)")

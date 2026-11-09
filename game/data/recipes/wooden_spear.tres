@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="RecipeDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/core/RecipeDef.gd" id="1_recipe"]
+
+[resource]
+script = ExtResource("1_recipe")
+id = "wooden_spear"
+display_name = "Lança de madeira"
+inputs = Dictionary[String, int]({
+"stick": 2,
+"wood": 3
+})
+output_id = "wooden_spear"
+output_amount = 1
+seconds = 3.0
+station = "hand"
+known_at_start = true

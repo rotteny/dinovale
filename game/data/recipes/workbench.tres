@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="RecipeDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/core/RecipeDef.gd" id="1_recipe"]
+
+[resource]
+script = ExtResource("1_recipe")
+id = "workbench"
+display_name = "Bancada comum"
+inputs = Dictionary[String, int]({
+"wood": 8,
+"stone": 2
+})
+output_id = "workbench"
+output_amount = 1
+seconds = 4.0
+station = "hand"
+known_at_start = true

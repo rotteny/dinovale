@@ -45,6 +45,9 @@ const ACTION_FACE := "face"
 const ACTION_PICKUP := "pickup"
 const ACTION_DROP := "drop"
 const ACTION_RECOVER := "recover_corpse"
+const ACTION_CRAFT := "craft"
+const ACTION_CANCEL_CRAFT := "cancel_craft"
+const ACTION_PLACE := "place"
 ## Quantidade de `request_transfer_slot` que significa "a pilha toda".
 const TRANSFER_ALL := -1
 ## Tamanho máximo de `iid` e de nome de vaga aceitos (dado vindo de fora não é confiável).
@@ -79,6 +82,9 @@ var bite_filter: Callable = Callable()
 ## Chamada do bando (`HerdCall`): a autoridade a alimenta quando um selvagem é golpeado e a avança a cada quadro.
 var herd := HerdCall.new()
 
+## Fabricar e colocar peça (E7a): a lógica fica no `CraftService`, filho desta autoridade; os pedidos passam por aqui.
+var crafting := CraftService.new()
+
 ## Quantas varreduras do mouse (`pick_at`) já fizeram: o cursor as limita (serve a teste de custo).
 var pick_queries: int = 0
 
@@ -96,9 +102,15 @@ var _announced_episode: Dictionary = {}
 var _last_strike: Dictionary = {}
 
 
+func _init() -> void:
+	crafting.authority = self
+	add_child(crafting)
+
+
 func _physics_process(delta: float) -> void:
 	clock.advance(delta)
 	tick_herd(delta)
+	crafting.tick(delta)
 
 
 ## Passo do bando (público e testável sem quadros): os ajudantes escalados entram quando o atraso acaba.
@@ -186,6 +198,7 @@ func _on_player_zeroed(player: Player) -> void:
 func _down_player(player: Player, from_health: bool) -> void:
 	if player.downed.is_downed or (player.health.is_dead() and not from_health):
 		return
+	crafting.cancel(id_of(player), "downed")
 	player.perform_down(from_health)
 	announce("player_downed", {"cause": "health" if from_health else "torpor"})
 
@@ -200,6 +213,7 @@ func _wake_player(player: Player) -> void:
 
 ## O caído zerou: morre. O corpo (itens) e a tela de morte ouvem `player_died`.
 func _kill_player(player: Player) -> void:
+	crafting.cancel(id_of(player), "downed")
 	player.perform_death()  # tira o caído e zera a fila de comida
 	announce("player_died")
 	player_died.emit(player)
@@ -489,6 +503,8 @@ func request_move(actor_id: int, direction: Vector2, wants_sprint: bool = false)
 		problem = Enums.ActionResult.INVALID_ARGUMENT
 	if problem == Enums.ActionResult.OK:
 		actor.perform_move(direction, wants_sprint)
+		if direction.length_squared() > 0.0001 and not actor.input_locked:
+			crafting.cancel(actor_id, "moved")  # andar interrompe a fabricação (nada foi gasto: o material sai no fim)
 	return _answer(actor_id, ACTION_MOVE, problem)
 
 
@@ -745,7 +761,8 @@ func request_gather(actor_id: int, target_id: int) -> Enums.ActionResult:
 		_report_gather(actor, node, reason, life_before)
 		if reason == "" and completes:
 			_start_gather_interval(actor_id)
-			actor.progression.grant_gather()  # XP só da coleta CONCLUÍDA (golpe intermediário e recusa não rendem)
+			if not node.is_available():  # XP só quando o nó ESGOTA: golpe intermediário, recusa e coleta parcial não rendem
+				actor.progression.grant_gather()
 	return _answer(actor_id, ACTION_GATHER, problem)
 
 
@@ -855,6 +872,29 @@ func request_drop(actor_id: int, index: int, amount: int = TRANSFER_ALL) -> Enum
 		var removed := actor.inventory.take_from_slot(index, count)
 		items_dropped.emit(item_id, removed, actor.global_position, actor.player_id)
 	return _answer(actor_id, ACTION_DROP, problem)
+
+
+# ----------------------------------------------------------------------------- fabricar e colocar (E7a)
+
+## Fabricar a receita `recipe_id` (regras e tarefa no `CraftService`). O material só sai no FIM.
+func request_craft(actor_id: int, recipe_id: String) -> Enums.ActionResult:
+	return _service_answer(actor_id, ACTION_CRAFT, crafting.begin_craft(actor_id, recipe_id))
+
+
+## Cancelar a fabricação em curso, a pedido do jogador.
+func request_cancel_craft(actor_id: int) -> Enums.ActionResult:
+	return _service_answer(actor_id, ACTION_CANCEL_CRAFT, crafting.cancel_by_player(actor_id))
+
+
+## Colocar no mundo a peça `item_id` (de `Items.PLACEABLE`) no tile de `point`, gastando 1 do inventário.
+func request_place(actor_id: int, item_id: String, point: Vector2) -> Enums.ActionResult:
+	return _service_answer(actor_id, ACTION_PLACE, crafting.place(actor_id, item_id, point))
+
+
+## Fecha o pedido do serviço: `{result, reason}` vira o motivo e a resposta padrão.
+func _service_answer(actor_id: int, action: String, outcome: Dictionary) -> Enums.ActionResult:
+	_reason = str(outcome.get("reason", ""))
+	return _answer(actor_id, action, outcome["result"] as Enums.ActionResult)
 
 
 func _equipment_result(reason: String) -> Enums.ActionResult:
@@ -990,3 +1030,5 @@ func _answer(actor_id: int, action: String, result: Enums.ActionResult) -> Enums
 	_reason = ""
 	_reason_params = {}
 	return result
+
+# gdlint: ignore=max-file-lines

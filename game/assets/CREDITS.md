@@ -101,3 +101,4 @@ Licença dos assets próprios: CC BY 4.0 (ver `/ASSETS-LICENSE`). Código: MIT.
 | game/assets/sprites/jogador/corpo.png | propria | idem; 2 quadros 32x32, corpo com trouxa de itens, brilho | - | CC-BY-4.0 | idem | 2026-11-08 |
 | game/assets/ui/icone_corpo.png | propria | idem; icone 8x8 de corpo (reservado para marcador de corpo; ainda sem uso no jogo) | - | CC-BY-4.0 | idem | 2026-11-08 |
 | game/assets/sprites/jogador/corpo.json | propria | idem; quadros e fps de caido.png e corpo.png (lido por `BodyArt`) | - | CC-BY-4.0 | idem | 2026-11-08 |
+| game/assets/sprites/pecas/workbench.png (16x16) | propria | autoria do projeto, gerado por `documentacao/design/arte/gerar_bancada.gd` (sem IA, sem recorte de terceiros); Bancada placeholder da E7a | - | CC-BY-4.0 | usa so cores da paleta do pacote Ninja Adventure | 2026-11-09 |

@@ -44,7 +44,7 @@ static func new_world_seed() -> int:
 static func capture(player: Player, dino: Dino, game_version: String, saved_at: String,
 		field: ResourceField = null, respawn_count: int = 0, next_entity_id: int = 0,
 		wild: WildPopulation = null, carcasses: CarcassField = null, world_time: float = 0.0,
-		ground: GroundItemField = null, corpses: CorpseField = null) -> Dictionary:
+		ground: GroundItemField = null, corpses: CorpseField = null, workbenches: WorkbenchField = null) -> Dictionary:
 	var life := LIFE_ALIVE
 	if player.health.is_dead():
 		life = LIFE_DEAD_PENDING_CHOICE
@@ -73,6 +73,7 @@ static func capture(player: Player, dino: Dino, game_version: String, saved_at: 
 		"carcasses": carcasses.to_list() if carcasses != null else [],  # mundo: carcaças de dinos mortos
 		"ground_items": ground.to_list() if ground != null else [],  # mundo: itens soltos no chão
 		"corpses": corpses.to_list() if corpses != null else [],  # mundo: corpos dos jogadores mortos (itens e prazo)
+		"workbenches": workbenches.to_list() if workbenches != null else [],  # mundo: Bancadas colocadas (E7a)
 		"respawn_count": respawn_count,
 	}
 	if wild != null:
@@ -129,7 +130,7 @@ static func respawn_count_of(data: Dictionary) -> int:
 ## `was_dead_pending_choice` e abre a tela de morte; a escolha de respawn é a única saída.
 static func restore(data: Dictionary, player: Player, dino: Dino, field: ResourceField = null,
 		wild: WildPopulation = null, carcasses: CarcassField = null, authority: WorldAuthority = null,
-		ground: GroundItemField = null, corpses: CorpseField = null) -> bool:
+		ground: GroundItemField = null, corpses: CorpseField = null, workbenches: WorkbenchField = null) -> bool:
 	var local_id := local_player_id_of(data)
 	var saved_player: Variant = _find(data, "players", "player_id", local_id)
 	if saved_player == null:
@@ -177,6 +178,8 @@ static func restore(data: Dictionary, player: Player, dino: Dino, field: Resourc
 		ground.restore_list(SafeRead.list(SafeRead.dict(data.get("world")).get("ground_items")))
 	if corpses != null:  # entidade de mundo como a carcaça: o prazo é instante do relógio (já reposto), não corre com o jogo fechado
 		corpses.restore_list(SafeRead.list(SafeRead.dict(data.get("world")).get("corpses")))
+	if workbenches != null:  # peça do mundo, como o chão; save anterior à E7a não tem a lista (sem Bancada)
+		workbenches.restore_list(SafeRead.list(SafeRead.dict(data.get("world")).get("workbenches")))
 	if field != null and same_map_id:
 		field.restore_list(SafeRead.list(SafeRead.dict(data.get("world")).get("resource_nodes")))
 	if is_instance_valid(dino) and saved_dino == null:

@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="RecipeDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/core/RecipeDef.gd" id="1_recipe"]
+
+[resource]
+script = ExtResource("1_recipe")
+id = "sleep_staff"
+display_name = "Bastão-de-sono (reposição)"
+inputs = Dictionary[String, int]({
+"wood": 3,
+"fiber": 2
+})
+output_id = "sleep_staff"
+output_amount = 1
+seconds = 3.0
+station = "hand"
+known_at_start = true

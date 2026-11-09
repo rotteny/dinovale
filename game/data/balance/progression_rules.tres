@@ -13,5 +13,5 @@ xp_tame_base = 15
 xp_tame_per_level = 3
 saber_per_level = 1
 saber_bonus = 1
-saber_bonus_levels = Array[int]([5, 10, 15, 20])
+saber_bonus_levels = Array[int]([3, 5, 10, 15, 20])
 notice_seconds = 3.0

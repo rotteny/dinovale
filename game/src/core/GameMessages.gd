@@ -33,6 +33,10 @@ const EVENTS: Dictionary = {
 	"taming_attacked": {"kind": Kind.WARNING, "text": "{name} está sendo atacado enquanto dorme."},
 	"taming_killed": {"kind": Kind.DANGER, "text": "A doma de {name} falhou: {species} o matou."},
 	"order_given": {"kind": Kind.INFO, "text": "{species}: {order}."},
+	"craft_started": {"kind": Kind.INFO, "text": "Fabricando {item}..."},
+	"craft_done": {"kind": Kind.SUCCESS, "text": "{item} pronto."},
+	"craft_cancelled": {"kind": Kind.WARNING, "text": "Fabricação de {item} cancelada."},
+	"item_placed": {"kind": Kind.INFO, "text": "{item} colocada."},
 	"action_refused": {"kind": Kind.WARNING, "text": "{reason}"},
 }
 
@@ -60,6 +64,17 @@ const REASONS: Dictionary = {
 	"not_hungry": "Você não está com fome.",
 	"nothing_to_use": "Nada para usar aí.",
 	"not_food": "Isso não é comida.",
+	"unknown_recipe": "Receita desconhecida.",
+	"recipe_locked": "Você ainda não conhece essa receita.",
+	"already_crafting": "Você já está fabricando algo.",
+	"no_workbench": "Chegue perto de uma Bancada.",
+	"missing_materials": "Faltam materiais.",
+	"no_item": "Você não tem esse item.",
+	"cannot_place": "Não dá para colocar isso aqui.",
+	"bad_terrain": "O terreno não serve.",
+	"occupied": "Já tem algo nesse lugar.",
+	"safe_core": "Não dá para colocar no refúgio.",
+	"place_limit": "Peças demais no mundo.",
 }
 
 ## Motivo padrão de cada resultado negado da autoridade.

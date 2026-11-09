@@ -72,7 +72,7 @@ Nota: é a única etapa do bloco A que poderia ir para depois do QA-01a (renasce
 
 **E6. XP, nível e Saber.**
 Objetivo: o jogador cresce por coletar e domar e acumula Saber.
-Tarefas: PRO-11 (curva; XP +1 coletar, +2 fabricar [entra na E7a], `15 + 3 x nível` domar; Saber 1 por nível, +1 nos 5, 10, 15, 20; sem pontos de atributo), UIX-12 (barra fina "Nv N", selo de Saber, aviso de 3 s).
+Tarefas: PRO-11 (curva; XP +1 coletar, +2 fabricar [entra na E7a], `15 + 3 x nível` domar; Saber 1 por nível, +1 nos 3, 5, 10, 15, 20; sem pontos de atributo), UIX-12 (barra fina "Nv N", selo de Saber, aviso de 3 s).
 Dono testa: coletar e domar sobe nível; selo aparece com Saber sobrando; fecha e abre e o nível fica.
 Dependências: E5 (nenhuma técnica; é a ordem).
 Risco: curva [premissa]; a dependência PRO-11 <- PRO-09 do plano está morta (era o "+3 kg por ponto", sem pontos não existe).

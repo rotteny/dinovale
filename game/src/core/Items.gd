@@ -15,6 +15,15 @@ const STONE := "stone"
 const FIBER := "fiber"
 ## Fruta do arbusto-do-sono (Cochilo): item de 0,1 kg que nunca vale como refeição (GDD 5.5). Sem consumidor ainda.
 const SLEEP_FRUIT := "sleep_fruit"
+## Graveto: material da Lança e das flechas (GDD 5.9). Ainda sem nó que o dê (a fonte entra com o resto do conteúdo).
+const STICK := "stick"
+## Ferramentas de pedra (ids que a tabela de dano de coleta e os nós de recurso já usam).
+const AXE_STONE := "axe_stone"
+const PICKAXE_STONE := "pickaxe_stone"
+## Peça que se coloca no mundo (E7a): vira a entidade `Workbench` por `WorldAuthority.request_place`.
+const WORKBENCH := "workbench"
+## Itens que `request_place` sabe colocar.
+const PLACEABLE: Array[String] = [WORKBENCH]
 
 ## Arma de cada item de arma (o id da arma é o id do item).
 const WEAPONS: Dictionary[String, WeaponDef] = {
@@ -99,6 +108,10 @@ static func _catalog() -> Dictionary:
 			ItemDef.new(STONE, "Pedra", 20, Color(0.6, 0.6, 0.65)),
 			ItemDef.new(FIBER, "Fibra", 40, Color(0.75, 0.7, 0.4)),
 			ItemDef.new(SLEEP_FRUIT, "Cochilo", 20, Color(0.75, 0.8, 0.95)),
+			ItemDef.new(STICK, "Graveto", 40, Color(0.5, 0.36, 0.2)),
+			ItemDef.new(AXE_STONE, "Machado de pedra", 1, Color(0.55, 0.55, 0.6)),
+			ItemDef.new(PICKAXE_STONE, "Picareta de pedra", 1, Color(0.5, 0.5, 0.58)),
+			ItemDef.new(WORKBENCH, "Bancada comum", 1, Color(0.6, 0.42, 0.22)),
 		]:
 			_defs[def.id] = def
 		# Durabilidade do Bastão: 120 (GDD 5.9). Só o campo; nada gasta ainda.
@@ -106,4 +119,9 @@ static func _catalog() -> Dictionary:
 		_defs[SLEEP_STAFF].slot = EquipmentLayout.WEAPON
 		_defs[WOODEN_SPEAR].durability_max = 80  # GDD 5.4; como o Bastão, só o campo (nada gasta ainda)
 		_defs[WOODEN_SPEAR].slot = EquipmentLayout.WEAPON
+		# Machado e Picareta (GDD 5.9: 150 e 120): empunhados na vaga da arma, como a coleta já espera; só o campo.
+		_defs[AXE_STONE].durability_max = 150
+		_defs[AXE_STONE].slot = EquipmentLayout.WEAPON
+		_defs[PICKAXE_STONE].durability_max = 120
+		_defs[PICKAXE_STONE].slot = EquipmentLayout.WEAPON
 	return _defs

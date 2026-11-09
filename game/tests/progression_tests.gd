@@ -14,6 +14,7 @@ func run() -> void:
 	_test_component_levels()
 	_test_save_and_migration()
 	await _test_gather_xp()
+	await _test_partial_gather_xp()
 	_release_worlds()
 	_test_craft_hook()
 	_test_tame_xp()
@@ -40,10 +41,11 @@ func _test_curve() -> void:
 func _test_saber_rule() -> void:
 	_check(RULES.saber_at(1) == 0 and RULES.saber_at(2) == 1 and RULES.saber_at(4) == 1 and RULES.saber_at(6) == 1,
 			"Saber: nível 1 não rende, os comuns rendem 1")
-	for special in [5, 10, 15, 20]:
+	for special in [3, 5, 10, 15, 20]:
 		_check(RULES.saber_at(special) == 2, "Saber: o nível %d rende 2 (1 + 1 extra)" % special)
-	_check(RULES.saber_at(21) == 0 and RULES.saber_until(1) == 0 and RULES.saber_until(4) == 3 and RULES.saber_until(5) == 5
-			and RULES.saber_until(20) == 23 and RULES.saber_until(99) == 23, "Saber acumulado: 3 no nível 4, 5 no 5 e 23 no teto")
+	_check(RULES.saber_at(21) == 0 and RULES.saber_until(1) == 0 and RULES.saber_until(4) == 4 and RULES.saber_until(5) == 6
+			and RULES.saber_until(6) == 7 and RULES.saber_until(20) == 24 and RULES.saber_until(99) == 24,
+			"Saber acumulado: 4 no nível 4, 7 no 6 e 24 no teto (+1 extra no 3, 5, 10, 15 e 20)")
 
 
 func _test_component_levels() -> void:
@@ -55,15 +57,15 @@ func _test_component_levels() -> void:
 	_check(comp.grant_xp(1) == 1 and comp.level == 2 and comp.xp == 0 and levels == [[2, 1]] and comp.saber_free() == 1,
 			"30 XP: sobe para 2, +1 Saber")
 	levels.clear()
-	_check(comp.grant_xp(45 + 60 + 75 + 20) == 3 and comp.level == 5 and comp.xp == 20 and levels == [[5, 4]],
-			"uma concessão cruza 3 níveis: UM sinal, nível 5, Saber somado (1 + 1 + 2 = 4)")
-	_check(comp.saber_free() == 5 and not comp.spend_saber(6) and comp.saber_free() == 5
+	_check(comp.grant_xp(45 + 60 + 75 + 20) == 3 and comp.level == 5 and comp.xp == 20 and levels == [[5, 5]],
+			"uma concessão cruza 3 níveis: UM sinal, nível 5, Saber somado (2 + 1 + 2 = 5)")
+	_check(comp.saber_free() == 6 and not comp.spend_saber(7) and comp.saber_free() == 6
 			and not comp.spend_saber(0) and not comp.spend_saber(-1),
 			"gastar mais que o livre, zero ou negativo recusa e nada muda")
-	_check(comp.spend_saber(2) and comp.saber_free() == 3 and comp.saber_spent == 2, "gastar 2 de 5 deixa 3 livres")
+	_check(comp.spend_saber(2) and comp.saber_free() == 4 and comp.saber_spent == 2, "gastar 2 de 6 deixa 4 livres")
 	_check(comp.grant_xp(0) == 0 and comp.grant_xp(-9) == 0 and comp.level == 5, "XP zero ou negativo não faz nada")
 	comp.grant_xp(RULES.xp_total_to_reach(20))
-	_check(comp.level == 20 and comp.is_max_level() and comp.xp == 0 and comp.saber_total() == 23, "chega ao teto 20 com 23 Saber no total")
+	_check(comp.level == 20 and comp.is_max_level() and comp.xp == 0 and comp.saber_total() == 24, "chega ao teto 20 com 24 Saber no total")
 	levels.clear()
 	_check(comp.grant_xp(500) == 0 and comp.xp == 0 and comp.level == 20 and levels.is_empty(), "no teto o XP não acumula nem avisa")
 	_check(comp.grant_xp(2000000000) == 0, "valor absurdo no teto é ignorado")
@@ -84,7 +86,7 @@ func _test_save_and_migration() -> void:
 	var heard: Array[int] = []
 	fresh.progression.leveled_up.connect(func(level: int, _s: int) -> void: heard.append(level))
 	_check(fresh.from_dict(json.data) and fresh.progression.level == 5 and fresh.progression.xp == 20 and fresh.progression.saber_spent == 2
-			and fresh.progression.saber_free() == 3, "save e load: nível 5, XP 20 e Saber 3 livres voltam")
+			and fresh.progression.saber_free() == 4, "save e load: nível 5, XP 20 e Saber 4 livres voltam")
 	_check(heard.is_empty(), "carregar não dispara `leveled_up`")
 	var again := JSON.stringify(fresh.to_dict())
 	_check(again == wire, "roundtrip idêntico")
@@ -114,7 +116,7 @@ func _test_save_and_migration() -> void:
 		var applied := hostile.from_dict(data)
 		var p := hostile.progression
 		_check(applied and p.level >= 1 and p.level <= RULES.level_max and p.xp >= 0 and p.xp < maxi(p.xp_needed(), 1)
-				and p.saber_spent >= 0 and p.saber_free() >= 0, "dado hostil (%s): limitado, sem abortar" % label)
+				and p.saber_spent >= 0 and p.saber_spent <= p.saber_total() and p.saber_free() >= 0, "dado hostil (%s): limitado, sem abortar" % label)
 	var capped := _player_at(Vector2.ZERO)
 	var over := base.duplicate(true)
 	over["progression"] = {"level": 99, "xp": 5, "saber_spent": 3}
@@ -183,6 +185,36 @@ func _test_gather_xp() -> void:
 			"coleta recusada (nó já colhido) não rende XP")
 
 
+## Coleta parcial (inventário com lugar para 1 baga, arbusto com 3): cada toque entrega 1 e NÃO rende XP; o XP vem só quando o
+## arbusto esgota (uma vez).
+func _test_partial_gather_xp() -> void:
+	var main := _gather_main()
+	await _root.get_tree().physics_frame
+	var player := main.player
+	var authority := main.authority
+	var bush: ResourceNode = null
+	for candidate in main.resources.nodes():
+		if candidate.def.id == "bush_baga":
+			bush = candidate
+			break
+	for item_id: String in Items.all_ids():
+		player.inventory.remove(item_id, 9999)
+	player.inventory.capacity = 2  # a fibra extra do arbusto cabe no 2o slot
+	player.inventory.add(Items.BERRY, 19)  # sobra lugar para 1 baga
+	var xp_before := player.progression.xp
+	var touches := 0
+	while bush.is_available() and touches < 6:
+		_stand(main, bush)
+		authority.clock.advance(2.1)
+		authority.request_gather(1, authority.id_of(bush))
+		touches += 1
+		if bush.is_available():
+			_check(player.progression.xp == xp_before, "toque parcial %d no arbusto não rende XP" % touches)
+			player.inventory.remove(Items.BERRY, 1)  # abre lugar para mais 1 baga
+	_check(not bush.is_available() and touches > 1 and player.progression.xp == xp_before + 1,
+			"o arbusto esgotou em %d toques e rendeu 1 XP no total" % touches)
+
+
 func _test_craft_hook() -> void:
 	var player := _player_at(Vector2.ZERO)
 	var authority := TestWorld.arm(player, [], _track)
@@ -214,6 +246,31 @@ func _test_tame_xp() -> void:
 	other.feeder_player_id = "outro"
 	other.taming.level_finalized.emit(7)
 	_check(_total_xp(player) == before, "doma de outro dono não rende ao jogador local")
+	# Dois jogadores, pelo caminho real: o primeiro a dar a comida ideal RESERVA a doma e fica dono; o segundo só ajuda.
+	var second := _player_at(Vector2(300, 330))
+	second.player_id = "outro"
+	authority.register(second)
+	var pet := _sleeping(_dino_at(Vector2(300, 340)))
+	authority.register(pet)
+	player.position = Vector2(310, 340)
+	var pet_id := authority.id_of(pet)
+	player.inventory.add(Items.BERRY, 5)
+	authority.request_transfer_slot(1, 1, _berry_slot(player), pet_id)  # o jogador local reserva a doma
+	authority.request_transfer_slot(authority.id_of(second), authority.id_of(second), _berry_slot(second), pet_id)
+	var mine := _total_xp(player)
+	var theirs := _total_xp(second)
+	pet.taming.tick(1000.0)  # termina a doma (a última comida foi do segundo jogador)
+	_check(pet.state_machine.is_tamed and pet.owner_player_id == player.player_id and pet.feeder_player_id == player.player_id,
+			"o primeiro a alimentar reservou a doma e virou dono")
+	_check(_total_xp(player) == mine + RULES.tame_xp(pet.level) and _total_xp(second) == theirs,
+			"dois jogadores: o dono da reserva ganha o XP; quem deu a última comida não")
+	var orphan := _sleeping(_dino_at(Vector2(340, 340)))
+	authority.register(orphan)
+	orphan.owner_player_id = ""
+	orphan.feeder_player_id = "outro"
+	var theirs_before := _total_xp(second)
+	orphan.taming.level_finalized.emit(7)
+	_check(_total_xp(second) == theirs_before + RULES.tame_xp(7), "sem dono, o XP vai a quem alimentou")
 
 
 func _test_level_up_event_and_log() -> void:
@@ -262,13 +319,20 @@ func _test_hud() -> void:
 	hud.notice_label().visible = false
 	var data := saved.to_dict()
 	player.from_dict(data)
-	_check(hud.xp_label().text == "Nv 5" and hud.saber_badge().visible and hud.saber_badge().text == "Saber 5"
+	_check(hud.xp_label().text == "Nv 5" and hud.saber_badge().visible and hud.saber_badge().text == "Saber 6"
 			and not hud.notice_label().visible,
-			"carregar o save: Nv 5 e Saber 5 na HUD, sem aviso")
+			"carregar o save: Nv 5 e Saber 6 na HUD, sem aviso")
 	player.progression.grant_xp(RULES.xp_total_to_reach(20))
 	_check(hud.xp_label().text == "Nv 20" and hud.xp_bar().value() == hud.xp_bar().max_value(), "no teto a HUD mostra Nv 20 com a barra cheia")
 
 
 ## XP total ganho (todos os níveis), para comparar a doma sem depender de onde a barra parou.
+func _berry_slot(player: Player) -> int:
+	for i in player.inventory.slot_count():
+		if player.inventory.get_slot(i).get("id", "") == Items.BERRY:
+			return i
+	return -1
+
+
 func _total_xp(player: Player) -> int:
 	return RULES.xp_total_to_reach(player.progression.level) + player.progression.xp

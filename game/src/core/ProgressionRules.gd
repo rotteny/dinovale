@@ -19,7 +19,7 @@ extends Resource
 ## Saber: `saber_per_level` por nível a partir do 2, mais `saber_bonus` nos níveis de `saber_bonus_levels`.
 @export_range(0, 100) var saber_per_level: int = 1
 @export_range(0, 100) var saber_bonus: int = 1
-@export var saber_bonus_levels: Array[int] = [5, 10, 15, 20]
+@export var saber_bonus_levels: Array[int] = [3, 5, 10, 15, 20]
 ## Segundos do aviso de nível na HUD.
 @export_range(0.5, 30.0) var notice_seconds: float = 3.0
 

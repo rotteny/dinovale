@@ -101,6 +101,7 @@ func from_dict(data: Dictionary) -> void:
 	var needed := xp_needed()
 	xp = int(SafeRead.number(data.get("xp"), xp, 0.0, maxi(needed - 1, 0))) if needed > 0 else 0
 	saber_spent = int(SafeRead.number(data.get("saber_spent"), saber_spent, 0.0, saber_total()))
+	saber_spent = clampi(saber_spent, 0, saber_total())  # o valor de antes (padrão de dado inválido) também tem de caber no nível lido
 	xp = mini(xp, maxi(needed - 1, 0))  # o XP de antes pode não caber no nível lido
 	xp_changed.emit(level, xp, needed)
 	saber_changed.emit(saber_free())

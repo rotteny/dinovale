@@ -74,6 +74,9 @@ var predation: PredationSystem
 var corpses: CorpseField
 ## Itens soltos no chão (a colheita por golpes derruba aqui; o jogador também larga).
 var ground: GroundItemField
+## Bancadas colocadas (E7a) e o painel de fabricação (tecla C).
+var workbenches: WorkbenchField
+var craft_panel: CraftPanel
 ## Log do sistema (eventos da autoridade traduzidos em um lugar só) e a vista dele no canto de baixo.
 var message_log: MessageLog
 var message_log_view: MessageLogView
@@ -119,6 +122,7 @@ func _ready() -> void:
 	player.equip_refused.connect(screen.show_refusal)
 	screen.hotbar_assign_requested.connect(_on_hotbar_assign_requested)
 	_wire_mouse_ui()
+	_wire_craft_panel()
 	player.downed.state_changed.connect(func(_downed: bool) -> void: sync_incapacity_lock())
 	screen.opened.connect(func() -> void: player.input_locked = true)
 	screen.closed.connect(func() -> void: player.input_locked = false)
@@ -136,6 +140,7 @@ func _ready() -> void:
 	scheduler.carcasses = carcasses
 	scheduler.ground = ground
 	scheduler.corpses = corpses
+	scheduler.workbenches = workbenches
 	scheduler.authority = authority
 	scheduler.saved.connect(_on_saved)
 	add_child(scheduler)
@@ -239,6 +244,20 @@ func _build_zone() -> void:
 		ground.spawn_scatter(item_id, amount, at, dropper_id)
 		_play_drop_sound(at))
 	add_child(ground)
+	workbenches = WorkbenchField.new()
+	workbenches.name = "Workbenches"
+	workbenches.y_sort_enabled = true
+	workbenches.authority = authority
+	workbenches.map = map
+	workbenches.occupancy = occupancy
+	workbenches.resources = resources
+	workbenches.tile_px = float(map.tile)
+	workbenches.safe_core = SafeCore.new(respawn_rules, predation_rules.spawn_safe_margin_tiles, float(map.tile))
+	add_child(workbenches)
+	authority.crafting.workbenches = workbenches
+	authority.crafting.entry_dropped.connect(func(entry: Dictionary, at: Vector2, _dropper_id: String) -> void:
+		ground.spawn_entry(entry, at)
+		_play_drop_sound(at))
 	wild = WildPopulation.new()
 	wild.name = "Wild"
 	wild.y_sort_enabled = true
@@ -313,7 +332,8 @@ func save_game(reason: SaveManager.Reason) -> bool:
 
 func _continue_saved_game() -> void:
 	var outcome := save_manager.load_first(
-			func(data: Dictionary) -> bool: return WorldSnapshot.restore(data, player, dino, resources, wild, carcasses, authority, ground, corpses))
+			func(data: Dictionary) -> bool: return WorldSnapshot.restore(data, player, dino, resources, wild, carcasses, authority, ground, corpses,
+					workbenches))
 	if outcome.status == SaveManager.Status.OK:
 		world_seed = wild.world_seed  # o save pode ter outra semente: a disposição dos bandos já foi refeita por ela
 		ground.world_seed = world_seed
@@ -603,6 +623,25 @@ func _wire_mouse_ui() -> void:
 		bar.clear_requested.connect(func(slot: int) -> void:
 			if not player.is_incapacitated():
 				player.hotbar.clear(slot))
+
+
+## O painel de fabricação (tecla C) só observa: o que o jogador quer vira pedido à autoridade.
+func _wire_craft_panel() -> void:
+	CraftPanel.ensure_action()
+	craft_panel = CraftPanel.new()
+	craft_panel.authority = authority
+	craft_panel.player = player
+	screen.get_parent().add_child(craft_panel)
+	craft_panel.craft_requested.connect(func(recipe_id: String) -> void: authority.request_craft(authority.id_of(player), recipe_id))
+	craft_panel.cancel_requested.connect(func() -> void: authority.request_cancel_craft(authority.id_of(player)))
+	craft_panel.place_requested.connect(_on_place_requested)
+	player.inventory.changed.connect(craft_panel.refresh)
+	authority.game_event.connect(func(_code: String, _params: Dictionary) -> void: craft_panel.refresh())
+
+
+## Colocar a peça um tile e meio à frente do jogador (a autoridade valida o ponto).
+func _on_place_requested(item_id: String) -> void:
+	authority.request_place(authority.id_of(player), item_id, player.global_position + player.facing * float(map.tile) * 1.5)
 
 
 ## A tela pede, o mundo muda a barra do jogador ("" limpa a posição).

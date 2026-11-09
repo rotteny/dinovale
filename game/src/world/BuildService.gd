@@ -19,6 +19,7 @@ const REASON_NO_SUPPORT := "no_support"
 const REASON_BODY := "body_in_way"
 const REASON_BOX_FULL := "no_space"
 const REASON_BOX_NOT_EMPTY := "chest_not_empty"
+const REASON_LINE := "blocked_line"
 
 var authority: WorldAuthority = null
 var grid := BuildGrid.new()
@@ -164,17 +165,32 @@ func transfer_chest(actor_id: int, chest: Chest, into_chest: bool, index: int, a
 
 ## Por que `actor` não pode mexer no slot `index` do Baú (`result` OK = pode): Baú vivo e na grade, ao alcance, posição e quantidade.
 func _chest_problem(actor: Player, chest: Chest, index: int, amount: int, into_chest: bool) -> Dictionary:
-	var cell := cell_of(chest.global_position)
-	if not is_instance_valid(chest) or chest.inventory == null or grid.container_at(cell) != chest.inventory:
-		return _outcome(RESULT.INVALID_TARGET, "no_piece")
-	if actor.global_position.distance_to(center_of(cell)) > rules.reach_tiles * rules.tile_px:
-		return _outcome(RESULT.OUT_OF_RANGE)
+	var access := chest_access(actor, chest)
+	if access["result"] != RESULT.OK:
+		return access
 	var source := actor.inventory if into_chest else chest.inventory
 	if index < 0 or index >= source.slot_count():
 		return _outcome(RESULT.INVALID_ARGUMENT)
 	var stack := int(source.get_slot(index).get("count", 1))
 	if amount != WorldAuthority.TRANSFER_ALL and (amount < 1 or amount > stack):
 		return _outcome(RESULT.INVALID_ARGUMENT)
+	return _outcome(RESULT.OK)
+
+
+## Se `actor` pode abrir o Baú ou mexer nele (`result` OK = pode): Baú vivo e na grade, DO DONO (ou peças compartilhadas),
+## ao alcance e com linha livre, sem parede no meio. É a mesma regra de dono da remoção (`_may_change`).
+func chest_access(actor: Player, chest: Chest) -> Dictionary:
+	if not is_instance_valid(chest):
+		return _outcome(RESULT.INVALID_TARGET, "no_piece")
+	var cell := cell_of(chest.global_position)
+	if chest.inventory == null or grid.container_at(cell) != chest.inventory:
+		return _outcome(RESULT.INVALID_TARGET, "no_piece")
+	if not _may_change(actor, cell):
+		return _outcome(RESULT.NOT_OWNER, "not_yours")
+	if actor.global_position.distance_to(center_of(cell)) > rules.reach_tiles * rules.tile_px:
+		return _outcome(RESULT.OUT_OF_RANGE)
+	if grid.segment_blocked(actor.global_position, center_of(cell)):
+		return _outcome(RESULT.OUT_OF_RANGE, REASON_LINE)
 	return _outcome(RESULT.OK)
 
 
@@ -186,8 +202,9 @@ func toggle_door(actor_id: int, cell: Vector2i) -> Dictionary:
 	var def := grid.def_at(cell)
 	if def == null or not def.toggleable:
 		return _outcome(RESULT.INVALID_TARGET, "no_door")
-	if actor.global_position.distance_to(center_of(cell)) > rules.door_reach_tiles * rules.tile_px:
-		return _outcome(RESULT.OUT_OF_RANGE)
+	var reach_problem := _door_reach_problem(actor, cell)
+	if reach_problem["result"] != RESULT.OK:
+		return reach_problem
 	if not _may_change(actor, cell):
 		return _outcome(RESULT.NOT_OWNER, "not_yours")
 	var opening := not grid.is_open(cell)
@@ -195,6 +212,15 @@ func toggle_door(actor_id: int, cell: Vector2i) -> Dictionary:
 		return _outcome(RESULT.WRONG_STATE, REASON_BODY)
 	grid.set_open(cell, opening)
 	authority.announce("door_toggled", {"piece": def.display_name, "state": "aberta" if opening else "fechada", "open": opening})
+	return _outcome(RESULT.OK)
+
+
+## Alcance da porta e linha livre: a porta não se abre através da parede.
+func _door_reach_problem(actor: Player, cell: Vector2i) -> Dictionary:
+	if actor.global_position.distance_to(center_of(cell)) > rules.door_reach_tiles * rules.tile_px:
+		return _outcome(RESULT.OUT_OF_RANGE)
+	if grid.segment_blocked(actor.global_position, center_of(cell)):
+		return _outcome(RESULT.OUT_OF_RANGE, REASON_LINE)
 	return _outcome(RESULT.OK)
 
 

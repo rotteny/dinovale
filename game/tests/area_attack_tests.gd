@@ -26,6 +26,7 @@ func run() -> void:
 	_test_torpor_uses_same_fraction()
 	_test_events_like_direct_hit()
 	_test_eligibility_and_taming_kind()
+	_test_extra_target_behind_wall()
 
 
 # ----------------------------------------------------------------------------- montagem
@@ -326,3 +327,18 @@ func _test_eligibility_and_taming_kind() -> void:
 	var victim := _wild_at(0.0)
 	_check(victim.receive_hit(1.0, 0.0, TamingRules.ATTACKER_HERBIVORE) and not victim.receive_hit(1.0, 0.0, "alienigena"),
 			"doma: `herbivore` é tipo conhecido (dado em taming_rules.tres); tipo desconhecido segue recusado")
+
+
+## Os alvos extras também precisam de linha livre a partir do atacante: parede no meio e o extra não leva dano.
+func _test_extra_target_behind_wall() -> void:
+	var main := _wild_at(0.0)
+	var behind := _wild_at(1.0, 1.0)
+	var arena := _arena(_big_tamed(), [main, behind])
+	var authority: WorldAuthority = arena["authority"]
+	authority.build.grid.add(Vector2i(6, 0), "wall")  # entre o atacante (0,0) e o extra (~408,13)
+	var hits := _hit(arena, main)
+	_check(hits.has(authority.id_of(main)) and not hits.has(authority.id_of(behind)) and _lost(behind) == 0.0,
+			"área: o alvo extra atrás da parede não é atingido")
+	authority.build.grid.remove(Vector2i(6, 0))
+	var clear := _hit(arena, main)
+	_check(clear.has(authority.id_of(behind)) and _lost(behind) > 0.0, "área: sem a parede o extra é atingido")

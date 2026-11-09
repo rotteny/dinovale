@@ -16,7 +16,8 @@ extends Resource
 @export_range(0, 4) var support_radius: int = 1
 ## Teto de peças no mundo (dado de fora não é confiável: save e pedido).
 @export_range(1, 100000) var max_pieces: int = 4096
-## Porta e remoção valem para qualquer jogador (premissa do solo/co-op sem trava de dono; o M3 decide). Falso: só o dono.
+## Porta, remoção e Baú (abrir e transferir) valem para qualquer jogador (premissa do solo/co-op sem trava de dono; o M3
+## decide). Falso: só o dono da peça mexe. É uma regra só, a de `BuildService._may_change`.
 @export var shared_pieces: bool = true
 ## Pode construir dentro do núcleo seguro (refúgio do nascimento)? Falso, como a Bancada desde a E7a. [premissa]
 @export var build_in_safe_core: bool = false

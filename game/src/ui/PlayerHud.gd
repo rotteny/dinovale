@@ -24,6 +24,7 @@ const NOTICE_BOTTOM := 48
 const OUTLINE_SIZE := 2  # a Vale Mini em 8 px não desenha contorno de 1 px (arredonda para 0)
 const SAVING_SECONDS := 1.0
 const SAVING_TEXT := "Salvando"
+const PHASE_TOP := 11.0
 ## Amarelo claro com contorno escuro: legível sobre qualquer terreno.
 const HUNGER_WARNING_COLOR := Color("#ffe27a")
 const HUNGRY_TEXT := "Com fome: coma algo"
@@ -38,6 +39,8 @@ const DOWNED_COLOR := Color("#d9792b")
 const HINT_BLOCKED_COLOR := Color("#a8a8a8")
 
 @export var player: Player
+## Autoridade só para ler a faixa do dia (o rótulo da fase); sem ela o rótulo fica escondido. A `Main` a liga.
+@export var authority: WorldAuthority
 
 var _health_bar := StatBar.new("Vida", Color(0.8, 0.2, 0.2), BAR_SIZE,
 		preload("res://assets/third_party/ninja-adventure/ui/icon_heart.png"), ICON_SIZE, true)
@@ -61,6 +64,7 @@ var _bars_block := VBoxContainer.new()
 var _bottom := VBoxContainer.new()
 var _xp_row := HBoxContainer.new()
 var _saber_badge := Label.new()
+var _phase_label := Label.new()
 var _saber_tween: Tween
 
 
@@ -130,6 +134,14 @@ func _ready() -> void:
 	_saving.modulate = Color(1, 1, 1, 0.8)
 	_saving.visible = false
 	add_child(_saving)
+
+	_phase_label.set_anchors_preset(Control.PRESET_TOP_RIGHT)  # abaixo do "Salvando", que ocupa o canto de cima
+	_phase_label.offset_right = -EDGE_MARGIN
+	_phase_label.offset_top = EDGE_MARGIN + PHASE_TOP
+	_phase_label.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	_outline(_phase_label)
+	_phase_label.visible = false
+	add_child(_phase_label)
 
 	if player == null:
 		return
@@ -261,6 +273,23 @@ func tick(delta: float) -> void:
 	_saving.visible = _saving_left > 0.0
 	if _watched != null:  # o prompt do domado muda com a ordem, e a área não emite sinal por isso
 		_refresh_prompt()
+	_refresh_phase()
+
+
+## Rótulo da faixa do dia ("Dia", "Noite"...): só lê o `DayCycle` da autoridade. Sem autoridade fica escondido.
+func _refresh_phase() -> void:
+	if authority == null:
+		_phase_label.visible = false
+		return
+	var key := DayCycle.name_of(authority.day_phase())
+	var text: String = GameMessages.PHASE_LABELS.get(key, "")
+	if _phase_label.text != text:
+		_phase_label.text = text
+	_phase_label.visible = text != ""
+
+
+func phase_label() -> Label:
+	return _phase_label
 
 
 ## Indicador discreto de 1 s no canto: o jogo salvou (nunca bloqueia nem pergunta).

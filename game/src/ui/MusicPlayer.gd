@@ -28,6 +28,7 @@ var _track: AudioStream = null
 ## Segundos que faltam do crossfade em curso (0 = nenhum).
 var _fade_left: float = 0.0
 var _clock: WorldClock = null
+var _cycle: DayCycle = null
 
 
 func _ready() -> void:
@@ -69,7 +70,8 @@ func _process(delta: float) -> void:
 ## Passo de tempo (separado do `_process` para testar sem frames): segue o relógio e avança o crossfade.
 func tick(delta: float) -> void:
 	if _clock != null:
-		var wanted := night_track if rules.is_night(_clock.now()) else day_track
+		var night := _cycle.is_night(_clock.now()) if _cycle != null else rules.is_night(_clock.now())
+		var wanted := night_track if night else day_track
 		if wanted != _track:
 			play_track(wanted)
 	if _fade_left <= 0.0:
@@ -85,8 +87,10 @@ func tick(delta: float) -> void:
 
 
 ## Faz a faixa seguir o relógio do mundo: dia ou noite conforme `WorldClock.now()`. `null` solta o relógio.
-func follow_world(clock: WorldClock) -> void:
+## Com `cycle` (o do jogo), a faixa da noite é a mesma da tinta e da percepção; sem ele vale a divisão de `MusicRules`.
+func follow_world(clock: WorldClock, cycle: DayCycle = null) -> void:
 	_clock = clock
+	_cycle = cycle
 	if clock != null:
 		tick(0.0)
 

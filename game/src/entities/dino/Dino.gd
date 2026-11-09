@@ -51,6 +51,8 @@ var feeder_player_id: String = ""
 ## Resolve um `player_id` no corpo do jogador no mundo (ou null se não está). A autoridade o preenche ao
 ## registrar a criatura; sem ele a ordem Seguir não encontra o dono e o dino fica parado.
 var player_locator: Callable = Callable()
+## Multiplicador de percepção do mundo agora (a autoridade o decide: 1,5 à noite). Sem ele vale 1.
+var perception_scale_source: Callable = Callable()
 ## Devolve os corpos que o agressivo pode perseguir (`Array` de `Node2D`; o mundo preenche). Sem ele, ninguém é alvo.
 var target_locator: Callable = Callable()
 
@@ -130,6 +132,7 @@ func observe_owner() -> void:
 		owner_body = player_locator.call(owner_player_id) as Node2D
 	var present := owner_body != null and not _is_dead_body(owner_body)
 	state_machine.observe(global_position, owner_body.global_position if present else Vector2.ZERO, present)
+	state_machine.perception_scale = float(perception_scale_source.call()) if perception_scale_source.is_valid() else 1.0
 
 
 ## Está caçando outra criatura agora (a apresentação pinta o "!" de laranja).

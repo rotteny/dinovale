@@ -141,7 +141,12 @@ func _reach_px() -> float:
 
 
 func _bench_near(actor: Player) -> Workbench:
-	return workbenches.nearest_workbench(actor.global_position, _reach_px()) if workbenches != null else null
+	return workbenches.nearest_workbench(actor.global_position, _reach_px(), _line_clear) if workbenches != null else null
+
+
+## Linha livre (sem parede) entre dois pontos: a Bancada atrás de uma parede não serve.
+func _line_clear(from: Vector2, to: Vector2) -> bool:
+	return not authority.build.grid.segment_blocked(from, to)
 
 
 ## Por que a fabricação em curso não pode seguir ("" = segue).
@@ -154,7 +159,8 @@ func _interruption(actor_id: int) -> String:
 	var bench_id := int(_jobs.job_of(actor_id).get("bench", 0))
 	if bench_id > 0:
 		var bench := authority.entity(bench_id) as Workbench
-		if bench == null or actor.global_position.distance_to(bench.global_position) > _reach_px():
+		if bench == null or actor.global_position.distance_to(bench.global_position) > _reach_px() \
+				or not _line_clear(actor.global_position, bench.global_position):
 			return "left_workbench"
 	return ""
 

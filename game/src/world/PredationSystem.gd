@@ -196,7 +196,7 @@ func _barred(hunter: Dino, point: Vector2) -> bool:
 func _in_view(hunter: Dino, prey: Dino) -> bool:
 	if _is_sleeper(prey):
 		return hunter.global_position.distance_to(prey.global_position) <= _snore_px(hunter, prey)
-	return _effective(hunter, prey.global_position) <= hunter.stats.perception_tiles * _tile()
+	return _effective(hunter, prey.global_position) <= _perception(hunter)
 
 
 func _is_hunter(dino: Dino) -> bool:
@@ -387,7 +387,7 @@ func _reevaluate(hunt: Hunt, now: float) -> void:
 			hunter.state_machine.restart_episode()
 		return
 	var tile := _tile()
-	var perception := hunter.stats.perception_tiles * tile
+	var perception := _perception(hunter)
 	if hunt.prey != null and (_effective(hunter, hunt.prey.global_position) <= profile.engage_tiles * tile or hunt.bitten):
 		return  # em combate: o jogador não é candidato e a presa não troca
 	var current := hunt.target
@@ -439,7 +439,7 @@ func _outside(hunt: Hunt, node: Node2D) -> bool:
 func _collect_prey(hunt: Hunt, candidates: Array[Dictionary], current: Node2D, now: float) -> void:
 	var hunter := hunt.hunter
 	var tile := _tile()
-	var perception := hunter.stats.perception_tiles * tile
+	var perception := _perception(hunter)
 	var hears := hunter.stats.predation.hears_sleepers and rules.sleeper_is_prey
 	var plain_limit := perception * perception
 	var shield := rules.owner_shield_tiles * tile
@@ -603,7 +603,7 @@ func _drop_inventory(victim: Dino) -> void:
 ## Come: a carne encolhe em linha reta e a carcaça some no fim. O jogador dentro do alcance interrompe a refeição.
 func _step_eat(hunt: Hunt, delta: float, now: float) -> void:
 	var hunter := hunt.hunter
-	var perception := hunter.stats.perception_tiles * _tile()
+	var perception := _perception(hunter)
 	for player in _players(hunter):
 		distance_tests += 1
 		if _effective(hunter, player.global_position) <= perception:
@@ -640,6 +640,12 @@ func _now() -> float:
 
 func _tile() -> float:
 	return float(zone.rules.tile_size) if zone != null else 16.0
+
+
+## Alcance de percepção do caçador agora, em pixels: a autoridade dá o multiplicador do dia (1,5 à noite, só do Agressivo).
+func _perception(hunter: Dino) -> float:
+	var scale := authority.perception_scale() if authority != null else 1.0
+	return hunter.stats.perception_px(_tile(), scale)
 
 
 func _effective(hunter: Dino, point: Vector2) -> float:

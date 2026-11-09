@@ -174,6 +174,7 @@ static func restore(data: Dictionary, player: Player, dino: Dino, field: Resourc
 	if authority != null:
 		authority.crafting.clear_jobs()  # a fabricação em curso não sobrevive a um load na mesma sessão
 		authority.clock.restore(SafeRead.number(SafeRead.dict(data.get("world")).get("time"), 0.0, 0.0, MAX_TIME))
+		authority.resync_day_phase()  # a hora do dia sai do relógio: carregar no meio da noite não anuncia a noite
 	player.player_id = local_id
 	if carcasses != null:  # não depende do mapa: um corpo é uma entidade, não um id do mapa
 		carcasses.restore_list(SafeRead.list(SafeRead.dict(data.get("world")).get("carcasses")))

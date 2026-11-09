@@ -99,6 +99,8 @@ var holding := false
 var home: DinoHome = null
 ## Núcleo seguro único do mundo (`SafeCore`): o caçador não entra nele e não persegue quem está dentro. Null = sem núcleo.
 var safe_core: SafeCore = null
+## Multiplicador da percepção que o mundo informa (E9: 1,5 à noite). Só o Agressivo o usa (`DinoBaseStats.perception_px`).
+var perception_scale: float = 1.0
 ## Fase atual do ciclo (`NONE` fora dele ou sem perfil).
 var threat_phase: Enums.ThreatPhase:
 	get:
@@ -362,7 +364,7 @@ func _can_start_chase() -> bool:
 		return false
 	if current_id != Enums.DinoStateId.IDLE and current_id != Enums.DinoStateId.WANDER:
 		return false
-	return target_distance() <= stats.perception_tiles * tile_px
+	return target_distance() <= stats.perception_px(tile_px, perception_scale)
 
 
 ## O corpo informa onde a criatura está e onde o dono está (`known` falso = dono ausente do mundo).

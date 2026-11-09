@@ -37,6 +37,7 @@ tools/check.sh
 | Rodar testes, gdlint, `tools/check.sh`, CI, testes de arquitetura | `documentacao/contexto/testes-e-validacao.md` |
 | Sprites, sons, tilesets, ícones, `CREDITS.md`, licenças | `documentacao/contexto/arte-e-licencas.md` |
 | Regras de jogo, balanceamento, nomes e textos do jogo, originalidade | `documentacao/contexto/game-design.md` |
+| Dia e noite, tinta, luz, percepção noturna | `documentacao/contexto/dia-e-noite.md` |
 | Escopo da tarefa, definição de pronto, papéis, revisão, commits | `documentacao/contexto/contribuicao.md` |
 | Decisões recentes do dono e etapas da v0.2 | `documentacao/design/corte-v02/` (`decisoes-0611-0711.md` primeiro) |
 | Landing em `docs/` | `documentacao/contexto/contribuicao.md` (papéis) e `README.md` |

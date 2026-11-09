@@ -31,6 +31,8 @@ var fixed_check: Callable = Callable()
 ## Itens de peça (a Bancada) que a MIGRAÇÃO de um save antigo não conseguiu pôr no grid (terreno, núcleo, célula ocupada, teto):
 ## item -> quantidade, refeito a cada `from_dict`. Quem carrega os devolve ao jogador, para nenhuma Bancada sumir.
 var unplaced_items: Dictionary = {}
+## Item devolvido -> id da peça (para conferir o teto de peças do tipo ao fim da carga).
+var _unplaced_piece: Dictionary = {}
 
 var _cells: Dictionary[Vector2i, Dictionary] = {}
 ## Conteúdo das peças que guardam coisas (Baú): um inventário por célula, criado com a peça e liberado com ela. É a fonte da
@@ -210,6 +212,7 @@ func from_dict(data: Dictionary) -> bool:
 	for cell: Vector2i in _cells.keys():
 		remove(cell)
 	unplaced_items = {}
+	_unplaced_piece = {}
 	var legacy := SafeRead.flag(data.get("legacy_benches"), false)
 	var entries: Array = []
 	var seen: Dictionary = {}
@@ -231,6 +234,7 @@ func from_dict(data: Dictionary) -> bool:
 				_load_contents(entry["cell"], entry["items"])
 			else:
 				_note_unplaced(entry, legacy)
+	_cap_unplaced()
 	load_finished.emit()
 	return true
 
@@ -270,15 +274,27 @@ func _read_entry(raw: Variant) -> Dictionary:
 			"id": SafeRead.integer(data.get("id"), 0, 0, SaveMigrations.MAX_ENTITY_ID - 1)}
 
 
-## Peça de item (Bancada) que a migração não pôde pôr: conta para ser devolvida, até o teto de peças do tipo (um save não rende
-## mais Bancadas do que o mundo comporta).
+## Peça de item (Bancada) que a migração não pôde pôr: conta para ser devolvida. O teto de peças do tipo é conferido no fim da
+## carga (`_cap_unplaced`), quando já se sabe quantas ficaram postas.
 func _note_unplaced(entry: Dictionary, legacy: bool) -> void:
 	var def := catalog.find(str(entry["piece"]))
 	if not legacy or def == null or def.item_id == "":
 		return
-	var held := int(unplaced_items.get(def.item_id, 0))
-	if def.max_count == 0 or held < def.max_count:
-		unplaced_items[def.item_id] = held + 1
+	unplaced_items[def.item_id] = int(unplaced_items.get(def.item_id, 0)) + 1
+	_unplaced_piece[def.item_id] = def.id
+
+
+## Um save não rende mais Bancadas do que o mundo comporta: postas + devolvidas <= `max_count` do tipo.
+func _cap_unplaced() -> void:
+	for item_id: String in unplaced_items.keys():
+		var def := catalog.find(str(_unplaced_piece.get(item_id, "")))
+		if def == null or def.max_count <= 0:
+			continue
+		var kept := mini(int(unplaced_items[item_id]), maxi(def.max_count - count_of(def.id), 0))
+		if kept > 0:
+			unplaced_items[item_id] = kept
+		else:
+			unplaced_items.erase(item_id)
 
 
 ## O conteúdo gravado vai para o inventário da peça. Dado de fora: o que o inventário recusa (formato ruim, item que não

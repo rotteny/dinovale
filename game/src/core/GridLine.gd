@@ -31,11 +31,22 @@ static func cells(from: Vector2, to: Vector2, tile: float) -> Array[Vector2i]:
 		t_max.y = (next_y - from.y) / delta.y
 		t_delta.y = tile / absf(delta.y)
 	while cell != last and list.size() < MAX_CELLS:
-		if t_max.x < t_max.y:
+		# Anda no eixo que a reta cruza primeiro; no empate, ou se esse eixo já está na coluna ou fileira do destino, no outro.
+		var use_x := t_max.x < t_max.y
+		if use_x and cell.x == last.x:
+			use_x = false
+		elif not use_x and cell.y == last.y:
+			use_x = true
+		var t := t_max.x if use_x else t_max.y
+		if t > 1.0:  # o segmento acaba antes desta fronteira: não passa do destino
+			break
+		if use_x:
 			cell.x += step.x
 			t_max.x += t_delta.x
 		else:
 			cell.y += step.y
 			t_max.y += t_delta.y
 		list.append(cell)
+	if list[list.size() - 1] != last and list.size() < MAX_CELLS:
+		list.append(last)  # erro de ponto flutuante na fronteira: a última célula é sempre a do destino
 	return list

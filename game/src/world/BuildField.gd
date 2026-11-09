@@ -47,12 +47,12 @@ func bench_in(cell: Vector2i) -> Workbench:
 
 
 ## A Bancada mais próxima de `origin` dentro de `reach` pixels, ou null.
-func nearest_workbench(origin: Vector2, reach: float) -> Workbench:
+func nearest_workbench(origin: Vector2, reach: float, line_clear: Callable = Callable()) -> Workbench:
 	var best: Workbench = null
 	var best_distance := reach
 	for bench in benches():
 		var distance := origin.distance_to(bench.global_position)
-		if distance <= best_distance:
+		if distance <= best_distance and (not line_clear.is_valid() or line_clear.call(origin, bench.global_position)):
 			best = bench
 			best_distance = distance
 	return best

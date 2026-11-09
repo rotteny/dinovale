@@ -25,6 +25,7 @@ const KEY_DEN_ANCHOR := "toca_ancora_tiles"
 const KEY_DEN_PATROL := "toca_ronda_tiles"
 const KEY_SNORE := "ronco_tiles"
 const KEY_SLEEPER_ALERT := "aviso_dormindo_s"
+const KEY_DAY_CYCLE := "ciclo_dia_s"
 
 ## Tipo e faixa válida de cada chave de número (contrato, não balanceamento): [mínimo, máximo].
 const NUMBER_RANGES: Dictionary = {
@@ -37,6 +38,7 @@ const NUMBER_RANGES: Dictionary = {
 	KEY_DEN_PATROL: [1.0, 64.0],
 	KEY_SNORE: [1.0, 32.0],
 	KEY_SLEEPER_ALERT: [0.0, 10.0],
+	KEY_DAY_CYCLE: [60.0, 7200.0],
 }
 const INTEGER_RANGES: Dictionary = {
 	KEY_HUNGER: [10, 100],
@@ -66,6 +68,8 @@ var den_anchor_tiles: float = 24.0
 var den_patrol_tiles: float = 10.0
 var sleeper_snore_tiles: float = 8.0
 var sleeper_alert_seconds: float = 1.5
+## Dia e noite (E9): duração do ciclo inteiro em segundos de jogo (as faixas são partes dele, `DayCycleRules`).
+var day_cycle_seconds: float = 720.0
 ## Avisos da leitura (chave inválida, desconhecida, arquivo ruim). O host os imprime uma vez com `push_warning`.
 var problems: PackedStringArray = PackedStringArray()
 
@@ -156,6 +160,13 @@ func apply_predation(base: PredationRules) -> PredationRules:
 	return copy
 
 
+## Cópia das regras do ciclo de dia e noite com a duração deste mundo.
+func apply_day_cycle(base: DayCycleRules) -> DayCycleRules:
+	var copy: DayCycleRules = base.duplicate()
+	copy.cycle_seconds = day_cycle_seconds
+	return copy
+
+
 ## Cópia das regras do mundo com as faixas de nível deste mundo.
 func apply_world(base: WorldRules) -> WorldRules:
 	var copy: WorldRules = base.duplicate()
@@ -188,6 +199,7 @@ func as_file_data() -> Dictionary:
 		KEY_DEN_PATROL: den_patrol_tiles,
 		KEY_SNORE: sleeper_snore_tiles,
 		KEY_SLEEPER_ALERT: sleeper_alert_seconds,
+		KEY_DAY_CYCLE: day_cycle_seconds,
 	}
 
 
@@ -201,6 +213,7 @@ static func _from_defaults(defaults: ServerRulesDefaults) -> ServerRules:
 	rules.den_patrol_tiles = defaults.home.patrol_tiles
 	rules.sleeper_snore_tiles = defaults.taming.snore_tiles
 	rules.sleeper_alert_seconds = defaults.predation.sleeper_alert_s
+	rules.day_cycle_seconds = defaults.day_cycle.cycle_seconds
 	for biome: String in BIOMES:
 		rules.level_bands[BIOMES[biome]] = defaults.world.level_band_of(BIOMES[biome])
 	return rules
@@ -231,6 +244,7 @@ func _read(data: Dictionary) -> void:
 	den_patrol_tiles = _number(data, KEY_DEN_PATROL, den_patrol_tiles)
 	sleeper_snore_tiles = _number(data, KEY_SNORE, sleeper_snore_tiles)
 	sleeper_alert_seconds = _number(data, KEY_SLEEPER_ALERT, sleeper_alert_seconds)
+	day_cycle_seconds = _number(data, KEY_DAY_CYCLE, day_cycle_seconds)
 	if den_patrol_tiles > den_anchor_tiles:
 		_warn("%s: a ronda (%s) não pode passar da âncora (%s); a ronda usa a âncora" % [KEY_DEN_PATROL, den_patrol_tiles, den_anchor_tiles])
 	_read_bands(data)

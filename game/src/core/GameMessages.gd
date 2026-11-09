@@ -42,6 +42,16 @@ const EVENTS: Dictionary = {
 	"piece_removed": {"kind": Kind.INFO, "text": "{piece} removida."},
 	"door_toggled": {"kind": Kind.INFO, "text": "{piece}: {state}."},
 	"action_refused": {"kind": Kind.WARNING, "text": "{reason}"},
+	"night_started": {"kind": Kind.WARNING, "text": "Anoiteceu: os caçadores enxergam mais longe."},
+	"day_started": {"kind": Kind.INFO, "text": "O dia clareou."},
+}
+
+## Rótulo da faixa do dia no HUD, pelo nome estável (`DayCycle.NAMES`).
+const PHASE_LABELS: Dictionary = {
+	"day": "Dia",
+	"dusk": "Entardecer",
+	"night": "Noite",
+	"dawn": "Amanhecer",
 }
 
 ## Motivos de recusa (o `reason` de `action_refused`). Cobre todo `Enums.ActionResult` negado e os motivos de regra.
@@ -90,6 +100,7 @@ const REASONS: Dictionary = {
 	"not_yours": "Essa peça é de outro jogador.",
 	"has_dependents": "Tire antes as peças apoiadas nela.",
 	"chest_not_empty": "Esvazie o baú antes de tirá-lo.",
+	"blocked_line": "Tem uma parede no caminho.",
 	"build_in_world": "Isso se constrói no mundo (tecla B).",
 }
 

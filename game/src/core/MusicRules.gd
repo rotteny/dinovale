@@ -2,8 +2,8 @@
 class_name MusicRules
 extends Resource
 ## Regras da música, só dados (`res://data/balance/music_rules.tres`): quando a faixa de dia vira a de noite e quanto
-## dura a troca. O relógio do mundo (`WorldClock`) só dá os segundos; o ciclo de dia e noite do jogo (SOB-03) ainda não
-## existe e, quando existir, deve usar a mesma divisão. [provisório, aguarda o dono]
+## dura a troca. O relógio do mundo (`WorldClock`) só dá os segundos. No jogo a noite vem do `DayCycle` (SOB-03, E9):
+## `MusicPlayer.follow_world(clock, cycle)` o usa e esta divisão só vale quando nenhum ciclo é passado (teste, menu).
 
 ## Duração de um dia completo (dia + noite), em segundos de jogo.
 @export_range(60.0, 7200.0) var day_length_seconds: float = 1200.0

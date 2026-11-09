@@ -107,7 +107,13 @@ func _ready() -> void:
 	_load_server_rules()
 	music = MusicPlayer.new()
 	add_child(music)
-	music.follow_world(authority.clock)
+	music.follow_world(authority.clock, authority.day_cycle)
+	var day_night := DayNightView.new()  # tinta do mundo e luz do jogador; o HUD (CanvasLayer) fica de fora
+	day_night.authority = authority
+	day_night.player = player
+	add_child(day_night)
+	if hud != null:
+		hud.authority = authority
 	var target_outline := AttackTargetOutline.new()  # contorno no dino que o golpe vai atingir
 	target_outline.player = player
 	add_child(target_outline)
@@ -182,6 +188,7 @@ func _load_server_rules() -> void:
 	dino.taming.rules = taming_rules
 	home_rules = server_rules.apply_home(BaseHome)
 	predation_rules = server_rules.apply_predation(BasePredation)
+	authority.day_cycle = DayCycle.new(server_rules.apply_day_cycle(authority.day_cycle.rules))
 	authority.pvp_enabled = server_rules.pvp
 
 

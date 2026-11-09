@@ -97,6 +97,8 @@ func _suites() -> Array:
 		["PredationTests", PredationTests.new, true],
 		["PredationTamedTests", PredationTamedTests.new, true],
 		["DenAndVigilTests", DenAndVigilTests.new, true],
+		["DayNightThreatTests", DayNightThreatTests.new, true],
+		["DayCycleTests", DayCycleTests.new, true],
 		["DownedTests", DownedTests.new, true],
 		["M1ClosingTests", M1ClosingTests.new, true],
 		["ClickCollectTests", ClickCollectTests.new, true],
@@ -105,6 +107,7 @@ func _suites() -> Array:
 		["BuildReviewTests", BuildReviewTests.new, true],
 		["ChestTests", ChestTests.new, true],
 		["ShelterTests", ShelterTests.new, true],
+		["WallLineTests", WallLineTests.new, true],
 		["RecipeLearningTests", RecipeLearningTests.new, true],
 		["NetFlowTests", NetFlowTests.new, false],
 	]

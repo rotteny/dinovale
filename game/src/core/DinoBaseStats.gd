@@ -83,6 +83,12 @@ const SEX_MALE := "m"
 
 
 ## Regras de dano em área que valem para esta espécie, ou null. Porte que não é Grande nunca tem, mesmo com o dado preenchido.
+## Alcance de percepção em pixels. `scale` (o multiplicador do mundo, 1,5 à noite) vale só para o Agressivo: o Passivo
+## não persegue, e a velocidade e a desistência da perseguição nunca mudam (E9).
+func perception_px(tile_px: float, scale: float = 1.0) -> float:
+	return perception_tiles * tile_px * (scale if aggressive else 1.0)
+
+
 func area_rules() -> AreaAttackRules:
 	return area_attack if size == Enums.DinoSize.LARGE else null
 

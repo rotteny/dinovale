@@ -10,5 +10,7 @@ door_reach_tiles = 2.0
 refund_percent = 100
 support_radius = 1
 max_pieces = 4096
+; [premissa] Porta, remoção e Baú (abrir e transferir) seguem a mesma regra de dono: com true qualquer jogador mexe, com false só o dono.
+; Solo e co-op sem trava de dono por ora; o M3 decide.
 shared_pieces = true
 build_in_safe_core = false

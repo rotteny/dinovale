@@ -72,6 +72,8 @@ var drops_enabled: bool = false
 
 ## Relógio do mundo (ADR-006). Só esta autoridade o avança, em `_physics_process`; os sistemas recebem `clock.now`.
 var clock := WorldClock.new()
+## Dia e noite (E9): função do relógio acima, sem estado próprio no save. A `Main` troca as regras pela cópia do `ServerRules`.
+var day_cycle := DayCycle.new(preload("res://data/balance/day_cycle_rules.tres"))
 ## Semente do mundo (a `Main` define): entra no sorteio do intervalo entre coletas.
 var world_seed: int = 0
 
@@ -105,6 +107,8 @@ var _gather_count: Dictionary = {}
 var _reason: String = ""
 var _reason_params: Dictionary = {}
 var _next_id: int = 1
+## Última faixa do dia conferida por `tick_day` (-1 = ainda nenhuma).
+var _day_phase_seen: int = -1
 
 
 func _init() -> void:
@@ -115,8 +119,38 @@ func _init() -> void:
 
 func _physics_process(delta: float) -> void:
 	clock.advance(delta)
+	tick_day()
 	tick_herd(delta)
 	crafting.tick(delta)
+
+
+## Faixa do dia agora (lógica: a apresentação só a lê).
+func day_phase() -> DayCycle.Phase:
+	return day_cycle.phase_at(clock.now())
+
+
+## Multiplicador da percepção do Agressivo agora (1,5 só à noite). Quem decide quem vê quem é a autoridade, não a vista.
+func perception_scale() -> float:
+	return day_cycle.perception_scale(clock.now())
+
+
+## Confere a faixa do dia e anuncia `night_started` e `day_started` só quando ela MUDA durante o jogo (público e
+## testável sem quadros). A primeira conferência e a que vem depois de `resync_day_phase` só gravam a faixa.
+func tick_day() -> void:
+	var phase := day_phase()
+	if _day_phase_seen < 0 or phase == _day_phase_seen:
+		_day_phase_seen = phase
+		return
+	_day_phase_seen = phase
+	if phase == DayCycle.Phase.NIGHT:
+		announce("night_started")
+	elif phase == DayCycle.Phase.DAY:
+		announce("day_started")
+
+
+## Depois de repor o relógio (carga de save): a faixa nova vira a base, sem evento (carregar não é evento de jogo).
+func resync_day_phase() -> void:
+	_day_phase_seen = day_phase()
 
 
 ## Passo do bando (público e testável sem quadros): os ajudantes escalados entram quando o atraso acaba.
@@ -137,6 +171,7 @@ func register(node: Node, entity_id: int = 0) -> int:
 	_next_id = maxi(_next_id, used + 1)
 	if node is Dino:
 		(node as Dino).player_locator = player_body
+		(node as Dino).perception_scale_source = perception_scale
 		(node as Dino).combat_id = "dino:%d" % used
 	if node is Dino or node is Player:
 		if node.is_node_ready():
@@ -772,6 +807,9 @@ func _attack_problem(actor: Player, dino: Dino) -> Enums.ActionResult:
 	var reach := weapon.reach_tiles * rules.tile_size if weapon.reach_tiles > 0.0 else rules.reach_px()  # a arma, se tem alcance próprio
 	if not _within(actor, dino, reach):
 		return Enums.ActionResult.OUT_OF_RANGE
+	if _line_blocked(actor, dino):  # golpe, Lança ou Bastão, não atravessa parede (a mordida do bravo já não atravessa)
+		_reason = BuildService.REASON_LINE
+		return Enums.ActionResult.OUT_OF_RANGE
 	# "À frente" é regra da autoridade, pela direção do corpo que ELA mantém (a última aceita em `request_move`).
 	if not AttackTargeting.is_in_front(actor.global_position, actor.facing, dino, rules.front_dot_min):
 		_reason = "behind"
@@ -785,13 +823,29 @@ func _interact_problem(actor: Player, target: Node) -> Enums.ActionResult:
 	var area := target.get("interactable") as InteractableArea
 	if area == null:
 		return Enums.ActionResult.INVALID_TARGET
-	if not _within(actor, target, rules.reach_px()):
-		return Enums.ActionResult.OUT_OF_RANGE
+	var reach_problem := _reach_and_line_problem(actor, target)
+	if reach_problem != Enums.ActionResult.OK:
+		return reach_problem
+	var chest := target as Chest
+	if chest != null:  # o Baú tem dono: a mesma regra da remoção
+		var access := build.chest_access(actor, chest)
+		_reason = str(access.get("reason", ""))
+		return access["result"] as Enums.ActionResult
 	var pet := target as Dino
 	if pet != null and pet.state_machine.is_tamed:
 		# O domado abre o inventário (alforje) só para o dono; aliado e outro jogador levam NOT_OWNER.
 		return Enums.ActionResult.OK if pet.owner_player_id == actor.player_id else Enums.ActionResult.NOT_OWNER
 	return Enums.ActionResult.OK if area.can_interact() else Enums.ActionResult.WRONG_STATE
+
+
+## Alcance e linha livre até o alvo: interagir não atravessa parede.
+func _reach_and_line_problem(actor: Player, target: Node) -> Enums.ActionResult:
+	if not _within(actor, target, rules.reach_px()):
+		return Enums.ActionResult.OUT_OF_RANGE
+	if _line_blocked(actor, target):
+		_reason = BuildService.REASON_LINE
+		return Enums.ActionResult.OUT_OF_RANGE
+	return Enums.ActionResult.OK
 
 
 func _transfer_problem(actor: Player, dino: Dino, index: int, feeding: bool, amount: int) -> Enums.ActionResult:
@@ -840,6 +894,12 @@ func _closed_inventory_problem(dino: Dino, player_id: String) -> Enums.ActionRes
 	if dino.state_machine.is_tamed and dino.owner_player_id != player_id:
 		return Enums.ActionResult.NOT_OWNER
 	return Enums.ActionResult.WRONG_STATE
+
+
+## Há parede (peça sólida) entre o ator e o alvo? As células das pontas não contam (`BuildGrid.segment_blocked`).
+func _line_blocked(actor: Node2D, target: Node) -> bool:
+	var other := target as Node2D
+	return other != null and build.grid.segment_blocked(actor.global_position, other.global_position)
 
 
 func _within(actor: Node2D, target: Node, reach: float) -> bool:

@@ -43,6 +43,8 @@ func resolve_area_attack(attacker_id: int, target_id: int, damage: float, torpor
 		var node := authority.entity(candidate_id) as Node2D
 		if node == null or node == attacker or node == main_target or not _area_candidate(attacker, node):
 			continue
+		if authority.build.grid.segment_blocked(attacker.global_position, node.global_position):
+			continue  # o golpe em área não atravessa parede: o alvo extra precisa de linha livre a partir do atacante
 		var fraction := area.fraction(node.global_position.distance_to(main_target.global_position) / tile)
 		if fraction > 0.0:
 			extras.append({"id": candidate_id, "fraction": fraction, "distance": node.global_position.distance_to(main_target.global_position)})

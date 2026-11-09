@@ -23,6 +23,7 @@ var _progress: ProgressBar = null
 var _status: Label = null
 var _cancel: Button = null
 var _since_refresh: float = 0.0
+var _last_signature: String = ""
 
 
 func _ready() -> void:
@@ -81,6 +82,7 @@ func toggle() -> void:
 func set_open(open: bool) -> void:
 	visible = open and player != null and not player.is_incapacitated()
 	if visible:
+		_last_signature = ""  # abriu: sempre reconstrói
 		refresh()
 
 
@@ -99,8 +101,12 @@ func _process(delta: float) -> void:
 ## Reconstrói as linhas (poucas): nome, material que tem/precisa e o botão. O botão só diz que dá; quem decide é a autoridade.
 func refresh() -> void:
 	_since_refresh = 0.0
-	if _list == null or authority == null or player == null:
-		return
+	if _list == null or authority == null or player == null or not visible:
+		return  # fechado não reconstrói: `set_open` refaz ao abrir
+	var signature := _signature()
+	if signature == _last_signature:
+		return  # a lista não mudou: os botões ficam (reconstruir a cada aviso do log os trocaria sob o mouse)
+	_last_signature = signature
 	for child in _list.get_children():
 		_list.remove_child(child)
 		child.queue_free()
@@ -119,6 +125,16 @@ func refresh() -> void:
 		var job := authority.crafting.job(actor_id)
 		var current := authority.crafting.recipe_book.find(str(job.get("recipe", "")))
 		_status.text = "Fabricando %s" % (Items.display_name(current.output_id) if current != null else "")
+
+
+## Tudo o que a lista mostra, em texto: se igual ao de antes, não há o que reconstruir.
+func _signature() -> String:
+	var actor_id := authority.id_of(player)
+	var parts: PackedStringArray = [str(authority.crafting.job(actor_id).get("recipe", "")),
+			str(player.inventory.count(Items.WORKBENCH) > 0)]
+	for recipe in authority.crafting.recipe_book.known():
+		parts.append("%s=%s" % [recipe.id, needs_text(recipe, player.inventory)])
+	return "|".join(parts)
 
 
 func _row(recipe: RecipeDef, crafting: bool) -> Control:

@@ -255,6 +255,7 @@ func _build_zone() -> void:
 	workbenches.safe_core = SafeCore.new(respawn_rules, predation_rules.spawn_safe_margin_tiles, float(map.tile))
 	add_child(workbenches)
 	authority.crafting.workbenches = workbenches
+	navigation.watch_workbenches(workbenches)  # o grid dos dinos conhece o tile da Bancada
 	authority.crafting.entry_dropped.connect(func(entry: Dictionary, at: Vector2, _dropper_id: String) -> void:
 		ground.spawn_entry(entry, at)
 		_play_drop_sound(at))

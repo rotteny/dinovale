@@ -49,3 +49,25 @@ func _sync(node: ResourceNode) -> void:
 	else:
 		provider.remove_obstacle(_blocking[node] as Rect2)
 		_blocking.erase(node)
+
+
+## Passa a marcar como bloqueado, na grade, o tile de cada Bancada colocada, e a liberar quando ela sai (ou o save a troca).
+func watch_workbenches(field: WorkbenchField) -> void:
+	for bench in field.benches():
+		_block_bench(bench, field.tile_px)
+	field.bench_placed.connect(func(bench: Workbench) -> void: _block_bench(bench, field.tile_px))
+	field.bench_removed.connect(_unblock_bench)
+
+
+func _block_bench(bench: Workbench, tile: float) -> void:
+	if provider == null or _blocking.has(bench):
+		return
+	var rect := Rect2(bench.position - Vector2(tile, tile) * 0.5, Vector2(tile, tile))
+	_blocking[bench] = rect
+	provider.add_obstacle(rect)
+
+
+func _unblock_bench(bench: Workbench) -> void:
+	if provider != null and _blocking.has(bench):
+		provider.remove_obstacle(_blocking[bench] as Rect2)
+		_blocking.erase(bench)

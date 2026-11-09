@@ -170,6 +170,7 @@ static func restore(data: Dictionary, player: Player, dino: Dino, field: Resourc
 	# Daqui em diante nada recusa: o relógio é reposto antes de quem tem prazo (ADR-006). Repor não avança nem dispara
 	# nada; quem venceu é resolvido pelo primeiro tick depois da carga.
 	if authority != null:
+		authority.crafting.clear_jobs()  # a fabricação em curso não sobrevive a um load na mesma sessão
 		authority.clock.restore(SafeRead.number(SafeRead.dict(data.get("world")).get("time"), 0.0, 0.0, MAX_TIME))
 	player.player_id = local_id
 	if carcasses != null:  # não depende do mapa: um corpo é uma entidade, não um id do mapa

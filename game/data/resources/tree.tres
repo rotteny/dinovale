@@ -12,6 +12,10 @@ id = "tree"
 display_name = "Árvore"
 item_id = "wood"
 yield_amount = 3
+; [provisório 09/11, falta o dono confirmar] 1 graveto a cada 2 de madeira (3 de madeira = 1 graveto, determinístico, sem sorteio).
+extra_yields = Dictionary[String, int]({
+"stick": 1
+})
 gather_seconds = 8.0
 reach = 32.0
 respawn_seconds = 480.0

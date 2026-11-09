@@ -5,6 +5,10 @@ extends Node2D
 ## registrado na autoridade. Colocar é `WorldAuthority.request_place`; aqui só se decide se o ponto serve. Como o
 ## `GroundItemField`, a lista vai ao save como `to_list`/`restore_list` e nunca dispara evento de jogo.
 
+## Uma Bancada entrou ou saiu do mundo (a navegação marca o tile dela).
+signal bench_placed(bench: Workbench)
+signal bench_removed(bench: Workbench)
+
 const MAX_COORD := 1.0e6
 ## Motivos de ponto recusado (os textos estão em `GameMessages.REASONS`).
 const REASON_TERRAIN := "bad_terrain"
@@ -45,14 +49,23 @@ func problem_at(point: Vector2) -> String:
 	var center := snap(point)
 	if _benches.size() >= rules.max_workbenches:
 		return REASON_LIMIT
-	if safe_core != null and safe_core.contains(center):
-		return REASON_SAFE_CORE
-	if map != null and map.is_valid() and not (map.is_land(map.cell_of(center)) and map.is_walkable_at(center)):
-		return REASON_TERRAIN
+	var fixed := fixed_problem(center)
+	if fixed != "":
+		return fixed
 	if bench_at(center) != null or _resource_at(center):
 		return REASON_OCCUPIED
 	if occupancy != null and not occupancy.is_cell_free(Vector2i(floori(center.x / tile_px), floori(center.y / tile_px)), tile_px):
 		return REASON_OCCUPIED
+	return ""
+
+
+## O que não muda com o tempo: núcleo seguro e terreno ("" = serve). É o que um save carregado também confere.
+func fixed_problem(point: Vector2) -> String:
+	var center := snap(point)
+	if safe_core != null and safe_core.contains(center):
+		return REASON_SAFE_CORE
+	if map != null and map.is_valid() and not (map.is_land(map.cell_of(center)) and map.is_walkable_at(center)):
+		return REASON_TERRAIN
 	return ""
 
 
@@ -85,6 +98,7 @@ func place(point: Vector2, entity_id: int = 0) -> Workbench:
 	_benches.append(bench)
 	var view := WorkbenchView.new()
 	bench.add_child(view)
+	bench_placed.emit(bench)
 	if authority != null and authority.register(bench, maxi(entity_id, 0)) == 0:
 		authority.register(bench)
 	return bench
@@ -95,6 +109,7 @@ func remove(bench: Workbench) -> void:
 	if not _benches.has(bench):
 		return
 	_benches.erase(bench)
+	bench_removed.emit(bench)
 	if authority != null:
 		authority.unregister(authority.id_of(bench))
 	bench.queue_free()
@@ -121,8 +136,9 @@ func restore_list(list: Array) -> void:
 			continue  # coordenada ausente ou que não é número: a entrada não vale
 		var point := Vector2(SafeRead.number(data.get("x"), 0.0, -MAX_COORD, MAX_COORD),
 				SafeRead.number(data.get("y"), 0.0, -MAX_COORD, MAX_COORD))
-		if bench_at(point) == null:
-			place(point, SafeRead.integer(data.get("id"), 0, 0, SaveMigrations.MAX_ENTITY_ID))
+		if bench_at(point) == null and fixed_problem(point) == "":  # save editado: terreno ou núcleo seguro que não servem
+			# Id fora da faixa vira 0 (o próximo livre): um id no teto empurraria o contador e o próximo load seria recusado.
+			place(point, SafeRead.integer(data.get("id"), 0, 0, SaveMigrations.MAX_ENTITY_ID - 1))
 
 
 func _is_number(value: Variant) -> bool:

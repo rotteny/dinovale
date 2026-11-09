@@ -204,7 +204,9 @@ func restore_list(list: Array) -> void:
 				SafeRead.number(data.get("y"), 0.0, -MAX_COORD, MAX_COORD))
 		# O prazo não passa do que um item novo teria (relógio já reposto); vencido some no 1º tick.
 		var due_at := SafeRead.number(data.get("due_at"), current, 0.0, current + rules.despawn_seconds)
-		var item := _spawn(item_id, 1 if not individual.is_empty() else amount, point, due_at, SafeRead.integer(data.get("id"), 0, 0, 1 << 30))
+		# Id fora da faixa vira 0 (o próximo livre): um id no teto empurraria o contador e o próximo load seria recusado.
+		var saved_id := SafeRead.integer(data.get("id"), 0, 0, SaveMigrations.MAX_ENTITY_ID - 1)
+		var item := _spawn(item_id, 1 if not individual.is_empty() else amount, point, due_at, saved_id)
 		item.entry = individual
 		item.owner_player_id = SafeRead.text(data.get("owner"), "")
 		item.owner_until = SafeRead.number(data.get("owner_until"), 0.0, 0.0, current + rules.owner_seconds)

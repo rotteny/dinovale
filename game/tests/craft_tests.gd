@@ -7,6 +7,7 @@ const RESULT_OK := Enums.ActionResult.OK
 const RESPAWN: RespawnRules = preload("res://data/balance/respawn_rules.tres")
 const SPEAR := Items.WOODEN_SPEAR
 const TILE := 16.0
+const TREE_DEF: ResourceNodeDef = preload("res://data/resources/tree.tres")
 
 
 func run() -> void:
@@ -22,7 +23,11 @@ func run() -> void:
 	_test_place_rules()
 	_test_place_in_safe_core_and_sea()
 	_test_workbench_save()
+	_test_restore_validates_saved_benches()
+	_test_navigation_blocks_bench()
+	_test_craft_edge_cases()
 	_test_workbench_snapshot_and_old_save()
+	_test_tree_gives_stick()
 	_test_spear_kills_dodo_in_two_hits()
 	_release_worlds()
 
@@ -403,6 +408,122 @@ func _test_workbench_save() -> void:
 			or event["code"] == "item_placed"), "restaurar não dispara evento de jogo")
 
 
+## Save editado: Bancada no mar ou no núcleo seguro é descartada e id no teto não empurra o contador (o próximo load seria recusado).
+func _test_restore_validates_saved_benches() -> void:
+	var map := IslandMap.default_map()
+	var world := _setup(true)
+	var authority: WorldAuthority = world["authority"]
+	var field: WorkbenchField = world["field"]
+	field.map = map
+	field.safe_core = SafeCore.new(RESPAWN, 8.0, TILE)
+	var core_point := RESPAWN.available_regions()[0].area.get_center()
+	var land := _land_point(map, field)
+	field.restore_list([{"id": 0, "x": -TILE, "y": -TILE}, {"id": 0, "x": core_point.x, "y": core_point.y},
+			{"id": 1 << 30, "x": land.x, "y": land.y}])
+	_check(field.count() == 1 and field.bench_at(land) != null, "restaurar descarta Bancada no mar e no núcleo seguro, e guarda a boa")
+	_check(authority.id_of(field.bench_at(land)) < SaveMigrations.MAX_ENTITY_ID - 1
+			and authority.next_entity_id() < SaveMigrations.MAX_ENTITY_ID, "id no teto vira o próximo livre: o contador não dispara")
+	var ground := GroundItemField.new()
+	_track.call(ground)
+	ground.authority = authority
+	ground.clock = func() -> float: return 0.0
+	ground.restore_list([{"id": 1 << 30, "item": Items.WOOD, "amount": 2, "x": 5, "y": 5, "due_at": 10.0}])
+	_check(ground.count() == 1 and authority.next_entity_id() < SaveMigrations.MAX_ENTITY_ID,
+			"chão: id no teto também não empurra o contador")
+
+
+## Um ponto de terra firme fora do núcleo seguro.
+func _land_point(map: IslandMap, field: WorkbenchField) -> Vector2:
+	for y in range(40, map.size - 40, 12):
+		for x in range(40, map.size - 40, 12):
+			var point := map.center_of(Vector2i(x, y))
+			if map.is_land(Vector2i(x, y)) and not field.safe_core.contains(point):
+				return point
+	return Vector2.ZERO
+
+
+func _test_navigation_blocks_bench() -> void:
+	var map := IslandMap.default_map()
+	var world := _setup(true)
+	var field: WorkbenchField = world["field"]
+	field.map = map
+	field.safe_core = SafeCore.new(RESPAWN, 8.0, TILE)
+	var navigation := NavigationWorld.new()
+	_track.call(navigation)
+	navigation.setup(map, preload("res://data/world/world_rules.tres"), preload("res://data/balance/navigation_rules.tres"), null)
+	navigation.watch_workbenches(field)
+	var point := _land_point(map, field)
+	var cell := map.cell_of(point)
+	_check(not navigation.provider.is_blocked(cell), "preparo: o tile está livre na grade")
+	var bench := field.place(point)
+	_check(navigation.provider.is_blocked(cell), "colocar a Bancada bloqueia o tile na grade dos dinos")
+	field.remove(bench)
+	_check(not navigation.provider.is_blocked(cell), "remover libera o tile")
+	field.place(point)
+	field.restore_list([])  # carregar um save sem a Bancada
+	_check(not navigation.provider.is_blocked(cell), "carregar um save que troca as Bancadas libera o tile")
+
+
+## Alcance de colocar até o centro do tile, saída que cabe depois de gastar o material, desconexão e load no meio da fabricação.
+func _test_craft_edge_cases() -> void:
+	var world := _setup(true)
+	var player: Player = world["player"]
+	var authority: WorldAuthority = world["authority"]
+	player.inventory.add(Items.WORKBENCH, 1)
+	# Ponto a 48 px (3 tiles, cabia) mas o centro do tile fica a 56 px: pelo centro não alcança.
+	_check(authority.request_place(1, Items.WORKBENCH, Vector2(48.0, 0.0)) == Enums.ActionResult.OUT_OF_RANGE,
+			"o alcance de colocar vai até o centro do tile, não até o ponto pedido")
+	# Sem chão: material 1 pilha só, o resultado entra no lugar que ela libera.
+	var closed := _setup()
+	var other: Player = closed["player"]
+	var closed_authority: WorldAuthority = closed["authority"]
+	closed_authority.drops_enabled = false
+	other.inventory.add(Items.WOOD, 3)
+	other.inventory.add(Items.STONE, 2)
+	other.inventory.add(Items.FIBER, 1)
+	other.inventory.capacity = 3  # cheio, mas as três pilhas somem ao gastar o material
+	_check(closed_authority.request_craft(1, "axe_stone") == RESULT_OK, "cheio, mas o material libera o lugar: aceita")
+	closed_authority.crafting.tick(3.5)
+	_check(other.inventory.count(Items.AXE_STONE) == 1, "e o Machado entra no lugar que o material liberou")
+	# Desconectar no meio.
+	var dropped := _setup()
+	var leaver: Player = dropped["player"]
+	var drop_authority: WorldAuthority = dropped["authority"]
+	_give_axe_materials(leaver)
+	drop_authority.request_craft(1, "axe_stone")
+	drop_authority.unregister(1)
+	drop_authority.crafting.tick(0.1)
+	var reasons: Array[String] = []
+	for event: Dictionary in dropped["events"]:
+		if event["code"] == "craft_cancelled":
+			reasons.append(str(event["params"].get("reason")))
+	_check(reasons == ["disconnected"] and drop_authority.crafting.job(1).is_empty(),
+			"desconectar no meio cancela com o motivo `disconnected`")
+	# Load na mesma sessão.
+	var loaded := _setup()
+	var loader: Player = loaded["player"]
+	var load_authority: WorldAuthority = loaded["authority"]
+	_give_axe_materials(loader)
+	var envelope := WorldSnapshot.capture(loader, null, "t", "now", null, 0, 10)
+	load_authority.request_craft(1, "axe_stone")
+	_check(WorldSnapshot.restore(JSON.parse_string(JSON.stringify(envelope)), loader, null, null, null, null, load_authority)
+			and load_authority.crafting.job(1).is_empty(), "carregar um save na mesma sessão cancela a fabricação em curso")
+	var panel := CraftPanel.new()  # painel fechado não reconstrói; aberto, só quando a lista muda
+	_track.call(panel)
+	panel.player = loader
+	panel.authority = load_authority
+	_root.add_child(panel)
+	panel.refresh()
+	_check(panel._list.get_child_count() == 0, "painel fechado não reconstrói os botões")
+	panel.set_open(true)
+	var first := panel._list.get_child(0)
+	panel.refresh()
+	_check(panel._list.get_child(0) == first, "painel aberto com a lista igual mantém os botões")
+	loader.inventory.add(Items.FIBER, 1)
+	panel.refresh()
+	_check(panel._list.get_child(0) != first, "a lista mudou: reconstrói")
+
+
 func _test_workbench_snapshot_and_old_save() -> void:
 	var world := _setup(true)
 	var player: Player = world["player"]
@@ -424,6 +545,26 @@ func _test_workbench_snapshot_and_old_save() -> void:
 
 
 # ----------------------------------------------------------------------------- Lança
+
+## Fonte de graveto (provisória): a árvore rende 1 graveto a cada 2 de madeira, em dado e sem sorteio.
+func _test_tree_gives_stick() -> void:
+	_check(TREE_DEF.extra_yields.get(Items.STICK, 0) == TREE_DEF.yield_amount / 2, "dado: a árvore dá 1 graveto a cada 2 de madeira")
+	var component := ResourceNodeComponent.new()
+	_track.call(component)
+	component.def = TREE_DEF
+	var yields := component.full_yields()
+	_check(yields.get(Items.WOOD) == 3 and yields.get(Items.STICK) == 1 and component.full_yields() == yields,
+			"a colheita da árvore entrega 3 madeira e 1 graveto, sempre igual")
+	var world := _setup()
+	var player: Player = world["player"]
+	player.inventory.add(Items.WOOD, 3 * 2)
+	for _tree in 2:  # duas árvores: os 2 gravetos da Lança
+		player.inventory.add(Items.STICK, int(yields[Items.STICK]))
+	var authority: WorldAuthority = world["authority"]
+	authority.crafting.begin_craft(1, "wooden_spear")
+	authority.crafting.tick(3.5)
+	_check(player.inventory.count(SPEAR) == 1, "a Lança sai com a madeira e os gravetos de duas árvores")
+
 
 func _test_spear_kills_dodo_in_two_hits() -> void:
 	var player := _player_at(Vector2.ZERO)

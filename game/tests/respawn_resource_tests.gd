@@ -48,6 +48,13 @@ func run() -> void:
 
 # ----------------------------------------------------------------------------- lógica pura
 
+func _leftover_after_one_wood(def: ResourceNodeDef) -> Dictionary:
+	var left := {Items.WOOD: def.yield_amount - 1}
+	for extra_id: String in def.extra_yields:  # o que não coube (sem lugar) também fica no nó
+		left[extra_id] = def.extra_yields[extra_id]
+	return left
+
+
 func _test_rng_and_picker() -> void:
 	var a := SeededRng.new()
 	var b := SeededRng.new()
@@ -355,7 +362,7 @@ func _test_gather_rules() -> void:
 	_check(player.inventory.room_for(Items.WOOD) == 1, "preparo: cabe exatamente 1 madeira")
 	var partial_before := player.inventory.count(Items.WOOD)
 	_check(player.request_gather() == "" and wood.is_available() and player.inventory.count(Items.WOOD) == partial_before + 1
-			and wood.component.leftover == {Items.WOOD: wood.def.yield_amount - 1},
+			and wood.component.leftover == _leftover_after_one_wood(wood.def),
 			"espaço parcial (1 de 3): entra 1 e as outras 2 ficam no nó, que não esgota")
 	# Morto não colhe.
 	player.inventory.remove(Items.WOOD, player.inventory.count(Items.WOOD))

@@ -72,6 +72,12 @@ func cancel(actor_id: int, reason: String) -> void:
 	authority.announce("craft_cancelled", {"item": Items.display_name(recipe.output_id) if recipe != null else "", "reason": reason})
 
 
+## Esquece toda fabricação em andamento, sem aviso (carregar um save na mesma sessão: o estado do jogador mudou por baixo dela).
+func clear_jobs() -> void:
+	for actor_id in _jobs.actors():
+		_jobs.cancel(actor_id)
+
+
 ## A fabricação de `actor_id` em andamento: `{recipe, left, total, bench}` ou `{}`. A tela só lê.
 func job(actor_id: int) -> Dictionary:
 	return _jobs.job_of(actor_id)
@@ -113,7 +119,7 @@ func _place_problem(actor: Player, item_id: String, point: Vector2) -> Dictionar
 		return _outcome(RESULT.INVALID_ARGUMENT)
 	if workbenches == null:
 		return _outcome(RESULT.REFUSED, "cannot_place")
-	if actor.global_position.distance_to(point) > rules.place_reach_tiles * authority.rules.tile_size:
+	if actor.global_position.distance_to(workbenches.snap(point)) > rules.place_reach_tiles * authority.rules.tile_size:
 		return _outcome(RESULT.OUT_OF_RANGE)
 	if actor.inventory.count(item_id) < 1:
 		return _outcome(RESULT.REFUSED, "no_item")
@@ -145,6 +151,8 @@ func _bench_near(actor: Player) -> Workbench:
 
 ## Por que a fabricação em curso não pode seguir ("" = segue).
 func _interruption(actor_id: int) -> String:
+	if authority.entity(actor_id) == null:
+		return "disconnected"  # saiu do mundo no meio da fabricação
 	var actor := _actor(actor_id)
 	if actor == null:
 		return "downed"
@@ -157,8 +165,17 @@ func _interruption(actor_id: int) -> String:
 
 
 ## O resultado cabe? Com chão ligado sempre (o que não cabe cai); sem ele, só se couber no inventário.
+## Sem chão, a conta é feita DEPOIS de gastar o material (num inventário de teste): o que sai libera lugar.
 func _output_fits(actor: Player, recipe: RecipeDef) -> bool:
-	return authority.drops_enabled or actor.inventory.room_for(recipe.output_id) >= recipe.output_amount
+	if authority.drops_enabled:
+		return true
+	var scratch := actor.inventory.preview()
+	scratch.from_dict(actor.inventory.to_dict())
+	for item_id: String in recipe.inputs:
+		scratch.remove(item_id, int(recipe.inputs[item_id]))
+	var fits := scratch.room_for(recipe.output_id) >= recipe.output_amount
+	scratch.free()
+	return fits
 
 
 func _finish(actor_id: int) -> void:

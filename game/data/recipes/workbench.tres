@@ -12,6 +12,7 @@ inputs = Dictionary[String, int]({
 })
 output_id = "workbench"
 output_amount = 1
+; [premissa] tempo de fabricação (a spec só fixa os 4 s da Bancada; os 3 s da mão são escolha da E7a)
 seconds = 4.0
 station = "hand"
 known_at_start = true

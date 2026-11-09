@@ -264,6 +264,16 @@ func _test_tame_xp() -> void:
 			"o primeiro a alimentar reservou a doma e virou dono")
 	_check(_total_xp(player) == mine + RULES.tame_xp(pet.level) and _total_xp(second) == theirs,
 			"dois jogadores: o dono da reserva ganha o XP; quem deu a última comida não")
+	# Dono e alimentador diferentes (outro deu a última comida): o XP segue o DONO, nunca o alimentador.
+	var split := _sleeping(_dino_at(Vector2(380, 340)))
+	authority.register(split)
+	split.owner_player_id = player.player_id
+	split.feeder_player_id = second.player_id
+	var owner_before := _total_xp(player)
+	var feeder_before := _total_xp(second)
+	authority._grant_tame_xp(split, 9)
+	_check(_total_xp(player) == owner_before + RULES.tame_xp(9) and _total_xp(second) == feeder_before,
+			"dono diferente de quem alimentou: o XP vai ao dono, não ao alimentador")
 	var orphan := _sleeping(_dino_at(Vector2(340, 340)))
 	authority.register(orphan)
 	orphan.owner_player_id = ""

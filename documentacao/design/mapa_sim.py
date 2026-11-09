@@ -107,8 +107,10 @@ def sitios():
     s["inicio"] = snap(70, 98, dmin=2)
     s["paq_tutorial"] = snap(62, 94, dmin=3)
     s["arco"] = snap(61, 91, dmin=2)
-    s["tocas"] = {"U1": snap(34, 74, "M"), "U2": snap(20, 56, "M"), "U3": snap(30, 38, "M"), "U4": snap(40, 52, "M"), "U5": snap(46, 34, "M"), "U6": snap(14, 66, "M")}
-    u1, ini = s["tocas"]["U1"], s["inicio"]
+    s["tocas"] = {"U1": snap(34, 68, "M"), "U2": snap(20, 56, "M"), "U3": snap(30, 38, "M"), "U4": snap(40, 52, "M"), "U5": snap(46, 34, "M"), "U6": snap(16, 65, "M")}
+    # E3 (D-E1): U1 e U6 foram movidas (U1 a 4 tiles da zona segura; U6 estava num tile de Campina). O marco "limiar" do
+    # Paquicefalo continua calculado a partir do ponto ANTIGO da U1, para nao mudar o resto do mapa.
+    u1, ini = snap(34, 74, "M"), s["inicio"]
     d = math.hypot(ini[0] - u1[0], ini[1] - u1[1]); f = 11 / d
     s["paq_limiar"] = snap((u1[0] + (ini[0] - u1[0]) * f) * 128 / S, (u1[1] + (ini[1] - u1[1]) * f) * 128 / S, dmin=3)
     s["aviso"] = snap(46, 79, dmin=3)

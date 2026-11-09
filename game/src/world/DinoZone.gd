@@ -153,8 +153,17 @@ func _step_far_dinos() -> void:
 		if pick >= STEP_DIRECTIONS.size():
 			continue
 		var target := dino.position + STEP_DIRECTIONS[pick].normalized() * step
-		if map.is_land(map.cell_of(target)):
+		if map.is_land(map.cell_of(target)) and _far_step_allowed(dino, target):
 			dino.position = target
+
+
+## O passo distante respeita a toca (ronda e âncora, só de aproximação se já saiu dela) e o núcleo seguro (E3a, H7).
+func _far_step_allowed(dino: Dino, target: Vector2) -> bool:
+	var machine := dino.state_machine
+	if machine.safe_core != null and machine.stats != null and machine.stats.predation != null \
+			and machine.safe_core.contains(target) and not machine.safe_core.contains(dino.position):
+		return false
+	return machine.home == null or machine.home.step_allowed(dino.position, target)
 
 
 func _distance_to_focus(point: Vector2) -> float:

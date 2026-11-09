@@ -336,15 +336,21 @@ func _test_consumers() -> void:
 	for amount: int in low.pending_yields().values():
 		floor_ok = floor_ok and amount == 1
 	_check(floor_ok, "multiplicador baixo nunca zera a colheita (mínimo 1)")
-	# faixas_de_nivel (toca na mata: os utahraptores nascem em mata_baixa)
+	# faixas_de_nivel: o bando de toca tem faixa própria por toca (`HomeRules.den_level_bands`, E3a) e não segue a do bioma; quem
+	# nasce em mata_baixa sem toca (Paquicéfalo) segue a do arquivo
 	var plain_levels_ok := true
 	var custom_levels_ok := true
+	var checked_in_woodland := 0
 	for i in plain.wild.get_child_count():
 		var left := plain.wild.get_child(i) as Dino
 		var right := custom.wild.get_child(i) as Dino
-		if left.stats.id == "utahraptor":
+		if left.stats.home != null:
+			plain_levels_ok = plain_levels_ok and left.level == right.level
+		elif plain.map.terrain_at(plain.map.cell_of(left.position)) == IslandMap.WOODLAND:
+			checked_in_woodland += 1
 			plain_levels_ok = plain_levels_ok and left.level >= 5 and left.level <= 25
 			custom_levels_ok = custom_levels_ok and right.level >= 30 and right.level <= 31
+	custom_levels_ok = custom_levels_ok and checked_in_woodland > 0
 	_check(plain_levels_ok and custom_levels_ok, "faixas_de_nivel: com semente fixa, nível dentro da faixa padrão e da trocada")
 	# respawn_protecao_s e respawn_fome_pct
 	for main: Main in [plain, custom]:

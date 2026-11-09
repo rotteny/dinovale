@@ -1,10 +1,11 @@
-[gd_resource type="Resource" script_class="DinoBaseStats" load_steps=6 format=3]
+[gd_resource type="Resource" script_class="DinoBaseStats" load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://src/core/DinoBaseStats.gd" id="1_stats"]
 [ext_resource type="Texture2D" path="res://assets/sprites/dinos/utahraptor.png" id="2_dead"]
 
 [ext_resource type="Resource" path="res://data/dino/utahraptor_threat.tres" id="3_threat"]
 [ext_resource type="Resource" path="res://data/dino/utahraptor_predation.tres" id="4_predation"]
+[ext_resource type="Resource" path="res://data/dino/utahraptor_home.tres" id="5_home"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_dead"]
 atlas = ExtResource("2_dead")
@@ -29,7 +30,7 @@ spawn_terrains = Array[int]([4])
 group_size_min = 2
 group_size_max = 3
 cohesion_radius_tiles = 4.0
-min_group_spacing_tiles = 40.0
+min_group_spacing_tiles = 19.0
 group_respawn_seconds = 1200.0
 ideal_food = "meat"
 aggressive = true
@@ -41,3 +42,4 @@ chase_max_seconds = 15.0
 alert_seconds = 5.0
 threat_profile = ExtResource("3_threat")
 predation = ExtResource("4_predation")
+home = ExtResource("5_home")

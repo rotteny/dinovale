@@ -95,6 +95,10 @@ var wound_factor := 1.0
 var hunt_engaged := false
 ## Parado comendo (a predação o liga e desliga): sem andar e sem iniciar perseguição.
 var holding := false
+## Toca da criatura (E3a): ronda, volta e âncora. Null = sem toca (passeia livre). Não vai ao save: vem do `den` da vaga.
+var home: DinoHome = null
+## Núcleo seguro único do mundo (`SafeCore`): o caçador não entra nele e não persegue quem está dentro. Null = sem núcleo.
+var safe_core: SafeCore = null
 ## Fase atual do ciclo (`NONE` fora dele ou sem perfil).
 var threat_phase: Enums.ThreatPhase:
 	get:
@@ -149,6 +153,7 @@ func tick(delta: float) -> void:
 	if _can_start_chase():
 		transition_to(Enums.DinoStateId.AGGRESSIVE)
 	_states[current_id].tick(delta)
+	_guard_core()
 
 
 ## Dados da espécie e do corpo para a percepção e a perseguição.
@@ -288,8 +293,72 @@ func start_reached_alert() -> void:
 	_alert_left = stats.reached_alert_seconds if stats != null else 0.0
 
 
+## Liga a toca da criatura (centro em pixels do mundo). Só vale para espécie com `home`; `rules` null usa as da espécie
+## (o mundo passa a cópia com as chaves do `ServerRules`). Devolve se ligou.
+func bind_home(center: Vector2, rules: HomeRules = null) -> bool:
+	if stats == null or stats.home == null:
+		return false
+	home = DinoHome.new(center, rules if rules != null else stats.home.rules, tile_px)
+	return true
+
+
+## Fora da ronda e livre para voltar à toca: tem toca, não está comendo nem domado e passou do raio da ronda.
+func wants_return() -> bool:
+	return home != null and not holding and not is_tamed and not home.in_patrol(self_position)
+
+
+## Segundos de alerta que restam (a volta só começa depois deles).
+func alert_left() -> float:
+	return _alert_left
+
+
+## Velocidade da volta à toca como multiplicador do passo do corpo.
+func return_speed_multiplier() -> float:
+	return home.rules.return_speed_px_s / walk_speed if home != null else 1.0
+
+
+## O alvo está vedado a este caçador? Dentro do núcleo seguro ou fora da âncora da toca.
+func target_barred() -> bool:
+	if not target_known:
+		return false
+	if safe_core != null and safe_core.contains(target_position):
+		return true
+	return home != null and not home.in_anchor(target_position)
+
+
+## O ponto serve para a ronda: dentro do raio dela, fora do núcleo seguro e em tile andável.
+func patrol_point_ok(point: Vector2) -> bool:
+	if home == null or not home.in_patrol(point):
+		return false
+	if safe_core != null and safe_core.contains(point):
+		return false
+	return navigation == null or not navigation.is_blocked(navigation.cell_of(point))
+
+
+## Direção do próximo passeio da ronda: tenta `first_angle` e mais sorteios até o ponto de chegada servir; sem sorte, vai
+## para o centro da toca. Só se chama com toca.
+func patrol_direction(first_angle: float, seconds: float) -> Vector2:
+	var angle := first_angle
+	for attempt in 8:
+		var direction := Vector2.from_angle(angle)
+		if patrol_point_ok(self_position + direction * walk_speed * seconds):
+			return direction
+		angle = rng.randf() * TAU
+	return (home.center - self_position).normalized()
+
+
+## O caçador nunca entra no núcleo seguro: se o próximo passo cairia dentro dele (e ele ainda está fora), pára.
+func _guard_core() -> void:
+	if safe_core == null or desired_direction == Vector2.ZERO or stats == null or stats.predation == null or is_tamed:
+		return
+	if not safe_core.contains(self_position) and safe_core.contains(self_position + desired_direction * tile_px * 0.5):
+		desired_direction = Vector2.ZERO
+
+
 func _can_start_chase() -> bool:
 	if stats == null or not (stats.aggressive or hunt_engaged) or is_tamed or not target_known or _alert_left > 0.0:
+		return false
+	if target_barred() or (home != null and not home.in_anchor(self_position)):
 		return false
 	if current_id != Enums.DinoStateId.IDLE and current_id != Enums.DinoStateId.WANDER:
 		return false

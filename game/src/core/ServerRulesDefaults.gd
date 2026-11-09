@@ -7,9 +7,14 @@ extends RefCounted
 var respawn: RespawnRules
 var world: WorldRules
 var taming: TamingRules
+var home: HomeRules
+var predation: PredationRules
 
 
-func _init(respawn_rules: RespawnRules, world_rules: WorldRules, taming_rules: TamingRules) -> void:
+func _init(respawn_rules: RespawnRules, world_rules: WorldRules, taming_rules: TamingRules,
+		home_rules: HomeRules = null, predation_rules: PredationRules = null) -> void:
 	respawn = respawn_rules
 	world = world_rules
 	taming = taming_rules
+	home = home_rules if home_rules != null else preload("res://data/balance/home_rules.tres")
+	predation = predation_rules if predation_rules != null else preload("res://data/balance/predation_rules.tres")

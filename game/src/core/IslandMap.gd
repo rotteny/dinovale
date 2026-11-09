@@ -103,7 +103,8 @@ func load_dict(data: Dictionary) -> bool:
 	size = side  # `in_bounds` lê o tamanho
 	var node_points := _read_points(SafeRead.dict(data.get("nodes")), SafeRead.dict(data.get("node_ids")), "n")
 	var regions := _read_regions(SafeRead.dict(data.get("spawn_regions")), side, cells)
-	var slots := _read_slots(SafeRead.list(data.get("spawn_slots")), regions)
+	var den_cells := _cells_dict(SafeRead.dict(data.get("dens")))
+	var slots := _read_slots(SafeRead.list(data.get("spawn_slots")), regions, den_cells)
 	if not _ids_are_unique([node_points[1]]) or _slot_ids_repeat(SafeRead.list(data.get("spawn_slots"))):
 		size = 0
 		return false  # id vazio ou repetido: o save apontaria para dois lugares (ADR-007)
@@ -114,7 +115,7 @@ func load_dict(data: Dictionary) -> bool:
 	seed_value = SafeRead.integer(data.get("seed"), 0, 0, 1 << 30)
 	start_cell = _cell_of(data.get("start"), Vector2i(side >> 1, side >> 1))
 	landmarks = _cells_dict(SafeRead.dict(data.get("landmarks")))
-	dens = _cells_dict(SafeRead.dict(data.get("dens")))
+	dens = den_cells
 	content_hash = SafeRead.text(data.get("content_hash"), "")
 	nodes = node_points[0]
 	node_ids = node_points[1]
@@ -303,7 +304,9 @@ func _read_regions(raw: Dictionary, side: int, terrain_bytes: PackedByteArray) -
 
 
 ## Vagas do arquivo em ordem crescente do número do id; sem id, sem espécie, de região desconhecida ou com id repetido, caem.
-func _read_slots(raw: Array, regions: Dictionary) -> Array[Dictionary]:
+## `den` (id de toca em `dens`) só vale se a toca existe, o tile dela é da região da vaga (o terreno da espécie vem da máscara)
+## e nenhuma outra vaga a usa antes; senão a vaga fica sem toca e o bando nasce por sorteio, como antes (E3).
+func _read_slots(raw: Array, regions: Dictionary, den_cells: Dictionary = {}) -> Array[Dictionary]:
 	var slots: Array[Dictionary] = []
 	var seen := {}
 	for item: Variant in raw.slice(0, MAX_SLOTS):
@@ -317,11 +320,23 @@ func _read_slots(raw: Array, regions: Dictionary) -> Array[Dictionary]:
 		var amount := SafeRead.integer(entry.get("size"), 1, 1, MAX_GROUP_SIZE)
 		slots.append({"id": id, "species": species, "region": region, "size": amount,
 				"size_min": SafeRead.integer(entry.get("size_min"), 1, 1, MAX_GROUP_SIZE),
-				"size_max": SafeRead.integer(entry.get("size_max"), MAX_GROUP_SIZE, 1, MAX_GROUP_SIZE)})
+				"size_max": SafeRead.integer(entry.get("size_max"), MAX_GROUP_SIZE, 1, MAX_GROUP_SIZE),
+				"den": SafeRead.text(entry.get("den"), "")})
 	slots.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
 		var left := slot_number(a["id"])
 		var right := slot_number(b["id"])
 		return left < right if left != right else str(a["id"]) < str(b["id"]))
+	var used_dens := {}
+	for slot in slots:
+		var den: String = slot["den"]
+		if den == "":
+			continue
+		var cell: Vector2i = den_cells.get(den, Vector2i(-1, -1))
+		var mask := (regions[slot["region"]]["mask"] as PackedByteArray)
+		if not den_cells.has(den) or mask[cell.y * size + cell.x] != 1 or used_dens.has(den):
+			slot["den"] = ""
+		else:
+			used_dens[den] = true
 	return slots
 
 

@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: MIT
 class_name UtahraptorTests
 extends WildPersistenceTests
-## Utahraptor em matilhas na Mata-baixa (MUN-03 parte 2): o dado da espécie, onde nasce (4 vagas na região da
-## mata), a perseguição do Agressivo
+## Utahraptor em bandos na Mata-baixa (MUN-03 parte 2; E3a: um bando de 2 por toca): o dado da espécie, onde nasce (6 vagas na região da
+## mata, cada uma com a sua toca), a perseguição do Agressivo
 ## (percepção em elipse, desistência, alerta), a doma pela comida da espécie e o save que lembra a espécie.
 ## Chamado por `run_tests.gd`.
 
@@ -53,12 +53,15 @@ func _test_species_data() -> void:
 func _test_map_spawns() -> void:
 	var map := IslandMap.default_map()
 	var sizes: Array[int] = []
+	var dens: Array[String] = []
 	var in_woodland := true
 	for slot in map.spawn_slots:
 		if slot["species"] == "utahraptor":
 			sizes.append(slot["size"])
+			dens.append(slot["den"])
 			in_woodland = in_woodland and slot["region"] == "r_mata"
-	_check(sizes == [3, 3, 2, 2] and in_woodland, "4 matilhas de utahraptor (3, 3, 2 e 2), todas na região da Mata-baixa")
+	_check(sizes == [2, 2, 2, 2, 2, 2] and in_woodland, "6 bandos de utahraptor (2 por toca), todos na região da Mata-baixa")
+	_check(dens == ["U1", "U2", "U3", "U4", "U5", "U6"], "cada vaga de utahraptor tem a sua toca, sem repetir")
 	var terrains_ok := true
 	for index in map.region_cells("r_mata"):
 		terrains_ok = terrains_ok and map.terrain_at(Vector2i(index % map.size, index / map.size)) == IslandMap.WOODLAND
@@ -199,11 +202,11 @@ func _test_population_and_chase() -> void:
 			raptors.append(child as Dino)
 	_check(
 		(
-			raptors.size() == 10
+			raptors.size() == 12
 			and (main.wild.get_child(0) as Dino).stats.id == "placeholder_dino"
 			and main.wild.creature_at(_raptor_id(main)) == raptors[0]
 		),
-		"10 utahraptores nas 4 matilhas, depois dos paquicéfalos na ordem das vagas"
+		"12 utahraptores nos 6 bandos de 2, depois dos paquicéfalos na ordem das vagas"
 	)
 	var levels_ok := true
 	for raptor in raptors:
@@ -216,9 +219,9 @@ func _test_population_and_chase() -> void:
 		levels_ok = levels_ok and raptor.target_locator.is_valid()
 	_check(levels_ok, "nível na faixa da Mata-baixa e vida pela fórmula do nível")
 	var sentinel := raptors[0]
-	# O sentinela vai para o chão aberto do início (o corpo dele não pode esbarrar numa árvore no caminho): o sorteio dos bandos
-	# o põe em qualquer lugar da mata.
-	main.player.position = main.map.start_point()
+	# O sentinela é o 1º do bando da U1 e o jogador chega à toca dele (dentro da âncora e fora do núcleo seguro: na Campina o
+	# caçador não percebe o jogador).
+	main.player.position = main.map.center_of(main.map.dens["U1"])
 	sentinel.position = main.player.position + Vector2(6.0 * 16.0, 0.0)
 	main.wild.process_mode = Node.PROCESS_MODE_INHERIT
 	main.zone.reclassify()

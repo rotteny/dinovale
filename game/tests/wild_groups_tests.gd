@@ -100,7 +100,7 @@ func _test_spacing_and_start_clearance() -> void:
 	_check(closest_start >= WORLD_RULES.group_start_clearance_tiles, "nenhum centro a menos de 12 tiles do início (%.1f)" % closest_start)
 	# Disposição de passada única (nenhuma vaga existente se move por causa de outra): uma vaga travada fica vazia, e o
 	# chamador avisa. Em 64 sementes isto acontece em no máximo 2 (medido: 1); mais que isso é regressão da regra.
-	_check(empties <= SEEDS / 32 and placed_total >= SEEDS * 24 - empties,
+	_check(empties <= SEEDS / 32 and placed_total >= SEEDS * 26 - empties,
 			"quase toda vaga de espécie conhecida acha lugar nas %d sementes (%d vazias)" % [SEEDS, empties])
 
 
@@ -138,7 +138,7 @@ func _test_determinism() -> void:
 	var map := IslandMap.default_map()
 	var first := _layout_for(5).layout(_fixed_centers())
 	var again := _layout_for(5).layout(_fixed_centers())
-	_check(first == again and first.size() == 24, "a mesma semente dá as mesmas posições")
+	_check(first == again and first.size() == 26, "a mesma semente dá as mesmas posições")
 	var same_members := true
 	for slot_id: String in first:
 		var slot := _slot_by_id(map, slot_id)
@@ -148,13 +148,13 @@ func _test_determinism() -> void:
 	var different := 0
 	for slot_id: String in first:
 		different += 1 if first[slot_id] != other.get(slot_id) else 0
-	_check(different >= int(first.size() * 0.9), "sementes diferentes dão posições diferentes (%d de %d bandos mudaram)"
+	_check(different >= int((first.size() - 6) * 0.9), "sementes diferentes dão posições diferentes (6 tocas fixas; %d de %d mudaram)"
 			% [different, first.size()])
 	# Acrescentar uma vaga no fim do mapa não move as existentes (a ordem é a do id).
 	var longer := IslandMap.new()
 	var data: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(IslandMap.DEFAULT_PATH))
 	data["spawn_slots"].append({"id": "g99", "species": "utahraptor", "region": "r_mata", "size": 2, "size_min": 2, "size_max": 3})
-	_check(longer.load_dict(data) and longer.spawn_slots.size() == 37, "preparo: mapa com uma vaga a mais")
+	_check(longer.load_dict(data) and longer.spawn_slots.size() == 39, "preparo: mapa com uma vaga a mais")
 	var extended := WildLayout.new(longer, WORLD_RULES, 5 * SEED_STEP, WildPopulation.SPECIES).layout(_fixed_centers())
 	var kept := true
 	for slot_id: String in first:
@@ -173,7 +173,7 @@ func _test_stuck_new_slot_does_not_move_the_others() -> void:
 	data["spawn_regions"]["r_apertada"] = {"terrains": [IslandMap.GRASSLAND], "runs": [[162, 60, 61]]}
 	data["spawn_slots"].append({"id": "g99", "species": "paquicefalo", "region": "r_apertada", "size": 2, "size_min": 1, "size_max": 4})
 	var longer := IslandMap.new()
-	_check(longer.load_dict(data) and longer.spawn_slots.size() == 37, "preparo: mapa com uma vaga apertada a mais")
+	_check(longer.load_dict(data) and longer.spawn_slots.size() == 39, "preparo: mapa com uma vaga apertada a mais")
 	var empty: Array[String] = []
 	var after := WildLayout.new(longer, WORLD_RULES, seed_value, WildPopulation.SPECIES).layout(_fixed_centers(), empty)
 	var kept := true
@@ -206,7 +206,7 @@ func _test_unknown_species_and_empty_slots() -> void:
 	var data: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(IslandMap.DEFAULT_PATH))
 	data["spawn_slots"].append({"id": "g98", "species": "paquicefalo", "region": "r_que_nao_existe", "size": 3})
 	var map_2 := IslandMap.new()
-	_check(map_2.load_dict(data) and map_2.spawn_slots.size() == 36, "vaga de região desconhecida é descartada na carga")
+	_check(map_2.load_dict(data) and map_2.spawn_slots.size() == 38, "vaga de região desconhecida é descartada na carga")
 	# Tile de terreno que a região não declara nunca entra na máscara.
 	var bad_region := data.duplicate(true)
 	bad_region["spawn_regions"]["r_campina"]["terrains"] = [4]

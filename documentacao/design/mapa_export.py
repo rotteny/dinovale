@@ -23,7 +23,8 @@ filtradas por bioma e sem os tiles bloqueados por no/cenario). A posicao do band
 Os pontos antigos (`spawns`, `spawn_ids`) SAIRAM do arquivo em 07/11: o jogo le so `spawn_slots`/`spawn_regions`.
 `id_counter.w` (contador dos ids `w<n>` dos pontos antigos) fica no arquivo so como HISTORICO, sem uso: o jogo nao
 o le e nada mais o incrementa; nao reutilize o prefixo `w`. Id `g` nunca e reaproveitado (`id_counter.g`). Vaga
-corresponde por (especie, regiao), na ordem dos ids; tamanho diferente mantem o id. Dodo e Triceratops ainda nao
+corresponde por (especie, regiao), na ordem dos ids; tamanho diferente mantem o id. Vaga de Utahraptor leva `den` (id da
+toca em `dens`): o bando nasce na toca, nao num ponto sorteado (E3, `corte-v02/e3-toca-e-vigilia.md`). Dodo e Triceratops ainda nao
 existem em `game/data/`: as vagas saem mesmo assim e o jogo ignora especie desconhecida.
 Testes: python3 -m unittest documentacao/design/mapa_export_test.py (ou rode o arquivo de teste direto).
 """
@@ -41,7 +42,7 @@ import mapa_sim as m  # noqa: E402
 
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "game", "data", "world", "lunata.json")
 FORMAT = 2  # 2: vagas de bando com size_min/size_max (o jogo recusa o formato 1)
-REVISION = 2  # 2: todas as arvores coletaveis, sem arvore de cenario (os ids dos nos mudaram)
+REVISION = 3  # 2: todas as arvores coletaveis, sem arvore de cenario (os ids dos nos mudaram); 3: E3, tocas U1/U6 movidas e 6 vagas de Utahraptor com `den`
 TILE = 16
 # Indices 0 a 5 sao os terrenos de `terreno.json`; 6 e a agua funda do anel de 2 tiles junto ao raso (unica com colisao).
 TERRAINS = ["agua_funda", "agua_rasa", "praia", "campina", "mata_baixa", "pedreira", "agua_funda_anel"]
@@ -58,7 +59,7 @@ REGIONS = {"r_campina": [3], "r_mata": [4], "r_pedreira": [5], "r_campina_mata":
 SLOT_TABLE = [
     ("dodo", "r_campina", 2, 4, [2, 3, 4, 3, 3, 2, 4, 3]),
     ("paquicefalo", "r_campina_mata", 3, 4, [3, 4] * 10),
-    ("utahraptor", "r_mata", 2, 3, [3, 3, 2, 2]),
+    ("utahraptor", "r_mata", 2, 3, [2, 2, 2, 2, 2, 2]),  # E3 (D-E2): um bando de 2 por toca, 6 tocas
     ("triceratops", "r_pedreira", 1, 2, [2, 2, 1, 1]),
 ]
 SPACING = {"tree": 3.0, "rock": 3.0, "bush": 2.0, "formation": 4.0}
@@ -306,10 +307,20 @@ def reachable_ratio(placer, start):
     return ok / total, seen
 
 
+# Especies cujo bando nasce numa toca do mapa (`dens`): a k-esima vaga da especie fica na toca U<k+1> (E3).
+DEN_SPECIES = {"utahraptor"}
+
+
 def build_slots():
-    """Vagas sem id, na ordem da tabela. O id sai de `assign_slot_ids`."""
-    return [{"species": sp, "region": reg, "size": size, "size_min": lo, "size_max": hi}
-            for sp, reg, lo, hi, sizes in SLOT_TABLE for size in sizes]
+    """Vagas sem id, na ordem da tabela. O id sai de `assign_slot_ids`. Vaga de especie com toca leva `den` (id da toca)."""
+    out = []
+    for sp, reg, lo, hi, sizes in SLOT_TABLE:
+        for k, size in enumerate(sizes):
+            slot = {"species": sp, "region": reg, "size": size, "size_min": lo, "size_max": hi}
+            if sp in DEN_SPECIES:
+                slot["den"] = "U%d" % (k + 1)
+            out.append(slot)
+    return out
 
 
 def region_masks(rows, blocked):

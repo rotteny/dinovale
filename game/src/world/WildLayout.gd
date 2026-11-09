@@ -56,9 +56,15 @@ static func placed_center(cell: Vector2i, species_key: String, spacing: float) -
 func layout(fixed: Array[Dictionary], empty: Array[String] = []) -> Dictionary:
 	var placed: Array[Dictionary] = fixed.duplicate()
 	var centers: Dictionary = {}
+	for slot in map.spawn_slots:  # as tocas são fixas: entram primeiro, e o sorteio das outras vagas as evita
+		var kind := species_of(slot)
+		var den := den_cell_of(slot)
+		if kind != null and den != NO_CELL:
+			centers[slot["id"]] = den
+			placed.append(placed_center(den, kind.spawn_key, kind.min_group_spacing_tiles))
 	for slot in map.spawn_slots:
 		var kind := species_of(slot)
-		if kind == null:
+		if kind == null or centers.has(slot["id"]):
 			continue
 		var cell := pick_center(slot, 0, 0, placed, [], 0.0)
 		if cell == NO_CELL:
@@ -67,6 +73,17 @@ func layout(fixed: Array[Dictionary], empty: Array[String] = []) -> Dictionary:
 		centers[slot["id"]] = cell
 		placed.append(placed_center(cell, kind.spawn_key, kind.min_group_spacing_tiles))
 	return centers
+
+
+## A célula da toca da vaga (E3a): o bando nasce nela, sem sorteio, em toda geração. `NO_CELL` se a vaga não tem toca, a espécie
+## não usa toca (`HomeProfile.uses_den`) ou o tile não serve de centro.
+func den_cell_of(slot: Dictionary) -> Vector2i:
+	var kind := species_of(slot)
+	var den := str(slot.get("den", ""))
+	if kind == null or kind.home == null or not kind.home.uses_den or den == "" or not map.dens.has(den):
+		return NO_CELL
+	var cell: Vector2i = map.dens[den]
+	return cell if _tile_ok(slot, kind, cell) else NO_CELL
 
 
 ## Centro da vaga na geração `gen` (tentativa `tries`) ou `NO_CELL` se nenhum tile serve. `placed` = centros dos outros
@@ -78,6 +95,12 @@ func pick_center(slot: Dictionary, gen: int, tries: int, placed: Array[Dictionar
 	var region := map.region_cells(slot["region"])
 	if kind == null or region.is_empty():
 		return NO_CELL
+	var den := den_cell_of(slot)
+	if den != NO_CELL:  # bando de toca: renasce na MESMA toca; com jogador perto, espera (o chamador conta a tentativa)
+		for player_cell: Vector2i in players:
+			if _too_close(den, player_cell, player_clearance):
+				return NO_CELL
+		return den
 	var parts: Array = ["wild", world_seed, slot["id"], gen, "pos"]
 	if tries > 0:
 		parts.append(tries)

@@ -132,14 +132,14 @@ class VagasDeBando(unittest.TestCase):
         contagem = {}
         for s in self.prev()["spawn_slots"]:
             contagem[s["species"]] = contagem.get(s["species"], 0) + 1
-        self.assertEqual(contagem, {"dodo": 8, "paquicefalo": 20, "utahraptor": 4, "triceratops": 4})
+        self.assertEqual(contagem, {"dodo": 8, "paquicefalo": 20, "utahraptor": 6, "triceratops": 4})
 
     def test_ids_de_vaga_estaveis_ao_reexportar(self):
         prev = self.prev()
         d, rep = self.regen(prev)
         self.assertEqual(d["spawn_slots"], prev["spawn_slots"])
         self.assertEqual((rep["new"], rep["retired"]), ([], []))
-        self.assertEqual(d["id_counter"]["g"], 36)
+        self.assertEqual(d["id_counter"]["g"], 38)
 
     def test_tamanho_diferente_mantem_id(self):
         prev = self.prev()
@@ -153,7 +153,7 @@ class VagasDeBando(unittest.TestCase):
         self.assertEqual(rep["retired"], [retirado])
         d3, _ = self.regen(d2)  # vaga de volta na tabela: ganha id novo, nao o antigo
         self.assertNotIn(retirado, [s["id"] for s in d3["spawn_slots"]])
-        self.assertEqual(d3["spawn_slots"][-1]["id"], "g37")
+        self.assertEqual(d3["spawn_slots"][-1]["id"], "g39")
 
     def test_hash_cobre_vagas(self):
         d = self.prev()
@@ -191,7 +191,7 @@ class MascaraDeRegiao(unittest.TestCase):
 
 
 LUNATA = ex.os.path.normpath(ex.OUT)
-SPACING_BY_SPECIES = {"dodo": 20, "paquicefalo": 24, "utahraptor": 40, "triceratops": 30}
+SPACING_BY_SPECIES = {"dodo": 20, "paquicefalo": 24, "utahraptor": 20, "triceratops": 30}
 GLOBAL_SPACING, START_CLEARANCE = 16, 12
 SPECIES_ORDER = ["utahraptor", "triceratops", "paquicefalo", "dodo"]
 
@@ -210,6 +210,9 @@ def lay_out(world, seed):
     failed = []
     order = sorted(world["spawn_slots"], key=lambda s: (SPECIES_ORDER.index(s["species"]), int(s["id"][1:])))
     for slot in order:
+        if "den" in slot:  # o bando nasce na toca (E3): centro fixo, sem sorteio
+            placed.append((tuple(world["dens"][slot["den"]]), slot["species"]))
+            continue
         need = max(GLOBAL_SPACING, SPACING_BY_SPECIES[slot["species"]])
         pool = list(masks[slot["region"]])
         rng.shuffle(pool)
@@ -253,7 +256,16 @@ class MapaGravado(unittest.TestCase):
             self.assertLessEqual(s["size_min"], s["size"])
             self.assertLessEqual(s["size"], s["size_max"])
 
-    def test_viabilidade_36_vagas_em_100_sementes(self):
+    def test_vagas_de_utahraptor_tem_toca_unica_em_terreno_de_mata(self):
+        dens = [s["den"] for s in self.world["spawn_slots"] if s["species"] == "utahraptor"]
+        self.assertEqual(dens, ["U1", "U2", "U3", "U4", "U5", "U6"])
+        for den in dens:
+            x, y = self.world["dens"][den]
+            self.assertEqual(self.world["rows"][y][x], "4", den)  # terreno 4 (mata baixa)
+        self.assertEqual(self.world["dens"]["U1"], [68, 136])  # D-E1
+        self.assertEqual(self.world["dens"]["U6"], [32, 130])
+
+    def test_viabilidade_38_vagas_em_100_sementes(self):
         falhas = {seed: f for seed in range(100) if (f := lay_out(self.world, seed))}
         self.assertEqual(falhas, {}, "sementes com vaga sem lugar: %d de 100" % len(falhas))
 

@@ -16,6 +16,12 @@ const ATTACKER_HERBIVORE := "herbivore"
 @export var attack_fixed_loss: Dictionary[String, float] = {}
 ## Queda por 1% da vida máxima perdida no ataque.
 @export var loss_per_health_percent: float = 0.5
+@export_group("Ronco")
+## Raio, em tiles, em que o dormindo em doma é ouvido por quem escuta (círculo, não a elipse da percepção). E3b.
+@export_range(0.0, 32.0) var snore_tiles: float = 8.0
+## Tiles somados ao ronco por comida (id do item). Vazio: nenhuma comida de hoje muda o ronco; a ração que o fizer entra como linha.
+@export var snore_bonus_by_food: Dictionary[String, float] = {}
+@export_group("")
 
 
 func knows_attacker(attacker_kind: String) -> bool:
@@ -32,3 +38,8 @@ func attack_loss(attacker_kind: String, health_lost_percent: float) -> float:
 	if not knows_attacker(attacker_kind):
 		return 0.0
 	return attack_fixed_loss[attacker_kind] + loss_per_health_percent * maxf(health_lost_percent, 0.0)
+
+
+## Raio do ronco de quem está sendo domado com a comida `food_id`.
+func snore_range(food_id: String) -> float:
+	return snore_tiles + snore_bonus_by_food.get(food_id, 0.0)

@@ -241,7 +241,7 @@ func _show_frame(column: int) -> void:
 
 ## "!" vermelho enquanto a máquina diz que o dino está bravo; some com fade ao acalmar.
 func _apply_alert_mark(awake: bool, delta: float) -> void:
-	var alpha := _alert_fade.step(delta, awake and dino.state_machine.is_aggressive, aggression_rules)
+	var alpha := _alert_fade.step(delta, awake and (dino.state_machine.is_aggressive or dino.is_sniffing()), aggression_rules)
 	_alert_mark.visible = alpha > 0.0
 	_alert_mark.modulate.a = alpha
 	var color := aggression_rules.hunt_mark_color if dino.is_hunting_prey() else aggression_rules.mark_color

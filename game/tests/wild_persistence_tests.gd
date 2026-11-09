@@ -6,6 +6,8 @@ extends WorldTests
 
 
 func run() -> void:
+	await _test_old_save_with_den_slot_center()
+	_release_worlds()
 	await _test_tamed_wild_survives_continue()
 	_release_worlds()
 	await _test_taming_in_progress_survives_continue()
@@ -82,15 +84,15 @@ func _test_tamed_wild_survives_continue() -> void:
 	_check(back != null and back.position == spot[0], "o domado continua onde estava")
 	_check(after.wild.creature_at(_wid(after, 0)) == null and after.wild.is_taken(_wid(after, 0)),
 			"o índice dele fica consumido: não nasce outro selvagem")
-	_check(after.wild.get_child_count() == 80 and after.wild.adopted().size() == 1,
-			"nenhum duplicado: 79 do mapa (69 paquicéfalos e 10 utahraptores) e 1 recriado")
+	_check(after.wild.get_child_count() == 82 and after.wild.adopted().size() == 1,
+			"nenhum duplicado: 81 do mapa (69 paquicéfalos e 12 utahraptores) e 1 recriado")
 	_check(after.authority.id_of(back) > 0 and after.zone.dinos().has(back), "o recriado está na autoridade e na zona")
 	# Segundo ciclo de salvar e carregar.
 	_check(after.save_game(SaveManager.Reason.BED), "salva de novo")
 	GameSession.continue_requested = true
 	var third := _main("wild_tamed", 20, true)
 	await _root.get_tree().physics_frame
-	_check(_tamed_wild(third) != null and third.wild.get_child_count() == 80
+	_check(_tamed_wild(third) != null and third.wild.get_child_count() == 82
 			and third.wild.adopted().size() == 1, "segundo ciclo: o domado segue um só")
 
 
@@ -660,3 +662,32 @@ func _test_node(main: Main, def: ResourceNodeDef, node_id: String) -> ResourceNo
 	main.resources.add_node(node)
 	main.authority.register(node)
 	return node
+
+
+## E3a: save antigo com o bando de toca num centro sorteado: ao carregar, o bando vai para a toca, com o delta e a toca ligada.
+func _test_old_save_with_den_slot_center() -> void:
+	var den := [Vector2i.ZERO]
+	var dead_id := [""]
+	var after := await _save_edit_continue("wild_old_den", func(main: Main) -> void:
+		var info := main.wild.slot_info("g29")
+		den[0] = info["center"]
+		dead_id[0] = info["members"][0]
+		main.wild.creature_at(dead_id[0]).health.take_damage(1.0e9),
+		func(data: Dictionary) -> void:
+			var found := false
+			for entry: Dictionary in data["world"]["wild_groups"]:
+				if entry["slot"] == "g29":
+					entry["center"] = [den[0].x + 9, den[0].y - 7]  # centro sorteado, como antes das tocas
+					found = true
+			_check(found, "migração: o save de teste traz o bando g29 com centro antigo"))
+	var info := after.wild.slot_info("g29")
+	_check(info["center"] == den[0], "migração: o centro do bando de toca volta a ser o da toca")
+	var alive := 0
+	var homed := true
+	for member_id: String in info["members"]:
+		var creature := after.wild.creature_at(member_id)
+		if creature != null:
+			alive += 1
+			homed = homed and creature.state_machine.home != null
+	_check(after.wild.creature_at(dead_id[0]) == null and alive == info["members"].size() - 1 and homed,
+			"migração: quem morreu segue morto (delta por id) e os vivos têm a toca ligada")

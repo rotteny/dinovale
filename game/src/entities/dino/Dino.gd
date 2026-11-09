@@ -134,7 +134,12 @@ func observe_owner() -> void:
 
 ## Está caçando outra criatura agora (a apresentação pinta o "!" de laranja).
 func is_hunting_prey() -> bool:
-	return hunt_target != null and is_instance_valid(hunt_target) and state_machine.is_aggressive
+	return hunt_target != null and is_instance_valid(hunt_target) and (state_machine.is_aggressive or state_machine.holding)
+
+
+## Está farejando o dormindo em doma (parado pela predação, antes de perseguir): a apresentação mostra o "!" laranja.
+func is_sniffing() -> bool:
+	return hunt_target != null and is_instance_valid(hunt_target) and state_machine.holding
 
 
 ## Identidade de combate de um corpo: `player_id` do jogador, `combat_id` da criatura, "" para o resto.
@@ -319,8 +324,9 @@ func be_bitten(damage: float, attacker: Dino) -> bool:
 	if health.is_dead() or attacker == null or not take_damage(damage, attacker.stats.attacker_kind):
 		return false
 	bite_count += 1
-	if health.is_dead() or state_machine.is_tamed or stats.predation != null:
-		return true
+	if health.is_dead() or state_machine.is_tamed or stats.predation != null \
+			or state_machine.current_id == Enums.DinoStateId.UNCONSCIOUS:
+		return true  # dormindo em doma leva a mordida sem acordar o bando nem virar bravo (D-E8)
 	_aggressor_id = attacker.combat_id
 	_aggressor_body = attacker
 	state_machine.provoke()
@@ -369,7 +375,8 @@ func _apply_level() -> void:
 
 ## Doma cancelada ou reiniciada: a reserva do primeiro alimentador acaba (a próxima refeição ideal reserva de novo).
 func _on_taming_reset() -> void:
-	feeder_player_id = ""
+	if not health.is_dead():  # morto, o alimentador fica: quem avisa "a doma falhou" ainda precisa dele (E3b)
+		feeder_player_id = ""
 
 
 func _on_level_finalized(final_level: int) -> void:

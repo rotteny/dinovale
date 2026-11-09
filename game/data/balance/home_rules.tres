@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="HomeRules" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/core/HomeRules.gd" id="1_rules"]
+
+[resource]
+script = ExtResource("1_rules")
+anchor_tiles = 24.0
+patrol_tiles = 10.0
+return_speed_px_s = 60.0
+den_level_bands = Dictionary[String, Vector2i]({
+"U1": Vector2i(5, 10),
+"U2": Vector2i(12, 18),
+"U3": Vector2i(18, 25),
+"U4": Vector2i(8, 14),
+"U5": Vector2i(14, 22),
+"U6": Vector2i(10, 16)
+})

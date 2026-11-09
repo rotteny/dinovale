@@ -80,7 +80,7 @@ func _test_island_map_data() -> void:
 	_check(map.nearest_walkable_point(map.start_point(), 3, Vector2.ZERO) == map.start_point(), "em chão caminhável fica onde está")
 
 
-## Dados do mapa que o jogo usa: 36 vagas de bando (ids únicos, região conhecida) e a reserva do respawn livre e em terra.
+## Dados do mapa que o jogo usa: 38 vagas de bando (ids únicos, região conhecida) e a reserva do respawn livre e em terra.
 func _test_map_spawns_and_reserve() -> void:
 	var map := IslandMap.default_map()
 	var by_species := {}
@@ -88,9 +88,9 @@ func _test_map_spawns_and_reserve() -> void:
 	for slot in map.spawn_slots:
 		by_species[slot["species"]] = int(by_species.get(slot["species"], 0)) + 1
 		ids[slot["id"]] = true
-	_check(map.spawn_slots.size() == 36 and ids.size() == 36 and by_species == {"dodo": 8, "paquicefalo": 20, "utahraptor": 4,
+	_check(map.spawn_slots.size() == 38 and ids.size() == 38 and by_species == {"dodo": 8, "paquicefalo": 20, "utahraptor": 6,
 			"triceratops": 4},
-			"o mapa traz 36 vagas de bando, de id único (%s)" % str(by_species))
+			"o mapa traz 38 vagas de bando, de id único (%s)" % str(by_species))
 	_check(map.spawn_regions.size() == 4 and not map.region_cells("r_campina_mata").is_empty(), "as quatro regiões de nascimento carregaram")
 	var reserve := map.cell_of(RESPAWN_RULES.default_fallback_point)
 	_check(map.terrain_at(reserve) == IslandMap.GRASSLAND and map.cell_of(RESPAWN_RULES.regions[0].fallback_point) == reserve,
@@ -550,8 +550,8 @@ func _test_zone_in_main() -> void:
 	var raptors := 0
 	for creature in main.wild.get_children():
 		raptors += 1 if (creature as Dino).stats.spawn_key == "utahraptor" else 0
-	_check(raptors == 10 and zone.dino_count() == main.wild.get_child_count() + 1 and main.wild.get_child_count() == 80,
-			"a ilha nasce com 24 bandos conhecidos (70 paquicéfalos e 10 utahraptores) mais o do tutorial (%d)" % zone.dino_count())
+	_check(raptors == 12 and zone.dino_count() == main.wild.get_child_count() + 1 and main.wild.get_child_count() == 82,
+			"a ilha nasce com 26 bandos conhecidos (70 paquicéfalos e 12 utahraptores) mais o do tutorial (%d)" % zone.dino_count())
 	_check(zone.active_count + zone.far_count + zone.dormant_count == zone.dino_count() and zone.active_count <= 32,
 			"todo dino tem modo e o teto vale")
 	_check(zone.far_count > 0 and zone.dormant_count > 0, "do início há dino distante e dormindo")

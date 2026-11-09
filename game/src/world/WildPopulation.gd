@@ -74,10 +74,15 @@ var target_locator: Callable = Callable()
 var predation_rules: PredationRules = preload("res://data/balance/predation_rules.tres")
 ## Regras de doma deste mundo (cópia com as chaves do `ServerRules`); null = as do `preload` de cada dino.
 var taming_rules: TamingRules = null
+## Regras de nascimento do jogador deste mundo: com a margem da predação formam o núcleo seguro (`SafeCore`) dos caçadores.
+var respawn_rules: RespawnRules = preload("res://data/balance/respawn_rules.tres")
+## Regras da toca deste mundo (cópia com as chaves do `ServerRules`); null = as do perfil `home` de cada espécie.
+var home_rules: HomeRules = null
 
 var _map: IslandMap = null
 var _rules: WorldRules = null
 var _layout: WildLayout = null
+var _safe_core: SafeCore = null
 var _layout0: Dictionary = {}  # id da vaga -> centro da geração 0 (com a semente atual)
 var _slots: Dictionary = {}  # id da vaga -> Slot
 var _order: Array[String] = []  # ids das vagas, em ordem crescente
@@ -97,6 +102,7 @@ func populate(map: IslandMap, rules: WorldRules, seed_value: int) -> Array[Dino]
 	_rules = rules
 	world_seed = seed_value
 	_layout = WildLayout.new(map, rules, seed_value, SPECIES)
+	_safe_core = SafeCore.new(respawn_rules, predation_rules.spawn_safe_margin_tiles, float(map.tile))
 	var empty: Array[String] = []
 	_layout0 = _layout.layout(fixed_centers, empty)
 	for id in empty:
@@ -127,21 +133,44 @@ func _spawn_group(slot: Slot) -> Array[Dino]:
 	ks.sort()
 	for k: int in ks:
 		var member_id := member_id_of(slot.def["id"], slot.gen, k)
-		var creature := _build_member(slot.kind, _layout, member_id, cells[k])
+		var creature := _build_member(slot.kind, _layout, member_id, cells[k], slot.def)
 		_register_member(slot, member_id, creature)
 		created.append(creature)
 	return created
 
 
-func _build_member(kind: DinoBaseStats, layout: WildLayout, member_id: String, cell: Vector2i) -> Dino:
-	var band := _rules.level_band_of(_map.terrain_at(cell))
+## Faixa de nível do membro: a da toca da vaga (`HomeRules.den_level_bands`) se há; senão a do terreno do tile.
+func _band_of(kind: DinoBaseStats, def: Dictionary, cell: Vector2i) -> Vector2i:
+	var terrain_band := _rules.level_band_of(_map.terrain_at(cell))
+	var den := str(def.get("den", ""))
+	if den == "" or kind.home == null or _layout.den_cell_of(def) == WildLayout.NO_CELL:
+		return terrain_band
+	return _home_rules_of(kind).band_of(den, terrain_band)
+
+
+func _home_rules_of(kind: DinoBaseStats) -> HomeRules:
+	return home_rules if home_rules != null else kind.home.rules
+
+
+func _build_member(kind: DinoBaseStats, layout: WildLayout, member_id: String, cell: Vector2i, def: Dictionary = {}) -> Dino:
+	var band := _band_of(kind, def, cell)
 	var creature := _make_creature(kind)
 	creature.level = roll_level(band, layout.world_seed, member_id)
 	creature.sex = kind.roll_sex(layout.world_seed, member_id)
 	creature.position = _map.center_of(cell)
 	add_child(creature)
 	_apply_rules(creature)
+	_bind_den(creature, kind, def)
 	return creature
+
+
+## Liga o membro à toca da vaga e ao núcleo seguro: a ronda, a volta e a âncora saem daí (E3a).
+func _bind_den(creature: Dino, kind: DinoBaseStats, def: Dictionary) -> void:
+	if kind.predation != null:
+		creature.state_machine.safe_core = _safe_core
+	var den := _layout.den_cell_of(def)
+	if kind.home != null and den != WildLayout.NO_CELL:
+		creature.state_machine.bind_home(_map.center_of(den), _home_rules_of(kind))
 
 
 func _register_member(slot: Slot, member_id: String, creature: Dino) -> void:
@@ -247,7 +276,7 @@ func _regen(slot: Slot, now: float) -> void:
 	if _near_player(cell, _rules.group_respawn_player_clearance_tiles):
 		return  # espera o jogador sair: a reposição só acontece fora da vista
 	_dead.erase(member_id)
-	var creature := _build_member(slot.kind, _layout, member_id, cell)
+	var creature := _build_member(slot.kind, _layout, member_id, cell, slot.def)
 	_register_member(slot, member_id, creature)
 	slot.regen_due_at = now + predation_rules.member_regen_seconds if vacant.size() > 1 else -1.0
 	group_spawned.emit([creature] as Array[Dino])
@@ -484,7 +513,7 @@ func restore(list: Variant, saved_entities: Array, groups: Variant = [], saved_s
 	for slot_id: String in targets:
 		var slot: Slot = _slots[slot_id]
 		var target: Dictionary = targets[slot_id]
-		if target["gen"] == slot.gen and target["center"] == slot.center and target["waiting"] == slot.waiting:
+		if same_seed and target["gen"] == slot.gen and target["center"] == slot.center and target["waiting"] == slot.waiting:
 			continue
 		changed[slot_id] = target
 		if target["waiting"] or target["center"] == WildLayout.NO_CELL:
@@ -494,7 +523,7 @@ func restore(list: Variant, saved_entities: Array, groups: Variant = [], saved_s
 		ks.sort()
 		for k: int in ks:
 			var member_id := member_id_of(slot_id, target["gen"], k)
-			var creature := _build_member(slot.kind, layout, member_id, cells[k])
+			var creature := _build_member(slot.kind, layout, member_id, cells[k], slot.def)
 			fresh[member_id] = creature
 			made.append(creature)
 	var applied: Array = []  # [creature, estado antes]
@@ -593,7 +622,12 @@ func _plan_slots(groups: Variant, layout: WildLayout, centers0: Dictionary, now:
 		var center := WildLayout.NO_CELL
 		if pair.size() == 2:
 			center = Vector2i(SafeRead.integer(pair[0], -1, -1, 1 << 20), SafeRead.integer(pair[1], -1, -1, 1 << 20))
-		if pair.is_empty() and gen == 0 and centers0.has(slot_id):
+		var den_center := layout.den_cell_of(slot.def)
+		if den_center != WildLayout.NO_CELL:
+			if gen < 0:
+				continue
+			center = den_center  # bando de toca vive na toca: o centro sorteado de um save de antes das tocas é trocado por ela
+		elif pair.is_empty() and gen == 0 and centers0.has(slot_id):
 			center = centers0[slot_id]  # sem centro gravado (vaga só com membro no delta): vale o da semente
 		elif gen < 0 or not layout.center_is_valid(slot.def, center):
 			continue

@@ -57,6 +57,9 @@ var scheduler: SaveScheduler
 ## passam a ser as cópias com as chaves aplicadas; as Resources do `preload` nunca são alteradas.
 var server_rules: ServerRules
 var taming_rules: TamingRules
+## Regras da toca e da predação deste mundo (cópias com as chaves do `ServerRules`).
+var home_rules: HomeRules
+var predation_rules: PredationRules
 
 ## Grade de navegação (M1): a zona a entrega a cada dino; o estado dos nós de recurso chega a ela por sinal.
 var navigation: NavigationWorld
@@ -153,7 +156,9 @@ func _ready() -> void:
 ## Lê `server_rules.json` do mundo (ou o caminho de `--server-rules=`) e aplica as chaves sobre cópias das regras.
 ## Só o host chama isto (ADR-004). Arquivo ruim nunca impede o mundo de abrir: avisa e usa os padrões.
 func _load_server_rules() -> void:
-	var defaults := ServerRulesDefaults.new(respawn_rules, world_rules, dino.taming.rules)
+	var BaseHome: HomeRules = preload("res://data/balance/home_rules.tres")
+	var BasePredation: PredationRules = preload("res://data/balance/predation_rules.tres")
+	var defaults := ServerRulesDefaults.new(respawn_rules, world_rules, dino.taming.rules, BaseHome, BasePredation)
 	var world_dir := GameSession.save_root.path_join(
 			world_id if SaveManager.is_valid_world_id(world_id) else GameSession.DEFAULT_WORLD)
 	var path := ServerRules.path_for(world_dir, OS.get_cmdline_user_args())
@@ -164,6 +169,8 @@ func _load_server_rules() -> void:
 	world_rules = server_rules.apply_world(world_rules)
 	taming_rules = server_rules.apply_taming(dino.taming.rules)
 	dino.taming.rules = taming_rules
+	home_rules = server_rules.apply_home(BaseHome)
+	predation_rules = server_rules.apply_predation(BasePredation)
 	authority.pvp_enabled = server_rules.pvp
 
 
@@ -236,6 +243,9 @@ func _build_zone() -> void:
 	wild.name = "Wild"
 	wild.y_sort_enabled = true
 	wild.taming_rules = taming_rules
+	wild.home_rules = home_rules
+	wild.respawn_rules = respawn_rules
+	wild.predation_rules = predation_rules
 	wild.target_locator = _chase_targets
 	wild.clock = authority.clock.now
 	add_child(wild)
@@ -258,6 +268,8 @@ func _build_zone() -> void:
 	wild.creature_died.connect(_on_wild_died)
 	predation = PredationSystem.new()
 	predation.name = "Predation"
+	predation.rules = predation_rules
+	predation.respawn_rules = respawn_rules
 	predation.zone = zone
 	predation.carcasses = carcasses
 	predation.ground = ground

@@ -14,3 +14,5 @@ attack_fixed_loss = Dictionary[String, float]({
 "player": 4.0
 })
 loss_per_health_percent = 0.5
+snore_tiles = 8.0
+snore_bonus_by_food = Dictionary[String, float]({})

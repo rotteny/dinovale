@@ -24,3 +24,10 @@ extends Resource
 @export_range(0.0, 600.0) var tamed_attacked_rearm_s: float = 30.0
 ## Quanto a presa em fuga segue fugindo sem a ordem do caçador ser renovada.
 @export_range(0.1, 5.0) var flee_hold_seconds: float = 0.6
+@export_group("Dormindo em doma")
+## O selvagem dormindo em doma é presa de quem o escuta (E3b, reverte o D15 do M1). Falso desliga a vigília com ameaça.
+@export var sleeper_is_prey: bool = true
+## O dormindo em doma é presa mesmo com o bando dele no piso (senão um bando de 2 deixaria a doma imune).
+@export var sleeper_ignores_herd_floor: bool = true
+## Segundos de farejada ("!") entre travar o dormindo e a perseguição: a janela do jogador para reagir.
+@export_range(0.0, 10.0) var sleeper_alert_s: float = 1.5

@@ -26,6 +26,11 @@ extends Resource
 @export_range(0.0, 30.0) var no_sight_seconds: float = 5.0
 ## O jogador causou dano ao caçador: larga a presa e vira o jogador (o "ignorar" não vira escudo).
 @export var switch_to_player_on_damage: bool = true
+@export_group("Dormindo em doma")
+## Escuta o ronco do selvagem dormindo em doma (E3b) e o trata como presa. Falso: o dormindo nunca é alvo deste caçador.
+@export var hears_sleepers: bool = false
+## Teto do alcance do ronco para esta espécie, em tiles (0 = sem teto).
+@export_range(0.0, 32.0) var sleeper_range_cap_tiles: float = 0.0
 @export_group("Refeição")
 @export_range(0.0, 30.0) var eat_seconds_per_meat: float = 2.0
 @export_range(0.0, 120.0) var eat_seconds_max: float = 20.0

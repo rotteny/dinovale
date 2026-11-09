@@ -13,5 +13,5 @@ func enter() -> void:
 
 func tick(delta: float) -> void:
 	_time_left -= delta
-	if _time_left <= 0.0:
+	if _time_left <= 0.0 or machine.wants_return():
 		machine.transition_to(Enums.DinoStateId.WANDER)

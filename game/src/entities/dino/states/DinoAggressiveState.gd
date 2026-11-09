@@ -85,6 +85,8 @@ func tick(delta: float) -> void:
 
 func _should_calm() -> bool:
 	var stats := machine.stats
+	if machine.target_barred() or (machine.home != null and not machine.home.in_anchor(machine.self_position)):
+		return true  # alvo no núcleo seguro ou fora da âncora, ou o próprio bicho fora dela: larga (E3a)
 	if machine.hunt_engaged:
 		# Caçando outra criatura: quem encerra é a predação (tempo, recuo, vista); aqui só o alvo sumir ou fugir longe demais.
 		return not machine.target_known or machine.target_distance() > stats.chase_give_up_tiles * machine.tile_px

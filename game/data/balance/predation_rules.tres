@@ -13,3 +13,6 @@ tie_ratio = 0.05
 pack_radius_tiles = 8.0
 tamed_attacked_rearm_s = 30.0
 flee_hold_seconds = 0.6
+sleeper_is_prey = true
+sleeper_ignores_herd_floor = true
+sleeper_alert_s = 1.5

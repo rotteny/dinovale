@@ -43,7 +43,7 @@ func _test_map_ids() -> void:
 	var slot_ids := {}
 	for slot in map.spawn_slots:
 		slot_ids[slot["id"]] = true
-	_check(slot_ids.size() == map.spawn_slots.size() and slot_ids.size() == 36, "toda vaga de bando tem id próprio (%d)" % slot_ids.size())
+	_check(slot_ids.size() == map.spawn_slots.size() and slot_ids.size() == 38, "toda vaga de bando tem id próprio (%d)" % slot_ids.size())
 	for kind: String in map.nodes:
 		_check((map.node_ids[kind] as Array).size() == (map.nodes[kind] as Array).size(), "ids de nó de %s alinhados com os pontos" % kind)
 	_check(map.content_hash.length() == 16 and map.content_hash.is_valid_hex_number(false), "o mapa traz o hash do conteúdo (16 hex)")
@@ -327,6 +327,9 @@ func _test_wild_from_spawn_seed() -> void:
 			continue
 		checked += 1
 		var band := main.world_rules.level_band_of(map.terrain_at(map.cell_of(creature.position)))
+		for slot in map.spawn_slots:  # o bando de toca tem faixa própria por toca (E3a)
+			if slot["id"] == id.get_slice(".", 0) and slot["den"] != "" and creature.stats.home != null:
+				band = creature.stats.home.rules.band_of(slot["den"], band)
 		ok = ok and creature.level == WildPopulation.roll_level(band, main.world_seed, id) \
 				and creature.sex == creature.stats.roll_sex(main.world_seed, id) and main.wild.spawn_id_of(creature) == id
 		males += 1 if creature.sex == "m" else 0

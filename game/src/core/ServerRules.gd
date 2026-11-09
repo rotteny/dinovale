@@ -21,6 +21,10 @@ const KEY_HUNGER := "respawn_fome_pct"
 const KEY_PLAYER_LOSS := "eficiencia_fixa_ataque_jogador"
 const KEY_CARNIVORE_LOSS := "eficiencia_fixa_ataque_carnivoro"
 const KEY_PVP := "pvp"
+const KEY_DEN_ANCHOR := "toca_ancora_tiles"
+const KEY_DEN_PATROL := "toca_ronda_tiles"
+const KEY_SNORE := "ronco_tiles"
+const KEY_SLEEPER_ALERT := "aviso_dormindo_s"
 
 ## Tipo e faixa válida de cada chave de número (contrato, não balanceamento): [mínimo, máximo].
 const NUMBER_RANGES: Dictionary = {
@@ -29,6 +33,10 @@ const NUMBER_RANGES: Dictionary = {
 	KEY_PROTECTION: [0.0, 30.0],
 	KEY_PLAYER_LOSS: [0.0, 100.0],
 	KEY_CARNIVORE_LOSS: [0.0, 100.0],
+	KEY_DEN_ANCHOR: [2.0, 128.0],
+	KEY_DEN_PATROL: [1.0, 64.0],
+	KEY_SNORE: [1.0, 32.0],
+	KEY_SLEEPER_ALERT: [0.0, 10.0],
 }
 const INTEGER_RANGES: Dictionary = {
 	KEY_HUNGER: [10, 100],
@@ -53,6 +61,11 @@ var player_attack_fixed_loss: float = 0.0
 var carnivore_attack_fixed_loss: float = 0.0
 ## PvP: golpe em área de criatura domada acerta domados de OUTRO jogador (o do mesmo dono, nunca). Padrão: desligado.
 var pvp: bool = false
+## Toca e vigília (E3): raio da âncora e da ronda em tiles, alcance do ronco do dormindo em doma e segundos do "!" de farejada.
+var den_anchor_tiles: float = 24.0
+var den_patrol_tiles: float = 10.0
+var sleeper_snore_tiles: float = 8.0
+var sleeper_alert_seconds: float = 1.5
 ## Avisos da leitura (chave inválida, desconhecida, arquivo ruim). O host os imprime uma vez com `push_warning`.
 var problems: PackedStringArray = PackedStringArray()
 
@@ -124,6 +137,22 @@ func apply_taming(base: TamingRules) -> TamingRules:
 	losses[TamingRules.ATTACKER_PLAYER] = player_attack_fixed_loss
 	losses[TamingRules.ATTACKER_CARNIVORE] = carnivore_attack_fixed_loss
 	copy.attack_fixed_loss = losses
+	copy.snore_tiles = sleeper_snore_tiles
+	return copy
+
+
+## Cópia das regras da toca com a âncora e a ronda deste mundo.
+func apply_home(base: HomeRules) -> HomeRules:
+	var copy: HomeRules = base.duplicate()
+	copy.anchor_tiles = den_anchor_tiles
+	copy.patrol_tiles = minf(den_patrol_tiles, den_anchor_tiles)  # a ronda nunca passa da âncora
+	return copy
+
+
+## Cópia das regras da predação com o aviso de farejada deste mundo.
+func apply_predation(base: PredationRules) -> PredationRules:
+	var copy: PredationRules = base.duplicate()
+	copy.sleeper_alert_s = sleeper_alert_seconds
 	return copy
 
 
@@ -155,6 +184,10 @@ func as_file_data() -> Dictionary:
 		KEY_PLAYER_LOSS: player_attack_fixed_loss,
 		KEY_CARNIVORE_LOSS: carnivore_attack_fixed_loss,
 		KEY_PVP: pvp,
+		KEY_DEN_ANCHOR: den_anchor_tiles,
+		KEY_DEN_PATROL: den_patrol_tiles,
+		KEY_SNORE: sleeper_snore_tiles,
+		KEY_SLEEPER_ALERT: sleeper_alert_seconds,
 	}
 
 
@@ -164,6 +197,10 @@ static func _from_defaults(defaults: ServerRulesDefaults) -> ServerRules:
 	rules.respawn_hunger_pct = roundi(defaults.respawn.hunger_ratio * 100.0)
 	rules.player_attack_fixed_loss = defaults.taming.attack_fixed_loss.get(TamingRules.ATTACKER_PLAYER, 0.0)
 	rules.carnivore_attack_fixed_loss = defaults.taming.attack_fixed_loss.get(TamingRules.ATTACKER_CARNIVORE, 0.0)
+	rules.den_anchor_tiles = defaults.home.anchor_tiles
+	rules.den_patrol_tiles = defaults.home.patrol_tiles
+	rules.sleeper_snore_tiles = defaults.taming.snore_tiles
+	rules.sleeper_alert_seconds = defaults.predation.sleeper_alert_s
 	for biome: String in BIOMES:
 		rules.level_bands[BIOMES[biome]] = defaults.world.level_band_of(BIOMES[biome])
 	return rules
@@ -190,6 +227,12 @@ func _read(data: Dictionary) -> void:
 	carnivore_attack_fixed_loss = _number(data, KEY_CARNIVORE_LOSS, carnivore_attack_fixed_loss)
 	respawn_hunger_pct = _integer(data, KEY_HUNGER, respawn_hunger_pct)
 	pvp = _boolean(data, KEY_PVP, pvp)
+	den_anchor_tiles = _number(data, KEY_DEN_ANCHOR, den_anchor_tiles)
+	den_patrol_tiles = _number(data, KEY_DEN_PATROL, den_patrol_tiles)
+	sleeper_snore_tiles = _number(data, KEY_SNORE, sleeper_snore_tiles)
+	sleeper_alert_seconds = _number(data, KEY_SLEEPER_ALERT, sleeper_alert_seconds)
+	if den_patrol_tiles > den_anchor_tiles:
+		_warn("%s: a ronda (%s) não pode passar da âncora (%s); a ronda usa a âncora" % [KEY_DEN_PATROL, den_patrol_tiles, den_anchor_tiles])
 	_read_bands(data)
 
 

@@ -3,8 +3,9 @@ class_name PlayerHud
 extends Control
 ## HUD do jogador (GDD 5.7): vida, fome, stamina, XP com "Nv N" e a barra de atalhos 1 a 9, mais o
 ## prompt de interação. A barra de Stamina (decisão do dono, 08/11) mostra quanto ainda dá para correr; o som e a nuvem
-## de fôlego seguem no `PlayerView`. Sem sede e sem durabilidade. O XP ainda não existe no jogo: `set_experience` é só o ponto de
-## ligação e a HUD nasce mostrando Nv 1 e XP 0. Só apresentação: lê sinais do `player`; nenhuma regra aqui.
+## de fôlego seguem no `PlayerView`. Sem sede e sem durabilidade. O XP vem do `ProgressionComponent` do jogador (E6,
+## UIX-12): barra e "Nv N" ouvem `xp_changed`; o selo de Saber só aparece com Saber livre e pulsa devagar; subir de nível
+## mostra um aviso de 3 s. Só apresentação: lê sinais do `player`; nenhuma regra aqui.
 ## Pode ser removida sem efeito no jogo (roda igual sem ela, inclusive headless).
 
 ## Medidas para o viewport de 320x180 (a HUD compacta deixa quase toda a área de visão livre): as barras
@@ -59,6 +60,8 @@ var _watched: InteractableArea = null
 var _bars_block := VBoxContainer.new()
 var _bottom := VBoxContainer.new()
 var _xp_row := HBoxContainer.new()
+var _saber_badge := Label.new()
+var _saber_tween: Tween
 
 
 func _ready() -> void:
@@ -93,6 +96,9 @@ func _ready() -> void:
 	_xp_bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_xp_bar.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	xp_row.add_child(_xp_label)
+	_outline(_saber_badge)
+	_saber_badge.visible = false  # só quando há Saber a gastar (sem janela, sem interrupção)
+	xp_row.add_child(_saber_badge)
 	xp_row.add_child(_xp_bar)
 	_bottom.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_bottom.add_theme_constant_override("separation", 0)
@@ -145,6 +151,11 @@ func _ready() -> void:
 	_downed_bar.set_values(player.downed.left, player.downed_rules.downed_seconds)
 	_refresh_downed(player.downed.is_downed)
 	_on_target_changed(player.target)
+	player.progression.xp_changed.connect(_on_xp_changed)
+	player.progression.saber_changed.connect(set_saber_free)
+	player.progression.leveled_up.connect(_on_leveled_up)
+	_on_xp_changed(player.progression.level, player.progression.xp, player.progression.xp_needed())
+	set_saber_free(player.progression.saber_free())
 
 
 ## Rótulo centrado em baixo, a `bottom` px do pé da tela; o tamanho segue o texto. Não usa
@@ -203,11 +214,37 @@ func hotbar_bar() -> HotbarBar:
 	return _hotbar
 
 
-## Ponto de ligação do XP: quem tiver nível e experiência chama isto. Hoje ninguém chama
-## (a HUD começa em Nv 1 e XP 0); nenhuma regra de XP, ponto ou Saber existe ainda.
+## Desenha o nível e a barra. `needed` 0 = no teto: barra cheia.
 func set_experience(level: int, current: float, needed: float) -> void:
 	_xp_label.text = "Nv %d" % level
-	_xp_bar.set_values(current, needed)
+	_xp_bar.set_values(current if needed > 0.0 else 1.0, needed if needed > 0.0 else 1.0)
+
+
+func _on_xp_changed(level: int, current: int, needed: int) -> void:
+	set_experience(level, float(current), float(needed))
+
+
+## Selo de Saber ao lado do nível: visível só com Saber livre; pulsa devagar (sem som, sem janela).
+func set_saber_free(free: int) -> void:
+	_saber_badge.visible = free > 0
+	_saber_badge.text = "Saber %d" % free
+	if _saber_tween != null:
+		_saber_tween.kill()
+		_saber_tween = null
+	_saber_badge.modulate = Color.WHITE
+	if free > 0 and is_inside_tree():
+		_saber_tween = create_tween().set_loops()
+		_saber_tween.tween_property(_saber_badge, "modulate:a", 0.55, 0.9)
+		_saber_tween.tween_property(_saber_badge, "modulate:a", 1.0, 0.9)
+
+
+func saber_badge() -> Label:
+	return _saber_badge
+
+
+## Aviso de 3 s ao subir de nível (o log do jogo recebe o mesmo fato pelo código `player_level_up`).
+func _on_leveled_up(level: int, saber_gained: int) -> void:
+	show_notice(GameMessages.text_of("player_level_up", {"level": level, "saber": saber_gained}), player.progression.rules.notice_seconds)
 
 
 func hunger_bar() -> StatBar:

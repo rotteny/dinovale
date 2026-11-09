@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="ProgressionRules" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/core/ProgressionRules.gd" id="1_rules"]
+
+[resource]
+script = ExtResource("1_rules")
+level_max = 20
+xp_first = 30
+xp_step = 15
+xp_per_gather = 1
+xp_per_craft = 2
+xp_tame_base = 15
+xp_tame_per_level = 3
+saber_per_level = 1
+saber_bonus = 1
+saber_bonus_levels = Array[int]([5, 10, 15, 20])
+notice_seconds = 3.0

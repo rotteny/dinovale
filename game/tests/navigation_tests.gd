@@ -519,12 +519,19 @@ func _test_body_passes_one_tile_gap() -> void:
 		wall.position = rect.get_center()
 		wall.add_child(shape)
 		viewport.add_child(wall)
+	# O Paquicéfalo agora é Pequeno (GDD 4.2): o Médio do teste fixa o porte no dado duplicado.
 	var medium := _spawn_dino()
+	medium.stats = medium.stats.duplicate()
+	medium.stats.size = Enums.DinoSize.MEDIUM
+	medium._apply_hitbox()
 	var large := _spawn_dino()
 	large.stats = large.stats.duplicate()
 	large.stats.size = Enums.DinoSize.LARGE
 	large._apply_hitbox()
 	var sideways := _spawn_dino()
+	sideways.stats = sideways.stats.duplicate()
+	sideways.stats.size = Enums.DinoSize.MEDIUM
+	sideways._apply_hitbox()
 	for body: Dino in [medium, large, sideways]:
 		_root.remove_child(body)
 		viewport.add_child(body)

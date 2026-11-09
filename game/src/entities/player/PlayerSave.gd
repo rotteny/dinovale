@@ -16,6 +16,7 @@ static func capture(player: Player) -> Dictionary:
 		"inventory": player.inventory.to_dict(),
 		"hotbar": player.hotbar.to_dict(),
 		"equipment": player.equipment.to_dict(),
+		"progression": player.progression.to_dict(),
 	}
 	if player.health.protection_left > 0.0:  # só o jogador faz a proteção correr: só ele a salva
 		data["protection"] = player.health.protection_left
@@ -60,6 +61,8 @@ static func apply_saved_state(player: Player, data: Dictionary) -> bool:
 	if player.health.is_dead(): player.downed.clear()
 	player.stamina.from_dict(SafeRead.dict(data.get("stamina")))
 	player.hunger.from_dict(SafeRead.dict(data.get("hunger")))
+	# Save anterior à E6 não tem o bloco: nível 1, XP 0, sem Saber gasto. Bloco que não é dicionário também cai no padrão.
+	player.progression.from_dict(SafeRead.dict(data.get("progression")))
 	if replaces_inventory:
 		player.inventory.from_dict(saved_inventory)
 	if has_equipment:

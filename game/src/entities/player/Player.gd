@@ -119,6 +119,8 @@ var _knock_speed: float = 0.0
 @onready var hotbar: HotbarComponent = $HotbarComponent
 @onready var equipment: EquipmentComponent = $EquipmentComponent
 @onready var downed: DownedComponent = $DownedComponent
+## Nível, XP e Saber (E6). Quem concede o XP é a autoridade; o jogador só guarda.
+@onready var progression: ProgressionComponent = $ProgressionComponent
 @onready var detector: Area2D = $InteractionDetector
 
 

@@ -20,6 +20,7 @@ const SCRIPTS: Array[String] = [
 	"res://src/components/HotbarComponent.gd",
 	"res://src/components/HungerComponent.gd",
 	"res://src/components/InventoryComponent.gd",
+	"res://src/components/ProgressionComponent.gd",
 	"res://src/components/ResourceNodeComponent.gd",
 	"res://src/components/StaminaComponent.gd",
 	"res://src/components/TamingComponent.gd",
@@ -49,6 +50,7 @@ func build(script_path: String) -> Array:
 		"res://src/components/HotbarComponent.gd": _hotbar_case,
 		"res://src/components/HungerComponent.gd": _hunger_case,
 		"res://src/components/InventoryComponent.gd": _inventory_case,
+		"res://src/components/ProgressionComponent.gd": _progression_case,
 		"res://src/components/ResourceNodeComponent.gd": _resource_node_case,
 		"res://src/components/StaminaComponent.gd": _stamina_case,
 		"res://src/components/TamingComponent.gd": _taming_case,
@@ -105,6 +107,13 @@ func _inventory_case() -> Array:
 	original.add_entry({"id": "meat", "count": 2, "expira_em": 90.5})
 	original.add("sleep_staff", 2)
 	return [original, _track.call(InventoryComponent.new())]
+
+
+func _progression_case() -> Array:
+	var original: ProgressionComponent = _track.call(ProgressionComponent.new())
+	original.grant_xp(100)
+	original.spend_saber(1)
+	return [original, _track.call(ProgressionComponent.new())]
 
 
 func _stamina_case() -> Array:
@@ -168,6 +177,7 @@ func _player_case() -> Array:
 	original.health.grant_protection(2.5)
 	original.inventory.remove("berry", 3)
 	original.hotbar.assign(8, "meat")
+	original.progression.grant_xp(40)
 	TestWorld.arm(original, [], _track)
 	original.request_use_item(3)
 	return [original, _spawn(PlayerScene)]

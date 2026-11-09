@@ -83,6 +83,7 @@ func _suites() -> Array:
 		["MouseInventoryTests", MouseInventoryTests.new, true],
 		["CrowdingTests", CrowdingTests.new, true],
 		["HungerTests", HungerTests.new, true],
+		["ProgressionTests", ProgressionTests.new, true],
 		["MessageTests", MessageTests.new, true],
 		["GroundItemTests", GroundItemTests.new, true],
 		["ControlsTests", ControlsTests.new, true],

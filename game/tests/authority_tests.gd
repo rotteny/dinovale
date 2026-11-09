@@ -470,9 +470,9 @@ func _test_hitbox_by_data() -> void:
 	var dino := _dino_at(Vector2.ZERO)
 	var feet := dino.get_node("CollisionShape2D").shape as RectangleShape2D
 	var hurt := dino.get_node("Hurtbox/CollisionShape2D").shape as RectangleShape2D
-	_check(feet.size == dino.stats.foot_size() and feet.size == Vector2(14, 14), "pés do dino vêm do porte (Médio: 14x14)")
+	_check(feet.size == dino.stats.foot_size() and feet.size == Vector2(12, 12), "pés do dino vêm do porte (Paquicéfalo é Pequeno: 12x12)")
 	_check(hurt.size == dino.stats.hitbox_size and hurt.size == Vector2(24, 16), "hurtbox do dino vem do dado da espécie (24x16)")
-	_check(dino.body_rect().size == Vector2(14, 14) and dino.hurtbox_rect().size == Vector2(24, 16),
+	_check(dino.body_rect().size == Vector2(12, 12) and dino.hurtbox_rect().size == Vector2(24, 16),
 			"body_rect é dos pés; hurtbox_rect é do golpe")
 	var custom: Dino = DinoScene.instantiate()
 	custom.stats = custom.stats.duplicate()
@@ -491,7 +491,7 @@ func _test_hitbox_by_data() -> void:
 	_check((small.get_node("CollisionShape2D").shape as RectangleShape2D).size == Vector2(12, 12),
 			"Pequeno: pés de 12x12 pela tabela de portes")
 	var other_dino := _dino_at(Vector2.ZERO)
-	_check((other_dino.get_node("CollisionShape2D").shape as RectangleShape2D).size == Vector2(14, 14)
+	_check((other_dino.get_node("CollisionShape2D").shape as RectangleShape2D).size == Vector2(12, 12)
 			and (other_dino.get_node("Hurtbox/CollisionShape2D").shape as RectangleShape2D).size == Vector2(24, 16),
 			"a caixa nova não vaza para outras criaturas")
 	var player := _player_at(Vector2.ZERO)

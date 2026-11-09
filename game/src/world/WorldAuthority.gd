@@ -134,8 +134,9 @@ func _watch(node: Node) -> void:
 	if dino != null:
 		dino.health.died.connect(func() -> void:
 			announce("dino_killed", {"species": dino.stats.display_name}))
-		dino.taming.level_finalized.connect(func(_level: int) -> void:
-			announce("tame_done", {"species": dino.stats.display_name}))
+		dino.taming.level_finalized.connect(func(final_level: int) -> void:
+			announce("tame_done", {"species": dino.stats.display_name})
+			_grant_tame_xp(dino, final_level))
 		dino.taming.food_consumed.connect(func(food: String) -> void:
 			announce("taming_meal", {"species": dino.stats.display_name, "item": Items.display_name(food),
 					"done": dino.taming.meals_eaten(), "total": dino.taming.meals_required()}))
@@ -148,11 +149,29 @@ func _watch(node: Node) -> void:
 			_on_dino_attack(dino, target, damage, episode))
 	elif node is Player:
 		var player := node as Player
+		# Subir de nível é aviso só do próprio jogador (no co-op, cada um lê os seus).
+		player.progression.leveled_up.connect(func(level: int, saber_gained: int) -> void:
+			owner_event.emit(player.player_id, "player_level_up", {"level": level, "saber": saber_gained}))
 		# Vida 0 de pé vira caído; vida 0 já caído é morte (só dino sobre o caído mata). A fome só sobe o torpor.
 		player.health.died.connect(func() -> void: _on_player_zeroed(player))
 		player.downed.torpor_full.connect(func() -> void: _down_player(player, false))
 		player.downed.time_over.connect(func() -> void: _wake_player(player))
 		(node as Player).weapon_broke.connect(func(item_id: String) -> void: announce("weapon_broke", {"item": Items.display_name(item_id)}))
+
+
+## Doma concluída: o XP vai para o DONO (quem alimentou até o fim), pelo nível FINAL do dino. Sem dono presente, ninguém ganha.
+func _grant_tame_xp(dino: Dino, final_level: int) -> void:
+	var owner_id := dino.owner_player_id if dino.owner_player_id != "" else dino.feeder_player_id
+	var taker := player_body(owner_id) as Player
+	if taker != null:
+		taker.progression.grant_tame(final_level)
+
+
+## Gancho da fabricação (E7a): concede o XP de fabricar ao jogador `actor_id`. A fabricação concluída chama isto.
+func grant_craft_xp(actor_id: int) -> void:
+	var actor := entity(actor_id) as Player
+	if actor != null:
+		actor.progression.grant_craft()
 
 
 ## A vida do jogador chegou a 0. De pé: cai (decisão D1). Já caído: morre.
@@ -726,6 +745,7 @@ func request_gather(actor_id: int, target_id: int) -> Enums.ActionResult:
 		_report_gather(actor, node, reason, life_before)
 		if reason == "" and completes:
 			_start_gather_interval(actor_id)
+			actor.progression.grant_gather()  # XP só da coleta CONCLUÍDA (golpe intermediário e recusa não rendem)
 	return _answer(actor_id, ACTION_GATHER, problem)
 
 

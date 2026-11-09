@@ -22,6 +22,7 @@ const EVENTS: Dictionary = {
 	"player_downed": {"kind": Kind.DANGER, "text": "Você caiu."},
 	"player_woke": {"kind": Kind.WARNING, "text": "Você acordou. Corra!"},
 	"player_died": {"kind": Kind.DANGER, "text": "Você morreu. Seus itens ficaram no corpo."},
+	"player_level_up": {"kind": Kind.SUCCESS, "text": "Nível {level}: +{saber} Saber"},
 	"player_respawned": {"kind": Kind.INFO, "text": "Você renasceu."},
 	"corpse_recovered": {"kind": Kind.SUCCESS, "text": "Você recuperou {amount} itens do seu corpo."},
 	"corpse_expired": {"kind": Kind.DANGER, "text": "Seu corpo sumiu: {amount} itens se perderam."},

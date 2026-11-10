@@ -6,10 +6,12 @@ extends RefCounted
 
 const _BRANCH: Texture2D = preload("res://assets/third_party/ninja-adventure/items/res_branch.png")
 const _ROCK: Texture2D = preload("res://assets/third_party/ninja-adventure/items/res_rock.png")
+const _MEAT: Texture2D = preload("res://assets/third_party/ninja-adventure/items/food_meat.png")
 const _GRASS: Texture2D = preload("res://assets/third_party/ninja-adventure/items/res_grass.png")
 const _ICONS: Dictionary[String, Texture2D] = {
 	Items.BERRY: preload("res://assets/third_party/ninja-adventure/items/food_seed3.png"),
-	Items.MEAT: preload("res://assets/third_party/ninja-adventure/items/food_meat.png"),
+	Items.MEAT: _MEAT,
+	Items.COOKED_MEAT: _MEAT,  # placeholder: o mesmo ícone da carne crua
 	Items.SLEEP_STAFF: _BRANCH,
 	Items.WOODEN_SPEAR: _BRANCH,  # sem arte própria: o galho do pacote até a arte da Lança
 	Items.FERN: _GRASS,

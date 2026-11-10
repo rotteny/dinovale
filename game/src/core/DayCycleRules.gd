@@ -28,3 +28,5 @@ extends Resource
 @export_group("Luz do jogador")
 ## Raio da luz ao redor do jogador, em tiles; devolve a cor do mundo no centro e cai até a tinta na borda.
 @export_range(1.0, 32.0) var light_radius_tiles: float = 5.0
+## Raio da luz da Fogueira, em tiles (GDD 5.12 e SOB-03: 4 tiles); a mesma luz do jogador, só que fixa na peça.
+@export_range(1.0, 32.0) var campfire_light_radius_tiles: float = 4.0

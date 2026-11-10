@@ -6,6 +6,8 @@ extends RefCounted
 
 const BERRY := "berry"
 const MEAT := "meat"
+## Carne assada na Fogueira (E12, PRO-18): +35 de fome e +10 de vida em 10 s (`player_rules.tres`).
+const COOKED_MEAT := "cooked_meat"
 const FERN := "fern"
 const SLEEP_STAFF := "sleep_staff"
 const WOODEN_SPEAR := "wooden_spear"
@@ -22,7 +24,7 @@ const AXE_STONE := "axe_stone"
 const PICKAXE_STONE := "pickaxe_stone"
 ## Peça que se coloca no mundo (E7a): vira a entidade `Workbench` por `WorldAuthority.request_place`.
 const WORKBENCH := "workbench"
-## Itens das receitas da E7b que AINDA NÃO TÊM USO (entram como item, sem efeito; cada um ganha o efeito na etapa dele).
+## Itens das receitas da E7b. Fogueira, Saco de dormir e Cama ganharam o uso na E12 (peças colocadas); o resto ainda não tem uso.
 const CAMPFIRE := "campfire"
 const FIBER_BASKET := "fiber_basket"
 const CHEST := "chest"
@@ -40,7 +42,7 @@ const LEATHER := "leather"
 const TUBER := "tuber"
 const VEIN_SALT := "vein_salt"
 ## Itens que `request_place` sabe colocar.
-const PLACEABLE: Array[String] = [WORKBENCH]
+const PLACEABLE: Array[String] = [WORKBENCH, CAMPFIRE, SLEEPING_BAG, BED]
 
 ## Durabilidade que marca a bolsa como item individual (a vaga de equipamento só guarda individuais). Não é gasta.
 const BAG_DURABILITY_MARK := 1
@@ -153,6 +155,7 @@ static func _catalog() -> Dictionary:
 		for def: ItemDef in [
 			ItemDef.new(BERRY, "Baga", 20, Color(0.85, 0.2, 0.35)),
 			ItemDef.new(MEAT, "Carne", 10, Color(0.75, 0.35, 0.25)),
+			ItemDef.new(COOKED_MEAT, "Carne assada", 10, Color(0.55, 0.3, 0.18)),
 			ItemDef.new(FERN, "Samambaia", 30, Color(0.3, 0.7, 0.3)),
 			ItemDef.new(SLEEP_STAFF, "Bastão-de-sono", 1, Color(0.55, 0.4, 0.8)),
 			ItemDef.new(WOODEN_SPEAR, "Lança de madeira", 1, Color(0.6, 0.45, 0.25)),

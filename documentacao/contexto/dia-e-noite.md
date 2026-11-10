@@ -19,6 +19,8 @@ A margem do `SafeCore` (8 tiles) é MENOR que a percepção noturna do Utahrapto
 
 Estrutural testado: tinta e luz fora de qualquer `CanvasLayer`; a HUD em outro canvas.
 
+**Luz da Fogueira (E12).** A mesma `DayNightView` cria uma `PointLight2D` fixa no centro de cada Fogueira da grade (raio `campfire_light_radius_tiles` = 4 em `day_cycle_rules.tres`), com a cor e a força da luz do jogador: some de dia e acende à noite. Ela ouve `piece_added`/`piece_removed` da grade, então carregar um save a refaz sem duplicar.
+
 ## HUD
 
 `PlayerHud` mostra o rótulo da faixa ("Dia", "Entardecer", "Noite", "Amanhecer") no canto de cima à direita, abaixo do "Salvando". Texto em `GameMessages.PHASE_LABELS`.

@@ -3,7 +3,7 @@ class_name BuildField
 extends Node2D
 ## Põe o que a `BuildGrid` guarda no mundo (E8a): um `BuildPiece` (corpo e vista) por fundação, parede e porta, e um
 ## `Workbench` (entidade registrada na autoridade) por Bancada, e um `Chest` (também
-## registrado) por Baú. Só reage aos sinais da grade; quem decide é o
+## registrado) por Baú, e um `CampPiece` por Fogueira, Cama e Saco de dormir (E12). Só reage aos sinais da grade; quem decide é o
 ## `BuildService`. A Bancada migrou para o grid: este campo ocupa o lugar do antigo `WorkbenchField`, e o save dela agora
 ## é o da grade (o `Workbench` volta ao mesmo id porque a grade o guarda).
 
@@ -77,7 +77,7 @@ func _on_added(cell: Vector2i) -> void:
 				entity_id = authority.register(bench)
 			grid.set_entity_id(cell, entity_id)
 		return
-	var piece: BuildPiece = Chest.new() if def.container_slots > 0 else BuildPiece.new()
+	var piece: BuildPiece = _new_piece(def)
 	piece.position = center
 	piece.setup(def, int(grid.piece_at(cell).get("rot", 0)), grid.is_open(cell), tile_px)
 	add_child(piece)
@@ -89,6 +89,27 @@ func _on_added(cell: Vector2i) -> void:
 	if chest != null:
 		chest.attach_box(grid.container_at(cell))
 		_register_chest(cell, chest)
+	var camp := piece as CampPiece
+	if camp != null:  # Fogueira e Cama são entidades da autoridade (alvo de interagir); o Saco é só a peça
+		camp.attach_interaction()
+		if camp.interactable != null:
+			_register_piece(cell, camp)
+
+
+func _new_piece(def: PieceDef) -> BuildPiece:
+	if def.container_slots > 0:
+		return Chest.new()
+	return CampPiece.new() if CampPiece.handles(def.id) else BuildPiece.new()
+
+
+## Fogueira e Cama entram no registro (o id vem da grade, como o do Baú).
+func _register_piece(cell: Vector2i, piece: Node) -> void:
+	if authority == null:
+		return
+	var entity_id := authority.register(piece, int(grid.piece_at(cell).get("id", 0)))
+	if entity_id == 0:
+		entity_id = authority.register(piece)
+	grid.set_entity_id(cell, entity_id)
 
 
 ## O Baú entra no registro da autoridade (o id vem da grade, para o save levar o mesmo; id tomado = o próximo livre).
@@ -109,6 +130,9 @@ func _on_removed(cell: Vector2i, _piece: Dictionary) -> void:
 	var chest := node as Chest
 	if chest != null and authority != null:
 		authority.unregister(authority.id_of(chest))
+	var camp := node as CampPiece
+	if camp != null and authority != null and camp.interactable != null:
+		authority.unregister(authority.id_of(camp))
 	var bench := node as Workbench
 	if bench != null:
 		bench_removed.emit(bench)

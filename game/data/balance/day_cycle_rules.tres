@@ -17,3 +17,4 @@ dawn_tint = Color(0.86, 0.82, 0.92, 1)
 min_tint_channel = 0.35
 blend_seconds = 20.0
 light_radius_tiles = 5.0
+campfire_light_radius_tiles = 4.0

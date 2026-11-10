@@ -24,6 +24,8 @@ extends Resource
 @export_range(0, 64) var container_slots: int = 0
 ## Quantas dessas peças o mundo comporta. 0 = só vale o teto geral de peças.
 @export_range(0, 100000) var max_count: int = 0
+## Quantas dessas peças UM jogador pode ter postas (a Cama: 3; o Saco de dormir: 1). 0 = sem limite por dono.
+@export_range(0, 1000) var max_per_owner: int = 0
 
 
 ## Coerente? (id, nome e exatamente uma fonte de custo; porta sem corpo não faz sentido.)

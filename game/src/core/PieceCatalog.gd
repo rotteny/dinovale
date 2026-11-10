@@ -9,6 +9,9 @@ const DEFAULT_PIECES: Array[PieceDef] = [
 	preload("res://data/build/door.tres"),
 	preload("res://data/build/chest.tres"),
 	preload("res://data/build/workbench.tres"),
+	preload("res://data/build/campfire.tres"),
+	preload("res://data/build/sleeping_bag.tres"),
+	preload("res://data/build/bed.tres"),
 ]
 
 var _pieces: Dictionary[String, PieceDef] = {}

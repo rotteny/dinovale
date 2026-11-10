@@ -116,12 +116,13 @@ func refresh() -> void:
 	for recipe in authority.crafting.recipe_book.known_by(player.progression):
 		if not recipe.places_in_world:  # fundação, parede e porta saem do modo construção (B), não daqui
 			_list.add_child(_row(recipe, crafting))
-	if player.inventory.count(Items.WORKBENCH) > 0:
-		var place := Button.new()
-		place.focus_mode = Control.FOCUS_NONE  # o botão não come o Espaço (ataque)
-		place.text = "Colocar %s" % Items.display_name(Items.WORKBENCH)
-		place.pressed.connect(func() -> void: place_requested.emit(Items.WORKBENCH))
-		_list.add_child(place)
+	for item_id in Items.PLACEABLE:  # Bancada, Fogueira, Saco de dormir e Cama (E12): o que se tem na mochila e se põe no mundo
+		if player.inventory.count(item_id) > 0:
+			var place := Button.new()
+			place.focus_mode = Control.FOCUS_NONE  # o botão não come o Espaço (ataque)
+			place.text = "Colocar %s" % Items.display_name(item_id)
+			place.pressed.connect(func() -> void: place_requested.emit(item_id))
+			_list.add_child(place)
 	_cancel.visible = crafting
 	_status.text = ""
 	if crafting:
@@ -133,8 +134,9 @@ func refresh() -> void:
 ## Tudo o que a lista mostra, em texto: se igual ao de antes, não há o que reconstruir.
 func _signature() -> String:
 	var actor_id := authority.id_of(player)
-	var parts: PackedStringArray = [str(authority.crafting.job(actor_id).get("recipe", "")),
-			str(player.inventory.count(Items.WORKBENCH) > 0)]
+	var parts: PackedStringArray = [str(authority.crafting.job(actor_id).get("recipe", ""))]
+	for item_id in Items.PLACEABLE:
+		parts.append(str(player.inventory.count(item_id) > 0))
 	for recipe in authority.crafting.recipe_book.known_by(player.progression):
 		if not recipe.places_in_world:
 			parts.append("%s=%s" % [recipe.id, needs_text(recipe, player.inventory)])

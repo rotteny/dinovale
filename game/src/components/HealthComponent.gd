@@ -27,6 +27,10 @@ var current_health: float = DEFAULT_MAX_HEALTH
 ## Segundos que faltam de proteção (GDD 12.4): enquanto > 0, `take_damage` não tira vida. Quem
 ## concede e quem faz o tempo correr é o dono do componente (`grant_protection`, `tick`).
 var protection_left: float = 0.0
+## Cura contínua (a carne assada, GDD 5.12): `regen_rate` de vida por segundo durante `regen_left` segundos. Comer de novo RENOVA a
+## janela (não soma a taxa). Não vai ao save (dura 10 s). Quem concede e quem a cancela (a morte) é o dono do componente.
+var regen_left: float = 0.0
+var regen_rate: float = 0.0
 
 
 func is_dead() -> bool:
@@ -45,6 +49,23 @@ func grant_protection(seconds: float) -> void:
 ## Faz a proteção correr. Só quem concede a usa (o jogador); os demais nunca a têm.
 func tick(delta: float) -> void:
 	protection_left = maxf(protection_left - delta, 0.0)
+	if regen_left > 0.0:
+		var span := minf(delta, regen_left)
+		regen_left -= span
+		heal(regen_rate * span)
+
+
+## Passa a curar `amount` de vida ao longo de `seconds` (taxa constante); renova a janela que já corria.
+func start_regen(amount: float, seconds: float) -> void:
+	if amount <= 0.0 or seconds <= 0.0:
+		return
+	regen_left = seconds
+	regen_rate = amount / seconds
+
+
+func cancel_regen() -> void:
+	regen_left = 0.0
+	regen_rate = 0.0
 
 
 ## Volta à vida com `ratio` do máximo (respawn). Não emite `died` nem `damaged`: é o fim da morte, não

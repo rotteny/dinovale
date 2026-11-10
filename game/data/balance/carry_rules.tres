@@ -13,6 +13,7 @@ capacity_kg = 50.0
 item_weights = Dictionary[String, float]({
 "berry": 0.1,
 "meat": 0.5,
+"cooked_meat": 0.5,
 "fern": 0.1,
 "sleep_fruit": 0.1,
 "wood": 1.0,

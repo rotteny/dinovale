@@ -20,6 +20,7 @@ const REASON_BODY := "body_in_way"
 const REASON_BOX_FULL := "no_space"
 const REASON_BOX_NOT_EMPTY := "chest_not_empty"
 const REASON_LINE := "blocked_line"
+const REASON_OWNER_LIMIT := "owner_limit"
 
 var authority: WorldAuthority = null
 var grid := BuildGrid.new()
@@ -81,6 +82,17 @@ func place_item(actor_id: int, item_id: String, point: Vector2) -> Dictionary:
 	grid.add(cell_of(point), def.id, 0, actor.player_id)
 	authority.announce("item_placed", {"item": Items.display_name(item_id)})
 	return _outcome(RESULT.OK)
+
+
+## Destruir a peça da célula SEM devolver nada (ataque de dino, quebra): some com o conteúdo, e a espera da Cama some junto.
+## Chamada só pela autoridade (não é `request_*`: ninguém de fora pede isto). Devolve false se não havia peça.
+func destroy(cell: Vector2i) -> bool:
+	var def := grid.def_at(cell)
+	if def == null:
+		return false
+	grid.remove(cell)
+	authority.announce("piece_destroyed", {"piece": def.display_name})
+	return true
 
 
 ## Remover a peça da célula, devolvendo o material (`rules.refund_percent`). A fundação que ainda apoia outra peça fica.
@@ -273,10 +285,17 @@ func _afford_problem(actor: Player, def: PieceDef, cell: Vector2i) -> Dictionary
 	var spot := spot_problem(cell, def)
 	if spot != "":
 		return _outcome(RESULT.WRONG_STATE, spot)
+	return _cost_problem(actor, def, recipe)
+
+
+## Material (receita ou item pronto) e limite por dono: a última parte da validação de `_afford_problem`.
+func _cost_problem(actor: Player, def: PieceDef, recipe: RecipeDef) -> Dictionary:
 	if recipe != null and not recipe.missing_from(actor.inventory).is_empty():
 		return _outcome(RESULT.REFUSED, "missing_materials")
 	if recipe == null and actor.inventory.count(def.item_id) < 1:
 		return _outcome(RESULT.REFUSED, "no_item")
+	if def.max_per_owner > 0 and grid.count_of(def.id, actor.player_id) >= def.max_per_owner:
+		return _outcome(RESULT.WRONG_STATE, REASON_OWNER_LIMIT)  # Cama: 3 por jogador; Saco de dormir: 1
 	return _outcome(RESULT.OK)
 
 
@@ -294,6 +313,12 @@ func spot_problem(cell: Vector2i, def: PieceDef) -> String:
 	if grid.count() >= rules.max_pieces or (def.max_count > 0 and grid.count_of(def.id) >= def.max_count):
 		return REASON_LIMIT
 	return ""
+
+
+## A célula está livre para alguém pisar ou nascer nela? Terreno e núcleo servem, sem peça e sem nó de recurso. É a que o
+## `RespawnPointService` usa para achar onde largar quem renasce ao lado da Cama.
+func is_free_cell(cell: Vector2i) -> bool:
+	return fixed_problem(cell) == "" and not grid.has_piece(cell) and not _resource_at(cell)
 
 
 ## O que não muda com o tempo: terreno e núcleo seguro ("" = serve). É o que um save carregado também confere.

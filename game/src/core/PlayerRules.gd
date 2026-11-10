@@ -42,6 +42,10 @@ extends Resource
 ## [premissa] 4/s: a baga (+10) leva 2,5 s e a carne (+30), 7,5 s.
 @export_range(0.5, 50.0) var hunger_recovery_per_second: float = 4.0
 @export var hunger_restore: Dictionary[String, float] = {}
+## Vida devolvida AO LONGO de `food_regen_seconds` por comer 1 unidade (a carne assada: +10 em 10 s, 1 por segundo, renova). Id fora
+## daqui não cura.
+@export var food_regen: Dictionary[String, float] = {}
+@export_range(0.5, 120.0) var food_regen_seconds: float = 10.0
 
 
 ## Hora de avisar de fome? Vale também com a saciedade zerada.
@@ -51,6 +55,10 @@ func is_hungry(current: float, maximum: float) -> bool:
 
 func hunger_restore_of(item_id: String) -> float:
 	return maxf(hunger_restore.get(item_id, 0.0), 0.0)
+
+
+func food_regen_of(item_id: String) -> float:
+	return maxf(food_regen.get(item_id, 0.0), 0.0)
 
 
 ## Os itens de desenvolvimento valem? Build de debug ou o argumento `--dev`. Puro, para testar sem depender do binário.

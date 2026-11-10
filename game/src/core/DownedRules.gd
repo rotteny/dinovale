@@ -25,6 +25,9 @@ extends Resource
 ## Quanto o corpo fica no chão, em minutos de MUNDO RODANDO (GDD 12.4; decisão D4: o relógio do mundo não corre com o jogo fechado).
 @export_range(1.0, 120.0) var body_minutes: float = 10.0
 
+## Corpos que UM jogador pode ter no mundo ao mesmo tempo (GDD 12.4: 3 [proposta]); o 4º apaga o mais antigo dele, com o que ele guardava.
+@export_range(1, 16) var max_bodies_per_player: int = 3
+
 
 ## Duração do corpo em segundos do relógio do mundo.
 func body_seconds() -> float:

@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="CampRules" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/core/CampRules.gd" id="1_rules"]
+
+[resource]
+script = ExtResource("1_rules")
+; GDD 5.12: assar leva 2 s por carne e 1 madeira para 4 carnes. GDD 12.3: a Cama espera 60 s entre respawns.
+cook_seconds = 2.0
+meat_per_wood = 4
+; [premissa 10/11] a Fogueira se usa a até 2 tiles, como a Bancada.
+fire_reach_tiles = 2.0
+raw_item = "meat"
+cooked_item = "cooked_meat"
+fuel_item = "wood"
+bed_wait_seconds = 60.0

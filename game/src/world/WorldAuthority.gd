@@ -57,6 +57,8 @@ const ACTION_PLACE := "place"
 const ACTION_BUILD := "build"
 const ACTION_REMOVE_PIECE := "remove_piece"
 const ACTION_TOGGLE_DOOR := "toggle_door"
+const ACTION_COOK := "cook"
+const ACTION_CANCEL_COOK := "cancel_cook"
 ## Quantidade de `request_transfer_slot` que significa "a pilha toda".
 const TRANSFER_ALL := -1
 ## Tamanho máximo de `iid` e de nome de vaga aceitos (dado vindo de fora não é confiável).
@@ -103,6 +105,9 @@ var build := BuildService.new()
 var skinning := CarcassService.new()
 ## Largar, recolher e recuperar o corpo (regras e tarefa do `LootService`).
 var looting := LootService.new()
+## Assar na Fogueira (E12): tarefa com tempo, como a fabricação. Camas e Saco de dormir: as opções da tela de morte (E12).
+var camp := CampService.new()
+var respawn_points := RespawnPointService.new()
 var queries := InteractionQuery.new()
 
 ## Quantas varreduras do mouse (`pick_at`) já fizeram: o cursor as limita (serve a teste de custo).
@@ -121,7 +126,7 @@ var _day_phase_seen: int = -1
 
 
 func _init() -> void:
-	for service: Node in [crafting, build, combat, queries, skinning, looting]:
+	for service: Node in [crafting, build, combat, queries, skinning, looting, camp, respawn_points]:
 		service.set("authority", self)
 		add_child(service)
 
@@ -132,6 +137,7 @@ func _physics_process(delta: float) -> void:
 	tick_herd(delta)
 	crafting.tick(delta)
 	skinning.tick(delta)
+	camp.tick(delta)
 
 
 ## Faixa do dia agora (lógica: a apresentação só a lê).
@@ -721,6 +727,16 @@ func request_remove_piece(actor_id: int, cell: Vector2i) -> Enums.ActionResult:
 ## Abrir ou fechar a porta da célula `cell`.
 func request_toggle_door(actor_id: int, cell: Vector2i) -> Enums.ActionResult:
 	return _service_answer(actor_id, ACTION_TOGGLE_DOOR, build.toggle_door(actor_id, cell))
+
+
+## Assar carne crua na Fogueira `fire_id` (alcance, carne e madeira conferidos no `CampService`).
+func request_cook(actor_id: int, fire_id: int) -> Enums.ActionResult:
+	return _service_answer(actor_id, ACTION_COOK, camp.cook(actor_id, entity(fire_id)))
+
+
+## Parar de assar, a pedido do jogador.
+func request_cancel_cook(actor_id: int) -> Enums.ActionResult:
+	return _service_answer(actor_id, ACTION_CANCEL_COOK, camp.cancel_by_player(actor_id))
 
 
 ## Fecha o pedido do serviço: `{result, reason}` vira o motivo e a resposta padrão.

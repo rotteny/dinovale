@@ -70,10 +70,26 @@ func deposit(player: Player) -> PlayerCorpse:
 	if entries.is_empty():
 		return null
 	# Decisão do dono: uma segunda morte NÃO apaga o corpo anterior. Cada corpo guarda os seus itens e expira no seu prazo;
-	# o teto de `MAX_CORPSES` (o mais antigo sai) só protege o save.
+	# o limite por jogador (`max_bodies_per_player`, E12) tira o mais antigo dele na 4ª morte, e `MAX_CORPSES` protege o save.
+	_make_room_for(player.player_id, true)
 	var corpse := _spawn(player.player_id, player.global_position, _now() + rules.body_seconds(), entries, 0)
 	corpse.hotbar_slots = marks
 	return corpse
+
+
+## Cabe mais um corpo de `owner_id`? Se ele já tem `max_bodies_per_player`, o mais antigo dele some com o que guardava (`announce`:
+## avisa a perda; a carga do save não avisa nada).
+func _make_room_for(owner_id: String, announce: bool) -> void:
+	var mine: Array[PlayerCorpse] = []
+	for corpse in _corpses:
+		if corpse.owner_player_id == owner_id:
+			mine.append(corpse)
+	while mine.size() >= rules.max_bodies_per_player:
+		var oldest: PlayerCorpse = mine.pop_front()
+		var lost := oldest.item_count()
+		_remove(oldest)
+		if announce and authority != null:
+			authority.announce("corpse_expired", {"amount": lost})
 
 
 ## Onde estão os atalhos agora (`{slot, id, iid}`), para devolvê-los ao recuperar o corpo.
@@ -172,6 +188,7 @@ func restore_list(list: Array) -> void:
 		var point := Vector2(SafeRead.number(data.get("x"), 0.0, -MAX_COORD, MAX_COORD),
 				SafeRead.number(data.get("y"), 0.0, -MAX_COORD, MAX_COORD))
 		var due_at := SafeRead.number(data.get("due_at"), current + rules.body_seconds(), 0.0, current + rules.body_seconds())
+		_make_room_for(owner_id, false)
 		var revived := _spawn(owner_id, point, due_at, entries, SafeRead.integer(data.get("id"), 0, 0, 1 << 30))
 		revived.hotbar_slots = _clean_marks(SafeRead.list(data.get("hotbar")))
 

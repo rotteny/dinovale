@@ -21,6 +21,8 @@ const FORMAT_VERSION := 1
 ## Célula além disto é dado ruim (o mapa tem 256, mas o save é de fora: o teto só evita número absurdo).
 const MAX_CELL := 100000
 const MAX_OWNER_LENGTH := 64
+## Teto do instante `ready_at` lido de um save (segundos de jogo, como `WorldSnapshot.MAX_TIME`).
+const MAX_READY_AT := 1.0e12
 
 var catalog: PieceCatalog = PieceCatalog.with_defaults()
 var rules: BuildRules = preload("res://data/balance/build_rules.tres")
@@ -73,13 +75,24 @@ func is_open(cell: Vector2i) -> bool:
 	return _cells.has(cell) and bool((_cells[cell] as Dictionary)["open"])
 
 
-## Quantas peças de `piece_id` existem.
-func count_of(piece_id: String) -> int:
+## Quantas peças de `piece_id` existem; com `owner_id`, só as postas por esse dono (o limite por jogador da Cama e do Saco).
+func count_of(piece_id: String, owner_id: String = "") -> int:
 	var total := 0
 	for cell: Vector2i in _cells:
-		if (_cells[cell] as Dictionary)["piece"] == piece_id:
+		var piece: Dictionary = _cells[cell]
+		if piece["piece"] == piece_id and (owner_id == "" or piece["owner"] == owner_id):
 			total += 1
 	return total
+
+
+## Instante do relógio do mundo em que a peça (a Cama) pode ser usada de novo; 0 = livre. Só o `RespawnPointService` o escreve.
+func ready_at(cell: Vector2i) -> float:
+	return float((_cells[cell] as Dictionary).get("ready_at", 0.0)) if _cells.has(cell) else 0.0
+
+
+func set_ready_at(cell: Vector2i, instant: float) -> void:
+	if _cells.has(cell):
+		(_cells[cell] as Dictionary)["ready_at"] = maxf(instant, 0.0)
 
 
 ## A célula tem corpo sólido agora? (parede, porta fechada, Bancada)
@@ -188,6 +201,8 @@ func to_dict() -> Dictionary:
 			entry["open"] = true
 		if int(piece["id"]) > 0:
 			entry["id"] = piece["id"]
+		if float(piece.get("ready_at", 0.0)) > 0.0:
+			entry["ready_at"] = piece["ready_at"]  # espera da Cama (instante do relógio do mundo, ADR-006; ausente = livre)
 		var box: InventoryComponent = _boxes.get(cell)
 		if box != null and not box.is_empty():
 			entry["items"] = box.to_dict()
@@ -231,6 +246,7 @@ func from_dict(data: Dictionary) -> bool:
 			if def.needs_support != needs_support or (needs_support and not has_support(entry["cell"])):
 				continue
 			if add(entry["cell"], entry["piece"], entry["rot"], entry["owner"], entry["id"], entry["open"]):
+				set_ready_at(entry["cell"], entry["ready_at"])
 				_load_contents(entry["cell"], entry["items"])
 			else:
 				_note_unplaced(entry, legacy)
@@ -270,6 +286,7 @@ func _read_entry(raw: Variant) -> Dictionary:
 	return {"cell": Vector2i(x, y), "piece": piece_id, "rot": posmod(SafeRead.integer(data.get("rot"), 0, -1000, 1000), 4),
 			"owner": SafeRead.text(data.get("owner"), "").substr(0, MAX_OWNER_LENGTH),
 			"open": SafeRead.flag(data.get("open"), false), "items": SafeRead.dict(data.get("items")),
+			"ready_at": SafeRead.number(data.get("ready_at"), 0.0, 0.0, MAX_READY_AT),  # campo novo: save antigo = livre
 			# Id fora da faixa vira 0 (o próximo livre): um id no teto empurraria o contador e o próximo load seria recusado.
 			"id": SafeRead.integer(data.get("id"), 0, 0, SaveMigrations.MAX_ENTITY_ID - 1)}
 

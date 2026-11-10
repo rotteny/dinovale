@@ -131,6 +131,7 @@ func _ready() -> void:
 	screen.unequip_requested.connect(func(slot_id: String) -> void: player.request_unequip(slot_id))
 	player.equip_refused.connect(screen.show_refusal)
 	screen.hotbar_assign_requested.connect(_on_hotbar_assign_requested)
+	_wire_corpse_marker()
 	_wire_mouse_ui()
 	_wire_craft_panel()
 	_wire_recipes_panel()
@@ -163,6 +164,8 @@ func _ready() -> void:
 	if death_screen != null:
 		death_screen.rules = respawn_rules
 		death_screen.corpse_minutes = player.downed_rules.body_minutes
+		death_screen.points = authority.respawn_points
+		death_screen.viewer = player
 		death_screen.region_chosen.connect(request_respawn)
 	dino.health.died.connect(_on_dino_died)
 	if pause != null:
@@ -422,20 +425,32 @@ func sync_incapacity_lock() -> void:
 	screen.locked = blocked
 
 
-## Intenção "renascer na região `region_id`": o servidor (aqui, o host local) valida e executa. Devolve ""
-## se renasceu ou o motivo da recusa. Sorteia o ponto (GDD 12.2), restaura vida, fome e proteção
-## (12.4) e salva. O inventário já está vazio: os itens ficaram no corpo (`CorpseField`).
-func request_respawn(region_id: String) -> String:
+## Intenção "renascer em `choice`": o servidor (aqui, o host local) valida e executa. `choice` é o id de uma região (sorteia o
+## ponto, GDD 12.2) ou de uma Cama ou Saco do jogador (`RespawnPointService`, E12; vale o que a lista dele tem AGORA). Devolve ""
+## se renasceu ou o motivo da recusa. Restaura vida, fome e proteção (12.4), depois consome o Saco ou põe a Cama em espera, e
+## salva. O inventário já está vazio: os itens ficaram no corpo (`CorpseField`).
+func request_respawn(choice: String) -> String:
 	if not pending_death_choice or not player.health.is_dead():
 		return "not_dead"
-	var region := respawn_rules.region_by_id(region_id)
-	if region == null:
-		return "unknown_region"
-	var rng := SeededRng.new()
-	rng.seed_from([world_id, _respawn_count])
-	var picked := RespawnPicker.pick(region, respawn_rules, rng, _is_free_point, _wild_positions())
-	if not player.respawn_at(picked["position"], respawn_rules):
+	var point := {}
+	var spot := Vector2.ZERO
+	if ":" in choice:
+		var resolved := authority.respawn_points.resolve(player.player_id, choice, player.global_position)
+		if not bool(resolved["ok"]):
+			return str(resolved["reason"])
+		point = resolved["option"]
+		spot = point["position"]
+	else:
+		var region := respawn_rules.region_by_id(choice)
+		if region == null:
+			return "unknown_region"
+		var rng := SeededRng.new()
+		rng.seed_from([world_id, _respawn_count])
+		spot = RespawnPicker.pick(region, respawn_rules, rng, _is_free_point, _wild_positions())["position"]
+	if not player.respawn_at(spot, respawn_rules):
 		return "failed"
+	if not point.is_empty():
+		authority.respawn_points.commit(point)  # o jogador já está no mundo: só agora o Saco some e a Cama espera
 	_respawn_count += 1
 	scheduler.respawn_count = _respawn_count
 	pending_death_choice = false
@@ -676,6 +691,15 @@ func _wire_build_mode() -> void:
 	player.downed.state_changed.connect(func(_downed: bool) -> void: build_mode.set_active(false))
 
 
+## A seta do corpo na borda da tela (E12): vive na interface, ao lado da HUD.
+func _wire_corpse_marker() -> void:
+	var marker := CorpseMarker.new()
+	marker.name = "CorpseMarker"
+	marker.corpses = corpses
+	marker.viewer = player
+	screen.get_parent().add_child(marker)
+
+
 ## A aba Receitas (tecla P) só observa: Aprender vira pedido à autoridade, que valida o Saber.
 func _wire_recipes_panel() -> void:
 	RecipesPanel.ensure_action()
@@ -706,6 +730,13 @@ func _on_hotbar_assign_requested(slot: int, item_id: String, iid: String) -> voi
 
 func _on_interaction_granted(actor_id: int, target_id: int) -> void:
 	var target := authority.entity(target_id)
+	var camp := target as CampPiece
+	if camp != null:
+		if camp.is_fire():
+			authority.request_cook(actor_id, target_id)
+		elif camp.is_bed():
+			scheduler.request(SaveManager.Reason.BED)  # deitar é o save manual do single-player (GDD 12.3)
+		return
 	if target is ResourceNode:
 		authority.request_gather(actor_id, target_id)  # o alvo é o que a interação concedeu, não a mira local
 		return

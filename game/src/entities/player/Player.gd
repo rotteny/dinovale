@@ -741,6 +741,7 @@ func perform_wake() -> void:
 func perform_death() -> void:
 	downed.clear()
 	hunger.clear_pending()
+	health.cancel_regen()  # a cura da comida não atravessa a morte
 	_stop_acting()
 
 
@@ -812,6 +813,7 @@ func perform_use_item(slot: int) -> Enums.ActionResult:
 		_last_refusal = "nothing_to_use"
 		return Enums.ActionResult.REFUSED
 	hunger.queue_food(restore)
+	health.start_regen(rules.food_regen_of(item_id), rules.food_regen_seconds)  # a assada cura (a crua e a baga: 0, não mexe)
 	ate.emit(item_id)
 	_eat_timer = rules.food_cooldown
 	return Enums.ActionResult.OK

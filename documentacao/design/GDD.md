@@ -1291,6 +1291,8 @@ Conta [`respawn_sim.py custo`]: fibra 3 s/un, madeira 8 s por 3: Saco 8 x 3 = **
 - **Deitar** (tecla de interagir, 1 s): no single-player salva o mundo (12.1) e mostra "Salvo"; no multiplayer não salva. Nos dois marca a Cama como ponto de respawn **do dono**. **Não cura, não passa o tempo, não dá bônus** (sem dia e noite na v0.2). Qualquer jogador pode deitar numa Cama alheia para **salvar**; só o **dono** (quem a colocou) renasce nela. Deitar não tem espera; a espera é só do **respawn**.
 - **Espera de 60 s:** conta do instante em que alguém **renasce** na Cama. É **por Cama**, não por jogador. Medida em **tempo de jogo** (só corre com o mundo rodando; menu de pausa do single-player não conta e servidor desligado não conta) e **salva como `espera_restante_s`** (não como instante), então fechar e abrir o jogo não a zera nem a estende. Conta: a recuperação do corpo leva 120 a 180 s, então a espera só morde em **morte em sequência** (menos de 60 s depois de renascer); impede ressuscitar sem limite ao lado de uma Cama no meio de uma luta.
 
+**Implementação da E12 [provisório 10/11, aguarda o dono].** Saco, Cama e Fogueira são itens fabricados e colocados (peça com item). O 2º Saco é recusado (não recolhe o 1º). Deitar salva na hora (sem 1 s). Colocar é instantâneo (sem os 2 s e 3 s). A espera da Cama vai ao save como instante do relógio do mundo (`ready_at`), equivalente ao `espera_restante_s`. Nome editável por botão direito: ainda não. A Fogueira fica sempre acesa e qualquer jogador a usa. Detalhes em `corte-v02/decisoes-0611-0711.md` (E12).
+
 ### 12.4 Casos de borda
 
 | Caso | Regra |

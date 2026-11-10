@@ -17,8 +17,14 @@ equip_cooldown = 0.3
 winded_ratio = 0.25
 hunger_restore = Dictionary[String, float]({
 "berry": 10.0,
-"meat": 30.0
+"meat": 30.0,
+"cooked_meat": 35.0
 })
+; GDD 5.12: a carne assada cura +10 de vida em 10 s (1 por segundo; comer de novo renova a janela).
+food_regen = Dictionary[String, float]({
+"cooked_meat": 10.0
+})
+food_regen_seconds = 10.0
 hitbox_size = Vector2(12, 8)
 hitbox_offset = Vector2(0, -4)
 hand_damage_floor = 10.0

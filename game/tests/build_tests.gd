@@ -123,7 +123,7 @@ func _codes(world: Dictionary) -> Array[String]:
 func _test_data() -> void:
 	var catalog := PieceCatalog.with_defaults()
 	var book := RecipeBook.with_defaults()
-	var ok := catalog.all().size() == 5
+	var ok := catalog.all().size() == 8  # as 5 da E8 e a Fogueira, o Saco e a Cama (E12)
 	for piece in catalog.all():
 		ok = ok and piece.is_valid()
 	_check(ok and catalog.find("wall").needs_support and catalog.find("door").toggleable and catalog.find("foundation").gives_support
@@ -717,7 +717,7 @@ func _test_main_wiring_and_save() -> void:
 	var authority := main.authority
 	var player := main.player
 	_check(main.workbenches is BuildField and main.build_mode != null and main.build_menu != null
-			and authority.build.map == main.map and authority.build.grid.catalog.all().size() == 5,
+			and authority.build.map == main.map and authority.build.grid.catalog.all().size() == 8,
 					"a Main liga a grade, o campo e o modo construção")
 	var map := main.map
 	var core := SafeCore.new(main.respawn_rules, main.predation_rules.spawn_safe_margin_tiles, float(map.tile))

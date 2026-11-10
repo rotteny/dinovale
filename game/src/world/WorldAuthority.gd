@@ -101,6 +101,8 @@ var combat := CombatService.new()
 var build := BuildService.new()
 ## Esfolar carcaça (E10, SOB-06): `request_skin` valida e o jogador entrega o que cabe.
 var skinning := CarcassService.new()
+## Largar, recolher e recuperar o corpo (regras e tarefa do `LootService`).
+var looting := LootService.new()
 var queries := InteractionQuery.new()
 
 ## Quantas varreduras do mouse (`pick_at`) já fizeram: o cursor as limita (serve a teste de custo).
@@ -119,7 +121,7 @@ var _day_phase_seen: int = -1
 
 
 func _init() -> void:
-	for service: Node in [crafting, build, combat, queries, skinning]:
+	for service: Node in [crafting, build, combat, queries, skinning, looting]:
 		service.set("authority", self)
 		add_child(service)
 
@@ -336,10 +338,10 @@ func request_attack(actor_id: int, target_id: int) -> Enums.ActionResult:
 	var problem := _actor_problem(actor_id, actor)
 	if problem == Enums.ActionResult.OK:
 		problem = _attack_problem(actor, dino)
-	if problem == Enums.ActionResult.OK:
-		skinning.cancel(actor_id, "busy")  # esfolar não é exclusivo: o golpe para a esfola (o que já entrou fica)
 	if problem == Enums.ActionResult.OK and not actor.strike(dino):
 		problem = Enums.ActionResult.REFUSED
+	if problem == Enums.ActionResult.OK:
+		skinning.cancel(actor_id, "busy")  # esfolar é exclusivo: o golpe ACEITO para a esfola (o que já entrou fica)
 	return _answer(actor_id, ACTION_ATTACK, problem)
 
 
@@ -435,7 +437,7 @@ func interaction_options(actor_id: int, target_id: int) -> Array[Dictionary]:
 		_dino_options(options, actor, dino)
 	elif target is PlayerCorpse:
 		var corpse := target as PlayerCorpse
-		var problem := _corpse_problem(actor, corpse)
+		var problem := looting.corpse_problem(actor, corpse)
 		options.append(_option("recover", "Recuperar itens", problem))
 	elif target is ResourceNode and (target as ResourceNode).is_available():
 		var node := target as ResourceNode
@@ -612,8 +614,6 @@ func request_gather(actor_id: int, target_id: int) -> Enums.ActionResult:
 			and not AttackTargeting.is_in_front(actor.global_position, actor.facing, node, rules.front_dot_min):
 		problem = Enums.ActionResult.OUT_OF_RANGE  # colher por golpes pede o nó à frente, como o golpe
 		_reason = "behind"
-	if problem == Enums.ActionResult.OK:
-		skinning.cancel(actor_id, "busy")  # coletar para a esfola em andamento
 	var completes := problem == Enums.ActionResult.OK and node.is_available() and actor.would_complete_gather(node)
 	if completes and gather_wait_left(actor_id) > 0.0:
 		problem = Enums.ActionResult.COOLDOWN  # intervalo entre coletas concluídas: recusa silenciosa (a HUD cinza avisa)
@@ -622,6 +622,8 @@ func request_gather(actor_id: int, target_id: int) -> Enums.ActionResult:
 		var life_before := actor.health.current_health
 		var reason := actor.perform_gather(node)
 		problem = _gather_result(reason)
+		if problem == Enums.ActionResult.OK:
+			skinning.cancel(actor_id, "busy")  # coletar (aceito) para a esfola em andamento
 		_report_gather(actor, node, reason, life_before)
 		if reason == "" and completes:
 			start_gather_interval(actor_id)
@@ -664,91 +666,31 @@ func _report_gather(actor: Player, node: ResourceNode, reason: String, life_befo
 			announce("inventory_full")
 
 
-## Recolher o item de chão `target_id`: vai ao inventário de `actor_id` o que couber; o resto fica no chão. Valida ator,
-## alcance, dono (gancho do co-op) e espaço (o Peso entra aqui quando existir). Dois pedidos do mesmo item: o primeiro leva.
+## Recolher o item de chão `target_id` (regras no `LootService`): vai ao inventário o que couber; o resto fica no chão.
 func request_pickup(actor_id: int, target_id: int) -> Enums.ActionResult:
-	var actor := _live_player(actor_id)
-	var item := entity(target_id) as GroundItem
-	var problem := _actor_problem(actor_id, actor)
-	if problem == Enums.ActionResult.OK:
-		problem = Enums.ActionResult.OK if item != null else Enums.ActionResult.UNKNOWN_TARGET
-	if problem == Enums.ActionResult.OK and not _within(actor, item, rules.reach_px()):
-		problem = Enums.ActionResult.OUT_OF_RANGE
-	if problem == Enums.ActionResult.OK and item.reserved_against(actor.player_id, clock.now()):
-		problem = Enums.ActionResult.NOT_OWNER
-	if problem == Enums.ActionResult.OK and actor.inventory.room_for(item.item_id) <= 0:
-		problem = Enums.ActionResult.REFUSED
-		_reason = actor.inventory.refusal_for(item.item_id)  # Peso máximo ou inventário cheio (o Peso vem primeiro)
-	if problem == Enums.ActionResult.OK:
-		var item_id := item.item_id
-		var entry := item.entry.duplicate(true)  # individual: volta com a durabilidade que tinha
-		var taken := item.take(actor.inventory.room_for(item_id))
-		if entry.is_empty():
-			actor.inventory.add(item_id, taken)
-		elif taken > 0:
-			actor.inventory.add_entry(entry)
-		announce("item_collected", {"item": Items.display_name(item_id), "amount": taken})
-	return _answer(actor_id, ACTION_PICKUP, problem)
+	return _service_answer(actor_id, ACTION_PICKUP, looting.pickup(actor_id, target_id))
 
 
-## Recuperar os itens do corpo `corpse_id`: vai ao inventário de `actor_id` o que couber; o resto fica no corpo (que some quando
-## esvazia). Valida ator vivo e de pé, alcance de coleta e dono (só o dono). Corpo cheio demais para o inventário: recusa.
+## Recuperar os itens do corpo `corpse_id` (regras no `LootService`): o que couber vai ao inventário; o resto fica no corpo.
 func request_recover_corpse(actor_id: int, corpse_id: int) -> Enums.ActionResult:
-	var actor := _live_player(actor_id)
-	var corpse := entity(corpse_id) as PlayerCorpse
-	var problem := _actor_problem(actor_id, actor)
-	if problem == Enums.ActionResult.OK:
-		problem = _corpse_problem(actor, corpse)
-	if problem == Enums.ActionResult.OK:
-		var moved := corpse.recover_into(actor.inventory, actor.equipment)
-		if moved <= 0:
-			problem = Enums.ActionResult.REFUSED
-			_reason = corpse.refusal_for(actor.inventory)
-		else:
-			corpse.restore_hotbar(actor.hotbar, actor.inventory)  # os atalhos voltam para onde estavam
-			announce("corpse_recovered", {"amount": moved, "left": corpse.item_count()})
-	return _answer(actor_id, ACTION_RECOVER, problem)
+	return _service_answer(actor_id, ACTION_RECOVER, looting.recover_corpse(actor_id, corpse_id))
 
 
-func _corpse_problem(actor: Player, corpse: PlayerCorpse) -> Enums.ActionResult:
-	if corpse == null:
-		return Enums.ActionResult.UNKNOWN_TARGET
-	if not _within(actor, corpse, rules.reach_px()):
-		return Enums.ActionResult.OUT_OF_RANGE
-	return Enums.ActionResult.OK if corpse.owner_player_id == actor.player_id else Enums.ActionResult.NOT_OWNER
-
-
-## Largar no chão `amount` (TRANSFER_ALL = tudo) do slot `index` do inventário de `actor_id`, aos pés dele. Só pilha
-## (equipamento individual não se larga por aqui). Nada some: o que sai do inventário vira item de chão.
-## `expected_id` e `expected_count` (opcionais) são o que a tela confirmou: se a pilha já mudou, o pedido é recusado sem largar nada.
+## Largar no chão `amount` (TRANSFER_ALL = tudo) do slot `index` do inventário (regras no `LootService`).
+## `expected_id` e `expected_count` (opcionais) são o que a tela confirmou: se a pilha já mudou, o pedido é recusado.
 func request_drop(actor_id: int, index: int, amount: int = TRANSFER_ALL, expected_id: String = "",
 		expected_count: int = -1) -> Enums.ActionResult:
-	var actor := _live_player(actor_id)
-	var problem := _actor_problem(actor_id, actor)
-	if problem == Enums.ActionResult.OK and not drops_enabled:
-		problem = Enums.ActionResult.REFUSED
-	var slot := actor.inventory.get_slot(index) if problem == Enums.ActionResult.OK else {}
-	if problem == Enums.ActionResult.OK and (slot.is_empty() or slot.has("iid")):
-		problem = Enums.ActionResult.INVALID_ARGUMENT
-	if problem == Enums.ActionResult.OK and amount != TRANSFER_ALL and (amount < 1 or amount > int(slot["count"])):
-		problem = Enums.ActionResult.INVALID_ARGUMENT
-	if problem == Enums.ActionResult.OK and ((expected_id != "" and str(slot["id"]) != expected_id)
-			or (expected_count >= 0 and int(slot["count"]) != expected_count)):
-		problem = Enums.ActionResult.WRONG_STATE  # a pilha mudou depois da confirmação
-	if problem == Enums.ActionResult.OK:
-		var item_id := str(slot["id"])
-		var count := int(slot["count"]) if amount == TRANSFER_ALL else amount
-		var removed := actor.inventory.take_from_slot(index, count)
-		items_dropped.emit(item_id, removed, actor.global_position, actor.player_id)
-		item_discarded.emit(actor.player_id)
-	return _answer(actor_id, ACTION_DROP, problem)
+	return _service_answer(actor_id, ACTION_DROP, looting.drop(actor_id, index, amount, expected_id, expected_count))
 
 
 # ----------------------------------------------------------------------------- fabricar e colocar (E7a)
 
 ## Fabricar a receita `recipe_id` (regras e tarefa no `CraftService`). O material só sai no FIM.
 func request_craft(actor_id: int, recipe_id: String) -> Enums.ActionResult:
-	return _service_answer(actor_id, ACTION_CRAFT, crafting.begin_craft(actor_id, recipe_id))
+	var outcome := crafting.begin_craft(actor_id, recipe_id)
+	if outcome["result"] == Enums.ActionResult.OK:
+		skinning.cancel(actor_id, "busy")  # fabricar à mão (aceito) também para a esfola [provisório 09/11]
+	return _service_answer(actor_id, ACTION_CRAFT, outcome)
 
 
 ## Aprender a receita `recipe_id` gastando Saber (E7b). Regras no `CraftService`; o gasto deriva das receitas aprendidas.

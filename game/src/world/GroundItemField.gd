@@ -12,6 +12,8 @@ const MAX_COORD := 1.0e6
 const MAX_AMOUNT := 9999
 ## Teto de unidades que a migração de um item de chão antigo (pilha) para individual cria.
 const LEGACY_MAX_UNITS := 16
+## Tamanho máximo do dono da trava lido de save (dado de fora).
+const MAX_HELD_LENGTH := 64
 
 @export var rules: GroundItemRules = preload("res://data/balance/ground_item_rules.tres")
 ## Autoridade do mundo: cada pilha entra no registro dela e o recolher passa por ela.
@@ -24,10 +26,25 @@ var world_seed: int = 0
 var player: Player = null
 
 var _items: Array[GroundItem] = []
+## Pilhas que o último `items_dropped` espalhou: o `item_discarded` que vem logo depois as marca como largadas de propósito.
+var _last_scattered: Array[GroundItem] = []
 
 
 func _physics_process(_delta: float) -> void:
 	tick()
+
+
+## Liga o campo à autoridade: registra os itens nela e passa a ouvir o que cai no chão (colheita e Descartar) e o que foi
+## largado de propósito. Assim a regra vale com ou sem a `Main`.
+func attach(world: WorldAuthority) -> void:
+	authority = world
+	world.items_dropped.connect(func(item_id: String, amount: int, at: Vector2, dropper_id: String) -> void:
+		_last_scattered = spawn_scatter(item_id, amount, at, dropper_id))
+	world.item_discarded.connect(func(dropper_id: String) -> void:  # logo depois do `items_dropped` do Descartar
+		for dropped in _last_scattered:
+			if is_instance_valid(dropped):
+				dropped.auto_pickup_held_for = dropper_id
+		_last_scattered = [])
 
 
 ## Some o que venceu e recolhe, pelo pedido à autoridade, o que está sob os pés do jogador. Só compara instantes.
@@ -40,9 +57,10 @@ func tick() -> void:
 		return
 	var actor_id := authority.id_of(player)
 	for item in _items.duplicate():
-		var near: bool = item.global_position.distance_to(player.global_position) <= rules.auto_pickup_px
-		if not near and item.auto_pickup_held_for != "":
-			item.auto_pickup_held_for = ""  # o jogador se afastou: o item largado de propósito volta a ser recolhível sozinho
+		var distance: float = item.global_position.distance_to(player.global_position)
+		if item.auto_pickup_held_for == player.player_id and distance > rules.discard_release_px:
+			item.auto_pickup_held_for = ""  # o DONO da trava se afastou: o item largado de propósito volta a ser recolhível sozinho
+		var near: bool = distance <= rules.auto_pickup_px
 		# Só tenta quando cabe: recolher sozinho com a mochila cheia ficaria negado a cada quadro.
 		if near and item.auto_pickup_held_for != player.player_id and player.inventory.room_for(item.item_id) > 0:
 			authority.request_pickup(actor_id, authority.id_of(item))
@@ -130,7 +148,7 @@ func _with_legacy_individuals(list: Array) -> Array:
 		for n in SafeRead.integer(data.get("amount"), 0, 0, LEGACY_MAX_UNITS):
 			var unit := data.duplicate(true)
 			unit["amount"] = 1
-			unit["entry"] = {"id": item_id, "iid": "m%d" % serial}
+			unit["entry"] = {"id": item_id, "iid": "g%d" % serial}
 			if n > 0:
 				unit.erase("id")  # o id da entidade fica com a primeira unidade
 			result.append(unit)
@@ -223,6 +241,8 @@ func to_list() -> Array:
 		}
 		if not item.entry.is_empty():
 			entry["entry"] = item.entry.duplicate()
+		if item.auto_pickup_held_for != "":
+			entry["held"] = item.auto_pickup_held_for
 		if item.owner_player_id != "":
 			entry["owner"] = item.owner_player_id
 			entry["owner_until"] = item.owner_until
@@ -253,4 +273,5 @@ func restore_list(list: Array) -> void:
 		var item := _spawn(item_id, 1 if not individual.is_empty() else amount, point, due_at, saved_id)
 		item.entry = individual
 		item.owner_player_id = SafeRead.text(data.get("owner"), "")
+		item.auto_pickup_held_for = SafeRead.text(data.get("held"), "").left(MAX_HELD_LENGTH)  # ausente ou inválido: sem trava
 		item.owner_until = SafeRead.number(data.get("owner_until"), 0.0, 0.0, current + rules.owner_seconds)

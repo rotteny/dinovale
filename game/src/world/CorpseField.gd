@@ -209,7 +209,7 @@ func _clean_entries(raw: Array) -> Array[Dictionary]:
 				for n in SafeRead.integer(entry.get("count"), 0, 0, LEGACY_MAX_UNITS):
 					if clean.size() < MAX_ENTRIES:
 						var limit := Items.durability_max(item_id)
-						clean.append({"id": item_id, "iid": "m%d" % clean.size(), "durab": limit, "durab_max": limit})
+						clean.append({"id": item_id, "iid": "c%d" % clean.size(), "durab": limit, "durab_max": limit})
 				continue
 		else:
 			entry.erase("iid")

@@ -16,6 +16,9 @@ extends Resource
 @export_range(1, 99) var pile_max: int = 3
 ## Andar até esta distância do item o recolhe sozinho (px).
 @export_range(2.0, 64.0) var auto_pickup_px: float = 14.0
+## Distância (do próprio dono) a que o item largado de propósito volta a ser recolhido sozinho: uns 2,5 tiles. Maior que
+## `auto_pickup_px` e que o espalhamento: um passo não solta a trava (px).
+@export_range(16.0, 256.0) var discard_release_px: float = 40.0
 ## Gancho do co-op: quem largou ou derrubou tem prioridade por estes segundos. 0 = desligado (single-player: qualquer um pega).
 @export_range(0.0, 600.0) var owner_seconds: float = 0.0
 ## Quanto o que a migração de save deixou no chão (inventário antigo maior que o atual) demora a sumir, em segundos do

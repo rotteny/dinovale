@@ -486,7 +486,7 @@ func clean_individual_entry(entry: Dictionary) -> Dictionary:
 ## (máximo do item e cheia, se faltar).
 func _clean_individual(item_id: String, entry: Dictionary) -> Dictionary:
 	var iid := SafeRead.text(entry.get("iid"), "")
-	if iid == "" or iid.length() > MAX_IID_LENGTH or has_iid(iid):
+	if iid == "" or iid.length() > MAX_IID_LENGTH or iid_taken(iid):
 		iid = issue_iid()
 	var limit := Items.durability_max(item_id)
 	var durab_max := SafeRead.integer(entry.get("durab_max"), limit, 1, 1000000)
@@ -497,11 +497,16 @@ func _clean_individual(item_id: String, entry: Dictionary) -> Dictionary:
 ## Emite um `iid` novo, que não existe na grade (a vaga de equipamento usa ao restaurar).
 func issue_iid() -> String:
 	var iid := "%s%d" % [iid_prefix, _next_iid]
-	while has_iid(iid):
+	while iid_taken(iid):
 		_next_iid += 1
 		iid = "%s%d" % [iid_prefix, _next_iid]
 	_next_iid += 1
 	return iid
+
+
+## O `iid` já está em uso: na grade ou numa vaga de equipamento do mesmo dono (o `iid` é único no jogador inteiro).
+func iid_taken(iid: String) -> bool:
+	return has_iid(iid) or (worn != null and worn.slot_of_iid(iid) != "")
 
 
 func _new_individual(item_id: String) -> Dictionary:

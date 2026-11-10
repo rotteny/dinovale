@@ -17,6 +17,12 @@ func run() -> void:
 func _run_checks() -> void:
 	_test_discard_does_not_come_back()
 	_test_discard_confirms_what_was_shown()
+	_test_hold_release_radius()
+	_test_hold_only_owner_releases()
+	_test_hold_is_saved()
+	_test_hold_without_main()
+	_test_refused_action_keeps_skin()
+	_test_loot_service_extracted()
 	_test_migration_keeps_big_stacks()
 	_test_skin_no_duplicate()
 	_test_skin_follows_the_blade()
@@ -52,7 +58,7 @@ func _test_discard_does_not_come_back() -> void:
 	player.inventory.add(Items.WOOD, 5)
 	main.authority.request_drop(1, 0, 5, Items.WOOD, 5)
 	var far := player.global_position
-	player.global_position += Vector2(main.ground.rules.auto_pickup_px + 20.0, 0.0)
+	player.global_position += Vector2(main.ground.rules.discard_release_px + 20.0, 0.0)
 	main.ground.tick()
 	_check(player.inventory.count(Items.WOOD) == 0, "longe, nada é recolhido")
 	player.global_position = far
@@ -182,6 +188,11 @@ func _test_actions_cancel_skin() -> void:
 	_check(_skin(world, carcass) == Enums.ActionResult.OK, "esfola em andamento")
 	var result := authority.request_attack(1, authority.id_of(prey))
 	_check(result == Enums.ActionResult.OK and authority.skinning.job(1).is_empty(), "um golpe aceito cancela a esfola (o que entrou fica)")
+	# Fabricar à mão (aceito) também cancela [provisório 09/11].
+	_check(_skin(world, carcass) == Enums.ActionResult.OK, "esfola de novo")
+	player.inventory.add(Items.FIBER, 12)
+	_check(authority.request_craft(1, "fiber_basket") == Enums.ActionResult.OK and authority.skinning.job(1).is_empty(),
+			"fabricar à mão (aceito) cancela a esfola")
 
 
 func _test_belt_full_reason() -> void:
@@ -226,3 +237,134 @@ func _test_with_layout_restores() -> void:
 	var seen := [0]
 	Items.with_layout(other, func() -> void: seen[0] = Items.slots.player_slots)
 	_check(seen[0] == 7 and Items.slots == before, "with_layout aplica o layout e devolve o anterior")
+
+
+func _held_wood(main: Main) -> GroundItem:
+	var player := main.player
+	for item_id: String in Items.all_ids():
+		player.inventory.remove(item_id, 9999)
+	player.inventory.add(Items.WOOD, 3)
+	main.authority.request_drop(1, 0, 3, Items.WOOD, 3)
+	for item in main.ground.items():
+		if item.item_id == Items.WOOD and item.auto_pickup_held_for == player.player_id:
+			return item
+	return null
+
+
+## LEVI item 4: um passo não solta a trava; ela só solta depois de `discard_release_px` (dado), não de `auto_pickup_px`.
+func _test_hold_release_radius() -> void:
+	var main: Main = MAIN_SCENE.instantiate()
+	_root.add_child(main)
+	_track.call(main)
+	main.wild.free()
+	var rules := main.ground.rules
+	_check(rules.discard_release_px > rules.auto_pickup_px + rules.scatter_max_px and rules.discard_release_px == 40.0,
+			"o raio de soltura é dado próprio (40 px), maior que o recolhimento e o espalhamento")
+	var held := _held_wood(main)
+	var home := main.player.global_position
+	main.player.global_position = held.global_position + Vector2(rules.auto_pickup_px + 4.0, 0.0)  # um passo além do recolhimento
+	main.ground.tick()
+	_check(held.auto_pickup_held_for != "", "um passo para fora do recolhimento NÃO solta a trava")
+	main.player.global_position = held.global_position + Vector2(rules.discard_release_px + 2.0, 0.0)
+	main.ground.tick()
+	_check(held.auto_pickup_held_for == "", "além do raio de soltura a trava solta")
+	main.player.global_position = home
+
+
+## LEVI item 6: só a distância do PRÓPRIO dono solta a trava; a de outro jogador não é tocada pelo jogador local.
+func _test_hold_only_owner_releases() -> void:
+	var main: Main = MAIN_SCENE.instantiate()
+	_root.add_child(main)
+	_track.call(main)
+	main.wild.free()
+	var held := _held_wood(main)
+	held.auto_pickup_held_for = "outro_jogador"
+	main.player.global_position = held.global_position + Vector2(500.0, 0.0)
+	main.ground.tick()
+	_check(held.auto_pickup_held_for == "outro_jogador", "a trava de outro dono não solta pela distância do jogador local")
+	main.player.global_position = held.global_position
+	main.ground.tick()
+	_check(main.player.inventory.count(Items.WOOD) == 3, "e a trava de outro dono não impede o jogador local de recolher sozinho")
+
+
+## LEVI item 5: a trava vai ao save (com padrão seguro se faltar).
+func _test_hold_is_saved() -> void:
+	var main: Main = MAIN_SCENE.instantiate()
+	_root.add_child(main)
+	_track.call(main)
+	main.wild.free()
+	var held := _held_wood(main)
+	var list: Array = JSON.parse_string(JSON.stringify(main.ground.to_list()))
+	var held_in_list := 0
+	for entry: Dictionary in list:
+		if entry.get("held", "") == main.player.player_id:
+			held_in_list += 1
+	_check(held_in_list == 1, "o save leva o dono da trava")
+	main.ground.restore_list(list)
+	var back := 0
+	for item in main.ground.items():
+		if item.item_id == Items.WOOD and item.auto_pickup_held_for == main.player.player_id:
+			back += 1
+	_check(back == 1 and is_instance_valid(held), "ao carregar, a trava volta (o item largado não é recolhido na hora)")
+	main.ground.tick()
+	_check(main.player.inventory.count(Items.WOOD) == 0, "e segue sem recolher")
+	var old: Array = list.duplicate(true)
+	for entry: Dictionary in old:
+		entry.erase("held")
+	main.ground.restore_list(old)
+	var free_of_hold := true
+	for item in main.ground.items():
+		free_of_hold = free_of_hold and item.auto_pickup_held_for == ""
+	_check(free_of_hold, "save sem a chave: sem trava (padrão seguro)")
+	var hostile: Array = list.duplicate(true)
+	for entry: Dictionary in hostile:
+		entry["held"] = 12345
+	main.ground.restore_list(hostile)
+	free_of_hold = true
+	for item in main.ground.items():
+		free_of_hold = free_of_hold and item.auto_pickup_held_for == ""
+	_check(free_of_hold, "dono da trava de tipo errado vira sem trava")
+
+
+## LEVI item 7: a trava vale sem a `Main` (campo ligado à autoridade).
+func _test_hold_without_main() -> void:
+	var world := _world()
+	var player: Player = world["player"]
+	var authority: WorldAuthority = world["authority"]
+	authority.drops_enabled = true
+	var ground := GroundItemField.new()
+	_track.call(ground)
+	_root.add_child(ground)
+	ground.attach(authority)
+	ground.player = player
+	for item_id: String in Items.all_ids():
+		player.inventory.remove(item_id, 9999)
+	player.inventory.add(Items.WOOD, 2)
+	authority.request_drop(1, 0, 2, Items.WOOD, 2)
+	_check(ground.total_of(Items.WOOD) == 2, "o campo ouve a autoridade e espalha o que foi largado")
+	ground.tick()
+	_check(player.inventory.count(Items.WOOD) == 0, "sem a Main, o item largado de propósito não volta sozinho")
+
+
+## LEVI item 9: pedido RECUSADO não cancela a esfola.
+func _test_refused_action_keeps_skin() -> void:
+	var setup := _carcass_and_player()
+	var world: Dictionary = setup[0]
+	var carcass: ResourceNode = setup[1]
+	var authority: WorldAuthority = world["authority"]
+	_check(_skin(world, carcass) == Enums.ActionResult.OK, "esfola em andamento")
+	_check(authority.request_attack(1, 999999) != Enums.ActionResult.OK and not authority.skinning.job(1).is_empty(),
+			"golpe recusado (alvo inexistente): a esfola continua")
+	_check(authority.request_craft(1, "receita_que_nao_existe") != Enums.ActionResult.OK and not authority.skinning.job(1).is_empty(),
+			"fabricar recusado: a esfola continua")
+	_check(authority.request_craft(1, "fiber_basket") != Enums.ActionResult.OK and not authority.skinning.job(1).is_empty(),
+			"fabricar sem material (recusado): a esfola continua")
+
+
+## LEVI item 11: largar, recolher e recuperar o corpo moram no `LootService`; a autoridade só repassa.
+func _test_loot_service_extracted() -> void:
+	var world := _world()
+	var authority: WorldAuthority = world["authority"]
+	_check(authority.looting != null and authority.looting.get_parent() == authority, "o LootService é filho da autoridade")
+	var lines := FileAccess.get_file_as_string("res://src/world/WorldAuthority.gd").count("\n")
+	_check(lines < 900, "a autoridade encolheu (%d linhas) para dar folga à E12" % lines)

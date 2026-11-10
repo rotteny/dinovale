@@ -30,6 +30,9 @@ func _run_checks() -> void:
 	_test_legacy_containers()
 	_test_death_and_recovery()
 	_test_recovery_through_authority()
+	_test_recovery_full_grid()
+	_test_recovery_iid_collision()
+	_test_recovery_swaps_bigger_bag()
 	_test_screen_grows()
 	_test_corpse_with_full_belt_and_weapon()
 
@@ -408,15 +411,15 @@ func _test_death_and_recovery() -> void:
 	plain.capacity = 4
 	var moved := second.recover_into(plain)
 	_check(moved == 4 and second.item_count() == 12 - 4 and not second.is_empty(), "sem as vagas, só cabem 4 e o resto fica no corpo")
-	# Com outra bolsa já equipada, a do corpo não a substitui sozinha.
+	# Com outra bolsa menor já equipada, a Mochila do corpo a substitui se a troca couber (o teste dedicado está abaixo).
 	var third := main.player
 	_equip(third, Items.FIBER_BASKET)
 	var held := PlayerCorpse.new()
 	_track.call(held)
 	held.entries = [{"id": Items.LEATHER_BACKPACK, "iid": "z9", "durab": 1, "durab_max": 1}]
-	_check(held.recover_into(third.inventory, third.equipment) == 1 and third.equipment.count(Items.FIBER_BASKET) == 1
-			and third.inventory.count(Items.LEATHER_BACKPACK) == 1 and third.inventory.grid_size() == 8,
-			"com o Cesto equipado, a Mochila do corpo volta à grade e a troca é do jogador")
+	_check(held.recover_into(third.inventory, third.equipment) == 1 and third.equipment.count(Items.LEATHER_BACKPACK) == 1
+			and third.inventory.count(Items.FIBER_BASKET) == 1 and third.inventory.grid_size() == 12,
+			"com o Cesto equipado, a Mochila do corpo entra na vaga e o Cesto vai à grade")
 
 
 func _test_recovery_through_authority() -> void:
@@ -438,6 +441,102 @@ func _test_recovery_through_authority() -> void:
 			"pedido de recuperar pela autoridade: tudo volta, 9 pilhas numa grade que era de 4")
 	_check(player.equipment.count(Items.LEATHER_BACKPACK) == 1 and player.inventory.grid_size() == 12 and player.inventory.grid_used() == 9,
 			"a bolsa foi equipada e a grade cresceu")
+
+
+
+## Revisão E11 (LEVI) item 1: grade cheia + vaga Bolsa vazia + corpo com Mochila. A bolsa nunca fica equipada com a grade pequena.
+func _test_recovery_full_grid() -> void:
+	var world := _bag_world()
+	var player: Player = world["player"]
+	_fill_piles(player, 4)
+	var corpse := PlayerCorpse.new()
+	_track.call(corpse)
+	corpse.entries = [{"id": FILL_IDS[5], "count": 1, "expira_em": 0.0},
+			{"id": Items.LEATHER_BACKPACK, "iid": "k1", "durab": 1, "durab_max": 1},
+			{"id": FILL_IDS[6], "count": 1, "expira_em": 0.0}]
+	var before := _tally(player)
+	corpse.recover_into(player.inventory, player.equipment)
+	var worn := player.equipment.item_in(BAG)
+	var expected_size := Items.slots.grid_size_for(str(worn.get("id", "")))
+	_check(player.inventory.grid_size() == expected_size, "a grade tem o tamanho da bolsa equipada (nunca equipada com a grade pequena)")
+	_check(not worn.is_empty() and player.inventory.grid_size() == 12, "a Mochila do corpo foi equipada direto e a grade cresceu a 12")
+	var after := _tally(player)
+	var kept := 0
+	for entry in corpse.entries:
+		kept += 1 if entry.has("iid") else int(entry.get("count", 0))
+	var total := 0
+	for item_id: String in after:
+		total += int(after[item_id])
+	var total_before := 0
+	for item_id: String in before:
+		total_before += int(before[item_id])
+	_check(total + kept == total_before + 3 and kept == 0, "nada se perde: tudo do corpo passou (a grade já tem posição)")
+	# Sem Peso para a Mochila a vaga fica vazia e a Mochila fica no corpo.
+	var heavy := _bag_world()["player"] as Player
+	heavy.inventory.weight_limit = 0.1
+	var kept_corpse := PlayerCorpse.new()
+	_track.call(kept_corpse)
+	kept_corpse.entries = [{"id": Items.LEATHER_BACKPACK, "iid": "k2", "durab": 1, "durab_max": 1}]
+	kept_corpse.recover_into(heavy.inventory, heavy.equipment)
+	_check(heavy.equipment.item_in(BAG).is_empty() and kept_corpse.count(Items.LEATHER_BACKPACK) == 1,
+			"o Peso vale: sem folga a bolsa fica no corpo")
+
+
+## Revisão E11 item 2: o mesmo `iid` de migração (chão e corpo) em grade e vaga não pode recusar o save.
+func _test_recovery_iid_collision() -> void:
+	var world := _bag_world()
+	var player: Player = world["player"]
+	var authority: WorldAuthority = world["authority"]
+	var ground := GroundItemField.new()
+	_track.call(ground)
+	ground.authority = authority
+	_root.add_child(ground)
+	ground.restore_list([{"item": Items.FIBER_BASKET, "amount": 1, "x": player.position.x, "y": player.position.y, "id": 0}])
+	var corpses := CorpseField.new()
+	_track.call(corpses)
+	_root.add_child(corpses)
+	corpses.restore_list([{"player_id": player.player_id, "x": 0.0, "y": 0.0, "due_at": 100.0,
+			"items": [{"id": Items.FIBER_BASKET, "count": 1, "expira_em": 0.0}]}])
+	var dropped := ground.items()[0]
+	player.inventory.add_entry(dropped.entry.duplicate(true))
+	_check(_equip(player, Items.FIBER_BASKET) == "", "preparo: o Cesto do chão equipado")
+	var worn_iid := str(player.equipment.item_in(BAG)["iid"])
+	var legacy_iid := str(corpses.corpses()[0].entries[0]["iid"])
+	_check(legacy_iid != worn_iid and legacy_iid.begins_with("c") and str(dropped.entry["iid"]).begins_with("g"),
+			"a migração dá iid com prefixo da origem (g do chão, c do corpo)")
+	corpses.corpses()[0].entries[0]["iid"] = worn_iid  # o pior caso: o mesmo iid da vaga (save antigo, outro corpo)
+	corpses.corpses()[0].recover_into(player.inventory, player.equipment)
+	_check(player.inventory.count(Items.FIBER_BASKET) == 1 and player.equipment.count(Items.FIBER_BASKET) == 1,
+			"os dois Cestos de migração estão com o jogador (um na vaga, um na grade)")
+	worn_iid = str(player.equipment.item_in(BAG)["iid"])
+	var grid_iid := player.newest_iid(Items.FIBER_BASKET)
+	_check(worn_iid != grid_iid, "o iid da grade é diferente do da vaga")
+	var other := _player_at(Vector2.ZERO)
+	_check(other.from_dict(JSON.parse_string(JSON.stringify(player.to_dict()))), "o save desse jogador carrega")
+
+
+## Revisão E11 item 3: com o Cesto equipado, a Mochila do corpo (atrás das pilhas) é recuperada e troca com ele se couber.
+func _test_recovery_swaps_bigger_bag() -> void:
+	var world := _bag_world()
+	var player: Player = world["player"]
+	_equip(player, Items.FIBER_BASKET)
+	_fill_piles(player, 8)
+	var corpse := PlayerCorpse.new()
+	_track.call(corpse)
+	corpse.entries = [{"id": Items.TUBER, "count": 1, "expira_em": 0.0},
+			{"id": Items.LEATHER_BACKPACK, "iid": "s1", "durab": 1, "durab_max": 1}]
+	corpse.recover_into(player.inventory, player.equipment)
+	_check(player.equipment.count(Items.LEATHER_BACKPACK) == 1 and player.inventory.count(Items.FIBER_BASKET) == 1
+			and player.inventory.grid_size() == 12 and corpse.is_empty(), "a Mochila do corpo entrou na vaga, o Cesto foi à grade, grade de 12")
+	# Troca que não cabe (a menor não pode ocupar o lugar): a bolsa do corpo menor nunca substitui a maior.
+	var big := _bag_world()["player"] as Player
+	_equip(big, Items.LEATHER_BACKPACK)
+	var small_corpse := PlayerCorpse.new()
+	_track.call(small_corpse)
+	small_corpse.entries = [{"id": Items.FIBER_BASKET, "iid": "s2", "durab": 1, "durab_max": 1}]
+	small_corpse.recover_into(big.inventory, big.equipment)
+	_check(big.equipment.count(Items.LEATHER_BACKPACK) == 1 and big.inventory.count(Items.FIBER_BASKET) == 1,
+			"a bolsa menor do corpo vai à grade, não à vaga")
 
 
 # ----------------------------------------------------------------------------- tela

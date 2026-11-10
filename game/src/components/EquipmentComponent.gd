@@ -118,7 +118,9 @@ func equip(iid: String, slot_id: String = "") -> String:
 	var origin := inventory.index_of_iid(iid)
 	var entry := inventory.remove_iid(iid)
 	var old := item_in(target)
+	_worn.erase(target)  # o antigo já saiu da vaga: o `iid` dele não pode contar como "em uso" ao entrar na grade
 	if not old.is_empty() and not inventory.put_individual_at(origin, old):  # o antigo volta ao slot de onde o novo saiu
+		_worn[target] = old
 		inventory.add_entry(entry, false)  # não deveria ocorrer: o slot do novo acabou de vagar
 		return REFUSED_FULL
 	_worn[target] = entry
@@ -133,9 +135,35 @@ func adopt(slot_id: String, entry: Dictionary) -> bool:
 	var clean := inventory.clean_individual_entry(entry)
 	if clean.is_empty() or not layout.has_slot(slot_id) or Items.slot_of(clean["id"]) != slot_id or _worn.has(slot_id):
 		return false
-	if slot_of_iid(clean["iid"]) != "":
+	if slot_of_iid(clean["iid"]) != "" or inventory.has_iid(clean["iid"]):
 		clean["iid"] = inventory.issue_iid()
 	_worn[slot_id] = clean
+	_fit_grid_to_bag(slot_id)
+	changed.emit()
+	return true
+
+
+## Bolsa que vem de FORA da grade (o corpo): entra na vaga Bolsa se ela está vazia, ou troca com a equipada se a nova é MAIOR e as
+## pilhas de hoje (mais a bolsa antiga, que vai à grade) cabem na grade nova. Devolve se entrou. Nada se perde: recusando, nada muda.
+## O Peso é de quem chama (ele confere antes).
+func adopt_bag(entry: Dictionary) -> bool:
+	var clean := inventory.clean_individual_entry(entry)
+	if clean.is_empty() or Items.slot_of(clean["id"]) != EquipmentLayout.BAG or not layout.has_slot(EquipmentLayout.BAG):
+		return false
+	var old := item_in(EquipmentLayout.BAG)
+	if old.is_empty():
+		return adopt(EquipmentLayout.BAG, clean)
+	var new_size := Items.slots.grid_size_for(str(clean["id"]))
+	if new_size <= Items.slots.grid_size_for(str(old["id"])) or inventory.grid_used() + 1 > new_size:
+		return false
+	if slot_of_iid(clean["iid"]) != "" or inventory.has_iid(clean["iid"]):
+		clean["iid"] = inventory.issue_iid()
+	_worn[EquipmentLayout.BAG] = clean
+	inventory.resize_grid(grid_size())  # cresce: sempre cabe
+	if inventory.add_entry(old, false) != 0:  # não deveria ocorrer (o pré-teste contou a posição); desfaz
+		_worn[EquipmentLayout.BAG] = old
+		inventory.resize_grid(grid_size())
+		return false
 	changed.emit()
 	return true
 
@@ -151,9 +179,10 @@ func unequip(slot_id: String) -> String:
 		var over := inventory.grid_used() + 1 - Items.slots.grid_size_for("")  # a bolsa tirada também ocupa uma posição
 		if over > 0:
 			return over_limit_reason(over)
+	_worn.erase(slot_id)  # sai da vaga antes de entrar na grade (o `iid` não conta como em uso)
 	if inventory.add_entry(item, false) != 0:  # mover do corpo para a grade não muda o Peso total
+		_worn[slot_id] = item
 		return REFUSED_FULL
-	_worn.erase(slot_id)
 	_fit_grid_to_bag(slot_id)
 	changed.emit()
 	return ""

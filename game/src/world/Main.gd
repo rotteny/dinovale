@@ -91,7 +91,6 @@ var music: MusicPlayer
 
 ## `entity_id` da criatura cuja tela compartilhada está aberta (0 = nenhuma).
 ## Itens que o último `items_dropped` espalhou no chão (o Descartar os marca logo em seguida).
-var _last_scattered: Array[GroundItem] = []
 var _screen_target_id: int = 0
 var _quit_failed_once: bool = false
 var _last_failure_notice: String = ""
@@ -244,7 +243,7 @@ func _build_zone() -> void:
 	ground = GroundItemField.new()
 	ground.name = "GroundItems"
 	ground.y_sort_enabled = true
-	ground.authority = authority
+	ground.attach(authority)  # o campo cuida do que cai no chão e da trava do Descartar
 	ground.clock = authority.clock.now
 	ground.world_seed = world_seed
 	ground.player = player
@@ -257,12 +256,8 @@ func _build_zone() -> void:
 	authority.player_died.connect(_on_player_died)
 	authority.drops_enabled = true
 	authority.world_seed = world_seed
-	authority.items_dropped.connect(func(item_id: String, amount: int, at: Vector2, dropper_id: String) -> void:
-		_last_scattered = ground.spawn_scatter(item_id, amount, at, dropper_id)
+	authority.items_dropped.connect(func(_item_id: String, _amount: int, at: Vector2, _dropper_id: String) -> void:
 		_play_drop_sound(at))
-	authority.item_discarded.connect(func(dropper_id: String) -> void:  # logo depois do `items_dropped` do Descartar
-		for dropped in _last_scattered:
-			dropped.auto_pickup_held_for = dropper_id)
 	authority.migration_spill.connect(ground.spawn_spill)
 	add_child(ground)
 	workbenches = BuildField.new()

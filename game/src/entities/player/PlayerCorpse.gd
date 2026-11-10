@@ -68,7 +68,8 @@ func recover_into(to: InventoryComponent, worn: EquipmentComponent = null) -> in
 	for entry in entries:
 		var units := _units(entry)
 		var left := to.add_entry(entry)
-		if left > 0 and entry.has("iid") and worn != null and worn.adopt(Items.slot_of(str(entry["id"])), entry):
+		if left > 0 and entry.has("iid") and worn != null and Items.slot_of(str(entry["id"])) == EquipmentLayout.WEAPON \
+				and worn.adopt(EquipmentLayout.WEAPON, entry):
 			left = 0  # o cinto cheio não prende a arma que estava na mão: ela volta para a vaga dela, se estiver vaga
 		moved += units - left
 		if left > 0:
@@ -84,27 +85,23 @@ func recover_into(to: InventoryComponent, worn: EquipmentComponent = null) -> in
 	return moved
 
 
-## Passa a melhor bolsa do corpo à grade e a equipa (vaga vazia). Devolve 1 se a bolsa saiu do corpo, senão 0. Se o Peso ou a
-## grade recusam, ela fica no corpo e segue a regra comum.
+## Passa a melhor bolsa do corpo direto à vaga Bolsa (antes das pilhas, que dependem da grade nova): vaga vazia, ou a do corpo é
+## MAIOR que a equipada e a troca cabe (a antiga vai à grade). Devolve 1 se a bolsa saiu do corpo, senão 0. Sem Peso, ou se a
+## troca não cabe, ela fica no corpo e segue a regra comum (vai à grade como qualquer item).
 func _recover_bag(to: InventoryComponent, worn: EquipmentComponent) -> int:
-	if worn == null or not worn.item_in(EquipmentLayout.BAG).is_empty():
+	if worn == null:
 		return 0
+	var equipped := worn.item_in(EquipmentLayout.BAG)
 	var best := -1
-	var best_bonus := 0
+	var best_bonus := Items.slots.bag_bonus(str(equipped.get("id", ""))) if not equipped.is_empty() else 0
 	for i in entries.size():
-		var bonus := Items.slots.bag_bonus(str(entries[i].get("id", ""))) if Items.is_bag(str(entries[i].get("id", ""))) else 0
-		if bonus > best_bonus:
+		var item_id := str(entries[i].get("id", ""))
+		if Items.is_bag(item_id) and entries[i].has("iid") and Items.slots.bag_bonus(item_id) > best_bonus:
 			best = i
-			best_bonus = bonus
-	if best < 0:
-		return 0
-	var entry := entries[best].duplicate(true)
-	if to.has_iid(str(entry.get("iid", ""))):
-		entry["iid"] = to.issue_iid()  # o `iid` do corpo já existe aqui: sem isso a equipagem abaixo apontaria para outro item
-	if to.add_entry(entry) != 0:
+			best_bonus = Items.slots.bag_bonus(item_id)
+	if best < 0 or to.weight_units_for(str(entries[best]["id"])) <= 0 or not worn.adopt_bag(entries[best]):
 		return 0
 	entries.remove_at(best)
-	worn.equip(str(entry["iid"]))  # a bolsa já está na grade: se a vaga recusar, nada se perde
 	return 1
 
 

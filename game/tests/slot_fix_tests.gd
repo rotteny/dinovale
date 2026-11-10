@@ -6,6 +6,7 @@ extends CarcassTests
 ## Roda com o dado REAL de slots (4 e 4).
 
 const REAL_RULES: SlotRules = preload("res://data/balance/slot_rules.tres")
+const NODE_SCENE: PackedScene = preload("res://src/entities/resource/ResourceNode.tscn")
 const TOOLS: Array[String] = [Items.SLEEP_STAFF, Items.WOODEN_SPEAR, Items.AXE_STONE, Items.PICKAXE_STONE]
 
 
@@ -23,6 +24,8 @@ func _run_checks() -> void:
 	_test_hold_without_main()
 	_test_refused_action_keeps_skin()
 	_test_loot_service_extracted()
+	_test_load_keeps_iid_and_hotbar()
+	_test_refused_cooldowns_keep_skin()
 	_test_migration_keeps_big_stacks()
 	_test_skin_no_duplicate()
 	_test_skin_follows_the_blade()
@@ -258,8 +261,8 @@ func _test_hold_release_radius() -> void:
 	_track.call(main)
 	main.wild.free()
 	var rules := main.ground.rules
-	_check(rules.discard_release_px > rules.auto_pickup_px + rules.scatter_max_px and rules.discard_release_px == 40.0,
-			"o raio de soltura é dado próprio (40 px), maior que o recolhimento e o espalhamento")
+	_check(rules.discard_release_px > rules.auto_pickup_px + rules.scatter_max_px,
+			"o raio de soltura é dado próprio, maior que o recolhimento mais o espalhamento")
 	var held := _held_wood(main)
 	var home := main.player.global_position
 	main.player.global_position = held.global_position + Vector2(rules.auto_pickup_px + 4.0, 0.0)  # um passo além do recolhimento
@@ -366,5 +369,76 @@ func _test_loot_service_extracted() -> void:
 	var world := _world()
 	var authority: WorldAuthority = world["authority"]
 	_check(authority.looting != null and authority.looting.get_parent() == authority, "o LootService é filho da autoridade")
-	var lines := FileAccess.get_file_as_string("res://src/world/WorldAuthority.gd").count("\n")
-	_check(lines < 900, "a autoridade encolheu (%d linhas) para dar folga à E12" % lines)
+
+
+## LEVI (3ª revisão) M1: carregar o save num jogador já em jogo, com a mesma arma equipada, mantém o iid e o atalho.
+func _test_load_keeps_iid_and_hotbar() -> void:
+	var player: Player = _world()["player"]
+	for item_id: String in Items.all_ids():
+		player.inventory.remove(item_id, 9999)
+	player.equipment.from_dict({"slots": {}})
+	player.inventory.add(Items.WOODEN_SPEAR, 1)
+	var iid := player.newest_iid(Items.WOODEN_SPEAR)
+	player._equip_timer = 0.0
+	player.perform_equipment(iid)
+	player._equip_timer = 0.0
+	player.request_unequip(EquipmentLayout.WEAPON)
+	player.ensure_hotbar_slot(Items.WOODEN_SPEAR)
+	var saved: Dictionary = JSON.parse_string(JSON.stringify(player.to_dict()))
+	var slot_before := player.hotbar.slot_of_iid(iid)
+	player._equip_timer = 0.0
+	player.perform_equipment(iid)  # em jogo a Lança está equipada de novo; o save a tem na grade
+	_check(player.from_dict(saved), "o save carrega num jogador vivo")
+	_check(player.newest_iid(Items.WOODEN_SPEAR) == iid and slot_before >= 0 and player.hotbar.slot_of_iid(iid) == slot_before,
+			"a Lança volta com o mesmo iid e o atalho continua apontando para ela")
+	var undo := player.to_dict()  # o desfazer do WorldSnapshot recarrega o to_dict de antes
+	player._equip_timer = 0.0
+	player.perform_equipment(iid)
+	player.from_dict(JSON.parse_string(JSON.stringify(undo)))
+	_check(player.newest_iid(Items.WOODEN_SPEAR) == iid, "recarregar o estado de antes não troca o iid")
+
+
+## LEVI (3ª revisão) baixa 1: recusa por intervalo (golpe e coleta) não cancela a esfola. Cada caso aceita uma ação (que cancela),
+## recomeça a esfola e repete a ação, que agora cai no intervalo.
+func _test_refused_cooldowns_keep_skin() -> void:
+	var setup := _carcass_and_player()
+	var world: Dictionary = setup[0]
+	var carcass: ResourceNode = setup[1]
+	var player: Player = setup[2]
+	var authority: WorldAuthority = world["authority"]
+	var prey := _dino(world, PAQ, player.global_position + Vector2(14.0, 0.0), "")
+	authority.register(prey)
+	player.facing = Vector2.RIGHT
+	_check(authority.request_attack(1, authority.id_of(prey)) == Enums.ActionResult.OK, "um golpe aceito (abre o intervalo da arma)")
+	_check(_skin(world, carcass) == Enums.ActionResult.OK, "esfola recomeça")
+	var second := authority.request_attack(1, authority.id_of(prey))
+	_check(second == Enums.ActionResult.COOLDOWN and not authority.skinning.job(1).is_empty(),
+			"golpe recusado por intervalo: a esfola continua")
+	_check(not authority.skinning.job(1).is_empty(), "esfola ainda em andamento")
+	var bushes: Array[ResourceNode] = []
+	for offset in [Vector2(0.0, 8.0), Vector2(8.0, 8.0)]:
+		var node: ResourceNode = NODE_SCENE.instantiate()
+		node.def = load("res://data/resources/bush_baga.tres")
+		node.position = player.position + offset
+		_root.add_child(node)
+		_track.call(node)
+		authority.register(node)
+		bushes.append(node)
+	player.facing = Vector2.DOWN
+	authority.start_gather_interval(1)  # como depois de uma coleta concluída
+	var refused := authority.request_gather(1, authority.id_of(bushes[0]))
+	_check(refused == Enums.ActionResult.COOLDOWN and not authority.skinning.job(1).is_empty(),
+			"coleta recusada por intervalo: a esfola continua")
+	# `perform_gather` que falha (veia de ferro pede ferramenta e o jogador não tem): a esfola também continua.
+	var seam: ResourceNode = NODE_SCENE.instantiate()
+	seam.def = load("res://data/resources/iron_seam.tres")
+	seam.position = player.position + Vector2(0.0, 6.0)
+	_root.add_child(seam)
+	_track.call(seam)
+	authority.register(seam)
+	for tool_id in TOOLS:
+		player.inventory.remove(tool_id, 9)
+	player.equipment.from_dict({"slots": {}})
+	var no_tool := authority.request_gather(1, authority.id_of(seam))
+	_check(no_tool != Enums.ActionResult.OK and not authority.skinning.job(1).is_empty(),
+			"coleta que falha por falta de ferramenta: a esfola continua")

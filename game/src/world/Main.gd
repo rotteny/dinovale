@@ -90,7 +90,6 @@ var occupancy := TileOccupancy.new()
 var music: MusicPlayer
 
 ## `entity_id` da criatura cuja tela compartilhada está aberta (0 = nenhuma).
-## Itens que o último `items_dropped` espalhou no chão (o Descartar os marca logo em seguida).
 var _screen_target_id: int = 0
 var _quit_failed_once: bool = false
 var _last_failure_notice: String = ""

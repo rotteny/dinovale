@@ -65,6 +65,9 @@ static func apply_saved_state(player: Player, data: Dictionary) -> bool:
 	player.progression.from_dict(SafeRead.dict(data.get("progression")))
 	player.migration_spill = []
 	if replaces_inventory:
+		# As vagas esvaziam ANTES da grade: o `iid` do save não pode colidir com o item que está equipado agora (a vaga é recarregada
+		# logo abaixo), senão a grade o renumera e o atalho salvo aponta para o `iid` antigo.
+		player.equipment.from_dict({"slots": {}})
 		# A grade tem o tamanho da bolsa salva ANTES de receber as pilhas (o save é de uma grade de 4, 8 ou 12 posições).
 		player.inventory.from_dict({"version": InventoryComponent.FORMAT_VERSION, "slots": []})
 		player.inventory.resize_grid(saved_grid_size(saved_equipment if has_equipment else {}))

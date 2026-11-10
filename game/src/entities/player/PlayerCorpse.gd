@@ -59,9 +59,9 @@ func is_empty() -> bool:
 
 ## Passa ao inventário `to` o que couber, na ordem em que as entradas estão; o resto fica no corpo. Devolve quantas
 ## unidades passaram. Esvaziou: avisa o campo.
-## `worn` (as vagas do dono): com a vaga Bolsa vazia, a MELHOR bolsa do corpo é recuperada primeiro e equipada, para a grade
-## crescer antes de o resto voltar (senão a Mochila cheia nunca caberia em 4 slots). Com a vaga ocupada a bolsa do corpo vai
-## à grade como qualquer item, e o jogador decide a troca.
+## `worn` (as vagas do dono): a MELHOR bolsa do corpo é recuperada primeiro, direto para a vaga Bolsa, para a grade crescer antes
+## de o resto voltar (senão a Mochila cheia nunca caberia em 4 slots). Vaga vazia, ou ocupada por bolsa MENOR cuja troca cabe
+## (a antiga vai à grade). Sem Peso, ou se a troca não cabe, a bolsa fica no corpo ou vai à grade como qualquer item.
 func recover_into(to: InventoryComponent, worn: EquipmentComponent = null) -> int:
 	var moved := _recover_bag(to, worn)
 	var kept: Array[Dictionary] = []

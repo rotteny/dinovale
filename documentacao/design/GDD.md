@@ -348,12 +348,12 @@ Animal morto deixa **carcaça** coletável; os itens podem virar **sacolinha** n
 | Espécie (base: carne / couro) | Nível típico | Carne | Couro | Tempo | Peso | Fome da carne |
 |---|---|---|---|---|---|---|
 | Paquicéfalo (4 / 1) | L12 | 4 | 1 | 9 s | 2,4 kg | 100 (17 min) |
-| Utahraptor (5 / 2) | L20 | 6 | 3 | 18 s | 4,2 kg | 150 (25 min) |
+| Utahraptor (5 / 2) | L20 | 7 `[ajustado 09/11, arredondamento: 5 x 1,3 = 6,5 e o código arredonda a 7]` | 3 | 19,5 s | 4,7 kg | 175 (29 min) |
 | *(fora da v0.2)*  Parassaurolofo (10 / 3) | L20 | 13 | 4 | 31,5 s | 8,1 kg | 325 (54 min) |
 | Triceratops (14 / 5) | L28 | 22 | 8 | 57 s | 14,2 kg (28% do Peso) | 550 (92 min) |
 | Artrópode gigante (pós-MVP, cavernas) | -- | **quitina** no lugar do couro | | | | |
 
-**À mão (B)** [calculado: o dobro do tempo da tabela e 1 de dano por item]: Paquicéfalo 18 s e 5 de dano; Utahraptor 36 s e 9; Parassaurolofo 63 s e 17; **Triceratops 114 s e 30**. Na prática a mão serve às presas pequenas e a quem ficou sem Lança; carcaça grande pede Lança ou Espada (a coleta parcial vale). Triceratops L42 (domado que morreu): 27 e 10, 70 s. Coleta **parcial** permitida (a barra pode ser interrompida e retomada); interromper por mover mais de 3 tiles ou por dano.
+**À mão (B)** [calculado: o dobro do tempo da tabela e 1 de dano por item]: Paquicéfalo 18 s e 5 de dano; Utahraptor 39 s e 10 [ajustado 09/11, arredondamento]; Parassaurolofo 63 s e 17; **Triceratops 114 s e 30**. Na prática a mão serve às presas pequenas e a quem ficou sem Lança; carcaça grande pede Lança ou Espada (a coleta parcial vale). Triceratops L42 (domado que morreu): 27 e 10, 70 s. Coleta **parcial** permitida (a barra pode ser interrompida e retomada); interromper por mover mais de 3 tiles ou por dano.
 
 **Quanto tempo ficam [premissa]:** carcaça **fresca 10 min**; de 10 a 20 min vira **carniça** (só carne podre: `ceil(carne/4)`; Triceratops L28 dá 6) e some aos 20 min; **sacolinha 10 min**; no máximo **8 carcaças e 20 sacolinhas** no mundo (a mais antiga some). **M4b:** a bolsinha de Largar (5.1b) usa a mesma entidade, com 5 min. Save: menos de 2 KB. Isso dá a **carne podre** (5.5) sem nenhuma regra de estragar no inventário e permite cortar a Carniça-nó se o teste mostrar oferta suficiente.
 

@@ -172,6 +172,7 @@ static func restore(data: Dictionary, player: Player, dino: Dino, field: Resourc
 	# Daqui em diante nada recusa: o relógio é reposto antes de quem tem prazo (ADR-006). Repor não avança nem dispara
 	# nada; quem venceu é resolvido pelo primeiro tick depois da carga.
 	if authority != null:
+		authority.skinning.clear_jobs()
 		authority.crafting.clear_jobs()  # a fabricação em curso não sobrevive a um load na mesma sessão
 		authority.clock.restore(SafeRead.number(SafeRead.dict(data.get("world")).get("time"), 0.0, 0.0, MAX_TIME))
 		authority.resync_day_phase()  # a hora do dia sai do relógio: carregar no meio da noite não anuncia a noite
@@ -185,6 +186,7 @@ static func restore(data: Dictionary, player: Player, dino: Dino, field: Resourc
 	if build != null:  # peça do mundo, como o chão; save anterior à E8a só tem `workbenches` (migra), e antes da E7a nada
 		build.from_dict(build_block_of(data, build.rules.tile_px))
 		return_unplaced(build, player, authority)
+	return_spilled(player, authority)  # depois do chão salvo: o excedente da migração entra nele
 	if field != null and same_map_id:
 		field.restore_list(SafeRead.list(SafeRead.dict(data.get("world")).get("resource_nodes")))
 	if is_instance_valid(dino) and saved_dino == null:
@@ -209,6 +211,17 @@ static func return_unplaced(build: BuildGrid, player: Player, authority: WorldAu
 		var left := player.inventory.add(item_id, int(build.unplaced_items[item_id]))
 		if left > 0 and authority != null:
 			authority.items_dropped.emit(item_id, left, player.global_position, player.player_id)
+
+
+## O inventário de um save antigo (maior que os 4 slots de hoje) deixou excedente: cai aos pés do jogador, num item de chão
+## que demora muito a sumir (`migration_keep_seconds`). Nada some e nada é gasto. Sem autoridade o excedente fica com o jogador.
+static func return_spilled(player: Player, authority: WorldAuthority) -> void:
+	if authority == null or player.migration_spill.is_empty():
+		return
+	for entry in player.migration_spill:
+		authority.migration_spill.emit(entry, player.global_position)
+	player.migration_spill = []
+	authority.announce("inventory_migrated")
 
 
 ## Próximo `entity_id` livre gravado no mundo (0 se ausente ou inválido).

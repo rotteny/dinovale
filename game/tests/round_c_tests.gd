@@ -316,6 +316,14 @@ func _test_carcass_from_death() -> void:
 	_check(main.carcasses.count() == 0, "com 10 min (GDD 5.6) a carcaça some")
 
 
+## Esfolar tem tempo (E10): deixa a tarefa do jogador 1 correr, em passos de 0,25 s, até acabar.
+func _finish_skin(main: Main) -> void:
+	for _step in 800:
+		if main.authority.skinning.job(1).is_empty():
+			return
+		main.authority.skinning.tick(0.25)
+
+
 func _test_carcass_hand_cost_and_partial() -> void:
 	var main := await _world("c_carcass_cost")
 	var player := main.player
@@ -333,8 +341,9 @@ func _test_carcass_hand_cost_and_partial() -> void:
 	player.inventory.add("meat", Items.max_stack("meat") - 2)  # cabem só 2
 	var hp := player.health.current_health
 	var id := main.authority.id_of(carcass)
-	_check(main.authority.request_gather(1, id) == RESULT.OK and player.inventory.count("meat") == Items.max_stack("meat"),
-			"o que cabe entra (2 itens)")
+	var started := main.authority.request_gather(1, id) == RESULT.OK
+	_finish_skin(main)
+	_check(started and player.inventory.count("meat") == Items.max_stack("meat"), "o que cabe entra (2 itens)")
 	_check(is_equal_approx(player.health.current_health, hp - 2.0) and not carcass.component.depleted and carcass.visible,
 			"parcial: 1 de dano por item entregue (2), a carcaça segue")
 	_check(carcass.component.pending_yields() == {"meat": meat - 2, "leather": 1}, "o resto (carne e couro) fica na carcaça")
@@ -343,7 +352,9 @@ func _test_carcass_hand_cost_and_partial() -> void:
 	player.inventory.remove("meat", Items.max_stack("meat"))
 	player.inventory.capacity = 8  # espaço também para o couro, que ficou na carcaça
 	hp = player.health.current_health
-	_check(main.authority.request_gather(1, id) == RESULT.OK, "volta e leva o resto")
+	var again := main.authority.request_gather(1, id) == RESULT.OK
+	_finish_skin(main)
+	_check(again and player.inventory.count("meat") == meat - 2 and player.inventory.count("leather") == 1, "volta e leva o resto")
 	_check(is_equal_approx(player.health.current_health, hp - float(meat - 1)), "o resto custa 1 por item (%d)" % (meat - 1))
 	await _root.get_tree().physics_frame
 	await _root.get_tree().physics_frame
@@ -359,6 +370,7 @@ func _test_carcass_hand_cost_and_partial() -> void:
 	player.inventory.capacity = 8
 	player.health.current_health = player.rules.hand_damage_floor + 1.0
 	main.authority.request_gather(1, main.authority.id_of(huge))
+	_finish_skin(main)
 	_check(player.health.current_health >= player.rules.hand_damage_floor and not player.health.is_dead(),
 			"o piso de vida vale: o Soco não mata")
 

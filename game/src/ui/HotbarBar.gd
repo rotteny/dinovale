@@ -1,9 +1,11 @@
 # SPDX-License-Identifier: MIT
 class_name HotbarBar
 extends HBoxContainer
-## Barra de atalhos (GDD 5.2): nove posições, tecla no canto, ícone e quantidade (soma das
-## pilhas). Sem estoque o atalho fica apagado mas atribuído. Só apresentação: lê o
-## `HotbarComponent` e o inventário do jogador; quem usa a tecla é o `Player`.
+## Barra de atalhos (GDD 5.2): até nove posições, tecla no canto (1 a 9), ícone e quantidade (soma das pilhas).
+## Mostra só as entradas que existem (vaga Arma, ferramentas do cinto e itens usáveis): posição vazia fica escondida
+## e só aparece enquanto se arrasta um item (para ter onde soltá-lo).
+## Sem estoque o atalho fica apagado mas atribuído.
+## Só apresentação: lê o `HotbarComponent` e o inventário do jogador; quem usa a tecla é o `Player`.
 
 ## Arrastar pede a mudança da barra; quem liga (a `Main`) a aplica. A barra só desenha e observa.
 signal assign_requested(slot: int, item_id: String, iid: String)
@@ -33,6 +35,8 @@ const DRAG_HOTBAR := &"hotbar"
 @export var player: Player
 
 var _dragging: int = -1
+## Há um arraste em curso: as posições vazias aparecem como destino.
+var _drag_open := false
 var _slots: Array[Button] = []
 var _keys: Array[Label] = []
 var _counts: Array[Label] = []
@@ -80,6 +84,7 @@ func _ready() -> void:
 
 func refresh() -> void:
 	for i in _slots.size():
+		_slots[i].visible = _drag_open or not player.hotbar.entry_at(i).is_empty()
 		var iid := player.hotbar.iid_at(i)
 		var item_id := player.hotbar.item_at(i)
 		if iid != "":
@@ -141,8 +146,14 @@ func _drop_on(_at: Vector2, data: Variant, index: int) -> void:
 
 ## Fim de qualquer arraste: se a casa do atalho foi solta fora de um destino válido, a casa é limpa.
 func _notification(what: int) -> void:
+	if what == NOTIFICATION_DRAG_BEGIN:
+		_drag_open = true
+		if player != null and not _slots.is_empty():
+			refresh()
+		return
 	if what != NOTIFICATION_DRAG_END:
 		return
+	_drag_open = false
 	if _dragging >= 0 and not get_viewport().gui_is_drag_successful():
 		clear_requested.emit(_dragging)
 	_dragging = -1
@@ -152,6 +163,11 @@ func _notification(what: int) -> void:
 
 func slot_button(index: int) -> Button:
 	return _slots[index] if index >= 0 and index < _slots.size() else null
+
+
+## A posição está na tela (tem entrada, ou há um arraste em curso).
+func is_slot_shown(index: int) -> bool:
+	return index >= 0 and index < _slots.size() and _slots[index].visible
 
 
 ## Quantidade mostrada na posição ("" se vazia).

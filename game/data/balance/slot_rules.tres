@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="SlotRules" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/core/SlotRules.gd" id="1_rules"]
+
+[resource]
+script = ExtResource("1_rules")
+; GDD 5.21 (decisão do dono, 07/11): 4 slots de grade. [premissa] Cinto de 4 posições para as ferramentas (shiro.md 4.7);
+; a vaga Arma é à parte (EquipmentLayout), então o jogador leva até 5 ferramentas fora dos slots.
+player_slots = 4
+belt_slots = 4

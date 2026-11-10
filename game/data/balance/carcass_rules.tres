@@ -7,3 +7,4 @@ script = ExtResource("1_rules")
 fresh_seconds = 600.0
 max_carcasses = 8
 owner_exclusive_seconds = 120.0
+skin_walk_cancel_tiles = 3.0

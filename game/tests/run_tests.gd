@@ -6,6 +6,10 @@ extends SceneTree
 
 ## Semente dos mundos novos dos testes (um teste que quer outra a fixa em `Main.world_seed`).
 const TEST_WORLD_SEED := 424242
+## Layout de inventário das suítes anteriores à E11a (12 slots, sem cinto): elas testam outras regras e precisam de espaço.
+## O jogo usa 4 slots e cinto de 4 (`slot_rules.tres`); a `SlotTests` roda com o dado real e confere que ele vale isso.
+const LEGACY_SLOTS := 12
+const LEGACY_BELT := 0
 
 var _checks := 0
 var _failures := 0
@@ -23,6 +27,10 @@ func _run() -> void:
 	# Nenhum teste grava em user://saves: tudo vai para uma pasta descartável.
 	GameSession.save_root = SaveTests.root_dir
 	GameSession.world_seed_override = TEST_WORLD_SEED  # mundo reproduzível: os ids dos selvagens são os mesmos em toda execução
+	var legacy_layout := SlotRules.new()
+	legacy_layout.player_slots = LEGACY_SLOTS
+	legacy_layout.belt_slots = LEGACY_BELT
+	Items.slots = legacy_layout
 	SaveTests.remove_tree(SaveTests.base_dir)
 	var selected := _selected_suite()
 	var timings: Array = []
@@ -107,6 +115,7 @@ func _suites() -> Array:
 		["BuildReviewTests", BuildReviewTests.new, true],
 		["ChestTests", ChestTests.new, true],
 		["CarryTests", CarryTests.new, true],
+		["SlotTests", SlotTests.new, true],
 		["CarcassTests", CarcassTests.new, true],
 		["ShelterTests", ShelterTests.new, true],
 		["WallLineTests", WallLineTests.new, true],

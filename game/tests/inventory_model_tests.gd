@@ -440,9 +440,13 @@ func _test_two_phase_load() -> void:
 	var crowded: Array = []
 	for i in capacity + 2:
 		crowded.append({"id": STAFF, "iid": "q%d" % i, "durab": 5, "durab_max": 120})
-	_check(not player.from_dict({"inventory": {"version": 2, "slots": crowded}, "position": {"x": 99.0, "y": 99.0},
-			"health": {"current": 5.0}}) and player.to_dict() == base,
-			"%d equipamentos em %d slots: recusa o save inteiro (posição, vida e barra intactas)" % [capacity + 2, capacity])
+	# MIGRAÇÃO (E11a): o inventário que não cabe NÃO recusa a carga; o excedente fica pendente (o mundo o larga aos pés).
+	var loaded := player.from_dict({"inventory": {"version": 2, "slots": crowded}, "position": {"x": 99.0, "y": 99.0},
+			"health": {"current": 5.0}})
+	_check(loaded and player.position == Vector2(99.0, 99.0) and player.inventory.count(STAFF) == capacity
+			and player.equipment.count(STAFF) + player.migration_spill.size() == 2 and not player.migration_spill.is_empty(),
+			"%d equipamentos em %d slots: carrega, e o que não coube vai para a vaga Arma ou fica pendente (nada some)" % [capacity + 2, capacity])
+	player.from_dict(base)  # volta ao estado de antes para o teste seguinte
 	var tail: Array = []
 	for i in capacity + 2:
 		tail.append({} if i < capacity + 1 else {"id": "meat", "count": 2})

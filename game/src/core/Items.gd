@@ -54,6 +54,9 @@ const CARRY: CarryRules = preload("res://data/balance/carry_rules.tres")
 ## Vagas de equipamento (dados).
 const EQUIPMENT: EquipmentLayout = preload("res://data/equipment/layout.tres")
 
+## Slots da grade do jogador e posições do cinto (dados). `static var` (não `const`, que é só leitura) para o teste
+## poder trocar o layout sem mexer no recurso do jogo.
+static var slots: SlotRules = preload("res://data/balance/slot_rules.tres")
 static var _defs: Dictionary = {}
 
 
@@ -81,6 +84,12 @@ static func is_individual(item_id: String) -> bool:
 static func slot_of(item_id: String) -> String:
 	var def := get_def(item_id)
 	return def.slot if def != null else ""
+
+
+## O item vai ao cinto do jogador (ferramenta e arma, fora dos slots): é um individual marcado `belt` no catálogo.
+static func belt_of(item_id: String) -> bool:
+	var def := get_def(item_id)
+	return def != null and def.belt and def.durability_max > 0
 
 
 ## Pode ir à barra de atalhos: o que não é equipável, ou o equipável cuja vaga permite (roupa não).
@@ -167,4 +176,7 @@ static func _catalog() -> Dictionary:
 		_defs[AXE_STONE].slot = EquipmentLayout.WEAPON
 		_defs[PICKAXE_STONE].durability_max = 120
 		_defs[PICKAXE_STONE].slot = EquipmentLayout.WEAPON
+		# CRI-42: ferramentas e armas vão ao cinto (fora dos 4 slots). Quais são é do dado do item.
+		for tool_id: String in [SLEEP_STAFF, WOODEN_SPEAR, AXE_STONE, PICKAXE_STONE]:
+			_defs[tool_id].belt = true
 	return _defs

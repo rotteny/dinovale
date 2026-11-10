@@ -1,3 +1,4 @@
+# gdlint: ignore=max-public-methods
 # SPDX-License-Identifier: MIT
 class_name InventoryScreen
 extends Control
@@ -6,6 +7,9 @@ extends Control
 ## Atalhos: com o cursor (ou o foco) sobre um item do jogador, as teclas 1 a 9 o atribuem à
 ## barra de atalhos; o botão direito o atribui à primeira posição livre (ou o tira, se já
 ## estiver). O pedido sai por `hotbar_assign_requested` (quem liga muda o `HotbarComponent`).
+## A grade do jogador tem os slots que limitam (4, GDD 5.21); embaixo dela fica o cinto das ferramentas (fora dos slots) e,
+## ao lado, a vaga Arma. Descartar (SOB-16): seleciona uma pilha (clique ou foco), "Descartar" pede confirmação e só então
+## emite `discard_requested`; a autoridade valida e a pilha vira item de chão. A tela só emite.
 ## Fecha com Esc, I, Tab ou E. Só apresentação: a transferência é pedida por `transfer_requested`
 ## (a `Main` a leva à autoridade, que valida e executa) e a regra de "quando pode abrir" fica na
 ## entidade (`InteractableArea.availability_changed`).
@@ -23,6 +27,8 @@ signal unequip_requested(slot_id: String)
 ## Pede para mover o slot `index` para o outro lado (`from_player`: do jogador para a criatura). `amount` é a quantidade
 ## (`WorldAuthority.TRANSFER_ALL` = a pilha toda). A tela não muda nada; recusa volta por `show_transfer_refusal`.
 signal transfer_requested(from_player: bool, index: int, amount: int)
+## Pede para descartar a pilha do slot `index` do jogador (já confirmado na tela). A tela não muda nada.
+signal discard_requested(index: int)
 
 ## Medidas para o viewport de 320x180: células quadradas só com o ícone (nome, tecla e durabilidade
 ## vão na linha de detalhe sob a grade), 4 colunas por inventário. Painel total ~250x130.
@@ -32,8 +38,8 @@ const SLOT_FONT_SIZE := 8
 ## Folga interna extra além da moldura de madeira do painel (6 px do tema).
 const PANEL_PADDING := 1
 const OUTLINE_SIZE := 2  # a Vale Mini em 8 px não desenha contorno de 1 px (arredonda para 0)
-const HINT_TEXT := ("Clique: passar tudo  Shift+clique: passar 1  Botão direito: quantidade\n"
-		+ "Duplo clique/Enter: equipar  1-9 ou arrastar: atalho  Esc: fechar")
+const HINT_TEXT := ("Clique: passar tudo  Shift: passar 1  Botão direito: quantidade\n"
+		+ "Duplo clique: equipar  1-9: atalho  Del: descartar  Esc: fechar")
 ## Quantas pilhas o menu do botão direito cobre: só pilha de mais de uma unidade.
 const MIN_STACK_FOR_MENU := 2
 
@@ -60,6 +66,17 @@ var _other_column := VBoxContainer.new()
 var _other_title := Label.new()
 var _other_grid := GridContainer.new()
 var _player_buttons: Array[Button] = []
+var _belt_buttons: Array[Button] = []
+var _belt_grid := GridContainer.new()
+var _belt_title := Label.new()
+var _player_title := Label.new()
+## Pilha selecionada para descartar (posição unificada do jogador; -1 = nenhuma) e a que espera a confirmação.
+var _selected := -1
+var _pending_discard := -1
+var _discard_button := Button.new()
+var _confirm_label := Label.new()
+var _confirm_yes := Button.new()
+var _confirm_no := Button.new()
 var _other_buttons: Array[Button] = []
 var _hover_index := -1
 var _quantity_menu := QuantityMenu.new()
@@ -107,15 +124,16 @@ func _ready() -> void:
 	column.add_child(row)
 	row.add_child(_equipment_column)
 	var player_column := VBoxContainer.new()
-	var player_title := Label.new()
-	player_title.text = "Jogador"
-	player_column.add_child(player_title)
+	player_column.add_child(_player_title)
 	player_column.add_child(_player_grid)
+	_belt_title.text = "Cinto"
+	player_column.add_child(_belt_title)
+	player_column.add_child(_belt_grid)
 	row.add_child(player_column)
 	_other_column.add_child(_other_title)
 	_other_column.add_child(_other_grid)
 	row.add_child(_other_column)
-	for grid in [_player_grid, _other_grid]:
+	for grid in [_player_grid, _belt_grid, _other_grid]:
 		grid.columns = COLUMNS
 		grid.add_theme_constant_override("h_separation", 2)
 		grid.add_theme_constant_override("v_separation", 2)
@@ -126,11 +144,12 @@ func _ready() -> void:
 	_notice.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_notice.custom_minimum_size.y = 10.0
 	column.add_child(_notice)
+	column.add_child(_build_discard_row())
 	var hint := Label.new()
 	hint.text = HINT_TEXT
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(hint)
-	for label: Label in [_title, player_title, _other_title, hint, _notice, _detail]:
+	for label: Label in [_title, _player_title, _belt_title, _other_title, hint, _notice, _detail, _confirm_label]:
 		label.add_theme_color_override("font_color", UiTheme.INK)
 	add_child(_quantity_menu)
 	_quantity_menu.amount_chosen.connect(_on_quantity_chosen)
@@ -158,8 +177,12 @@ func open_with(own: InventoryComponent, other: InventoryComponent, source: Inter
 	_other_column.visible = other != null
 	_title.text = "Inventário" if other == null else "Inventário compartilhado"
 	_build_equipment()
-	_build_buttons(_player_grid, _player_buttons, own, true)
-	_build_buttons(_other_grid, _other_buttons, other, false)
+	_selected = -1
+	_pending_discard = -1
+	_build_buttons(_player_grid, _player_buttons, own, true, 0, own.grid_size())
+	_build_buttons(_belt_grid, _belt_buttons, own, true, own.grid_size(), own.slot_count() - own.grid_size())
+	_belt_title.visible = not _belt_buttons.is_empty()
+	_build_buttons(_other_grid, _other_buttons, other, false, 0, other.slot_count() if other != null else 0)
 	own.changed.connect(_refresh)
 	if hotbar != null:
 		hotbar.changed.connect(_refresh)
@@ -218,6 +241,9 @@ func close() -> void:
 
 ## Botão de um slot (para testes e navegação). null se não existir.
 func slot_button(from_player: bool, index: int) -> Button:
+	if from_player and player_inventory != null and index >= player_inventory.grid_size():  # depois da grade vem o cinto
+		var belt_index := index - player_inventory.grid_size()
+		return _belt_buttons[belt_index] if belt_index < _belt_buttons.size() else null
 	var buttons := _player_buttons if from_player else _other_buttons
 	return buttons[index] if index >= 0 and index < buttons.size() else null
 
@@ -245,7 +271,12 @@ func cursor_slot() -> int:
 	if _hover_index >= 0:
 		return _hover_index
 	var focused := get_viewport().gui_get_focus_owner() if is_inside_tree() else null
-	return _player_buttons.find(focused) if focused != null else -1
+	if focused == null:
+		return -1
+	var found := _player_buttons.find(focused)
+	if found < 0 and _belt_buttons.has(focused):
+		found = player_inventory.grid_size() + _belt_buttons.find(focused)
+	return found
 
 
 ## Atribui o item do slot do jogador `index` à posição `hotbar_slot` da barra.
@@ -289,6 +320,17 @@ func show_refusal(reason: String) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if is_open and _pending_discard >= 0 and event.is_action_pressed("ui_cancel"):
+		_set_pending(-1)  # Esc cancela a confirmação sem fechar a tela
+		get_viewport().set_input_as_handled()
+		return
+	if is_open and event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_DELETE:
+		if _pending_discard >= 0:
+			_confirm_discard()
+		else:
+			_ask_discard()
+		get_viewport().set_input_as_handled()
+		return
 	if is_open:
 		for number in HotbarComponent.SLOT_COUNT:
 			if event.is_action_pressed("hotbar_%d" % (number + 1)):
@@ -305,14 +347,15 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _build_buttons(grid: GridContainer, buttons: Array[Button], inventory: InventoryComponent,
-		from_player: bool) -> void:
+		from_player: bool, first: int, count: int) -> void:
 	for old in grid.get_children():
 		grid.remove_child(old)
 		old.queue_free()
 	buttons.clear()
 	if inventory == null:
 		return
-	for i in inventory.slot_count():
+	for n in count:
+		var i := first + n  # posição unificada: a grade, depois o cinto
 		var button := _new_cell()
 		button.pressed.connect(_on_slot_pressed.bind(from_player, i))
 		button.focus_entered.connect(_show_detail.bind(button))
@@ -321,6 +364,7 @@ func _build_buttons(grid: GridContainer, buttons: Array[Button], inventory: Inve
 		button.set_drag_forwarding(_drag_from.bind(from_player, i), _can_drop_on.bind(from_player), _drop_on.bind(from_player))
 		button.gui_input.connect((_on_slot_gui_input if from_player else _on_other_gui_input).bind(i))
 		if from_player:
+			button.focus_entered.connect(func() -> void: _select(i))
 			button.mouse_entered.connect(func() -> void: _hover_index = i)
 			button.mouse_exited.connect(func() -> void: _hover_index = -1 if _hover_index == i else _hover_index)
 		var swatch := ColorRect.new()
@@ -384,8 +428,11 @@ func _show_detail(button: Button) -> void:
 
 func _refresh() -> void:
 	_refresh_equipment()
-	_refresh_buttons(_player_buttons, player_inventory)
-	_refresh_buttons(_other_buttons, _other)
+	_refresh_buttons(_player_buttons, player_inventory, 0, true)
+	_refresh_buttons(_belt_buttons, player_inventory, player_inventory.grid_size(), true)
+	_refresh_buttons(_other_buttons, _other, 0, false)
+	_player_title.text = "Slots %d/%d" % [player_inventory.grid_used(), player_inventory.grid_size()]
+	_refresh_discard()
 
 
 ## Coluna de vagas: só as `shown` (no M1, a Arma). Vazia mostra o nome da vaga como silhueta.
@@ -452,9 +499,10 @@ func _is_activation(event: InputEvent) -> bool:
 	return event.is_action_pressed("ui_accept") and not event.is_echo()
 
 
-func _refresh_buttons(buttons: Array[Button], inventory: InventoryComponent) -> void:
-	for i in buttons.size():
-		var slot := inventory.get_slot(i)
+func _refresh_buttons(buttons: Array[Button], inventory: InventoryComponent, first: int, own: bool) -> void:
+	for n in buttons.size():
+		var i := n
+		var slot := inventory.get_slot(first + n)
 		var swatch: ColorRect = buttons[i].get_node("Swatch")
 		var key_label: Label = buttons[i].get_node("Key")
 		var count_label: Label = buttons[i].get_node("Count")
@@ -467,7 +515,7 @@ func _refresh_buttons(buttons: Array[Button], inventory: InventoryComponent) -> 
 			count_label.text = ""
 		else:
 			var key := -1
-			if hotbar != null and buttons == _player_buttons:
+			if hotbar != null and own:
 				key = hotbar.slot_of_iid(slot["iid"]) if slot.has("iid") else hotbar.slot_of(slot["id"])
 			var tag := "[%d] " % (key + 1) if key >= 0 else ""
 			var detail := "%d/%d" % [slot["durab"], slot["durab_max"]] if slot.has("iid") else "x%d" % slot["count"]
@@ -556,6 +604,8 @@ func _drop_on(_at: Vector2, data: Variant, _from_player: bool) -> void:
 
 
 func _on_slot_pressed(from_player: bool, index: int) -> void:
+	if from_player:
+		_select(index)
 	var shift := Input.is_key_pressed(KEY_SHIFT)
 	_transfer(from_player, index, shift, 1 if shift else WorldAuthority.TRANSFER_ALL)
 
@@ -575,6 +625,96 @@ func _transfer(from_player: bool, index: int, forced: bool, amount: int = WorldA
 	_asked_slot = slot
 	_asked_destination = destination
 	transfer_requested.emit(from_player, index, amount)
+
+
+## Linha de baixo: "Descartar" (pilha selecionada) ou a confirmação "Descartar N Item?  Sim  Não". Botões sem foco: o
+## teclado continua nas células da grade.
+func _build_discard_row() -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 4)
+	_discard_button.text = "Descartar"
+	_discard_button.pressed.connect(_ask_discard)
+	_confirm_yes.text = "Sim"
+	_confirm_yes.pressed.connect(_confirm_discard)
+	_confirm_no.text = "Não"
+	_confirm_no.pressed.connect(func() -> void: _set_pending(-1))
+	for button: Button in [_discard_button, _confirm_yes, _confirm_no]:
+		button.focus_mode = Control.FOCUS_NONE
+		button.add_theme_font_size_override("font_size", SLOT_FONT_SIZE)
+	row.add_child(_discard_button)
+	row.add_child(_confirm_label)
+	row.add_child(_confirm_yes)
+	row.add_child(_confirm_no)
+	return row
+
+
+func _select(index: int) -> void:
+	if _selected != index:
+		_selected = index
+		_pending_discard = -1
+	_refresh_discard()
+
+
+## A pilha selecionada, se for uma pilha da grade (individual e cinto não se descartam por aqui).
+func _discardable(index: int) -> Dictionary:
+	if player_inventory == null or index < 0 or index >= player_inventory.grid_size():
+		return {}
+	var slot := player_inventory.get_slot(index)
+	return {} if slot.is_empty() or slot.has("iid") else slot
+
+
+func _ask_discard() -> void:
+	if not _discardable(_selected).is_empty():
+		_set_pending(_selected)
+
+
+func _confirm_discard() -> void:
+	var index := _pending_discard
+	_set_pending(-1)
+	if index >= 0 and not _discardable(index).is_empty():
+		_notice.text = ""
+		discard_requested.emit(index)
+
+
+func _set_pending(index: int) -> void:
+	_pending_discard = index
+	_refresh_discard()
+
+
+func _refresh_discard() -> void:
+	if _pending_discard >= 0 and _discardable(_pending_discard).is_empty():
+		_pending_discard = -1  # a pilha mudou ou sumiu: a confirmação não vale mais
+	var pending := _pending_discard >= 0
+	_discard_button.visible = not pending
+	_discard_button.disabled = _discardable(_selected).is_empty()
+	for node: Control in [_confirm_label, _confirm_yes, _confirm_no]:
+		node.visible = pending
+	if pending:
+		var slot := _discardable(_pending_discard)
+		_confirm_label.text = "Descartar %d %s?" % [int(slot["count"]), Items.display_name(slot["id"])]
+
+
+## A autoridade negou o descarte.
+func show_discard_refusal() -> void:
+	_notice.text = "Não deu para descartar."
+
+
+func discard_button() -> Button:
+	return _discard_button
+
+
+func confirm_button(yes: bool) -> Button:
+	return _confirm_yes if yes else _confirm_no
+
+
+func confirm_text() -> String:
+	return _confirm_label.text if _pending_discard >= 0 else ""
+
+
+## O slot selecionado do jogador (-1 = nenhum).
+func selected_slot() -> int:
+	return _selected
 
 
 ## A autoridade negou o último pedido de transferência: mostra o motivo certo para o `result`. Recusa

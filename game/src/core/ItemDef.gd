@@ -15,6 +15,8 @@ var durability_max: int = 0
 ## Vaga de equipamento em que o item cabe (`EquipmentLayout`): "" = não é equipável.
 ## Só item individual tem vaga.
 var slot: String = ""
+## Vai ao cinto do jogador (fora dos slots da grade): ferramenta e arma. Só item individual (com durabilidade) pode.
+var belt: bool = false
 ## Peso de UMA unidade, em kg (GDD 5.1). Vem de `CarryRules.item_weights`; o catálogo o preenche. Equipamento
 ## individual pesa o mesmo na grade e nas vagas de equipamento (as vagas não ocupam slot, mas contam no Peso).
 var weight: float = 0.0

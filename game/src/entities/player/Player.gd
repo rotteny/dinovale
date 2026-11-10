@@ -87,6 +87,9 @@ var equipped_iid: String:
 var last_gather: Dictionary = {}
 ## O que a última colheita por golpes soltou no chão (item -> unidades); a autoridade o espalha em itens de chão.
 var last_drop: Dictionary = {}
+## O que um save de inventário maior não coube (entradas prontas): a carga o deixa aqui e quem tem o mundo
+## (`WorldSnapshot.return_spilled`) o larga no chão, aos pés. Nunca é salvo: ou caiu no chão (que é salvo) ou a carga foi desfeita.
+var migration_spill: Array[Dictionary] = []
 ## O mouse está em uso e `mouse_point` é o cursor no mundo: o alvo do golpe prefere a criatura sob ele. Quem lê o
 ## mouse (o controlador) liga `mouse_aim_active` e atualiza `mouse_point`; andar ou golpear por tecla desliga.
 var mouse_aim_active: bool = false
@@ -128,7 +131,9 @@ var _knock_speed: float = 0.0
 
 func _ready() -> void:
 	_apply_hitbox()
-	inventory.weight_limit = Items.CARRY.capacity_kg  # Peso (GDD 5.1): vale antes de qualquer `add` abaixo
+	inventory.capacity = Items.slots.player_slots  # slots (GDD 5.21) e cinto: valem antes de qualquer `add` abaixo
+	inventory.belt_size = Items.slots.belt_slots
+	inventory.weight_limit = Items.CARRY.capacity_kg  # Peso (GDD 5.1)
 	inventory.worn = equipment  # o que está nas vagas de equipamento pesa, mesmo fora dos slots
 	hunger.decay_per_second = rules.hunger_decay_idle
 	hunger.recovery_per_second = rules.hunger_recovery_per_second
@@ -600,7 +605,7 @@ func _strike_resource(node: ResourceNode) -> String:
 	return ""
 
 
-## Colheita de um toque (arbusto, pedra avulsa, carcaça): entrega direto no inventário, o que couber.
+## Colheita de um toque (arbusto, pedra avulsa; a carcaça é `skin_unit`): entrega direto no inventário, o que couber.
 func _gather_by_touch(node: ResourceNode) -> String:
 	var def := node.def
 	var wanted := node.component.pending_yields()
@@ -612,22 +617,12 @@ func _gather_by_touch(node: ResourceNode) -> String:
 		left[item_id] = int(left[item_id]) - int(delivered[item_id])
 		if left[item_id] <= 0:
 			left.erase(item_id)
-	var delivered_units := 0
-	for item_id: String in delivered:
-		delivered_units += int(delivered[item_id])
 	if left.is_empty():
 		node.harvest()
 	else:
 		node.component.leave(left)  # o que sobra fica no nó (sem esgotar)
-	var blade := def.is_carcass and current_weapon().cuts_carcass  # a Lança esfola sem machucar a mão
-	var with_tool := blade or _has_tool(def.tool_item_id)
-	if blade and left.is_empty():
-		_wear_held_weapon()  # 1 de durabilidade por carcaça esvaziada (GDD 5.6)
-	if not with_tool and def.hand_damage_per_item:
-		_hurt_hands(def.hand_self_damage * delivered_units)  # carcaça: 1 por item entregue, parcial ou não
-	elif not with_tool and left.is_empty():
+	if not _has_tool(def.tool_item_id) and left.is_empty():
 		_hurt_hands(def.hand_self_damage)  # o custo é por colheita COMPLETA, não por tentativa parcial
-	_gather_timer = _gather_cost(def, delivered, delivered_units)
 	hunger.spend(rules.hunger_cost_gather_strike)
 	last_gather = delivered.duplicate()
 	for item_id: String in delivered:
@@ -635,17 +630,48 @@ func _gather_by_touch(node: ResourceNode) -> String:
 	return ""
 
 
-## Recarga da coleta: só a carcaça tem (GDD 5.9b: 3 s por carne, proporcional às unidades entregues). Nó de toque
-## (arbusto, pedra avulsa, fibra) NÃO trava o próximo: o jogador colhe o vizinho na hora (decisão do dono, 08/11).
-func _gather_cost(def: ResourceNodeDef, delivered: Dictionary, delivered_units: int) -> float:
-	if not def.hand_damage_per_item:
-		return 0.0
-	if not def.item_seconds.is_empty():  # por item (carne 3 s, couro 6 s), mais curto com a lâmina
-		var seconds := 0.0
-		for item_id: String in delivered:
-			seconds += float(def.item_seconds.get(item_id, 0.0)) * float(delivered[item_id])
-		return seconds * (current_weapon().skin_seconds_factor if def.is_carcass else 1.0)
-	return def.gather_seconds * float(delivered_units) / float(maxi(_total_units(def), 1))
+## Esfolar é por tempo (E10): o `CarcassService` pede UMA unidade por vez. Qual item vem a seguir: o primeiro, na ordem do
+## nó (carne, depois couro), que ainda cabe no Peso e nos slots. "" = nada do que resta cabe.
+func next_skin_item(node: ResourceNode) -> String:
+	var pending := node.component.pending_yields()
+	for item_id: String in node.def.total_yields():
+		if int(pending.get(item_id, 0)) > 0 and inventory.room_for(item_id) >= 1:
+			return item_id
+	return ""
+
+
+## Por que nada do que resta na carcaça cabe: `GATHER_WEIGHT` (o Peso vem primeiro) ou `GATHER_FULL`.
+func skin_refusal(node: ResourceNode) -> String:
+	return _full_reason(node.component.pending_yields())
+
+
+## Segundos para esfolar uma unidade de `item_id` agora: o tempo à mão do dado vezes o fator da lâmina em mãos.
+func skin_seconds(node: ResourceNode, item_id: String) -> float:
+	return float(node.def.item_seconds.get(item_id, node.def.gather_seconds)) * current_weapon().skin_seconds_factor
+
+
+## Entrega UMA unidade de `item_id` da carcaça. Sem lâmina, a mão perde `hand_self_damage` por item entregue; com a Lança
+## ela gasta 1 de durabilidade quando a carcaça se esvazia (GDD 5.6: por carcaça, não por item). "" = entregou.
+func skin_unit(node: ResourceNode, item_id: String) -> String:
+	if inventory.room_for(item_id) < 1:
+		return _full_reason({item_id: 1})
+	inventory.add(item_id, 1)
+	var left := node.component.pending_yields()
+	left[item_id] = int(left.get(item_id, 1)) - 1
+	if int(left[item_id]) <= 0:
+		left.erase(item_id)
+	if left.is_empty():
+		node.harvest()
+	else:
+		node.component.leave(left)
+	if current_weapon().cuts_carcass:
+		if left.is_empty():
+			_wear_held_weapon()
+	else:
+		_hurt_hands(node.def.hand_self_damage)
+	last_gather = {item_id: 1}
+	gathered.emit(item_id, 1)
+	return ""
 
 
 ## Por que nada do que o nó dá coube: o Peso (se algum item passaria do limite) ou os slots.
@@ -654,13 +680,6 @@ func _full_reason(wanted: Dictionary) -> String:
 		if inventory.refusal_for(item_id) == "weight_limit":
 			return GATHER_WEIGHT
 	return GATHER_FULL
-
-
-func _total_units(def: ResourceNodeDef) -> int:
-	var total := 0
-	for amount: int in def.total_yields().values():
-		total += amount
-	return total
 
 
 ## Põe no inventário o que couber de `wanted` (item -> unidades), na ordem do dicionário, contando as vagas em

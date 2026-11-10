@@ -18,3 +18,6 @@ extends Resource
 @export_range(2.0, 64.0) var auto_pickup_px: float = 14.0
 ## Gancho do co-op: quem largou ou derrubou tem prioridade por estes segundos. 0 = desligado (single-player: qualquer um pega).
 @export_range(0.0, 600.0) var owner_seconds: float = 0.0
+## Quanto o que a migração de save deixou no chão (inventário antigo maior que o atual) demora a sumir, em segundos do
+## relógio do mundo. Bem mais que `despawn_seconds`: o jogador precisa de tempo para abrir espaço e recolher.
+@export_range(300.0, 604800.0) var migration_keep_seconds: float = 86400.0

@@ -94,14 +94,17 @@ func meat_of(node: ResourceNode) -> int:
 	return int(node.component.pending_yields().get(node.def.item_id, 0))
 
 
-## A refeição de um carnívoro: deixa `left` de carne na carcaça (0 = some). Só `meat_of` ou menos.
+## A refeição de um carnívoro: deixa `left` de carne na carcaça (0 = a carcaça some). Só a CARNE muda: o couro e o que
+## o jogador já esfolou ficam como estavam. Só `meat_of` ou menos.
 func set_meat(node: ResourceNode, left: int) -> void:
 	for item in _items:
 		if item["node"] == node:
 			if left <= 0:
 				_remove(item)
 			elif left < meat_of(node):
-				node.component.leave({node.def.item_id: left})
+				var rest := node.component.pending_yields()
+				rest[node.def.item_id] = left
+				node.component.leave(rest)
 			return
 
 
@@ -189,24 +192,37 @@ func restore_list(list: Array) -> void:
 			break
 		var data := SafeRead.dict(entry)
 		var species := SafeRead.text(data.get("species"), "")
-		if _stats_of(species) == null:
-			continue
+		if _stats_of(species) == null or (data.has("format") and not _valid_format(data["format"])):
+			continue  # espécie desconhecida ou `format` de lixo (não é 1 nem 2): descarta a carcaça
 		var level := LEVEL_RULES.clamp_level(SafeRead.integer(data.get("level"), 10, 1, 1000))
 		var point := Vector2(SafeRead.number(data.get("x"), 0.0, -MAX_COORD, MAX_COORD),
 				SafeRead.number(data.get("y"), 0.0, -MAX_COORD, MAX_COORD))
 		# `born_at` não passa do relógio (já reposto) e não é mais velho que o prazo: o vencido some no 1º tick.
 		var current := _now()
-		var born_at := SafeRead.number(data.get("born_at"), current, current - rules.fresh_seconds, current)
+		var born_at := SafeRead.number(data.get("born_at"), current, -MAX_COORD * 1000.0, current)
+		if current - born_at >= rules.fresh_seconds:
+			continue  # já venceu: não nasce (some na carga, sem esperar o primeiro tick)
 		var owner_id := SafeRead.text(data.get("owner"), "")
 		if owner_id.length() > WorldAuthority.MAX_ID_LENGTH:
 			owner_id = ""
 		var node := _spawn(species, level, point, born_at, SafeRead.integer(data.get("id"), 0, 0, 1 << 30), owner_id)
 		var left := _clean_left(data.get("left"), node.def)
+		if data.has("left") and left.is_empty():
+			_remove(_items.back())  # `left` só de lixo, negativo ou zero: não vira uma carcaça inteira por engano
+			continue
 		# Save antigo (sem `format`): só havia carne. Uma carcaça pela metade não perde o couro que ainda não existia.
 		if not left.is_empty() and SafeRead.integer(data.get("format"), 1, 0, 1000) < ENTRY_FORMAT and node.def.extra_yields.has(Items.LEATHER):
 			left[Items.LEATHER] = int(node.def.extra_yields[Items.LEATHER])
 		if not left.is_empty():
 			node.component.leave(left)
+
+
+## `format` válido: inteiro (o JSON devolve 2.0) entre 1 e `ENTRY_FORMAT`.
+func _valid_format(raw: Variant) -> bool:
+	if not (raw is int or raw is float):
+		return false
+	var number := float(raw)
+	return number == floorf(number) and number >= 1.0 and number <= float(ENTRY_FORMAT)
 
 
 func _clean_left(raw: Variant, def: ResourceNodeDef) -> Dictionary:

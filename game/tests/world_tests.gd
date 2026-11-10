@@ -507,7 +507,10 @@ func _test_punch_rules() -> void:
 	main.authority.clock.advance(2.0)  # intervalo entre coletas
 	hp = player.health.current_health
 	var meat := player.inventory.count(Items.MEAT)
-	_check(def.hand_can_gather() and authority.request_gather(1, authority.id_of(carcass)) == RESULT.OK
+	var started := authority.request_gather(1, authority.id_of(carcass)) == RESULT.OK
+	for _step in 400:  # a esfola tem tempo: passa até a tarefa acabar
+		authority.skinning.tick(0.25)
+	_check(def.hand_can_gather() and started
 			and player.inventory.count(Items.MEAT) == meat + def.yield_amount
 			and is_equal_approx(player.health.current_health, hp - def.hand_self_damage * def.yield_amount),
 			"carcaça à mão: 1 de dano por item entregue")

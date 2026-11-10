@@ -23,6 +23,8 @@ signal interaction_granted(actor_id: int, target_id: int)
 signal game_event(code: String, params: Dictionary)
 ## Um item deve aparecer no chão (colheita por golpes derrubou, ou o jogador largou). Quem desenha o chão escuta.
 signal items_dropped(item_id: String, amount: int, at: Vector2, dropper_id: String)
+## O que um save de inventário maior não coube: uma entrada pronta (pilha ou individual), a largar no chão em `at`.
+signal migration_spill(entry: Dictionary, at: Vector2)
 ## Evento de jogo só do dono (`player_id`): o log só o mostra a ele (domado atacado ou morto, co-op).
 signal owner_event(player_id: String, code: String, params: Dictionary)
 ## Um golpe de criatura em criatura matou: a predação cuida da refeição, do aviso e do alforje.
@@ -125,6 +127,7 @@ func _physics_process(delta: float) -> void:
 	tick_day()
 	tick_herd(delta)
 	crafting.tick(delta)
+	skinning.tick(delta)
 
 
 ## Faixa do dia agora (lógica: a apresentação só a lê).
@@ -503,7 +506,7 @@ func request_transfer_slot(actor_id: int, from_id: int, index: int, to_id: int, 
 		var item_id := str(source.get_slot(index).get("id", ""))
 		if source.transfer_slot(index, dino.inventory if feeding else actor.inventory, amount) == 0:
 			problem = Enums.ActionResult.REFUSED
-			_reason = "no_space"
+			_reason = "no_space" if feeding else actor.inventory.refusal_for(item_id)  # tirar do alforje: o Peso, ou "Inventário cheio"
 		elif feeding and not dino.state_machine.is_tamed and item_id == dino.taming.ideal_food and dino.feeder_player_id == "":
 			# O primeiro a depositar a comida ideal reserva o dino; os seguintes não tomam a vaga.
 			dino.feeder_player_id = actor.player_id
@@ -614,7 +617,7 @@ func request_gather(actor_id: int, target_id: int) -> Enums.ActionResult:
 		problem = _gather_result(reason)
 		_report_gather(actor, node, reason, life_before)
 		if reason == "" and completes:
-			_start_gather_interval(actor_id)
+			start_gather_interval(actor_id)
 			if not node.is_available():  # XP só quando o nó ESGOTA: golpe intermediário, recusa e coleta parcial não rendem
 				actor.progression.grant_gather()
 	return _answer(actor_id, ACTION_GATHER, problem)
@@ -626,7 +629,7 @@ func gather_wait_left(actor_id: int) -> float:
 
 
 ## Abre o intervalo: sorteio determinístico entre o mínimo e o máximo (semente do mundo, jogador e nº da coleta).
-func _start_gather_interval(actor_id: int) -> void:
+func start_gather_interval(actor_id: int) -> void:
 	var count := int(_gather_count.get(actor_id, 0))
 	_gather_count[actor_id] = count + 1
 	var rng := SeededRng.new()

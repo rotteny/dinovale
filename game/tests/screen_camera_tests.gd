@@ -212,10 +212,12 @@ func _fits(node: Node) -> bool:
 
 
 func _test_screens_fit() -> void:
+	var legacy_layout := Items.slots
+	Items.slots = load("res://data/balance/slot_rules.tres") as SlotRules  # a tela de inventário com o layout real: 4 slots e cinto
 	var main := _test_main_for_camera()
 	main.player.set_physics_process(false)
 	await _root.get_tree().process_frame
-	# Inventário compartilhado (o maior): jogador com 12 vagas e criatura com 8.
+	# Inventário compartilhado (o maior): jogador com 4 slots e cinto de 4, e a criatura com 8.
 	main.screen.open_with(main.player.inventory, main.dino.inventory, main.dino.interactable, "Criatura")
 	await _root.get_tree().process_frame
 	await _root.get_tree().process_frame
@@ -228,6 +230,7 @@ func _test_screens_fit() -> void:
 	await _root.get_tree().process_frame
 	_check(_fits(main.screen), "inventário próprio cabe em 320x180")
 	main.screen.close()
+	Items.slots = legacy_layout
 	# Pausa.
 	main.pause.open()
 	await _root.get_tree().process_frame

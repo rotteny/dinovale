@@ -137,7 +137,9 @@ func _test_target_carcass_with_awake_wild() -> void:
 	var meat := main.player.inventory.count("meat")
 	_press("interact")
 	await _frames(3)
-	_check(main.player.inventory.count("meat") > meat, "tecla E colhe a carne da carcaça")
+	_check(not main.authority.skinning.job(1).is_empty(), "tecla E começa a esfolar a carcaça (com tempo)")
+	_finish_skin(main)
+	_check(main.player.inventory.count("meat") > meat, "e a carne chega no fim do tempo")
 
 
 func _test_prompt_released_when_carcass_expires() -> void:
@@ -212,27 +214,25 @@ func _test_carcass_gather_time_and_recharge() -> void:
 	var first := main.authority.id_of(carcasses[0])
 	var second := main.authority.id_of(carcasses[1])
 	var third := main.authority.id_of(carcasses[2])
-	_check(main.authority.request_gather(1, first) == RESULT.OK and player.inventory.count("meat") == 5
-			and player.inventory.count("leather") == 1,
-			"colheita inteira")
-	player.tick(20.9)
-	_check(main.authority.request_gather(1, second) == RESULT.COOLDOWN, "aos 20,9 s ainda recarrega (inteira = 21 s)")
-	player.tick(0.2)
+	var began := main.authority.request_gather(1, first) == RESULT.OK
+	_check(began and player.inventory.count("meat") == 0, "a esfola começa e nada chega na hora")
+	_check(main.authority.request_gather(1, second) == RESULT.COOLDOWN, "enquanto esfola, outro pedido não soma (silencioso)")
+	_finish_skin(main)
+	_check(player.inventory.count("meat") == 5 and player.inventory.count("leather") == 1, "colheita inteira")
+	_check(main.authority.request_gather(1, second) == RESULT.COOLDOWN, "logo depois vale o intervalo entre coletas")
 	main.authority.clock.advance(2.0)  # intervalo entre coletas (1 a 2 s)
-	_check(main.authority.request_gather(1, second) == RESULT.OK, "aos 21,1 s colhe de novo")
-	# Parcial: cabem 2 de 5, a recarga é proporcional (6 s).
-	player.tick(60.0)
+	_check(main.authority.request_gather(1, second) == RESULT.OK, "passado o intervalo, esfola de novo")
+	_finish_skin(main)
+	# Parcial: cabem 2 de 5; leva 6 s e a carcaça guarda o resto.
 	main.authority.clock.advance(2.0)
 	_empty(player.inventory)
 	player.inventory.capacity = 1
 	player.inventory.add("meat", Items.max_stack("meat") - 2)
-	_check(main.authority.request_gather(1, third) == RESULT.OK and carcasses[2].component.pending_yields() == {"meat": 3, "leather": 1},
+	var hp := player.health.current_health
+	_check(main.authority.request_gather(1, third) == RESULT.OK, "parcial: a esfola começa")
+	_finish_skin(main)
+	_check(carcasses[2].component.pending_yields() == {"meat": 3, "leather": 1} and is_equal_approx(hp - player.health.current_health, 2.0),
 			"parcial: leva 2 de carne, ficam 3 de carne e o couro")
-	player.tick(5.9)
-	_check(main.authority.request_gather(1, third) == RESULT.COOLDOWN, "parcial: aos 5,9 s ainda recarrega (2/5 de 15 s = 6 s)")
-	player.tick(0.2)
-	main.authority.clock.advance(2.0)
-	_check(main.authority.request_gather(1, third) != RESULT.COOLDOWN, "parcial: aos 6,1 s a recarga acabou (não os 15 s inteiros)")
 
 
 func _test_carcass_save_age_and_id() -> void:
@@ -321,6 +321,7 @@ func _test_carcass_restored_id_and_unregister() -> void:
 			"expirou: o id antigo vira UNKNOWN_TARGET")
 	# `entity()` já esconde nó liberado: só `is_registered` prova o `unregister` (senão o id ficaria vazando).
 	_check(not main.authority.is_registered(424242), "expirou: o id saiu do registro da autoridade (unregister)")
+	entry["born_at"] = main.authority.clock.now()  # uma carcaça vencida não é mais restaurada: a de agora é nova
 	main.carcasses.restore_list([entry])
 	node = main.carcasses.nodes()[0]
 	node.harvest()  # esvaziada

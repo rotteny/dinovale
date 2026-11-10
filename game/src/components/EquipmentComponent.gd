@@ -101,6 +101,19 @@ func equip(iid: String, slot_id: String = "") -> String:
 	return ""
 
 
+## MIGRAÇÃO de save antigo: coloca o item pronto direto na vaga `slot_id` se ela estiver vaga e o item couber nela (o
+## excedente do cinto ocupa a vaga Arma em vez de ir ao chão). Não passa pela grade nem recusa com motivo: devolve se coube.
+func adopt(slot_id: String, entry: Dictionary) -> bool:
+	var clean := inventory.clean_individual_entry(entry)
+	if clean.is_empty() or not layout.has_slot(slot_id) or Items.slot_of(clean["id"]) != slot_id or _worn.has(slot_id):
+		return false
+	if slot_of_iid(clean["iid"]) != "":
+		clean["iid"] = inventory.issue_iid()
+	_worn[slot_id] = clean
+	changed.emit()
+	return true
+
+
 ## Tira o item da vaga para a grade. Sem posição livre na grade, recusa e nada muda.
 func unequip(slot_id: String) -> String:
 	if not layout.has_slot(slot_id):

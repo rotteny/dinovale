@@ -12,3 +12,4 @@ scatter_max_px = 12.0
 pile_max = 3
 auto_pickup_px = 14.0
 owner_seconds = 0.0
+migration_keep_seconds = 86400.0

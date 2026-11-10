@@ -84,14 +84,32 @@ func spawn_scatter(item_id: String, amount: int, origin: Vector2, dropper_id: St
 
 ## Solta um item individual (com `iid` e durabilidade) a 4 a 12 px de `origin`; recolher o devolve com a mesma durabilidade.
 ## Devolve o item de chão, ou null se a entrada não é de um individual conhecido.
-func spawn_entry(entry: Dictionary, origin: Vector2, ignore_area_cap: bool = false) -> GroundItem:
+func spawn_entry(entry: Dictionary, origin: Vector2, ignore_area_cap: bool = false, keep_seconds: float = 0.0) -> GroundItem:
 	var clean := _clean_entry(entry)
 	if clean.is_empty():
 		return null
 	var item := _spawn(str(clean["id"]), 1, origin + _offset(origin, str(clean["id"]), 0),
-			_now() + rules.despawn_seconds, 0, ignore_area_cap)
+			_now() + (keep_seconds if keep_seconds > 0.0 else rules.despawn_seconds), 0, ignore_area_cap)
 	item.entry = clean
 	return item
+
+
+## Larga uma entrada de MIGRAÇÃO de save (excedente de inventário): o individual inteiro, ou a pilha em itens de chão de até
+## o teto de pilha do item (não em pilhas de 3 como a colheita), sem teto por área e com `migration_keep_seconds` de vida.
+func spawn_spill(entry: Dictionary, origin: Vector2) -> void:
+	var item_id := SafeRead.text(entry.get("id"), "")
+	if not Items.has(item_id):
+		return
+	if Items.is_individual(item_id):
+		spawn_entry(entry, origin, true, rules.migration_keep_seconds)
+		return
+	var left := mini(SafeRead.integer(entry.get("count"), 0, 0, MAX_AMOUNT), MAX_AMOUNT)
+	var index := 0
+	while left > 0:
+		var pile := mini(left, maxi(Items.max_stack(item_id), 1))
+		left -= pile
+		_spawn(item_id, pile, origin + _offset(origin, item_id, index), _now() + rules.migration_keep_seconds, 0, true)
+		index += 1
 
 
 ## Entrada de individual válida (id conhecido e individual, `iid` de texto, `durab` inteiro limitado) ou `{}`.
@@ -203,7 +221,7 @@ func restore_list(list: Array) -> void:
 		var point := Vector2(SafeRead.number(data.get("x"), 0.0, -MAX_COORD, MAX_COORD),
 				SafeRead.number(data.get("y"), 0.0, -MAX_COORD, MAX_COORD))
 		# O prazo não passa do que um item novo teria (relógio já reposto); vencido some no 1º tick.
-		var due_at := SafeRead.number(data.get("due_at"), current, 0.0, current + rules.despawn_seconds)
+		var due_at := SafeRead.number(data.get("due_at"), current, 0.0, current + maxf(rules.despawn_seconds, rules.migration_keep_seconds))
 		# Id fora da faixa vira 0 (o próximo livre): um id no teto empurraria o contador e o próximo load seria recusado.
 		var saved_id := SafeRead.integer(data.get("id"), 0, 0, SaveMigrations.MAX_ENTITY_ID - 1)
 		var item := _spawn(item_id, 1 if not individual.is_empty() else amount, point, due_at, saved_id)

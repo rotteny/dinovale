@@ -8,6 +8,10 @@ extends Node
 ##               conta como 1 e é identificada pelo `iid` (estável ao mover).
 ## Slot vazio é `{}`.
 ##
+## Cinto (CRI-42): com `belt_size` > 0, as últimas posições de `_slots` são o cinto, FORA da grade: só recebem item
+## individual marcado `belt` (ferramenta e arma). A posição é unificada (grade de 0 a `grid_size()-1`, cinto depois): o
+## save, o corpo e as telas usam o mesmo índice. Sem cinto (Baú, criatura) o item de cinto vai à grade como qualquer outro.
+##
 ## Invariantes: item nunca some nem duplica. `add` devolve quanto NÃO coube; `remove`
 ## devolve quanto foi retirado; `transfer` só move o que o destino comporta e leva o item
 ## inteiro (o individual mantém `iid` e durabilidade). Ids desconhecidos são rejeitados.
@@ -18,6 +22,7 @@ extends Node
 signal changed
 
 const MAX_CAPACITY := 64
+const MAX_BELT := 8
 const MAX_STACK := 9999
 ## Versão do formato dos itens no save. 1 = `{id, count}`; 2 = o formato acima.
 const FORMAT_VERSION := 2
@@ -29,10 +34,14 @@ const MAX_SAVED_SLOTS := MAX_CAPACITY * 4
 ## Espaço de Peso "infinito" (inventário sem limite).
 const NO_WEIGHT_LIMIT := 1 << 30
 
-## Quantidade de slots. Reduzir nunca descarta itens: só corta slots vazios do fim.
+## Quantidade de slots da grade. Reduzir nunca descarta itens: só corta slots vazios do fim da grade.
 @export_range(1, 64) var capacity: int = 8:
 	set(value):
-		capacity = _fit_slots(clampi(value, 1, MAX_CAPACITY))
+		capacity = _fit_grid(clampi(value, 1, MAX_CAPACITY))
+## Posições do cinto (fora da grade). 0 = sem cinto. Reduzir também só corta posições vazias do fim.
+@export_range(0, 8) var belt_size: int = 0:
+	set(value):
+		belt_size = _fit_belt(clampi(value, 0, MAX_BELT))
 ## Teto de pilha deste inventário (vale o menor entre este e o do item).
 @export_range(1, 9999) var max_stack: int = 99:
 	set(value):
@@ -52,15 +61,38 @@ var worn: EquipmentComponent = null
 
 
 var _slots: Array[Dictionary] = []
+## Quantas posições de `_slots` são a grade; o resto é o cinto.
+var _grid: int = 0
 var _next_iid: int = 1
 
 
 func _init() -> void:
-	_fit_slots(capacity)
+	_fit_grid(capacity)
+	_fit_belt(belt_size)
 
 
+## Total de posições (grade mais cinto).
 func slot_count() -> int:
 	return _slots.size()
+
+
+## Posições da grade (o limite de variedade).
+func grid_size() -> int:
+	return _grid
+
+
+## Posições ocupadas da grade (o cinto não conta).
+func grid_used() -> int:
+	var used := 0
+	for i in _grid:
+		if not _slots[i].is_empty():
+			used += 1
+	return used
+
+
+## A posição `index` é do cinto.
+func is_belt_index(index: int) -> bool:
+	return index >= _grid and index < _slots.size()
 
 
 ## Cópia do slot (a UI não pode alterar o estado por aqui). `{}` se vazio ou fora do intervalo.
@@ -147,7 +179,9 @@ func _slot_room_for(item_id: String) -> int:
 	if limit <= 0 or (Items.is_individual(item_id) and not accepts_individual):
 		return 0
 	var room := 0
-	for slot in _slots:
+	var region := _region_of(item_id)
+	for i in range(region.x, region.y):
+		var slot := _slots[i]
 		if slot.is_empty():
 			room += limit
 		elif slot["id"] == item_id and not slot.has("iid"):
@@ -212,8 +246,9 @@ func index_of_iid(iid: String) -> int:
 ## senão no primeiro livre. Devolve se coube.
 func put_individual_at(index: int, entry: Dictionary) -> bool:
 	var item_id := SafeRead.text(entry.get("id"), "")
-	if index >= 0 and index < _slots.size() and _slots[index].is_empty() and accepts_individual and Items.is_individual(item_id) \
-			and entry.has("iid"):
+	var region := _region_of(item_id)
+	if index >= region.x and index < region.y and _slots[index].is_empty() and accepts_individual \
+			and Items.is_individual(item_id) and entry.has("iid"):
 		var clean := _clean_individual(item_id, entry)
 		if not clean.is_empty():
 			_slots[index] = clean
@@ -302,6 +337,18 @@ func to_dict() -> Dictionary:
 ## Sem versão ou versão 1 (`{id, count}`): equipamento vira N individuais com durabilidade
 ## cheia se faltar; pilha entra sem validade; `iid` ausente ou repetido é gerado.
 func from_dict(data: Dictionary) -> bool:
+	return _load(data, false, [])
+
+
+## Carga de MIGRAÇÃO (save de um inventário maior que o atual): o que não cabe não recusa a carga; vai para `spill`, como
+## entradas prontas (`{id, count, expira_em}` ou o individual inteiro), e quem chama decide o destino (o chão, aos pés).
+## Nada some: o que entra aqui mais o que sai em `spill` é exatamente o que o save tinha. O resto do contrato é o do
+## `from_dict` (`false` = recusado, nada mudou, `spill` intocado).
+func from_dict_spilling(data: Dictionary, spill: Array[Dictionary]) -> bool:
+	return _load(data, true, spill)
+
+
+func _load(data: Dictionary, may_spill: bool, spill: Array[Dictionary]) -> bool:
 	var saved: Variant = data.get("slots")
 	if SafeRead.format_version(data, FORMAT_VERSION) == 0 or typeof(saved) != TYPE_ARRAY or (saved as Array).size() > MAX_SAVED_SLOTS:
 		return false
@@ -316,16 +363,26 @@ func from_dict(data: Dictionary) -> bool:
 		var entries := _sanitize(saved[i])
 		if entries.is_empty():
 			continue
-		var direct: bool = i < _slots.size() and _slots[i].is_empty() and (accepts_individual or not entries[0].has("iid"))
+		var region := _region_of(str(entries[0]["id"]))  # a posição do save só vale na região do item (cinto x grade)
+		var direct: bool = i >= region.x and i < region.y and _slots[i].is_empty() \
+				and (accepts_individual or not entries[0].has("iid"))
 		if direct:
 			_slots[i] = entries.pop_front()
 		overflow.append_array(entries)
+	var spilled: Array[Dictionary] = []
 	for entry in overflow:
-		fits = fits and _put_entry(entry)
+		var rest := _put_entry_partial(entry)
+		if rest.is_empty():
+			continue
+		if may_spill:
+			spilled.append(rest)
+		else:
+			fits = false
 	if not fits:
 		_slots.assign(old_slots)
 		_next_iid = old_next
 		return false
+	spill.append_array(spilled)
 	changed.emit()
 	return true
 
@@ -334,7 +391,8 @@ func from_dict(data: Dictionary) -> bool:
 ## serve para validar um save SEM tocar neste inventário. Quem chama libera (`free`).
 func preview() -> InventoryComponent:
 	var copy := InventoryComponent.new()
-	copy.capacity = _slots.size()
+	copy.capacity = _grid
+	copy.belt_size = _slots.size() - _grid
 	copy.max_stack = max_stack
 	copy.iid_prefix = iid_prefix
 	copy.accepts_individual = accepts_individual
@@ -442,8 +500,22 @@ func _put_entry(entry: Dictionary) -> bool:
 	return _put_stack(entry["id"], wanted, float(entry.get("expira_em", 0.0))) == wanted
 
 
+## Guarda o que couber da entrada e devolve o que sobrou (`{}` = coube tudo): a pilha pode caber em parte.
+func _put_entry_partial(entry: Dictionary) -> Dictionary:
+	if entry.has("iid"):
+		return {} if _put_entry(entry) else entry
+	var wanted := int(entry["count"])
+	var placed := _put_stack(str(entry["id"]), wanted, float(entry.get("expira_em", 0.0)))
+	if placed >= wanted:
+		return {}
+	var rest := entry.duplicate()
+	rest["count"] = wanted - placed
+	return rest
+
+
 func _put(entry: Dictionary) -> bool:
-	for i in _slots.size():
+	var region := _region_of(str(entry["id"]))
+	for i in range(region.x, region.y):
 		if _slots[i].is_empty():
 			_slots[i] = entry
 			return true
@@ -454,14 +526,16 @@ func _put(entry: Dictionary) -> bool:
 func _put_stack(item_id: String, amount: int, expiry: float) -> int:
 	var limit := stack_limit(item_id)
 	var left := amount
-	for slot in _slots:
+	var region := _region_of(item_id)
+	for i in range(region.x, region.y):
+		var slot := _slots[i]
 		if left > 0 and not slot.is_empty() and slot["id"] == item_id and not slot.has("iid"):
 			var moved := mini(left, limit - int(slot["count"]))
 			if moved > 0:
 				slot["count"] = int(slot["count"]) + moved
 				slot["expira_em"] = _older(float(slot.get("expira_em", 0.0)), expiry)
 				left -= moved
-	for i in _slots.size():
+	for i in range(region.x, region.y):
 		if left > 0 and _slots[i].is_empty():
 			var moved := mini(left, limit)
 			_slots[i] = {"id": item_id, "count": moved, "expira_em": expiry}
@@ -520,11 +594,32 @@ func _take_from(index: int, amount: int) -> Dictionary:
 	return entry
 
 
-## Ajusta o número de slots ao pedido sem perder itens; devolve o tamanho real.
+## Posições onde o item pode ficar: o cinto (se há cinto e o item é de cinto) ou a grade. `x` inclusive, `y` exclusivo.
+func _region_of(item_id: String) -> Vector2i:
+	if _slots.size() > _grid and Items.belt_of(item_id):
+		return Vector2i(_grid, _slots.size())
+	return Vector2i(0, _grid)
+
+
+## Ajusta a grade ao pedido sem perder itens (só corta posições vazias do fim da grade); devolve o tamanho real.
 ## (Não escreve em `capacity`: quem chama do setter é que atribui, sem recursão.)
-func _fit_slots(wanted: int) -> int:
-	while _slots.size() < wanted:
+func _fit_grid(wanted: int) -> int:
+	while _grid < wanted:
+		_slots.insert(_grid, {})
+		_grid += 1
+	while _grid > wanted and _slots[_grid - 1].is_empty():
+		_slots.remove_at(_grid - 1)
+		_grid -= 1
+	return _grid
+
+
+## O mesmo para o cinto (as posições depois da grade); devolve o tamanho real.
+func _fit_belt(wanted: int) -> int:
+	var belt := _slots.size() - _grid
+	while belt < wanted:
 		_slots.append({})
-	while _slots.size() > wanted and _slots[_slots.size() - 1].is_empty():
+		belt += 1
+	while belt > wanted and _slots[_slots.size() - 1].is_empty():
 		_slots.pop_back()
-	return _slots.size()
+		belt -= 1
+	return belt

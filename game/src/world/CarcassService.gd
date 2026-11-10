@@ -2,7 +2,10 @@
 class_name CarcassService
 extends Node
 ## Esfolar carcaça (E10, SOB-06), filho da `WorldAuthority` (que mantém o contrato `request_skin` e fecha a resposta com o
-## motivo daqui). Cada pedido devolve `{result, reason}`. Valida: ator vivo e de pé, carcaça existente, alcance, LINHA LIVRE
+## motivo daqui). Cada pedido devolve `{result, reason}`. Esfolar é AÇÃO COM TEMPO (como a fabricação): o pedido abre uma
+## tarefa e cada unidade é entregue no FIM do seu tempo (carne 3 s, couro 6 s, metade com a Lança). Andar mais de
+## `skin_walk_cancel_tiles` a partir de onde começou, tomar dano, cair ou a carcaça sumir interrompe; o que já foi entregue fica.
+## A tarefa não vai ao save. Valida: ator vivo e de pé, carcaça existente, alcance, LINHA LIVRE
 ## (parede no meio recusa) e QUEM PODE: a carcaça do dino domado é só do dono por `CarcassRules.owner_exclusive_seconds`
 ## (GDD 5.6); a de selvagem e, passado o prazo, a de domado são de todos (co-op, sem PvP). Quem entrega é o `Player`: carne e
 ## couro que couberem no Peso e nos slots, o resto fica na carcaça (sem sacolinha). Esfolar não dá XP (não é nó).
@@ -10,23 +13,174 @@ extends Node
 const RESULT := Enums.ActionResult
 
 var authority: WorldAuthority = null
+var rules: CarcassRules = preload("res://data/balance/carcass_rules.tres")
+## Por jogador: `{node, item, left, elapsed, taken, start, life, hurt}`. `item` é a unidade em andamento e `left` o que falta dela.
+var _jobs: Dictionary = {}
 
 
-## Esfola `node` (a carcaça do pedido) para `actor_id`.
+
+
+## Começa a esfolar `node` para `actor_id`. A carne e o couro chegam ao longo do tempo (`tick`), não aqui.
 func skin(actor_id: int, node: ResourceNode) -> Dictionary:
 	var actor := authority.entity(actor_id) as Player
 	if actor == null:
 		return _outcome(RESULT.UNKNOWN_ACTOR)
 	if actor.is_incapacitated():
 		return _outcome(RESULT.ACTOR_DEAD)
+	var problem := _start_problem(actor, node)
+	if problem["result"] != RESULT.OK:
+		return problem
+	var item := actor.next_skin_item(node)
+	if item == "":
+		return _refusal(actor.skin_refusal(node))  # nada cabe: a carcaça fica como estava, sem custo
+	_jobs[actor_id] = {"node": node, "item": item, "left": actor.skin_seconds(node, item), "elapsed": 0.0, "taken": {},
+			"start": actor.global_position, "life": actor.health.current_health, "hurt": 0.0}
+	authority.announce("skin_started", {"carcass": node.def.display_name})
+	return _outcome(RESULT.OK)
+
+
+## Passo da esfola (público e testável sem quadros): confere se ainda dá e entrega o que o tempo completou.
+func tick(delta: float) -> void:
+	for actor_id: int in _jobs.keys():
+		var why := _interruption(actor_id)
+		if why != "":
+			cancel(actor_id, why)
+		else:
+			_advance(actor_id, delta)
+
+
+## Para a esfola de `actor_id` e avisa. O que já foi entregue fica com o jogador. Sem tarefa, não faz nada.
+func cancel(actor_id: int, reason: String) -> void:
+	if not _jobs.has(actor_id):
+		return
+	var job: Dictionary = _jobs[actor_id]
+	_end(actor_id)
+	var node := _node_of(job)
+	authority.announce("skin_cancelled", {"carcass": _carcass_name(node), "reason": reason})
+	_report(job, node)
+
+
+## Esquece toda esfola em andamento, sem aviso (carregar um save na mesma sessão).
+func clear_jobs() -> void:
+	_jobs.clear()
+
+
+## A esfola de `actor_id`: `{node, item, left, elapsed, taken, ...}` ou `{}`. A HUD só lê.
+func job(actor_id: int) -> Dictionary:
+	return _jobs.get(actor_id, {})
+
+
+## Fração pronta (0 a 1) da esfola de `actor_id`: o tempo andado sobre o que já andou mais o que falta (a lâmina em mãos agora).
+func progress(actor_id: int) -> float:
+	if not _jobs.has(actor_id):
+		return 0.0
+	var current: Dictionary = _jobs[actor_id]
+	var actor := authority.entity(actor_id) as Player
+	var node := _node_of(current)
+	if actor == null or not is_instance_valid(node):
+		return 0.0
+	var ahead := float(current["left"])
+	var pending := node.component.pending_yields()
+	for item_id: String in pending:
+		var units := int(pending[item_id]) - (1 if item_id == current["item"] else 0)
+		ahead += actor.skin_seconds(node, item_id) * float(maxi(units, 0))
+	var done := float(current["elapsed"])
+	return clampf(done / maxf(done + ahead, 0.001), 0.0, 1.0)
+
+
+## Entrega as unidades que o tempo `delta` completou (pode ser mais de uma num passo grande).
+func _advance(actor_id: int, delta: float) -> void:
+	var current: Dictionary = _jobs[actor_id]
+	var actor := authority.entity(actor_id) as Player
+	var node := _node_of(current)
+	if node == null:
+		return
+	current["elapsed"] = float(current["elapsed"]) + delta
+	var budget := delta
+	while budget > 0.0 and _jobs.has(actor_id):
+		var left := float(current["left"])
+		if budget < left:
+			current["left"] = left - budget
+			return
+		budget -= left
+		if not _deliver_unit(actor_id, actor, node, current):
+			return
+		current["left"] = actor.skin_seconds(node, str(current["item"]))
+
+
+## Uma unidade chega. Devolve true se há próxima; senão encerra a tarefa (esvaziou, ou o resto não cabe).
+func _deliver_unit(actor_id: int, actor: Player, node: ResourceNode, current: Dictionary) -> bool:
+	var item := str(current["item"])
+	var life := actor.health.current_health
+	if actor.skin_unit(node, item) != "":
+		_finish(actor_id)
+		return false
+	var taken: Dictionary = current["taken"]
+	taken[item] = int(taken.get(item, 0)) + 1
+	current["hurt"] = float(current["hurt"]) + maxf(life - actor.health.current_health, 0.0)
+	current["life"] = actor.health.current_health  # a vida que a própria mão perdeu não é dano de fora
+	if not node.is_available():
+		_finish(actor_id)
+		return false
+	var next := actor.next_skin_item(node)
+	if next == "":
+		_finish(actor_id)  # o que resta não cabe no Peso nem nos slots: fica na carcaça
+		return false
+	current["item"] = next
+	return true
+
+
+## Conclui a esfola: abre o intervalo entre coletas e conta o que entrou.
+func _finish(actor_id: int) -> void:
+	var current: Dictionary = _jobs[actor_id]
+	_end(actor_id)
+	authority.start_gather_interval(actor_id)
+	_report(current, _node_of(current))
+
+
+func _end(actor_id: int) -> void:
+	_jobs.erase(actor_id)
+
+
+## Por que a esfola em curso não pode seguir ("" = segue): saiu, caiu, andou demais, apanhou ou a carcaça sumiu.
+func _interruption(actor_id: int) -> String:
+	var actor := authority.entity(actor_id) as Player
+	if actor == null:
+		return "disconnected"
+	if actor.is_incapacitated():
+		return "downed"
+	var current: Dictionary = _jobs[actor_id]
+	var node := _node_of(current)
+	if not is_instance_valid(node) or not node.is_available():
+		return "gone"
+	var limit := authority.rules.tile_size * rules.skin_walk_cancel_tiles
+	if actor.global_position.distance_to(current["start"] as Vector2) > limit:
+		return "moved"
+	if actor.health.current_health < float(current["life"]) - 0.0001:
+		return "hurt"
+	current["life"] = maxf(float(current["life"]), actor.health.current_health)  # recuperar vida não esconde o próximo dano
+	return ""
+
+
+## A carcaça da tarefa, ou null se já foi liberada (venceu ou foi comida): o nó some sem avisar a tarefa.
+func _node_of(current: Dictionary) -> ResourceNode:
+	var raw: Variant = current.get("node")
+	return raw as ResourceNode if is_instance_valid(raw) else null
+
+
+func _carcass_name(node: ResourceNode) -> String:
+	return node.def.display_name if is_instance_valid(node) and node.def != null else ""
+
+
+## Por que `actor` não pode começar agora: o `_problem` da carcaça, esfola já em curso e o intervalo entre coletas.
+func _start_problem(actor: Player, node: ResourceNode) -> Dictionary:
 	var problem := _problem(actor, node)
 	if problem["result"] != RESULT.OK:
 		return problem
-	var life_before := actor.health.current_health
-	var reason := actor.perform_gather(node)
-	if reason != "":
-		return _refusal(reason)
-	_report(actor, node, life_before)
+	if _jobs.has(authority.id_of(actor)):
+		return _outcome(RESULT.COOLDOWN)  # já esfolando: o pedido repetido não reinicia nem soma (recusa silenciosa)
+	if authority.gather_wait_left(authority.id_of(actor)) > 0.0:
+		return _outcome(RESULT.COOLDOWN, WorldAuthority.REASON_GATHER_INTERVAL)  # o intervalo entre coletas vale aqui também
 	return _outcome(RESULT.OK)
 
 
@@ -75,21 +229,23 @@ func _refusal(reason: String) -> Dictionary:
 	return _outcome(RESULT.REFUSED)
 
 
-## Registro do que entrou e do que ficou na carcaça (`carcass_skinned`) e da vida que a mão custou.
-func _report(actor: Player, node: ResourceNode, life_before: float) -> void:
+## Registro do que entrou e do que ficou na carcaça (`carcass_skinned`) e da vida que a mão custou. Nada entrou: sem aviso.
+func _report(current: Dictionary, node: ResourceNode) -> void:
 	var taken: Array[String] = []
-	for item_id: String in actor.last_gather:
-		taken.append("%d %s" % [int(actor.last_gather[item_id]), Items.display_name(item_id)])
+	var totals: Dictionary = current["taken"]
+	for item_id: String in totals:
+		taken.append("%d %s" % [int(totals[item_id]), Items.display_name(item_id)])
+	if taken.is_empty():
+		return
 	var left: Array[String] = []
-	var pending := node.component.pending_yields()
+	var pending := node.component.pending_yields() if is_instance_valid(node) and node.is_available() else {}
 	for item_id: String in pending:
 		left.append("%d %s" % [int(pending[item_id]), Items.display_name(item_id)])
 	authority.announce("carcass_skinned", {
-		"carcass": node.def.display_name, "taken": ", ".join(taken),
+		"carcass": _carcass_name(node), "taken": ", ".join(taken),
 		"left": " (ficou na carcaça: %s)" % ", ".join(left) if not left.is_empty() else ""})
-	var hurt := life_before - actor.health.current_health
-	if hurt > 0.0:
-		authority.announce("hands_hurt", {"amount": snappedf(hurt, 0.1)})
+	if float(current["hurt"]) > 0.0:
+		authority.announce("hands_hurt", {"amount": snappedf(float(current["hurt"]), 0.1)})
 
 
 func _outcome(result: Enums.ActionResult, reason: String = "") -> Dictionary:

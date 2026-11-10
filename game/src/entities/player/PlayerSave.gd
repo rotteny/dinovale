@@ -63,8 +63,9 @@ static func apply_saved_state(player: Player, data: Dictionary) -> bool:
 	player.hunger.from_dict(SafeRead.dict(data.get("hunger")))
 	# Save anterior à E6 não tem o bloco: nível 1, XP 0, sem Saber gasto. Bloco que não é dicionário também cai no padrão.
 	player.progression.from_dict(SafeRead.dict(data.get("progression")))
+	player.migration_spill = []
 	if replaces_inventory:
-		player.inventory.from_dict(saved_inventory)
+		player.inventory.from_dict_spilling(saved_inventory, player.migration_spill)
 	if has_equipment:
 		player.equipment.from_dict(saved_equipment)
 	elif replaces_inventory:
@@ -76,9 +77,25 @@ static func apply_saved_state(player: Player, data: Dictionary) -> bool:
 		var migrated := SafeRead.text(data["equipped"], "")
 		if player.equipment.equip(migrated, EquipmentLayout.WEAPON) == "":
 			player.ensure_hotbar_slot(migrated)
+	_settle_spill(player)
 	if legacy:
 		_grant_starting_equipment(player)
 	return true
+
+
+## MIGRAÇÃO do inventário maior (CRI-42): o que a carga não coube fica em `player.migration_spill`. A ferramenta que sobrou
+## do cinto vai para a vaga Arma se ela estiver vaga; o resto o mundo larga aos pés. O atalho de um item que saiu da
+## posse do jogador é limpo (apontaria para o nada).
+static func _settle_spill(player: Player) -> void:
+	var left: Array[Dictionary] = []
+	for entry in player.migration_spill:
+		if not (entry.has("iid") and player.equipment.adopt(EquipmentLayout.WEAPON, entry)):
+			left.append(entry)
+	player.migration_spill = left
+	for entry in left:
+		var slot := player.hotbar.slot_of_iid(str(entry.get("iid", "")))
+		if slot >= 0:
+			player.hotbar.clear(slot)
 
 
 ## Forma do save: versões conhecidas, blocos que são dicionários, `slots` da barra no tipo certo e
@@ -109,7 +126,7 @@ static func _load_is_valid(player: Player, saved_inventory: Dictionary, saved_eq
 	var scratch := player.inventory.preview()
 	var ok := true
 	if replaces_inventory:
-		ok = scratch.from_dict(saved_inventory)
+		ok = scratch.from_dict_spilling(saved_inventory, [])  # o excedente de um inventário maior migra, não recusa
 	else:
 		ok = scratch.from_dict(player.inventory.to_dict())
 	if ok and has_equipment:

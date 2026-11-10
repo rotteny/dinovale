@@ -160,8 +160,16 @@ func transfer_chest(actor_id: int, chest: Chest, into_chest: bool, index: int, a
 	var destination := chest.inventory if into_chest else actor.inventory
 	var item_id := str(source.get_slot(index).get("id", ""))
 	if source.transfer_slot(index, destination, amount) == 0:
-		return _outcome(RESULT.REFUSED, "weight_limit" if destination.refusal_for(item_id) == "weight_limit" else REASON_BOX_FULL)
+		return _outcome(RESULT.REFUSED, _transfer_refusal(destination.refusal_for(item_id), into_chest))
 	return _outcome(RESULT.OK)
+
+
+## Motivo da recusa ao mover para o Baú ou para o jogador: o Peso vem primeiro; sem slot, "Baú cheio" (no destino Baú, "no_space")
+## ou "Inventário cheio" (o destino é o jogador, CRI-42).
+func _transfer_refusal(destination_reason: String, into_chest: bool) -> String:
+	if destination_reason == "weight_limit":
+		return "weight_limit"
+	return REASON_BOX_FULL if into_chest else "inventory_full"
 
 
 ## Por que `actor` não pode mexer no slot `index` do Baú (`result` OK = pode): Baú vivo e na grade, ao alcance, posição e quantidade.

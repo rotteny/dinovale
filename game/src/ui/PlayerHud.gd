@@ -36,6 +36,8 @@ const STAMINA_WINDED_COLOR := Color("#f0a35a")
 const STAMINA_EXHAUSTED_COLOR := Color("#7d7d7d")
 ## Barra do caído (tempo que falta para acordar, em segundos): laranja escuro, só aparece caído.
 const DOWNED_COLOR := Color("#d9792b")
+## Barra de esfolar a carcaça (E10): marrom-couro, só aparece enquanto a tarefa existe.
+const SKIN_COLOR := Color("#c98a5a")
 ## Dica de contexto bloqueada (ex.: falta ferramenta): cinza.
 const HINT_BLOCKED_COLOR := Color("#a8a8a8")
 
@@ -50,7 +52,10 @@ var _hunger_bar := StatBar.new("Fome", Color(0.98, 0.85, 0.35), BAR_SIZE,
 var _stamina_bar := StatBar.new("Stamina", STAMINA_COLOR, BAR_SIZE,
 		preload("res://assets/sprites/ui/icon_stamina_8.png"), ICON_SIZE, true)
 var _downed_bar := StatBar.new("Caído", DOWNED_COLOR, BAR_SIZE, null, ICON_SIZE, true)
+var _skin_bar := StatBar.new("Esfolar", SKIN_COLOR, BAR_SIZE)
 var _weight_label := Label.new()
+## "Slots 3/4" (GDD 5.21): posições da grade em uso e o limite; no limite fica amarelo, como o Peso.
+var _slots_label := Label.new()
 var _xp_label := Label.new()
 var _xp_bar := StatBar.new("", Color(0.45, 0.6, 1.0), Vector2(StatBar.BAR_SIZE.x, 3.0))
 var _hotbar := HotbarBar.new()
@@ -81,11 +86,14 @@ func _ready() -> void:
 	bars.add_theme_constant_override("separation", 0)
 	bars.position = Vector2(EDGE_MARGIN, EDGE_MARGIN)
 	_downed_bar.visible = false
-	for bar in [_health_bar, _hunger_bar, _stamina_bar, _downed_bar]:
+	_skin_bar.visible = false
+	for bar in [_health_bar, _hunger_bar, _stamina_bar, _downed_bar, _skin_bar]:
 		bar.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN  # a linha ocupa só o seu tamanho, não a largura do aviso
 		bars.add_child(bar)
 	_outline(_weight_label)
 	bars.add_child(_weight_label)
+	_outline(_slots_label)
+	bars.add_child(_slots_label)
 	_outline(_hunger_warning)
 	_hunger_warning.add_theme_color_override("font_color", HUNGER_WARNING_COLOR)
 	_hunger_warning.visible = false
@@ -157,8 +165,10 @@ func _ready() -> void:
 	player.stamina.exhausted.connect(_refresh_stamina_state)
 	player.stamina.recovered.connect(_refresh_stamina_state)
 	player.inventory.changed.connect(_refresh_weight)
+	player.inventory.changed.connect(_refresh_slots)
 	player.equipment.changed.connect(_refresh_weight)
 	_refresh_weight()
+	_refresh_slots()
 	player.downed.time_changed.connect(_downed_bar.set_values)
 	player.downed.state_changed.connect(_refresh_downed)
 	player.target_changed.connect(_on_target_changed)
@@ -274,6 +284,18 @@ func _refresh_weight() -> void:
 	_weight_label.add_theme_color_override("font_color", HUNGER_WARNING_COLOR if full else Color.WHITE)
 
 
+## "Slots 3/4": só lê o inventário (a regra é dele). Cheio, o texto fica amarelo.
+func _refresh_slots() -> void:
+	var inventory := player.inventory
+	_slots_label.text = "Slots %d/%d" % [inventory.grid_used(), inventory.grid_size()]
+	_slots_label.add_theme_color_override("font_color",
+			HUNGER_WARNING_COLOR if inventory.grid_used() >= inventory.grid_size() else Color.WHITE)
+
+
+func slots_label() -> Label:
+	return _slots_label
+
+
 ## Quilos com no máximo 2 casas e vírgula decimal ("38,05", "50").
 static func _kg(value: float) -> String:
 	var text := "%.2f" % value
@@ -301,6 +323,19 @@ func tick(delta: float) -> void:
 	if _watched != null:  # o prompt do domado muda com a ordem, e a área não emite sinal por isso
 		_refresh_prompt()
 	_refresh_phase()
+	_refresh_skin()
+
+
+## A barra de esfolar segue a tarefa da autoridade (só lê); sem tarefa fica escondida.
+func _refresh_skin() -> void:
+	var working := authority != null and player != null and not authority.skinning.job(authority.id_of(player)).is_empty()
+	_skin_bar.visible = working
+	if working:
+		_skin_bar.set_values(authority.skinning.progress(authority.id_of(player)), 1.0)
+
+
+func skin_bar() -> StatBar:
+	return _skin_bar
 
 
 ## Rótulo da faixa do dia ("Dia", "Noite"...): só lê o `DayCycle` da autoridade. Sem autoridade fica escondido.

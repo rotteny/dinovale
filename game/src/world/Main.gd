@@ -140,6 +140,7 @@ func _ready() -> void:
 	screen.closed.connect(func() -> void: player.input_locked = false)
 	_register_entities()
 	screen.transfer_requested.connect(_on_transfer_requested)
+	screen.discard_requested.connect(func(index: int) -> void: authority.request_drop(authority.id_of(player), index))
 	authority.interaction_granted.connect(_on_interaction_granted)
 	authority.action_denied.connect(_on_action_denied)
 	save_manager = SaveManager.new(GameSession.save_root, world_id)
@@ -256,6 +257,7 @@ func _build_zone() -> void:
 	authority.items_dropped.connect(func(item_id: String, amount: int, at: Vector2, dropper_id: String) -> void:
 		ground.spawn_scatter(item_id, amount, at, dropper_id)
 		_play_drop_sound(at))
+	authority.migration_spill.connect(ground.spawn_spill)
 	add_child(ground)
 	workbenches = BuildField.new()
 	workbenches.name = "Build"
@@ -743,6 +745,8 @@ func _on_transfer_requested(from_player: bool, index: int, amount: int) -> void:
 func _on_action_denied(_actor_id: int, action: String, result: Enums.ActionResult) -> void:
 	if action == WorldAuthority.ACTION_TRANSFER:
 		screen.show_transfer_refusal(result)
+	elif action == WorldAuthority.ACTION_DROP:
+		screen.show_discard_refusal()
 	elif action == WorldAuthority.ACTION_GATHER and result == Enums.ActionResult.OUT_OF_RANGE:
 		_on_gather_refused(Player.GATHER_TOO_FAR)
 	elif (action == WorldAuthority.ACTION_COMMAND or action == WorldAuthority.ACTION_INTERACT) \

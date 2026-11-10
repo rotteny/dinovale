@@ -14,6 +14,8 @@ const MAX_COORD := 1.0e6
 ## (o jogador só tem um corpo; o anterior só existe se ele morreu sem recuperá-lo).
 const MAX_CORPSES := 16
 const MAX_ENTRIES := 512
+## Teto de unidades que a migração de uma entrada antiga (pilha) para individual cria.
+const LEGACY_MAX_UNITS := 16
 
 @export var rules: DownedRules = preload("res://data/balance/downed_rules.tres")
 var authority: WorldAuthority = null
@@ -97,6 +99,7 @@ func _take_all(player: Player) -> Array[Dictionary]:
 	player.equipment.from_dict({"slots": {}})
 	player.inventory.from_dict({"version": InventoryComponent.FORMAT_VERSION, "next_iid": player.inventory.to_dict()["next_iid"], "slots": []})
 	player.hotbar.from_dict({"slots": []})
+	player.fit_grid_to_bag()  # sem a bolsa (ela foi com o corpo), a grade volta aos slots base; já está vazia, então cabe
 	return entries
 
 
@@ -201,6 +204,12 @@ func _clean_entries(raw: Array) -> Array[Dictionary]:
 			continue
 		if Items.is_individual(item_id):
 			if SafeRead.text(entry.get("iid"), "") == "":
+				# MIGRAÇÃO (E11b): Cesto e Mochila eram pilhas de 1; a entrada antiga vira um individual por unidade, com
+				# `iid` novo e durabilidade cheia (descartar perderia a bolsa do corpo).
+				for n in SafeRead.integer(entry.get("count"), 0, 0, LEGACY_MAX_UNITS):
+					if clean.size() < MAX_ENTRIES:
+						var limit := Items.durability_max(item_id)
+						clean.append({"id": item_id, "iid": "m%d" % clean.size(), "durab": limit, "durab_max": limit})
 				continue
 		else:
 			entry.erase("iid")

@@ -190,6 +190,11 @@ func _coverage(rects: Array[Rect2]) -> float:
 	return float(covered) / (VIEW.x * VIEW.y)
 
 
+## Onde o controle aparece de fato, com a escala dos pais (o painel do inventário encolhe quando não cabe).
+func _shown_rect(control: Control) -> Rect2:
+	return control.get_global_transform() * Rect2(Vector2.ZERO, control.size)
+
+
 ## Todo controle visível de uma tela cabe nos 320x180 (nada cortado). Filhos de `ScrollContainer` rolam.
 func _fits(node: Node) -> bool:
 	var ok := true
@@ -199,11 +204,11 @@ func _fits(node: Node) -> bool:
 		if current is Control and not (current as Control).is_visible_in_tree():
 			continue
 		if current is ScrollContainer:
-			var rect := (current as Control).get_global_rect()
+			var rect := _shown_rect(current as Control)
 			ok = ok and Rect2(Vector2.ZERO, VIEW).grow(0.01).encloses(rect)
 			continue
 		if current is Control and (current as Control).is_visible_in_tree():
-			var rect := (current as Control).get_global_rect()
+			var rect := _shown_rect(current as Control)
 			if rect.size.x > 0.0 and not Rect2(Vector2.ZERO, VIEW).grow(0.01).encloses(rect):
 				ok = false
 				print("   fora da tela: %s %s" % [current.get_path(), rect])

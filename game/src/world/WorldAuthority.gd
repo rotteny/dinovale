@@ -23,6 +23,8 @@ signal interaction_granted(actor_id: int, target_id: int)
 signal game_event(code: String, params: Dictionary)
 ## Um item deve aparecer no chão (colheita por golpes derrubou, ou o jogador largou). Quem desenha o chão escuta.
 signal items_dropped(item_id: String, amount: int, at: Vector2, dropper_id: String)
+## O jogador DESCARTOU uma pilha de propósito (logo depois do `items_dropped` dela): o chão não a recolhe sozinho de volta.
+signal item_discarded(dropper_id: String)
 ## O que um save de inventário maior não coube: uma entrada pronta (pilha ou individual), a largar no chão em `at`.
 signal migration_spill(entry: Dictionary, at: Vector2)
 ## Evento de jogo só do dono (`player_id`): o log só o mostra a ele (domado atacado ou morto, co-op).
@@ -334,6 +336,8 @@ func request_attack(actor_id: int, target_id: int) -> Enums.ActionResult:
 	var problem := _actor_problem(actor_id, actor)
 	if problem == Enums.ActionResult.OK:
 		problem = _attack_problem(actor, dino)
+	if problem == Enums.ActionResult.OK:
+		skinning.cancel(actor_id, "busy")  # esfolar não é exclusivo: o golpe para a esfola (o que já entrou fica)
 	if problem == Enums.ActionResult.OK and not actor.strike(dino):
 		problem = Enums.ActionResult.REFUSED
 	return _answer(actor_id, ACTION_ATTACK, problem)
@@ -479,6 +483,7 @@ func request_interact(actor_id: int, target_id: int) -> Enums.ActionResult:
 	if problem == Enums.ActionResult.OK:
 		problem = _interact_problem(actor, target)
 	if problem == Enums.ActionResult.OK:
+		skinning.cancel(actor_id, "busy")
 		interaction_granted.emit(actor_id, target_id)
 	return _answer(actor_id, ACTION_INTERACT, problem)
 
@@ -607,6 +612,8 @@ func request_gather(actor_id: int, target_id: int) -> Enums.ActionResult:
 			and not AttackTargeting.is_in_front(actor.global_position, actor.facing, node, rules.front_dot_min):
 		problem = Enums.ActionResult.OUT_OF_RANGE  # colher por golpes pede o nó à frente, como o golpe
 		_reason = "behind"
+	if problem == Enums.ActionResult.OK:
+		skinning.cancel(actor_id, "busy")  # coletar para a esfola em andamento
 	var completes := problem == Enums.ActionResult.OK and node.is_available() and actor.would_complete_gather(node)
 	if completes and gather_wait_left(actor_id) > 0.0:
 		problem = Enums.ActionResult.COOLDOWN  # intervalo entre coletas concluídas: recusa silenciosa (a HUD cinza avisa)
@@ -693,7 +700,7 @@ func request_recover_corpse(actor_id: int, corpse_id: int) -> Enums.ActionResult
 	if problem == Enums.ActionResult.OK:
 		problem = _corpse_problem(actor, corpse)
 	if problem == Enums.ActionResult.OK:
-		var moved := corpse.recover_into(actor.inventory)
+		var moved := corpse.recover_into(actor.inventory, actor.equipment)
 		if moved <= 0:
 			problem = Enums.ActionResult.REFUSED
 			_reason = corpse.refusal_for(actor.inventory)
@@ -713,7 +720,9 @@ func _corpse_problem(actor: Player, corpse: PlayerCorpse) -> Enums.ActionResult:
 
 ## Largar no chão `amount` (TRANSFER_ALL = tudo) do slot `index` do inventário de `actor_id`, aos pés dele. Só pilha
 ## (equipamento individual não se larga por aqui). Nada some: o que sai do inventário vira item de chão.
-func request_drop(actor_id: int, index: int, amount: int = TRANSFER_ALL) -> Enums.ActionResult:
+## `expected_id` e `expected_count` (opcionais) são o que a tela confirmou: se a pilha já mudou, o pedido é recusado sem largar nada.
+func request_drop(actor_id: int, index: int, amount: int = TRANSFER_ALL, expected_id: String = "",
+		expected_count: int = -1) -> Enums.ActionResult:
 	var actor := _live_player(actor_id)
 	var problem := _actor_problem(actor_id, actor)
 	if problem == Enums.ActionResult.OK and not drops_enabled:
@@ -723,11 +732,15 @@ func request_drop(actor_id: int, index: int, amount: int = TRANSFER_ALL) -> Enum
 		problem = Enums.ActionResult.INVALID_ARGUMENT
 	if problem == Enums.ActionResult.OK and amount != TRANSFER_ALL and (amount < 1 or amount > int(slot["count"])):
 		problem = Enums.ActionResult.INVALID_ARGUMENT
+	if problem == Enums.ActionResult.OK and ((expected_id != "" and str(slot["id"]) != expected_id)
+			or (expected_count >= 0 and int(slot["count"]) != expected_count)):
+		problem = Enums.ActionResult.WRONG_STATE  # a pilha mudou depois da confirmação
 	if problem == Enums.ActionResult.OK:
 		var item_id := str(slot["id"])
 		var count := int(slot["count"]) if amount == TRANSFER_ALL else amount
 		var removed := actor.inventory.take_from_slot(index, count)
 		items_dropped.emit(item_id, removed, actor.global_position, actor.player_id)
+		item_discarded.emit(actor.player_id)
 	return _answer(actor_id, ACTION_DROP, problem)
 
 
@@ -777,6 +790,11 @@ func _service_answer(actor_id: int, action: String, outcome: Dictionary) -> Enum
 func _equipment_result(reason: String) -> Enums.ActionResult:
 	if reason == "":
 		return Enums.ActionResult.OK
+	var piles := EquipmentComponent.over_limit_piles(reason)
+	if piles > 0:
+		_reason = EquipmentComponent.REFUSED_OVER_LIMIT  # "Esvazie N pilhas" (bolsa menor ou sem bolsa não comporta o que há)
+		_reason_params = {"piles": GameMessages.piles_text(piles)}
+		return Enums.ActionResult.REFUSED
 	if reason == EquipmentComponent.REFUSED_FULL:
 		_reason = "inventory_full"
 	elif reason == EquipmentComponent.REFUSED_WRONG_SLOT:

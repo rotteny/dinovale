@@ -48,6 +48,8 @@ const GATHER_BLOCKED := "blocked"
 const GATHER_TOO_FAR := "too_far"
 ## Tocou um nó que exige ferramenta sem ela: o toque machuca a mão e não coleta nada.
 const GATHER_NEEDS_TOOL := "needs_tool"
+## `skin_unit`: a unidade pedida já não está na carcaça (outro ator a levou); nada foi entregue.
+const SKIN_NOTHING_LEFT := "nothing_left"
 ## A autoridade negou o pedido antes de a regra rodar (ator morto, argumento inválido, sem autoridade).
 const DENIED := "denied"
 ## `player_id` do personagem local (ADR-003): o dono do dino aponta para ele, não para o nó.
@@ -653,11 +655,13 @@ func skin_seconds(node: ResourceNode, item_id: String) -> float:
 ## Entrega UMA unidade de `item_id` da carcaça. Sem lâmina, a mão perde `hand_self_damage` por item entregue; com a Lança
 ## ela gasta 1 de durabilidade quando a carcaça se esvazia (GDD 5.6: por carcaça, não por item). "" = entregou.
 func skin_unit(node: ResourceNode, item_id: String) -> String:
+	var left := node.component.pending_yields()
+	if int(left.get(item_id, 0)) < 1:
+		return SKIN_NOTHING_LEFT  # outro ator esfolou esta unidade antes: não entrega nada (sem duplicar)
 	if inventory.room_for(item_id) < 1:
 		return _full_reason({item_id: 1})
 	inventory.add(item_id, 1)
-	var left := node.component.pending_yields()
-	left[item_id] = int(left.get(item_id, 1)) - 1
+	left[item_id] = int(left[item_id]) - 1
 	if int(left[item_id]) <= 0:
 		left.erase(item_id)
 	if left.is_empty():
@@ -818,6 +822,12 @@ func _food_problem(item_id: String, restore: float) -> String:
 	if restore <= 0.0:
 		return "not_food" if Items.has(item_id) else "nothing_to_use"
 	return "" if hunger.can_queue(restore) else "not_hungry"
+
+
+## A grade passa a ter o tamanho que a bolsa da vaga dá (sem bolsa, só os slots base). Quem esvazia as vagas por fora (o corpo
+## ao morrer, a carga do save) chama depois de mexer. Devolve quantas pilhas faltam esvaziar (0 = ajustou).
+func fit_grid_to_bag() -> int:
+	return inventory.resize_grid(equipment.grid_size())
 
 
 ## Item pelo `iid`, na grade ou em uma vaga de equipamento; `{}` se não existe.

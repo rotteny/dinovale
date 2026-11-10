@@ -73,6 +73,7 @@ const REASONS: Dictionary = {
 	"not_owner": "Esse dino não é seu.",
 	"refused": "Não deu.",
 	"inventory_full": "Inventário cheio.",
+	"belt_full": "Cinto cheio.",
 	"weight_limit": "Peso máximo.",
 	"carcass_reserved": "Essa carcaça é do dono do dino por mais um tempo.",
 	"not_a_carcass": "Isso não é uma carcaça.",
@@ -80,6 +81,7 @@ const REASONS: Dictionary = {
 	"depleted": "Já foi colhido.",
 	"no_space": "Sem espaço no destino.",
 	"wrong_slot": "Isso não vai nessa vaga.",
+	"over_limit": "Esvazie {piles}.",
 	"already_ordered": "Já está assim.",
 	"not_hungry": "Você não está com fome.",
 	"nothing_to_use": "Nada para usar aí.",
@@ -123,6 +125,11 @@ const RESULT_REASONS: Dictionary = {
 	Enums.ActionResult.NOT_OWNER: "not_owner",
 	Enums.ActionResult.REFUSED: "refused",
 }
+
+
+## "1 pilha" ou "N pilhas" (a recusa da bolsa diz quantas esvaziar).
+static func piles_text(piles: int) -> String:
+	return "1 pilha" if piles == 1 else "%d pilhas" % piles
 
 
 static func reason_for(result: Enums.ActionResult) -> String:

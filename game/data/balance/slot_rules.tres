@@ -8,3 +8,8 @@ script = ExtResource("1_rules")
 ; a vaga Arma é à parte (EquipmentLayout), então o jogador leva até 5 ferramentas fora dos slots.
 player_slots = 4
 belt_slots = 4
+; GDD 5.21 (decisão do dono): Cesto de fibra +4 (8 no total) e Mochila de couro +8 (12). Uma vaga só; vale a equipada.
+bag_slots = Dictionary[String, int]({
+"fiber_basket": 4,
+"leather_backpack": 8
+})

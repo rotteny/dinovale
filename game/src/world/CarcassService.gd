@@ -10,11 +10,17 @@ extends Node
 ## (GDD 5.6); a de selvagem e, passado o prazo, a de domado são de todos (co-op, sem PvP). Quem entrega é o `Player`: carne e
 ## couro que couberem no Peso e nos slots, o resto fica na carcaça (sem sacolinha). Esfolar não dá XP (não é nó).
 
+## A esfola de `actor_id` começou, andou (fração de 0 a 1) ou acabou (entregou tudo, cancelou ou recusou). A HUD só escuta.
+signal skin_started(actor_id: int)
+signal skin_progress(actor_id: int, fraction: float)
+signal skin_ended(actor_id: int)
+
 const RESULT := Enums.ActionResult
 
 var authority: WorldAuthority = null
 var rules: CarcassRules = preload("res://data/balance/carcass_rules.tres")
-## Por jogador: `{node, item, left, elapsed, taken, start, life, hurt}`. `item` é a unidade em andamento e `left` o que falta dela.
+## Por jogador: `{node, item, left, elapsed, taken, start, life, hurt, blade}`. `item` é a unidade em andamento, `left` o que
+## falta dela e `blade` o `iid` em mãos ao começar (a Lança que gasta).
 var _jobs: Dictionary = {}
 
 
@@ -34,8 +40,10 @@ func skin(actor_id: int, node: ResourceNode) -> Dictionary:
 	if item == "":
 		return _refusal(actor.skin_refusal(node))  # nada cabe: a carcaça fica como estava, sem custo
 	_jobs[actor_id] = {"node": node, "item": item, "left": actor.skin_seconds(node, item), "elapsed": 0.0, "taken": {},
-			"start": actor.global_position, "life": actor.health.current_health, "hurt": 0.0}
+			"start": actor.global_position, "life": actor.health.current_health, "hurt": 0.0,
+			"blade": actor.equipment.iid_in(EquipmentLayout.WEAPON)}
 	authority.announce("skin_started", {"carcass": node.def.display_name})
+	skin_started.emit(actor_id)
 	return _outcome(RESULT.OK)
 
 
@@ -62,7 +70,8 @@ func cancel(actor_id: int, reason: String) -> void:
 
 ## Esquece toda esfola em andamento, sem aviso (carregar um save na mesma sessão).
 func clear_jobs() -> void:
-	_jobs.clear()
+	for actor_id: int in _jobs.keys():
+		_end(actor_id)
 
 
 ## A esfola de `actor_id`: `{node, item, left, elapsed, taken, ...}` ou `{}`. A HUD só lê.
@@ -101,6 +110,7 @@ func _advance(actor_id: int, delta: float) -> void:
 		var left := float(current["left"])
 		if budget < left:
 			current["left"] = left - budget
+			skin_progress.emit(actor_id, progress(actor_id))
 			return
 		budget -= left
 		if not _deliver_unit(actor_id, actor, node, current):
@@ -112,7 +122,15 @@ func _advance(actor_id: int, delta: float) -> void:
 func _deliver_unit(actor_id: int, actor: Player, node: ResourceNode, current: Dictionary) -> bool:
 	var item := str(current["item"])
 	var life := actor.health.current_health
-	if actor.skin_unit(node, item) != "":
+	var delivered := actor.skin_unit(node, item)
+	if delivered == Player.SKIN_NOTHING_LEFT:  # outro ator já levou esta unidade: nada é entregue; segue para a próxima ou encerra
+		var other := actor.next_skin_item(node)
+		if other == "" or not node.is_available():
+			_finish(actor_id)
+			return false
+		current["item"] = other
+		return true
+	if delivered != "":
 		_finish(actor_id)
 		return false
 	var taken: Dictionary = current["taken"]
@@ -140,6 +158,7 @@ func _finish(actor_id: int) -> void:
 
 func _end(actor_id: int) -> void:
 	_jobs.erase(actor_id)
+	skin_ended.emit(actor_id)
 
 
 ## Por que a esfola em curso não pode seguir ("" = segue): saiu, caiu, andou demais, apanhou ou a carcaça sumiu.
@@ -156,10 +175,13 @@ func _interruption(actor_id: int) -> String:
 	var limit := authority.rules.tile_size * rules.skin_walk_cancel_tiles
 	if actor.global_position.distance_to(current["start"] as Vector2) > limit:
 		return "moved"
+	var why := ""
 	if actor.health.current_health < float(current["life"]) - 0.0001:
-		return "hurt"
+		why = "hurt"
+	elif actor.equipment.iid_in(EquipmentLayout.WEAPON) != str(current["blade"]):
+		why = "weapon_changed"  # trocar a lâmina no meio não esquiva o desgaste nem a mão ferida: a esfola é de quem começou
 	current["life"] = maxf(float(current["life"]), actor.health.current_health)  # recuperar vida não esconde o próximo dano
-	return ""
+	return why
 
 
 ## A carcaça da tarefa, ou null se já foi liberada (venceu ou foi comida): o nó some sem avisar a tarefa.

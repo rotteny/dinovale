@@ -28,11 +28,13 @@ signal unequip_requested(slot_id: String)
 ## (`WorldAuthority.TRANSFER_ALL` = a pilha toda). A tela não muda nada; recusa volta por `show_transfer_refusal`.
 signal transfer_requested(from_player: bool, index: int, amount: int)
 ## Pede para descartar a pilha do slot `index` do jogador (já confirmado na tela). A tela não muda nada.
-signal discard_requested(index: int)
+signal discard_requested(index: int, item_id: String, count: int)
 
 ## Medidas para o viewport de 320x180: células quadradas só com o ícone (nome, tecla e durabilidade
 ## vão na linha de detalhe sob a grade), 4 colunas por inventário. Painel total ~250x130.
 const COLUMNS := 4
+## Colunas da grade do jogador quando ela está sozinha na tela (12 posições = 2 linhas); ao lado de um Baú ou criatura, COLUMNS.
+const COLUMNS_ALONE := 6
 const SLOT_SIZE := Vector2(24, 24)
 const SLOT_FONT_SIZE := 8
 ## Folga interna extra além da moldura de madeira do painel (6 px do tema).
@@ -73,6 +75,9 @@ var _player_title := Label.new()
 ## Pilha selecionada para descartar (posição unificada do jogador; -1 = nenhuma) e a que espera a confirmação.
 var _selected := -1
 var _pending_discard := -1
+## O que a confirmação mostrou (item e quantidade): se a pilha mudar antes do Sim, a confirmação não vale mais.
+var _pending_id := ""
+var _pending_count := 0
 var _discard_button := Button.new()
 var _confirm_label := Label.new()
 var _confirm_yes := Button.new()
@@ -83,6 +88,7 @@ var _quantity_menu := QuantityMenu.new()
 ## Slot a que o menu do botão direito se refere: {from_player, index}.
 var _menu_slot: Dictionary = {}
 var _equipment_column := VBoxContainer.new()
+var _panel: PanelContainer = null
 var _equipment_buttons: Dictionary = {}
 var _notice := Label.new()
 ## Linha de detalhe: texto completo da célula sob o cursor ou com o foco.
@@ -101,11 +107,13 @@ func _ready() -> void:
 	dim.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(dim)
 
-	var center := CenterContainer.new()
+	# O painel é posto à mão (`_fit_panel`) para poder encolher até caber: um CenterContainer cresceria junto com o painel.
+	var center := Control.new()
 	center.set_anchors_preset(Control.PRESET_FULL_RECT)
 	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(center)
 	var panel := PanelContainer.new()
+	_panel = panel
 	center.add_child(panel)
 	var margin := MarginContainer.new()
 	for side in ["left", "right", "top", "bottom"]:
@@ -122,13 +130,17 @@ func _ready() -> void:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 8)
 	column.add_child(row)
-	row.add_child(_equipment_column)
+	# Coluna da esquerda: as vagas (Arma e Bolsa lado a lado) e, embaixo, o cinto. Com a grade de até 12 posições, a altura do
+	# painel só cabe nos 180 px do viewport se o cinto sair de baixo da grade.
+	var left_column := VBoxContainer.new()
+	left_column.add_child(_equipment_column)
+	_belt_title.text = "Cinto"
+	left_column.add_child(_belt_title)
+	left_column.add_child(_belt_grid)
+	row.add_child(left_column)
 	var player_column := VBoxContainer.new()
 	player_column.add_child(_player_title)
 	player_column.add_child(_player_grid)
-	_belt_title.text = "Cinto"
-	player_column.add_child(_belt_title)
-	player_column.add_child(_belt_grid)
 	row.add_child(player_column)
 	_other_column.add_child(_other_title)
 	_other_column.add_child(_other_grid)
@@ -179,6 +191,7 @@ func open_with(own: InventoryComponent, other: InventoryComponent, source: Inter
 	_build_equipment()
 	_selected = -1
 	_pending_discard = -1
+	_player_grid.columns = COLUMNS if other != null else COLUMNS_ALONE
 	_build_buttons(_player_grid, _player_buttons, own, true, 0, own.grid_size())
 	_build_buttons(_belt_grid, _belt_buttons, own, true, own.grid_size(), own.slot_count() - own.grid_size())
 	_belt_title.visible = not _belt_buttons.is_empty()
@@ -427,12 +440,48 @@ func _show_detail(button: Button) -> void:
 
 
 func _refresh() -> void:
+	if _player_buttons.size() != player_inventory.grid_size():
+		_rebuild_player_grids()  # a bolsa mudou: a grade tem outro tamanho
 	_refresh_equipment()
 	_refresh_buttons(_player_buttons, player_inventory, 0, true)
 	_refresh_buttons(_belt_buttons, player_inventory, player_inventory.grid_size(), true)
 	_refresh_buttons(_other_buttons, _other, 0, false)
 	_player_title.text = "Slots %d/%d" % [player_inventory.grid_used(), player_inventory.grid_size()]
 	_refresh_discard()
+	_fit_panel.call_deferred()
+
+
+## Centra o painel no viewport e, se ele pedir mais que o viewport (grade de 12 ao lado de um Baú), o encolhe só o suficiente
+## para caber. Já cabendo, o fator é 1.
+func _fit_panel() -> void:
+	if _panel == null or not is_inside_tree():
+		return
+	var need := _panel.get_combined_minimum_size()
+	var room := get_viewport_rect().size
+	var factor := 1.0
+	if need.x > 0.0 and need.y > 0.0:
+		factor = minf(1.0, minf(room.x / need.x, room.y / need.y))
+	_panel.size = need  # fora de um container o painel não encolhe sozinho quando o conteúdo diminui
+	_panel.pivot_offset = Vector2.ZERO
+	_panel.scale = Vector2(factor, factor)
+	_panel.position = ((room - need * factor) * 0.5).floor()  # centrado no viewport, já com a escala
+
+
+## Fator de escala do painel (1 = tamanho natural). Para testes.
+func panel_scale() -> float:
+	return _panel.scale.x if _panel != null else 1.0
+
+
+## Refaz os botões da grade e do cinto do jogador (o tamanho da grade mudou com a bolsa).
+func _rebuild_player_grids() -> void:
+	var focused := get_viewport().gui_get_focus_owner() if is_inside_tree() else null
+	_build_buttons(_player_grid, _player_buttons, player_inventory, true, 0, player_inventory.grid_size())
+	_build_buttons(_belt_grid, _belt_buttons, player_inventory, true, player_inventory.grid_size(),
+			player_inventory.slot_count() - player_inventory.grid_size())
+	_selected = -1
+	_pending_discard = -1
+	if focused != null and not _player_buttons.is_empty() and is_open:
+		_player_buttons[0].grab_focus()
 
 
 ## Coluna de vagas: só as `shown` (no M1, a Arma). Vazia mostra o nome da vaga como silhueta.
@@ -448,13 +497,16 @@ func _build_equipment() -> void:
 	title.text = "Equipado"
 	title.add_theme_color_override("font_color", UiTheme.INK)
 	_equipment_column.add_child(title)
+	var cells := HBoxContainer.new()
+	cells.add_theme_constant_override("separation", 2)
+	_equipment_column.add_child(cells)
 	for def in equipment.layout.shown_slots():
 		var button := _new_cell()
 		button.focus_entered.connect(_show_detail.bind(button))
 		button.mouse_entered.connect(_show_detail.bind(button))
 		button.mouse_exited.connect(_restore_detail)
 		button.gui_input.connect(_on_equipment_gui_input.bind(def.id))
-		_equipment_column.add_child(button)
+		cells.add_child(button)
 		_equipment_buttons[def.id] = button
 
 
@@ -473,7 +525,8 @@ func _refresh_equipment() -> void:
 			(button.get_node("Durab") as DurabilityBar).show_item({})
 		else:
 			(button.get_node("Durab") as DurabilityBar).show_item(item)
-			var full := "%s\n%d/%d" % [Items.display_name(item["id"]), item["durab"], item["durab_max"]]
+			var full := Items.display_name(item["id"]) if Items.is_bag(item["id"]) \
+					else "%s\n%d/%d" % [Items.display_name(item["id"]), item["durab"], item["durab_max"]]
 			button.set_meta(&"text", full)
 			button.text = ""
 			button.icon = ItemIcons.icon_of(item["id"])
@@ -519,7 +572,9 @@ func _refresh_buttons(buttons: Array[Button], inventory: InventoryComponent, fir
 				key = hotbar.slot_of_iid(slot["iid"]) if slot.has("iid") else hotbar.slot_of(slot["id"])
 			var tag := "[%d] " % (key + 1) if key >= 0 else ""
 			var detail := "%d/%d" % [slot["durab"], slot["durab_max"]] if slot.has("iid") else "x%d" % slot["count"]
-			buttons[i].set_meta(&"text", "%s\n%s%s" % [Items.display_name(slot["id"]), tag, detail])
+			if Items.is_bag(slot["id"]):
+				detail = ""  # a bolsa não tem durabilidade nem quantidade
+			buttons[i].set_meta(&"text", ("%s\n%s%s" % [Items.display_name(slot["id"]), tag, detail]).strip_edges())
 			var icon := ItemIcons.icon_of(slot["id"])
 			buttons[i].icon = icon
 			swatch.color = Items.color_of(slot["id"])
@@ -671,20 +726,28 @@ func _ask_discard() -> void:
 
 func _confirm_discard() -> void:
 	var index := _pending_discard
+	var item_id := _pending_id
+	var count := _pending_count
 	_set_pending(-1)
-	if index >= 0 and not _discardable(index).is_empty():
+	var slot := _discardable(index)
+	if index >= 0 and not slot.is_empty() and str(slot["id"]) == item_id and int(slot["count"]) == count:
 		_notice.text = ""
-		discard_requested.emit(index)
+		discard_requested.emit(index, item_id, count)
 
 
 func _set_pending(index: int) -> void:
 	_pending_discard = index
+	var slot := _discardable(index)
+	_pending_id = str(slot.get("id", ""))
+	_pending_count = int(slot.get("count", 0))
 	_refresh_discard()
 
 
 func _refresh_discard() -> void:
-	if _pending_discard >= 0 and _discardable(_pending_discard).is_empty():
-		_pending_discard = -1  # a pilha mudou ou sumiu: a confirmação não vale mais
+	if _pending_discard >= 0:
+		var shown := _discardable(_pending_discard)
+		if shown.is_empty() or str(shown["id"]) != _pending_id or int(shown["count"]) != _pending_count:
+			_pending_discard = -1  # a pilha mudou ou sumiu: a confirmação não vale mais
 	var pending := _pending_discard >= 0
 	_discard_button.visible = not pending
 	_discard_button.disabled = _discardable(_selected).is_empty()

@@ -10,6 +10,8 @@ extends Node2D
 
 const MAX_COORD := 1.0e6
 const MAX_AMOUNT := 9999
+## Teto de unidades que a migração de um item de chão antigo (pilha) para individual cria.
+const LEGACY_MAX_UNITS := 16
 
 @export var rules: GroundItemRules = preload("res://data/balance/ground_item_rules.tres")
 ## Autoridade do mundo: cada pilha entra no registro dela e o recolher passa por ela.
@@ -38,9 +40,11 @@ func tick() -> void:
 		return
 	var actor_id := authority.id_of(player)
 	for item in _items.duplicate():
+		var near: bool = item.global_position.distance_to(player.global_position) <= rules.auto_pickup_px
+		if not near and item.auto_pickup_held_for != "":
+			item.auto_pickup_held_for = ""  # o jogador se afastou: o item largado de propósito volta a ser recolhível sozinho
 		# Só tenta quando cabe: recolher sozinho com a mochila cheia ficaria negado a cada quadro.
-		if item.global_position.distance_to(player.global_position) <= rules.auto_pickup_px \
-				and player.inventory.room_for(item.item_id) > 0:
+		if near and item.auto_pickup_held_for != player.player_id and player.inventory.room_for(item.item_id) > 0:
 			authority.request_pickup(actor_id, authority.id_of(item))
 
 
@@ -110,6 +114,28 @@ func spawn_spill(entry: Dictionary, origin: Vector2) -> void:
 		left -= pile
 		_spawn(item_id, pile, origin + _offset(origin, item_id, index), _now() + rules.migration_keep_seconds, 0, true)
 		index += 1
+
+
+## MIGRAÇÃO (E11b): Cesto e Mochila eram pilhas de 1 e viraram itens individuais. Um item de chão salvo antes disso (sem `entry`)
+## vira um item individual por unidade, com `iid` novo e durabilidade cheia, em vez de ser descartado. O resto passa como está.
+func _with_legacy_individuals(list: Array) -> Array:
+	var result: Array = []
+	var serial := 0
+	for entry: Variant in list:
+		var data := SafeRead.dict(entry)
+		var item_id := SafeRead.text(data.get("item"), "")
+		if not (Items.has(item_id) and Items.is_individual(item_id)) or data.has("entry"):
+			result.append(entry)
+			continue
+		for n in SafeRead.integer(data.get("amount"), 0, 0, LEGACY_MAX_UNITS):
+			var unit := data.duplicate(true)
+			unit["amount"] = 1
+			unit["entry"] = {"id": item_id, "iid": "m%d" % serial}
+			if n > 0:
+				unit.erase("id")  # o id da entidade fica com a primeira unidade
+			result.append(unit)
+			serial += 1
+	return result
 
 
 ## Entrada de individual válida (id conhecido e individual, `iid` de texto, `durab` inteiro limitado) ou `{}`.
@@ -210,7 +236,7 @@ func restore_list(list: Array) -> void:
 	for item in _items.duplicate():
 		_remove(item)
 	var current := _now()
-	for entry: Variant in list:
+	for entry: Variant in _with_legacy_individuals(list):
 		var data := SafeRead.dict(entry)
 		var item_id := SafeRead.text(data.get("item"), "")
 		var amount := SafeRead.integer(data.get("amount"), 0, 0, MAX_AMOUNT)

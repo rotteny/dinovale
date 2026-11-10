@@ -21,6 +21,9 @@ var due_at: float = 0.0
 ## Gancho do co-op: quem largou/derrubou e até quando só ele recolhe (`owner_until`, relógio do mundo). "" = qualquer um.
 var owner_player_id: String = ""
 var owner_until: float = 0.0
+## Quem largou este item DE PROPÓSITO (Descartar): o recolhimento automático dele fica suspenso até ele se afastar de mais de
+## `auto_pickup_px`. Recolher à mão (E, clique) continua valendo. "" = sem suspensão. Não vai ao save.
+var auto_pickup_held_for: String = ""
 ## Área que o jogador enxerga (dica "pegar X"). Criada no `_init` e filha deste nó.
 var interactable: InteractableArea = null
 

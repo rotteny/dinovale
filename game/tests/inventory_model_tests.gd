@@ -738,8 +738,9 @@ func _test_save_blocks() -> void:
 ## O modelo de vagas (6, por dado): equipar, trocar, tirar, grade cheia, validação e save.
 func _test_equipment_slots() -> void:
 	var layout := Items.EQUIPMENT
-	_check(layout.ids() == ["weapon", "helmet", "shirt", "glove", "pants", "boot"], "seis vagas em dados, na ordem do GDD")
-	_check(layout.shown_slots().size() == 1 and layout.shown_slots()[0].id == "weapon", "só a Arma é visível no M1")
+	_check(layout.ids() == ["weapon", "bag", "helmet", "shirt", "glove", "pants", "boot"], "sete vagas em dados (a Bolsa depois da Arma)")
+	_check(layout.shown_slots().size() == 2 and layout.shown_slots()[0].id == "weapon" and layout.shown_slots()[1].id == "bag",
+			"só a Arma e a Bolsa são visíveis na v0.2 (as de roupa entram no M4)")
 	_check(Items.slot_of(STAFF) == "weapon" and Items.slot_of(Items.BERRY) == "" and Items.hotbar_allowed(STAFF)
 			and Items.hotbar_allowed(Items.BERRY), "Bastão é de mão (vaga Arma); comida não tem vaga")
 	_check(not layout.slot_def("helmet").hotbar and layout.slot_def("weapon").hotbar, "roupa não vai ao atalho (dado)")

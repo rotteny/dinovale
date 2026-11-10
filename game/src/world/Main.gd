@@ -90,6 +90,8 @@ var occupancy := TileOccupancy.new()
 var music: MusicPlayer
 
 ## `entity_id` da criatura cuja tela compartilhada está aberta (0 = nenhuma).
+## Itens que o último `items_dropped` espalhou no chão (o Descartar os marca logo em seguida).
+var _last_scattered: Array[GroundItem] = []
 var _screen_target_id: int = 0
 var _quit_failed_once: bool = false
 var _last_failure_notice: String = ""
@@ -140,7 +142,8 @@ func _ready() -> void:
 	screen.closed.connect(func() -> void: player.input_locked = false)
 	_register_entities()
 	screen.transfer_requested.connect(_on_transfer_requested)
-	screen.discard_requested.connect(func(index: int) -> void: authority.request_drop(authority.id_of(player), index))
+	screen.discard_requested.connect(func(index: int, item_id: String, count: int) -> void:
+		authority.request_drop(authority.id_of(player), index, count, item_id, count))
 	authority.interaction_granted.connect(_on_interaction_granted)
 	authority.action_denied.connect(_on_action_denied)
 	save_manager = SaveManager.new(GameSession.save_root, world_id)
@@ -255,8 +258,11 @@ func _build_zone() -> void:
 	authority.drops_enabled = true
 	authority.world_seed = world_seed
 	authority.items_dropped.connect(func(item_id: String, amount: int, at: Vector2, dropper_id: String) -> void:
-		ground.spawn_scatter(item_id, amount, at, dropper_id)
+		_last_scattered = ground.spawn_scatter(item_id, amount, at, dropper_id)
 		_play_drop_sound(at))
+	authority.item_discarded.connect(func(dropper_id: String) -> void:  # logo depois do `items_dropped` do Descartar
+		for dropped in _last_scattered:
+			dropped.auto_pickup_held_for = dropper_id)
 	authority.migration_spill.connect(ground.spawn_spill)
 	add_child(ground)
 	workbenches = BuildField.new()

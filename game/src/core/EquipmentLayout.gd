@@ -5,6 +5,8 @@ extends Resource
 
 ## Vaga que recebe qualquer item de mão (arma ou ferramenta).
 const WEAPON := "weapon"
+## Vaga da bolsa (Cesto, Mochila): o item equipado aumenta a grade do jogador (`SlotRules.bag_slots`).
+const BAG := "bag"
 
 @export var slots: Array[EquipmentSlotDef] = []
 

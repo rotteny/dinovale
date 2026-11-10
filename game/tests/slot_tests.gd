@@ -10,12 +10,16 @@ const FILLERS: Array[String] = [Items.LEATHER, Items.STONE, Items.TUBER, Items.V
 const TOOLS: Array[String] = [Items.SLEEP_STAFF, Items.WOODEN_SPEAR, Items.AXE_STONE, Items.PICKAXE_STONE]
 const REFUSED := Enums.ActionResult.REFUSED
 
-var _before_layout: SlotRules = null
+## O dado real do jogo (4 e 4, conferido em `_test_data`).
+const REAL_RULES: SlotRules = preload("res://data/balance/slot_rules.tres")
 
 
 func run() -> void:
-	_before_layout = Items.slots
-	Items.slots = load("res://data/balance/slot_rules.tres") as SlotRules  # o dado real do jogo (4 e 4, conferido em `_test_data`)
+	Items.with_layout(REAL_RULES, _run_checks)  # o layout antigo volta sempre, mesmo se um teste abortar
+	_release_worlds()
+
+
+func _run_checks() -> void:
 	_test_data()
 	_test_grid_and_belt()
 	_test_weight_beats_slot()
@@ -38,8 +42,6 @@ func run() -> void:
 	_test_discard()
 	_test_screen()
 	_test_hotbar_and_hud()
-	Items.slots = _before_layout
-	_release_worlds()
 
 
 func _fill_grid(player: Player, ids: Array[String]) -> void:
@@ -90,7 +92,7 @@ func _test_data() -> void:
 	for item_id: String in Items.all_ids():
 		if Items.belt_of(item_id):
 			belt.append(item_id)
-		all_individuals_in_belt = all_individuals_in_belt and Items.is_individual(item_id) == Items.belt_of(item_id)
+		all_individuals_in_belt = all_individuals_in_belt and (Items.is_individual(item_id) == Items.belt_of(item_id) or Items.is_bag(item_id))
 	var wanted := TOOLS.duplicate()
 	belt.sort()
 	wanted.sort()
@@ -565,9 +567,9 @@ func _test_screen() -> void:
 	_root.add_child(screen)
 	_track.call(screen)
 	var discards: Array[int] = []
-	screen.discard_requested.connect(func(index: int) -> void:
+	screen.discard_requested.connect(func(index: int, item_id: String, count: int) -> void:
 		discards.append(index)
-		authority.request_drop(1, index))
+		authority.request_drop(1, index, count, item_id, count))
 	player.inventory.add(Items.WOOD, 5)
 	player.inventory.add(Items.AXE_STONE, 1)
 	screen.open_with(player.inventory, null, null, "")

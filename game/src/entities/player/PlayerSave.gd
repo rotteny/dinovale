@@ -65,6 +65,9 @@ static func apply_saved_state(player: Player, data: Dictionary) -> bool:
 	player.progression.from_dict(SafeRead.dict(data.get("progression")))
 	player.migration_spill = []
 	if replaces_inventory:
+		# A grade tem o tamanho da bolsa salva ANTES de receber as pilhas (o save é de uma grade de 4, 8 ou 12 posições).
+		player.inventory.from_dict({"version": InventoryComponent.FORMAT_VERSION, "slots": []})
+		player.inventory.resize_grid(saved_grid_size(saved_equipment if has_equipment else {}))
 		player.inventory.from_dict_spilling(saved_inventory, player.migration_spill)
 	if has_equipment:
 		player.equipment.from_dict(saved_equipment)
@@ -81,6 +84,14 @@ static func apply_saved_state(player: Player, data: Dictionary) -> bool:
 	if legacy:
 		_grant_starting_equipment(player)
 	return true
+
+
+## Tamanho da grade que o bloco `equipment` salvo pede: os slots base mais o da bolsa na vaga Bolsa. Bloco inválido não quebra:
+## a carga é recusada por outro lado (`EquipmentComponent.can_load`); aqui só se lê o id, e só vale o que é bolsa de verdade.
+static func saved_grid_size(saved_equipment: Dictionary) -> int:
+	var worn := SafeRead.dict(SafeRead.dict(saved_equipment.get("slots")).get(EquipmentLayout.BAG))
+	var bag_id := SafeRead.text(worn.get("id"), "")
+	return Items.slots.grid_size_for(bag_id if Items.is_bag(bag_id) else "")
 
 
 ## MIGRAÇÃO do inventário maior (CRI-42): o que a carga não coube fica em `player.migration_spill`. A ferramenta que sobrou
@@ -126,6 +137,7 @@ static func _load_is_valid(player: Player, saved_inventory: Dictionary, saved_eq
 	var scratch := player.inventory.preview()
 	var ok := true
 	if replaces_inventory:
+		scratch.capacity = saved_grid_size(saved_equipment if has_equipment else {})  # a bolsa salva define o tamanho da grade
 		ok = scratch.from_dict_spilling(saved_inventory, [])  # o excedente de um inventário maior migra, não recusa
 	else:
 		ok = scratch.from_dict(player.inventory.to_dict())

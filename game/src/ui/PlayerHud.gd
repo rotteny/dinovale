@@ -43,7 +43,17 @@ const HINT_BLOCKED_COLOR := Color("#a8a8a8")
 
 @export var player: Player
 ## Autoridade só para ler a faixa do dia (o rótulo da fase); sem ela o rótulo fica escondido. A `Main` a liga.
-@export var authority: WorldAuthority
+@export var authority: WorldAuthority:
+	set(value):
+		if authority != null and authority.skinning.skin_started.is_connected(_on_skin_started):
+			authority.skinning.skin_started.disconnect(_on_skin_started)
+			authority.skinning.skin_progress.disconnect(_on_skin_progress)
+			authority.skinning.skin_ended.disconnect(_on_skin_ended)
+		authority = value
+		if authority != null:  # a barra de esfolar vem dos sinais da tarefa, não de ler a autoridade a cada quadro
+			authority.skinning.skin_started.connect(_on_skin_started)
+			authority.skinning.skin_progress.connect(_on_skin_progress)
+			authority.skinning.skin_ended.connect(_on_skin_ended)
 
 var _health_bar := StatBar.new("Vida", Color(0.8, 0.2, 0.2), BAR_SIZE,
 		preload("res://assets/third_party/ninja-adventure/ui/icon_heart.png"), ICON_SIZE, true)
@@ -323,15 +333,27 @@ func tick(delta: float) -> void:
 	if _watched != null:  # o prompt do domado muda com a ordem, e a área não emite sinal por isso
 		_refresh_prompt()
 	_refresh_phase()
-	_refresh_skin()
 
 
-## A barra de esfolar segue a tarefa da autoridade (só lê); sem tarefa fica escondida.
-func _refresh_skin() -> void:
-	var working := authority != null and player != null and not authority.skinning.job(authority.id_of(player)).is_empty()
-	_skin_bar.visible = working
-	if working:
-		_skin_bar.set_values(authority.skinning.progress(authority.id_of(player)), 1.0)
+func _is_mine(actor_id: int) -> bool:
+	return authority != null and player != null and authority.id_of(player) == actor_id
+
+
+func _on_skin_started(actor_id: int) -> void:
+	if _is_mine(actor_id):
+		_skin_bar.visible = true
+		_skin_bar.set_values(0.0, 1.0)
+
+
+func _on_skin_progress(actor_id: int, fraction: float) -> void:
+	if _is_mine(actor_id):
+		_skin_bar.visible = true
+		_skin_bar.set_values(fraction, 1.0)
+
+
+func _on_skin_ended(actor_id: int) -> void:
+	if _is_mine(actor_id):
+		_skin_bar.visible = false
 
 
 func skin_bar() -> StatBar:

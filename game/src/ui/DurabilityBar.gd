@@ -44,7 +44,7 @@ static func color_for(ratio: float) -> Color:
 ## Mostra a durabilidade do item (`{durab, durab_max}`); sem durabilidade (pilha, vazio) a barra some.
 func show_item(item: Dictionary) -> void:
 	var maximum := int(item.get("durab_max", 0))
-	visible = maximum > 0 and item.has("durab")
+	visible = maximum > 0 and item.has("durab") and not Items.is_bag(str(item.get("id", "")))  # a bolsa não tem durabilidade
 	_ratio = clampf(float(item.get("durab", 0)) / float(maxi(maximum, 1)), 0.0, 1.0) if visible else 0.0
 	queue_redraw()
 

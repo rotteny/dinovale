@@ -31,6 +31,8 @@ const MAX_EXPIRY := 1.0e12
 ## Teto de posições aceito num save: 4x a capacidade máxima. Acima disso é dado hostil e a carga
 ## é recusada. O custo de cada posição também é limitado (ver `_sanitize`).
 const MAX_SAVED_SLOTS := MAX_CAPACITY * 4
+## Teto de unidades que UMA carga com excedente (`from_dict_spilling`) expande: nada se corta até aqui; acima disso é dado hostil.
+const MAX_SPILL_LOAD_UNITS := 100000
 ## Espaço de Peso "infinito" (inventário sem limite).
 const NO_WEIGHT_LIMIT := 1 << 30
 
@@ -88,6 +90,34 @@ func grid_used() -> int:
 		if not _slots[i].is_empty():
 			used += 1
 	return used
+
+
+## Quantas pilhas teriam de sair da grade para ela caber em `size` posições (0 = cabe; só se compacta, nada se perde).
+func piles_over(size: int) -> int:
+	return maxi(grid_used() - size, 0)
+
+
+## Muda a grade para `size` posições (a bolsa do jogador, CRI-42 parte 2). Crescer sempre vale. Encolher COMPACTA: as pilhas
+## das posições que vão sumir passam para posições livres do começo da grade, e só então o fim é cortado. Se há mais pilhas
+## do que posições, recusa e NADA muda: devolve quantas pilhas faltam esvaziar (0 = mudou). O cinto não é tocado.
+func resize_grid(size: int) -> int:
+	size = clampi(size, 1, MAX_CAPACITY)
+	var over := piles_over(size)
+	if over > 0:
+		return over
+	for i in range(_grid - 1, size - 1, -1):
+		if _slots[i].is_empty():
+			continue
+		for j in size:
+			if _slots[j].is_empty():
+				_slots[j] = _slots[i]
+				_slots[i] = {}
+				break
+	var before := _grid
+	capacity = size
+	if _grid != before:
+		changed.emit()
+	return 0
 
 
 ## A posição `index` é do cinto.
@@ -162,11 +192,13 @@ func weight_units_for(item_id: String) -> int:
 
 
 ## Por que `item_id` não entra agora: "weight_limit" (o Peso manda e vale mesmo se os slots também estiverem cheios),
-## "inventory_full" (sem slot) ou "" (cabe pelo menos uma unidade).
+## "belt_full" (ferramenta ou arma sem posição no cinto, mesmo com a grade livre), "inventory_full" (sem slot) ou "" (cabe).
 func refusal_for(item_id: String) -> String:
 	if weight_units_for(item_id) < 1:
 		return "weight_limit"
-	return "inventory_full" if room_for(item_id) < 1 else ""
+	if room_for(item_id) >= 1:
+		return ""
+	return "belt_full" if _slots.size() > _grid and Items.belt_of(item_id) else "inventory_full"
 
 
 ## Quanto ainda cabe deste item: o menor entre o espaço dos slots e o do Peso.
@@ -360,7 +392,7 @@ func _load(data: Dictionary, may_spill: bool, spill: Array[Dictionary]) -> bool:
 	var overflow: Array[Dictionary] = []
 	var fits := true
 	for i in (saved as Array).size():
-		var entries := _sanitize(saved[i])
+		var entries := _sanitize(saved[i], may_spill)
 		if entries.is_empty():
 			continue
 		var region := _region_of(str(entries[0]["id"]))  # a posição do save só vale na região do item (cinto x grade)
@@ -409,7 +441,10 @@ func can_load(data: Dictionary) -> bool:
 
 ## Uma entrada do save vira 0, 1 ou várias entradas válidas (save antigo com equipamento
 ## em pilha vira N individuais).
-func _sanitize(entry: Variant) -> Array[Dictionary]:
+## Com `may_spill` (migração) NADA é cortado por falta de lugar: o que não cabe vai ao excedente, então a entrada se expande por
+## inteiro (até `MAX_SPILL_LOAD_UNITS`, contra dado hostil). Sem ele, o que passa de slots + 1 nunca caberia (a carga é recusada),
+## então não se faz trabalho inútil.
+func _sanitize(entry: Variant, may_spill: bool = false) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	if not entry is Dictionary:
 		return result
@@ -419,8 +454,9 @@ func _sanitize(entry: Variant) -> Array[Dictionary]:
 	if Items.is_individual(item_id):
 		var wanted := 1
 		if not entry.has("iid") and entry.has("count"):
-			# Mais que os slots mais um nunca cabe: o excedente só faria trabalho inútil (a carga é recusada).
-			wanted = mini(SafeRead.integer(entry.get("count"), 0, 0, MAX_STACK), _slots.size() + 1)
+			# Sem excedente, mais que os slots mais um nunca cabe: o excedente só faria trabalho inútil (a carga é recusada).
+			wanted = SafeRead.integer(entry.get("count"), 0, 0, MAX_STACK)
+			wanted = mini(wanted, MAX_SPILL_LOAD_UNITS if may_spill else _slots.size() + 1)
 		for n in wanted:
 			result.append(_clean_individual(item_id, entry))
 		return result
@@ -428,7 +464,7 @@ func _sanitize(entry: Variant) -> Array[Dictionary]:
 	var expiry := SafeRead.number(entry.get("expira_em"), 0.0, 0.0, MAX_EXPIRY)
 	var limit := stack_limit(item_id)
 	# Custo limitado: acima de (slots + 1) pilhas cheias nunca cabe, então não se divide além disso.
-	var left := mini(int(amount), limit * (_slots.size() + 1))
+	var left := mini(int(amount), MAX_SPILL_LOAD_UNITS if may_spill else limit * (_slots.size() + 1))
 	while left > 0 and limit > 0:
 		var part := mini(left, limit)
 		result.append({"id": item_id, "count": part, "expira_em": expiry})

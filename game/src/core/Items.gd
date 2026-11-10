@@ -42,6 +42,9 @@ const VEIN_SALT := "vein_salt"
 ## Itens que `request_place` sabe colocar.
 const PLACEABLE: Array[String] = [WORKBENCH]
 
+## Durabilidade que marca a bolsa como item individual (a vaga de equipamento só guarda individuais). Não é gasta.
+const BAG_DURABILITY_MARK := 1
+
 ## Arma de cada item de arma (o id da arma é o id do item).
 const WEAPONS: Dictionary[String, WeaponDef] = {
 	SLEEP_STAFF: preload("res://data/weapons/sleep_staff.tres"),
@@ -58,6 +61,15 @@ const EQUIPMENT: EquipmentLayout = preload("res://data/equipment/layout.tres")
 ## poder trocar o layout sem mexer no recurso do jogo.
 static var slots: SlotRules = preload("res://data/balance/slot_rules.tres")
 static var _defs: Dictionary = {}
+
+
+## Roda `body` com o layout de slots `rules` e SEMPRE devolve o anterior ao sair (os testes trocam o dado; esquecer de voltar
+## contaminava as suítes seguintes).
+static func with_layout(rules: SlotRules, body: Callable) -> void:
+	var before := slots
+	slots = rules
+	body.call()
+	slots = before
 
 
 static func has(item_id: String) -> bool:
@@ -90,6 +102,11 @@ static func slot_of(item_id: String) -> String:
 static func belt_of(item_id: String) -> bool:
 	var def := get_def(item_id)
 	return def != null and def.belt and def.durability_max > 0
+
+
+## O item é uma bolsa (Cesto, Mochila): equipado na vaga Bolsa, soma slots à grade (o quanto, em `SlotRules.bag_slots`).
+static func is_bag(item_id: String) -> bool:
+	return slot_of(item_id) == EquipmentLayout.BAG
 
 
 ## Pode ir à barra de atalhos: o que não é equipável, ou o equipável cuja vaga permite (roupa não).
@@ -179,4 +196,9 @@ static func _catalog() -> Dictionary:
 		# CRI-42: ferramentas e armas vão ao cinto (fora dos 4 slots). Quais são é do dado do item.
 		for tool_id: String in [SLEEP_STAFF, WOODEN_SPEAR, AXE_STONE, PICKAXE_STONE]:
 			_defs[tool_id].belt = true
+		# CRI-42 parte 2: as bolsas são individuais (a vaga guarda o item inteiro) e NÃO vão ao cinto. Sem durabilidade de verdade
+		# (GDD 5.21): o 1 é só o marcador de individual, ninguém o gasta e a tela não o mostra (`is_bag`).
+		for bag_id: String in [FIBER_BASKET, LEATHER_BACKPACK]:
+			_defs[bag_id].durability_max = BAG_DURABILITY_MARK
+			_defs[bag_id].slot = EquipmentLayout.BAG
 	return _defs

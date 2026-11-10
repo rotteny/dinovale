@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="EquipmentLayout" load_steps=9 format=3]
+[gd_resource type="Resource" script_class="EquipmentLayout" load_steps=10 format=3]
 
 [ext_resource type="Script" path="res://src/core/EquipmentLayout.gd" id="1_layout"]
 [ext_resource type="Script" path="res://src/core/EquipmentSlotDef.gd" id="2_def"]
@@ -9,6 +9,13 @@ id = "weapon"
 display_name = "Arma"
 shown = true
 hotbar = true
+
+[sub_resource type="Resource" id="Slot_bag"]
+script = ExtResource("2_def")
+id = "bag"
+display_name = "Bolsa"
+shown = true
+hotbar = false
 
 [sub_resource type="Resource" id="Slot_helmet"]
 script = ExtResource("2_def")
@@ -47,4 +54,4 @@ hotbar = false
 
 [resource]
 script = ExtResource("1_layout")
-slots = Array[ExtResource("2_def")]([SubResource("Slot_weapon"), SubResource("Slot_helmet"), SubResource("Slot_shirt"), SubResource("Slot_glove"), SubResource("Slot_pants"), SubResource("Slot_boot")])
+slots = Array[ExtResource("2_def")]([SubResource("Slot_weapon"), SubResource("Slot_bag"), SubResource("Slot_helmet"), SubResource("Slot_shirt"), SubResource("Slot_glove"), SubResource("Slot_pants"), SubResource("Slot_boot")])

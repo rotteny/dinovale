@@ -20,6 +20,8 @@ const REFUSED_UNKNOWN_SLOT := "unknown_slot"
 const REFUSED_WRONG_SLOT := "wrong_slot"
 const REFUSED_EMPTY_SLOT := "empty_slot"
 const REFUSED_FULL := "full"
+## Trocar ou tirar a bolsa deixaria pilhas sem slot (GDD 5.21): o motivo leva quantas esvaziar, "over_limit:3".
+const REFUSED_OVER_LIMIT := "over_limit"
 
 @export var layout: EquipmentLayout = preload("res://data/equipment/layout.tres")
 ## A grade de onde o item sai e para onde volta.
@@ -30,7 +32,21 @@ var _worn: Dictionary = {}
 
 ## Texto da recusa para o jogador, ou "" (vaga errada recusa sem mensagem, GDD 5.20).
 static func refusal_message(reason: String) -> String:
+	if over_limit_piles(reason) > 0:
+		return "Esvazie %s" % GameMessages.piles_text(over_limit_piles(reason))
 	return "Inventário cheio" if reason == REFUSED_FULL else ""
+
+
+## Motivo de recusa da bolsa com a conta de quantas pilhas esvaziar.
+static func over_limit_reason(piles: int) -> String:
+	return "%s:%d" % [REFUSED_OVER_LIMIT, piles]
+
+
+## Quantas pilhas esvaziar, se `reason` é a recusa da bolsa; senão 0.
+static func over_limit_piles(reason: String) -> int:
+	if not reason.begins_with(REFUSED_OVER_LIMIT + ":"):
+		return 0
+	return maxi(reason.get_slice(":", 1).to_int(), 0)
 
 
 ## Cópia do item da vaga, ou `{}`.
@@ -62,6 +78,11 @@ func find_iid(iid: String) -> Dictionary:
 	return item_in(slot_of_iid(iid))
 
 
+## Tamanho da grade do jogador com a bolsa que está na vaga agora (a vaga vazia dá só os slots base).
+func grid_size() -> int:
+	return Items.slots.grid_size_for(str(item_in(EquipmentLayout.BAG).get("id", "")))
+
+
 ## Peso do que está vestido ou empunhado, em gramas inteiras (conta no Peso, mas não ocupa slot).
 func weight_grams() -> int:
 	var total := 0
@@ -90,6 +111,10 @@ func equip(iid: String, slot_id: String = "") -> String:
 		return REFUSED_UNKNOWN_SLOT
 	if Items.slot_of(item["id"]) != target:
 		return REFUSED_WRONG_SLOT
+	if target == EquipmentLayout.BAG:
+		var over := _bag_swap_over(str(item["id"]), target)
+		if over > 0:
+			return over_limit_reason(over)  # a grade nova não comporta as pilhas de hoje: nada muda, a bolsa nova fica onde está
 	var origin := inventory.index_of_iid(iid)
 	var entry := inventory.remove_iid(iid)
 	var old := item_in(target)
@@ -97,6 +122,7 @@ func equip(iid: String, slot_id: String = "") -> String:
 		inventory.add_entry(entry, false)  # não deveria ocorrer: o slot do novo acabou de vagar
 		return REFUSED_FULL
 	_worn[target] = entry
+	_fit_grid_to_bag(target)
 	changed.emit()
 	return ""
 
@@ -121,11 +147,28 @@ func unequip(slot_id: String) -> String:
 	var item := item_in(slot_id)
 	if item.is_empty():
 		return REFUSED_EMPTY_SLOT
+	if slot_id == EquipmentLayout.BAG:
+		var over := inventory.grid_used() + 1 - Items.slots.grid_size_for("")  # a bolsa tirada também ocupa uma posição
+		if over > 0:
+			return over_limit_reason(over)
 	if inventory.add_entry(item, false) != 0:  # mover do corpo para a grade não muda o Peso total
 		return REFUSED_FULL
 	_worn.erase(slot_id)
+	_fit_grid_to_bag(slot_id)
 	changed.emit()
 	return ""
+
+
+## Pilhas que sobrariam sem slot se `new_bag_id` entrasse na vaga `slot_id`: o novo sai da grade e o antigo (se houver) entra.
+func _bag_swap_over(new_bag_id: String, slot_id: String) -> int:
+	var used_after := inventory.grid_used() - 1 + (1 if not item_in(slot_id).is_empty() else 0)
+	return maxi(used_after - Items.slots.grid_size_for(new_bag_id), 0)
+
+
+## Depois de mexer na vaga da bolsa, a grade do dono passa a ter o tamanho que ela dá. O pré-teste já garantiu que cabe.
+func _fit_grid_to_bag(slot_id: String) -> void:
+	if slot_id == EquipmentLayout.BAG:
+		inventory.resize_grid(grid_size())
 
 
 ## Gasta `amount` de durabilidade do item da vaga. Chegando a 0 ele QUEBRA: sai da vaga e some (não volta ao inventário).

@@ -14,6 +14,9 @@ signal region_chosen(region_id: String)
 ## Rótulo da opção de renascer (o ponto é sorteado na região).
 const RANDOM_LABEL := "Local aleatório"
 
+## A lista se refaz a cada tanto, não a cada quadro (a grade pode ter milhares de peças e a espera conta em segundos).
+const REFRESH_SECONDS := 0.25
+
 @export var rules: RespawnRules = preload("res://data/balance/respawn_rules.tres")
 ## Quantos minutos o corpo guarda os itens (`DownedRules.body_minutes`; a `Main` o liga).
 @export var corpse_minutes: float = 10.0
@@ -24,6 +27,7 @@ var viewer: Player = null
 var is_open: bool = false
 ## Segundos desde que a tela abriu (para o atraso de `RespawnRules.accept_delay`).
 var open_seconds: float = 0.0
+var _refresh_left: float = 0.0
 var _column := MenuColumn.new()
 var _corpse_hint := Label.new()
 var _body_position: Vector2 = Vector2.ZERO
@@ -75,6 +79,7 @@ func open(body_position: Vector2) -> void:
 	_column.setup(items)
 	_column.reset_selection()
 	open_seconds = 0.0
+	_refresh_left = REFRESH_SECONDS
 	is_open = true
 	visible = true
 
@@ -91,7 +96,10 @@ func column() -> MenuColumn:
 func _process(delta: float) -> void:
 	if is_open:
 		open_seconds += delta
-		_follow_world()
+		_refresh_left -= delta
+		if _refresh_left <= 0.0:
+			_refresh_left = REFRESH_SECONDS
+			_follow_world()
 
 
 ## A lista segue o mundo com a tela aberta: peça que sumiu ou espera que acabou refaz a coluna (mantendo a seleção se ela

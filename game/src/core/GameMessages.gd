@@ -54,6 +54,16 @@ const EVENTS: Dictionary = {
 	"day_started": {"kind": Kind.INFO, "text": "O dia clareou."},
 }
 
+## Por que o assar parou, depois de "Você parou de assar" (`cook_cancelled.reason`); motivo desconhecido ou do próprio jogador: ponto final.
+const COOK_STOP_TEXT: Dictionary = {
+	"no_fuel": ": acabou a madeira.",
+	"no_meat": ": acabou a carne crua.",
+	"inventory_full": ": inventário cheio.",
+	"left_fire": ": você se afastou da fogueira.",
+	"fire_removed": ": a fogueira sumiu.",
+	"downed": ": você caiu.",
+}
+
 ## Rótulo da faixa do dia no HUD, pelo nome estável (`DayCycle.NAMES`).
 const PHASE_LABELS: Dictionary = {
 	"day": "Dia",
@@ -158,6 +168,8 @@ static func text_of(code: String, params: Dictionary = {}) -> String:
 		return ""
 	if code == "action_refused":
 		return reason_text(str(params.get("reason", "refused")), params)
+	if code == "cook_cancelled":
+		return "Você parou de assar%s" % COOK_STOP_TEXT.get(str(params.get("reason", "")), ".")
 	return _fill(str(EVENTS[code]["text"]), params)
 
 

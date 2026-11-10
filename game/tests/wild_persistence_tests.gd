@@ -86,15 +86,15 @@ func _test_tamed_wild_survives_continue() -> void:
 	_check(back != null and back.position == spot[0], "o domado continua onde estava")
 	_check(after.wild.creature_at(_wid(after, 0)) == null and after.wild.is_taken(_wid(after, 0)),
 			"o índice dele fica consumido: não nasce outro selvagem")
-	_check(after.wild.get_child_count() == 82 and after.wild.adopted().size() == 1,
-			"nenhum duplicado: 81 do mapa (69 paquicéfalos e 12 utahraptores) e 1 recriado")
+	_check(after.wild.get_child_count() == 222 and after.wild.adopted().size() == 1,
+			"nenhum duplicado: 221 do mapa (69 paquicéfalos, 12 utahraptores e 140 Dodos) e 1 recriado")
 	_check(after.authority.id_of(back) > 0 and after.zone.dinos().has(back), "o recriado está na autoridade e na zona")
 	# Segundo ciclo de salvar e carregar.
 	_check(after.save_game(SaveManager.Reason.BED), "salva de novo")
 	GameSession.continue_requested = true
 	var third := _main("wild_tamed", 20, true)
 	await _root.get_tree().physics_frame
-	_check(_tamed_wild(third) != null and third.wild.get_child_count() == 82
+	_check(_tamed_wild(third) != null and third.wild.get_child_count() == 222
 			and third.wild.adopted().size() == 1, "segundo ciclo: o domado segue um só")
 
 

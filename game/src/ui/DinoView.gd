@@ -22,6 +22,7 @@ signal sound_cue(cue: StringName)
 const ANIM_IDLE := "idle"
 const ANIM_WALK := "walk"
 const ANIM_SLEEP := "sleep"
+const ANIM_SCARE := "scare"
 ## Tempo da animação de golpe durante o aviso: parado no primeiro quadro (cabeça recuada).
 const WINDUP_HOLD := 0.0
 const CUE_HIT := &"hit"
@@ -204,6 +205,8 @@ func _apply_pose(awake: bool) -> void:
 		column = _sheet.column_at(ANIM_SLEEP, 0.0)
 	elif threat_column >= 0:
 		column = threat_column
+	elif dino.state_machine.is_scared() and _sheet.has_animation(ANIM_SCARE):
+		column = _sheet.column_at(ANIM_SCARE, _time)
 	elif moving:
 		column = _sheet.column_at(ANIM_WALK, _time)
 	else:

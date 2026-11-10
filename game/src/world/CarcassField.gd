@@ -15,6 +15,7 @@ const BASE_DEF: ResourceNodeDef = preload("res://data/resources/carcass_meat.tre
 const SPECIES: Dictionary = {
 	"placeholder_dino": preload("res://data/dino/placeholder_dino.tres"),
 	"utahraptor": preload("res://data/dino/utahraptor.tres"),
+	"dodo": preload("res://data/dino/dodo.tres"),
 }
 ## Versão do formato de cada carcaça no save: 2 = com couro e dono. Sem a chave (save antigo) a carcaça só tinha carne.
 const ENTRY_FORMAT := 2

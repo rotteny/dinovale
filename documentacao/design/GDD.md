@@ -580,7 +580,7 @@ Simulação: `fome_sim.py fome|ciclo`. **Substitui o dano de fome do `HungerComp
 
 **Queda da fome: 0,1/s (atualizado em 07/11).** Cheio dura 1.000 s; a cozida (+35) rende 350 s e a baga (+10) rende 100 s; 360 pontos de fome por hora são cerca de 10 cozidas ou 36 bagas [calculado].
 
-**Cozimento:** na Fogueira, 2 s por carne, 1 madeira para 4 carnes (conta de 5.9); carne cozida vence em **90 min** (crua 30). **Cozida vale para o jogador e para o dino domado (5.12)**; a **Ração Rubra e o domar usam crua** (o Utahraptor aceita carne crua), então a Fogueira **não toca na conta da domesticação**.
+**Cozimento:** na Fogueira, 2 s por carne, 1 madeira para 4 carnes (conta de 5.9; **combustível queimado [provisório 10/11]**: reiniciar o assar cobra madeira de novo, a já queimada não volta); carne cozida vence em **90 min** (crua 30). **Cozida vale para o jogador e para o dino domado (5.12)**; a **Ração Rubra e o domar usam crua** (o Utahraptor aceita carne crua), então a Fogueira **não toca na conta da domesticação**.
 
 **Fome 0, torpor do jogador:** sobe **+2/s líquido**: **inconsciente em 50 s**. Do cheio ao primeiro desmaio: 1.050 s [calculado, queda 0,1/s]. Faixas 25/50/75 em 12,5 / 25 / 37,5 s (efeitos leves).
 
@@ -1275,7 +1275,7 @@ Clareira-brasa (M4) ganha a sua linha quando existir; **uma linha por bioma** ma
 | Estação | Mãos (menu P) | **Bancada** (decisão do dono) |
 | Saber | **1** [proposta] | **1** [proposta] |
 | Respawn | **1 vez e some** | infinitos |
-| Espera entre usos | -- (some) | **60 s** (`cama_espera_s`) |
+| Espera entre usos | -- (some) | **60 s** (`cama_espera_s`); a Cama recém-posta já começa em espera de 60 s [provisório 10/11] |
 | Salva ao deitar | **não** | **sim** (único save manual) |
 | Colocar | no chão, 2 s; recolher devolve o item | peça no mundo (como o Baú), 3 s |
 | Colisão e vida | sem colisão; **não é alvo** de dino | colisão; vida 30 por unidade de madeira = **240** [8.1], dino só a ataca se ela bloquear o caminho |

@@ -109,7 +109,8 @@ func attacker_body(attacker_id: String) -> Node2D:
 	return authority.player_body(attacker_id) as Node2D
 
 
-## Um selvagem foi golpeado e está bravo: o bando dele é chamado contra o mesmo atacante (jogador ou criatura).
+## Um selvagem foi golpeado e está bravo (ou, o Covarde, assustado): o bando é chamado contra o mesmo atacante (jogador ou
+## criatura); o do Covarde só foge junto (`HerdCall.raise_alarm`).
 func on_dino_provoked(dino: Dino, attacker_id: String) -> void:
 	var attacker := attacker_body(attacker_id)
 	if attacker == null:
@@ -119,6 +120,9 @@ func on_dino_provoked(dino: Dino, attacker_id: String) -> void:
 		var other := authority.entity(id) as Dino  # `entity` pula nó liberado (o cast direto de um liberado é erro de script)
 		if other != null:
 			others.append(other)
+	if dino.stats.coward != null:  # Covarde: o bando foge junto (alarme), ninguém é chamado para brigar
+		authority.herd.raise_alarm(dino, attacker.global_position, others)
+		return
 	authority.herd.raise_call(dino, attacker_id, attacker.global_position, others, attacker)
 
 

@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="CowardProfile" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/core/CowardProfile.gd" id="1_coward"]
+
+[resource]
+script = ExtResource("1_coward")
+perception_tiles = 6.0
+approach_tiles = 3.0
+patrol_speed = 35.0
+patrol_seconds = Vector2(0.6, 1.5)
+scare_seconds = 0.8
+flee_max_tiles = 16.0
+flee_max_seconds = 10.0
+wary_seconds = 10.0
+alarm_radius_tiles = 8.0
+alarm_delay_s = 0.5

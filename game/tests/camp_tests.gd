@@ -31,6 +31,7 @@ func run() -> void:
 	_test_bed_destroyed_and_removed()
 	_test_hostile_choices_and_save()
 	_test_corpse_limit_and_marker()
+	_test_e12_review_fixes()
 	Items.with_layout(REAL_LAYOUT, _real_layout_checks)
 	await _test_main_respawn_screen()
 	await _test_campfire_light()
@@ -56,6 +57,14 @@ func _give(world: Dictionary, item_id: String, amount: int) -> void:
 func _place(world: Dictionary, item_id: String, cell: Vector2i) -> Enums.ActionResult:
 	_give(world, item_id, 1)
 	return (world["authority"] as WorldAuthority).request_place(1, item_id, BuildTests.center(cell))
+
+
+## Como `_place`, mas a Cama já pronta (a Cama nova nasce em espera de 60 s; quase todo teste quer a espera zerada).
+func _place_ready(world: Dictionary, item_id: String, cell: Vector2i) -> Enums.ActionResult:
+	var result := _place(world, item_id, cell)
+	if result == OK:
+		_grid(world).set_ready_at(cell, 0.0)
+	return result
 
 
 func _entity_at(world: Dictionary, cell: Vector2i) -> Node:
@@ -159,11 +168,11 @@ func _test_place_remove_and_limits() -> void:
 	_grid(world).add(HOME + Vector2i(5, 5), "bed", 0, OTHER)
 	var placed := 0
 	for cell: Vector2i in [BED_CELL, HOME + Vector2i(-1, 1), HOME + Vector2i(-1, -1), HOME + Vector2i(0, -1)]:
-		placed += 1 if _place(world, Items.BED, cell) == OK else 0
+		placed += 1 if _place_ready(world, Items.BED, cell) == OK else 0
 	_check(placed == 3 and _grid(world).count_of("bed", player.player_id) == 3 and _count(world, Items.BED) == 1,
 			"Cama: 3 colocadas por jogador; a 4ª é recusada e a de outro dono não entra na conta")
 	_check(authority.request_remove_piece(1, BED_CELL) == OK and _count(world, Items.BED) == 2
-			and _place(world, Items.BED, BED_CELL) == OK, "recolher uma Cama devolve o item e libera 1 do limite")
+			and _place_ready(world, Items.BED, BED_CELL) == OK, "recolher uma Cama devolve o item e libera 1 do limite")
 	_check(authority.request_remove_piece(1, FIRE_CELL) == OK and _count(world, Items.CAMPFIRE) == 1
 			and not authority.is_registered(fire_id), "recolher a Fogueira devolve o item e a tira do registro")
 
@@ -376,7 +385,7 @@ func _test_options_and_bag_single_use() -> void:
 	var world := _bare()
 	var authority: WorldAuthority = world["authority"]
 	var player: Player = world["player"]
-	_place(world, Items.BED, BED_CELL)
+	_place_ready(world, Items.BED, BED_CELL)
 	_place(world, Items.SLEEPING_BAG, BAG_CELL)
 	_grid(world).add(HOME + Vector2i(6, 6), "bed", 0, OTHER)
 	var body := BuildTests.center(HOME) + Vector2(160.0, 0.0)
@@ -400,7 +409,7 @@ func _test_options_and_bag_single_use() -> void:
 	_check(not authority.respawn_points.resolve(player.player_id, str(bag["id"]), body)["ok"], "e ele não vale uma segunda vez")
 	# Cama murada (sem tile livre em volta): desabilitada, com motivo.
 	var boxed := _bare()
-	_place(boxed, Items.BED, BED_CELL)
+	_place_ready(boxed, Items.BED, BED_CELL)
 	for dy in range(-2, 3):
 		for dx in range(-2, 3):
 			var cell := BED_CELL + Vector2i(dx, dy)
@@ -416,8 +425,8 @@ func _test_bed_wait_and_persistence() -> void:
 	var authority: WorldAuthority = world["authority"]
 	var player: Player = world["player"]
 	var points := authority.respawn_points
-	_place(world, Items.BED, BED_CELL)
-	_place(world, Items.BED, HOME + Vector2i(-1, 1))
+	_place_ready(world, Items.BED, BED_CELL)
+	_place_ready(world, Items.BED, HOME + Vector2i(-1, 1))
 	var body := BuildTests.center(HOME)
 	var first := points.options(player.player_id, body)[0]
 	points.commit(first)
@@ -454,19 +463,22 @@ func _test_bed_destroyed_and_removed() -> void:
 	var player: Player = world["player"]
 	var points := authority.respawn_points
 	var body := BuildTests.center(HOME)
-	_place(world, Items.BED, BED_CELL)
+	_place_ready(world, Items.BED, BED_CELL)
 	points.commit(points.options(player.player_id, body)[0])
 	_check(authority.build.destroy(BED_CELL) and points.options(player.player_id, body).is_empty()
 			and _count(world, Items.BED) == 0 and "piece_destroyed" in _codes(world),
 			"Cama destruída: sai da lista na hora e NÃO devolve o item")
 	_check(not authority.build.destroy(BED_CELL), "destruir onde não há peça não faz nada")
-	_check(_place(world, Items.BED, BED_CELL) == OK and points.wait_left(BED_CELL) == 0.0
-			and points.options(player.player_id, body)[0]["enabled"], "uma Cama nova no mesmo lugar nasce pronta (a espera sumiu junto)")
+	authority.clock.advance(30.0)
+	_check(_place(world, Items.BED, BED_CELL) == OK and is_equal_approx(points.wait_left(BED_CELL), 60.0),
+			"uma Cama nova no mesmo lugar começa com a espera cheia de 60 s (a antiga sumiu junto, nem 30 s nem 0)")
+	authority.clock.advance(60.0)
+	_check(points.options(player.player_id, body)[0]["enabled"], "e passados os 60 s ela vale")
 	points.commit(points.options(player.player_id, body)[0])
 	_check(authority.request_remove_piece(1, BED_CELL) == OK and _count(world, Items.BED) == 1
 			and points.options(player.player_id, body).is_empty(), "Cama recolhida pelo dono: o item volta inteiro e ela sai da lista")
-	_check(_place(world, Items.BED, BED_CELL) == OK and points.wait_left(BED_CELL) == 0.0,
-			"recolher zera a espera e libera 1 do limite")
+	_check(_place(world, Items.BED, BED_CELL) == OK and is_equal_approx(points.wait_left(BED_CELL), 60.0),
+			"recolher libera 1 do limite; a Cama nova recomeça a espera cheia (recolher e pôr não é atalho)")
 
 
 func _test_hostile_choices_and_save() -> void:
@@ -474,7 +486,7 @@ func _test_hostile_choices_and_save() -> void:
 	var authority: WorldAuthority = world["authority"]
 	var player: Player = world["player"]
 	var points := authority.respawn_points
-	_place(world, Items.BED, BED_CELL)
+	_place_ready(world, Items.BED, BED_CELL)
 	_grid(world).add(HOME + Vector2i(1, 1), "bed", 0, OTHER)
 	var body := BuildTests.center(HOME)
 	var bad_ids: Array[String] = ["", "bed", "bed:abc:1", "bed:1:1", "bag:%d:%d" % [BED_CELL.x, BED_CELL.y], "x".repeat(200),
@@ -496,6 +508,7 @@ func _test_hostile_choices_and_save() -> void:
 				entry["ready_at"] = -50.0
 		pieces.append(entry)
 	_check(_grid(world).from_dict({"version": 1, "pieces": pieces}), "save com ready_at hostil carrega (só sanea)")
+	authority_clock_advance_check(world, points)
 	_check(points.wait_left(Vector2i(20, 20)) <= 60.0 and _grid(world).ready_at(Vector2i(22, 20)) == 0.0
 			and _grid(world).ready_at(Vector2i(24, 20)) == 0.0 and _grid(world).ready_at(Vector2i(26, 20)) == 0.0,
 			"instante gigante vira no máximo uma espera cheia; texto, negativo e ausente (save antigo) = pronta")
@@ -591,6 +604,7 @@ func _test_full_cycle_four_slots() -> void:
 	authority.crafting.tick(4.0)
 	_check(authority.request_place(1, Items.BED, BuildTests.center(BED_CELL)) == OK and _count(world, WOOD) == 0
 			and _count(world, Items.FIBER) == 0, "Cama posta; a madeira e a fibra acabaram")
+	_grid(world).set_ready_at(BED_CELL, 0.0)  # a Cama nova espera 60 s; o ciclo quer ela pronta
 	world["fire_id"] = int(_grid(world).piece_at(FIRE_CELL).get("id", 0))
 	_check(_cook(world)["reason"] == "no_fuel", "sem madeira (a Cama levou tudo): a Fogueira não assa")
 	_give(world, WOOD, 1)
@@ -645,6 +659,7 @@ func _test_main_respawn_screen() -> void:
 	var id := authority.id_of(player)
 	_check(authority.request_place(id, Items.BED, BuildTests.center(bed_cell)) == OK
 			and authority.request_place(id, Items.SLEEPING_BAG, BuildTests.center(bag_cell)) == OK, "preparo: Cama e Saco postos na Main")
+	authority.build.grid.set_ready_at(bed_cell, 0.0)
 	authority.build.grid.add(base + Vector2i(2, 2), "bed", 0, OTHER)
 	var bed_id := RespawnPointService.option_id("bed", bed_cell)
 	var bag_id := RespawnPointService.option_id("bag", bag_cell)
@@ -672,12 +687,12 @@ func _test_main_respawn_screen() -> void:
 	_check(column.button_of(bed_id).disabled and "espera 60 s" in column.label_of(bed_id) and column.selected_id() == bag_id,
 			"2ª morte: a Cama fica cinza com o tempo restante e o Saco é o pré-selecionado")
 	authority.clock.advance(25.0)
-	main.death_screen._process(0.0)
+	main.death_screen._process(DeathScreen.REFRESH_SECONDS)
 	_check("espera 35 s" in column.label_of(bed_id) and column.button_of(bed_id).disabled and column.selected_id() == bag_id,
 			"a tela aberta acompanha a espera (35 s) sem perder a seleção")
 	_check(main.request_respawn(bed_id) == "point_waiting" and player.health.is_dead(), "escolher a Cama em espera é recusado")
 	authority.build.destroy(bed_cell)
-	main.death_screen._process(0.0)
+	main.death_screen._process(DeathScreen.REFRESH_SECONDS)
 	_check(column.button_of(bed_id) == null and column.selected_id() == bag_id,
 			"Cama destruída com a tela aberta: sai da lista na hora e a seleção fica")
 	_check(main.request_respawn(bag_id) == "" and not authority.build.grid.has_piece(bag_cell)
@@ -731,3 +746,81 @@ func _test_campfire_light() -> void:
 	_check(view.fire_lights().size() == 1 and view.fire_lights().has(cell), "carregar o save refaz a luz (uma só, sem duplicar)")
 	_check(authority.request_remove_piece(authority.id_of(main.player), cell) == OK and view.fire_lights().is_empty(),
 			"recolher a Fogueira apaga a luz")
+
+
+## Save hostil: o instante gigante é regravado como agora + a espera, então a Cama volta depois de 60 s (antes ficava presa).
+func authority_clock_advance_check(world: Dictionary, points: RespawnPointService) -> void:
+	var authority: WorldAuthority = world["authority"]
+	points.wait_left(Vector2i(20, 20))
+	authority.clock.advance(60.0)
+	_check(points.wait_left(Vector2i(20, 20)) == 0.0 and _grid(world).ready_at(Vector2i(20, 20)) <= authority.clock.now(),
+			"ready_at hostil: passados 60 s a Cama volta (o valor foi regravado no teto)")
+
+
+# ----------------------------------------------------------------------------- correções da revisão da E12
+
+func _test_e12_review_fixes() -> void:
+	# A1: Cama no canto de uma casa fechada (piso de fundação) nasce dentro, não do outro lado da parede.
+	var world := _bare()
+	var authority: WorldAuthority = world["authority"]
+	var player: Player = world["player"]
+	var pid := player.player_id
+	var grid := _grid(world)
+	var origin := HOME + Vector2i(10, 10)
+	for dy in range(-1, 4):
+		for dx in range(-1, 4):
+			var cell := origin + Vector2i(dx, dy)
+			if dx in [-1, 3] or dy in [-1, 3]:
+				grid.add(cell, "wall", 0, pid)
+			elif cell != origin:
+				grid.add(cell, "foundation", 0, pid)
+	grid.add(origin, "bed", 0, pid)
+	var body := BuildTests.center(HOME)
+	var options := authority.respawn_points.options(pid, body)
+	var inside := options.size() == 1 and bool(options[0]["enabled"])
+	var spot := authority.build.cell_of(options[0]["position"]) if inside else Vector2i(-999, -999)
+	_check(inside and spot.x >= origin.x and spot.x <= origin.x + 2 and spot.y >= origin.y and spot.y <= origin.y + 2,
+			"A1: Cama no canto de casa fechada com piso de fundação nasce DENTRO da casa")
+	# A1: casa maior, toda de piso, também dá ponto.
+	var big := _bare()
+	var big_grid := _grid(big)
+	var big_owner: String = (big["player"] as Player).player_id
+	for dy in range(0, 5):
+		for dx in range(0, 5):
+			if dx + dy > 0:
+				big_grid.add(origin + Vector2i(dx, dy), "foundation", 0, big_owner)
+	big_grid.add(origin, "bed", 0, big_owner)
+	var big_options := (big["authority"] as WorldAuthority).respawn_points.options(big_owner, body)
+	_check(big_options.size() == 1 and bool(big_options[0]["enabled"]), "A1: casa grande toda de piso também dá ponto de renascer")
+	# A1: porta fechada e parede não são atravessadas (Cama emparedada continua sem lugar: teste da E12 segue valendo).
+	# M1: a lista filtra pelo dono antes de ordenar e não cresce com peças alheias.
+	var crowd := _bare()
+	var crowd_grid := _grid(crowd)
+	for index in 300:
+		crowd_grid.add(HOME + Vector2i(30 + index % 20, 30 + index / 20), "foundation", 0, OTHER)
+	crowd_grid.add(HOME + Vector2i(-1, 0), "bed", 0, OTHER)
+	var crowd_owner: String = (crowd["player"] as Player).player_id
+	_check((crowd["authority"] as WorldAuthority).respawn_points.options(crowd_owner, body).is_empty(),
+			"M1: peças de outros donos não entram na lista do jogador")
+	# M2: cair (perform_down) cancela a cura da comida.
+	player.health.start_regen(10.0, 10.0)
+	player.perform_down(false)
+	_check(player.health.regen_left == 0.0 and player.health.regen_rate == 0.0, "M2: ficar caído cancela a cura em andamento")
+	# Baixa 3: Cama recém-posta começa com a espera cheia.
+	var fresh := _bare()
+	_place(fresh, Items.BED, BED_CELL)
+	_check(is_equal_approx((fresh["authority"] as WorldAuthority).respawn_points.wait_left(BED_CELL), 60.0),
+			"LOW 3: Cama nova nasce com a espera cheia de 60 s [provisório 10/11]")
+	# Baixa 2: o limite por dono vale também na carga do save.
+	var loaded := _bare()
+	var entries: Array = []
+	for index in 5:
+		entries.append({"piece": "bed", "x": 20 + index * 2, "y": 20, "owner": (loaded["player"] as Player).player_id})
+	_check(_grid(loaded).from_dict({"version": 1, "pieces": entries}) and _grid(loaded).count_of("bed") == 3,
+			"LOW 2: save com 5 Camas de um dono carrega só 3 (o limite vale na carga)")
+	# Baixa 4: o aviso de parar de assar diz o motivo.
+	var texts: Array[String] = []
+	for reason in ["no_fuel", "inventory_full", "left_fire"]:
+		texts.append(GameMessages.text_of("cook_cancelled", {"reason": reason}))
+	_check(texts[0].contains("madeira") and texts[1].contains("nventário cheio") and texts[2].contains("afastou"),
+			"LOW 4: cook_cancelled mostra o motivo (madeira, inventário cheio, afastou-se)")

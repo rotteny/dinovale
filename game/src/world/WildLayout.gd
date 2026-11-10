@@ -26,7 +26,7 @@ func _init(island: IslandMap, world_rules: WorldRules, seed_value: int, kinds: A
 	species = kinds
 
 
-## Espécie da vaga pela chave (`spawn_key`); null se o jogo ainda não a tem (Dodo, Triceratops).
+## Espécie da vaga pela chave (`spawn_key`); null se o jogo ainda não a tem (Triceratops).
 func species_of(slot: Dictionary) -> DinoBaseStats:
 	for kind in species:
 		if kind.spawn_key == slot["species"]:

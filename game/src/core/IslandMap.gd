@@ -13,7 +13,7 @@ const FORMAT := 2
 const MAX_RUNS := 100000
 const MAX_SLOTS := 1024
 const MAX_SLOT_ID_LENGTH := 32
-const MAX_GROUP_SIZE := 16
+const MAX_GROUP_SIZE := 20
 
 ## Índices do terreno (a mesma ordem do `terreno.json`; 6 é a água funda do anel com colisão).
 const DEEP := 0

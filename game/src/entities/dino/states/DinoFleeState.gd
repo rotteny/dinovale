@@ -5,7 +5,8 @@ extends DinoState
 ## dele, pelo `PathFollower`, até `flee_goal_tiles` à frente (refeito a cada quadro). Selvagem pode preferir o centro do bando
 ## (`flee_toward`), quando ele não está do lado do carnívoro; o domado foge só para longe, nunca para o dono.
 ## A ordem de quem foge não muda: ao fim da fuga o domado volta ao TAMED (que reaplica Seguir ou Ficar) e o selvagem, ao
-## IDLE. A fuga termina sozinha se a ameaça não é renovada (`machine.renew_flee`) por `hold` segundos.
+## IDLE. O Covarde (E13) entra por `begin_scare`: susto parado e depois a mesma fuga, limitada em distância e tempo.
+## A fuga termina sozinha se a ameaça não é renovada (`machine.renew_flee`) por `hold` segundos.
 
 
 func enter() -> void:
@@ -17,11 +18,20 @@ func exit() -> void:
 	machine.desired_direction = Vector2.ZERO
 	machine.speed_multiplier = 1.0
 	machine.flee_hold_left = 0.0
+	machine.scare_left = 0.0
+	machine.flee_cap_px = 0.0
+	machine.start_wary()
 
 
 func tick(delta: float) -> void:
+	if machine.scare_left > 0.0:  # susto do Covarde: parado, o relógio da fuga ainda não corre
+		machine.scare_left -= delta
+		machine.desired_direction = Vector2.ZERO
+		machine.flee_origin = machine.self_position
+		return
 	machine.flee_hold_left -= delta
-	if machine.flee_hold_left <= 0.0:
+	var capped := machine.flee_cap_px > 0.0 and machine.self_position.distance_to(machine.flee_origin) >= machine.flee_cap_px
+	if machine.flee_hold_left <= 0.0 or capped:
 		machine.transition_to(Enums.DinoStateId.TAMED if machine.is_tamed else Enums.DinoStateId.IDLE)
 		return
 	var away := (machine.self_position - machine.flee_from).normalized()

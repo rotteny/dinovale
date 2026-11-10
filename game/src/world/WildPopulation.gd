@@ -23,10 +23,11 @@ const DINO_SCENE: PackedScene = preload("res://src/entities/dino/Dino.tscn")
 const TYPE_TAMED := "tamed_dino"
 ## Teto de entradas lidas de um save (dado de fora não é confiável).
 const MAX_ENTRIES := 1024
-## Espécies que o jogo conhece (a vaga de espécie fora daqui, como Dodo e Triceratops hoje, é ignorada sem erro).
+## Espécies que o jogo conhece (a vaga de espécie fora daqui, como o Triceratops hoje, é ignorada sem erro).
 const SPECIES: Array[DinoBaseStats] = [
 	preload("res://data/dino/placeholder_dino.tres"),
 	preload("res://data/dino/utahraptor.tres"),
+	preload("res://data/dino/dodo.tres"),
 ]
 const FALLBACK_ID_BASE := 1 << 20
 ## Tamanho máximo do id de spawn aceito de um save (o do mapa tem poucos caracteres).
@@ -141,7 +142,7 @@ func _spawn_group(slot: Slot) -> Array[Dino]:
 
 ## Faixa de nível do membro: a da toca da vaga (`HomeRules.den_level_bands`) se há; senão a do terreno do tile.
 func _band_of(kind: DinoBaseStats, def: Dictionary, cell: Vector2i) -> Vector2i:
-	var terrain_band := _rules.level_band_of(_map.terrain_at(cell))
+	var terrain_band := kind.spawn_level_band(_rules.level_band_of(_map.terrain_at(cell)))
 	var den := str(def.get("den", ""))
 	if den == "" or kind.home == null or _layout.den_cell_of(def) == WildLayout.NO_CELL:
 		return terrain_band

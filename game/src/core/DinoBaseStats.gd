@@ -54,7 +54,7 @@ const SEX_MALE := "m"
 ## Chance de nascer macho (`sexo_proporcao_macho` do desenho, `documentacao/design/corte-v02/montaria-vinculo-trabalho.md`): 0,5 = 50/50
 ## em toda espécie. Sexo não muda atributo, torpor, dieta nem velocidade.
 @export_range(0.0, 1.0) var male_ratio: float = 0.5
-## Porte (v0.2: Dodo pequeno, Paquicéfalo e Utahraptor médios, Triceratops grande).
+## Porte (v0.2: Dodo e Paquicéfalo pequenos, Utahraptor médio, Triceratops grande).
 @export var size: Enums.DinoSize = Enums.DinoSize.MEDIUM
 ## Tabela dos pés por porte (a colisão com o mundo).
 @export var size_rules: SizeClassRules = preload("res://data/balance/size_classes.tres")
@@ -68,12 +68,17 @@ const SEX_MALE := "m"
 @export var predation: PredationProfile
 ## Toca, ronda e âncora (null = sem toca: passeia livre, como sempre). `corte-v02/e3-toca-e-vigilia.md`.
 @export var home: HomeProfile
+## Conduta do Covarde (E13): curioso, nunca revida, foge ao ser atacado ou pelo alarme do grupo. Null = sem essa conduta.
+@export var coward: CowardProfile
+## Faixa de nível ao nascer própria da espécie (mínimo e máximo; 0 = vale a do terreno, `WorldRules.level_bands`).
+@export_range(0, 100) var spawn_level_min: int = 0
+@export_range(0, 100) var spawn_level_max: int = 0
 @export_group("Bando")
 ## Terrenos (índice do `IslandMap`) onde o bando desta espécie pode nascer. A região da vaga é a máscara; isto a restringe.
 @export var spawn_terrains: Array[int] = [3]
 ## Limites do tamanho do bando: o mapa só escolhe dentro deles (fora, a carga satura).
-@export_range(1, 8) var group_size_min: int = 1
-@export_range(1, 8) var group_size_max: int = 4
+@export_range(1, 20) var group_size_min: int = 1
+@export_range(1, 20) var group_size_max: int = 4
 ## Os membros nascem a até tantos tiles do centro do bando.
 @export_range(0.0, 16.0) var cohesion_radius_tiles: float = 3.0
 ## Distância mínima, em tiles, entre os centros de dois bandos DESTA espécie (vale se maior que a global do mundo).
@@ -88,6 +93,13 @@ const SEX_MALE := "m"
 ## não persegue, e a velocidade e a desistência da perseguição nunca mudam (E9).
 func perception_px(tile_px: float, scale: float = 1.0) -> float:
 	return perception_tiles * tile_px * (scale if aggressive else 1.0)
+
+
+## Faixa de nível ao nascer da espécie, ou `fallback` (a do terreno) se ela não tem faixa própria.
+func spawn_level_band(fallback: Vector2i) -> Vector2i:
+	if spawn_level_min <= 0 or spawn_level_max < spawn_level_min:
+		return fallback
+	return Vector2i(spawn_level_min, spawn_level_max)
 
 
 func area_rules() -> AreaAttackRules:

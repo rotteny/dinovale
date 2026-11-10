@@ -344,7 +344,7 @@ func _test_consumers() -> void:
 	for i in plain.wild.get_child_count():
 		var left := plain.wild.get_child(i) as Dino
 		var right := custom.wild.get_child(i) as Dino
-		if left.stats.home != null:
+		if left.stats.home != null or left.stats.spawn_level_min > 0:  # a toca e a espécie têm faixa própria
 			plain_levels_ok = plain_levels_ok and left.level == right.level
 		elif plain.map.terrain_at(plain.map.cell_of(left.position)) == IslandMap.WOODLAND:
 			checked_in_woodland += 1

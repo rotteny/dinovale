@@ -240,12 +240,18 @@ func from_dict(data: Dictionary) -> bool:
 			continue
 		seen[entry["cell"]] = true
 		entries.append(entry)
+	var owned: Dictionary = {}  # "peça|dono" -> quantas já entraram (o limite por jogador também vale na carga)
 	for needs_support in [false, true]:
 		for entry: Dictionary in entries:
 			var def := catalog.find(str(entry["piece"]))
 			if def.needs_support != needs_support or (needs_support and not has_support(entry["cell"])):
 				continue
+			var owner_key := "%s|%s" % [def.id, entry["owner"]]
+			if def.max_per_owner > 0 and int(owned.get(owner_key, 0)) >= def.max_per_owner:
+				_note_unplaced(entry, legacy)  # excedente do dono: fica de fora, o da frente do arquivo vale (determinístico)
+				continue
 			if add(entry["cell"], entry["piece"], entry["rot"], entry["owner"], entry["id"], entry["open"]):
+				owned[owner_key] = int(owned.get(owner_key, 0)) + 1
 				set_ready_at(entry["cell"], entry["ready_at"])
 				_load_contents(entry["cell"], entry["items"])
 			else:

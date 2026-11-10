@@ -161,7 +161,8 @@ func observe_targets() -> void:
 	if not hunting:
 		hunt_target = null
 	state_machine.hunt_engaged = hunting
-	var may_target := stats.aggressive or hunting or state_machine.is_aggressive  # o Passivo só mira enquanto está bravo
+	# O Passivo só mira enquanto está bravo; o Covarde sempre (precisa ver o jogador para se aproximar e para fugir dele).
+	var may_target := stats.aggressive or hunting or state_machine.is_aggressive or stats.coward != null
 	if not may_target or state_machine.is_tamed:
 		_target_body = null
 		state_machine.observe_target(Vector2.ZERO, false)
@@ -310,7 +311,12 @@ func receive_hit(damage: float, torpor_amount: float, attacker_kind: String, att
 		hit = true
 	if hit and attacker_kind == TamingRules.ATTACKER_PLAYER:
 		player_damage_count += 1
-	if hit and attacker_kind == TamingRules.ATTACKER_PLAYER and not health.is_dead():
+	if hit and attacker_kind == TamingRules.ATTACKER_PLAYER and not health.is_dead() and stats.coward != null:
+		observe_targets()  # o alvo já vale no quadro do golpe: o susto foge dele
+		state_machine.provoke()
+		if state_machine.current_id == Enums.DinoStateId.FLEEING:
+			provoked.emit(attacker_id)  # a autoridade dá o alarme do grupo (nunca revide)
+	elif hit and attacker_kind == TamingRules.ATTACKER_PLAYER and not health.is_dead():
 		_aggressor_id = attacker_id
 		_aggressor_body = null
 		state_machine.provoke()

@@ -37,6 +37,9 @@ var occupancy: TileOccupancy = null
 var safe_core: SafeCore = null
 ## Nós de recurso: nenhuma peça nasce sobre um.
 var resources: ResourceField = null
+## Células com nó de recurso (índice de `_resource_at`, refeito quando a quantidade de nós muda).
+var _resource_cells: Dictionary = {}
+var _resource_cells_count: int = -1
 
 
 func _init() -> void:
@@ -62,6 +65,7 @@ func build(actor_id: int, piece_id: String, cell: Vector2i, rotation: int) -> Di
 	var def := grid.catalog.find(piece_id)
 	_pay(actor, def)
 	grid.add(cell, piece_id, rotation, actor.player_id)
+	authority.respawn_points.start_wait(cell)
 	authority.announce("piece_built", {"piece": def.display_name})
 	return _outcome(RESULT.OK)
 
@@ -80,12 +84,14 @@ func place_item(actor_id: int, item_id: String, point: Vector2) -> Dictionary:
 		return problem
 	_pay(actor, def)
 	grid.add(cell_of(point), def.id, 0, actor.player_id)
+	authority.respawn_points.start_wait(cell_of(point))
 	authority.announce("item_placed", {"item": Items.display_name(item_id)})
 	return _outcome(RESULT.OK)
 
 
 ## Destruir a peça da célula SEM devolver nada (ataque de dino, quebra): some com o conteúdo, e a espera da Cama some junto.
 ## Chamada só pela autoridade (não é `request_*`: ninguém de fora pede isto). Devolve false se não havia peça.
+## GANCHO do dano em construções: hoje nenhum jogo a chama (só os testes); o combate a estruturas passa por aqui quando existir.
 func destroy(cell: Vector2i) -> bool:
 	var def := grid.def_at(cell)
 	if def == null:
@@ -315,10 +321,11 @@ func spot_problem(cell: Vector2i, def: PieceDef) -> String:
 	return ""
 
 
-## A célula está livre para alguém pisar ou nascer nela? Terreno e núcleo servem, sem peça e sem nó de recurso. É a que o
-## `RespawnPointService` usa para achar onde largar quem renasce ao lado da Cama.
+## A célula está livre para alguém pisar ou nascer nela? Terreno e núcleo servem, sem peça SÓLIDA agora (fundação, porta aberta e
+## Saco de dormir não bloqueiam o corpo) e sem nó de recurso. É a que o `RespawnPointService` usa para achar onde largar quem
+## renasce ao lado da Cama.
 func is_free_cell(cell: Vector2i) -> bool:
-	return fixed_problem(cell) == "" and not grid.has_piece(cell) and not _resource_at(cell)
+	return fixed_problem(cell) == "" and not grid.blocks(cell) and not _resource_at(cell)
 
 
 ## O que não muda com o tempo: terreno e núcleo seguro ("" = serve). É o que um save carregado também confere.
@@ -383,10 +390,12 @@ func _body_in(cell: Vector2i) -> bool:
 func _resource_at(cell: Vector2i) -> bool:
 	if resources == null:
 		return false
-	for node in resources.nodes():
-		if cell_of(node.global_position) == cell:
-			return true
-	return false
+	if resources.node_count() != _resource_cells_count:  # os nós não andam: o índice só se refaz se a quantidade muda
+		_resource_cells.clear()
+		for node in resources.nodes():
+			_resource_cells[cell_of(node.global_position)] = true
+		_resource_cells_count = resources.node_count()
+	return _resource_cells.has(cell)
 
 
 ## Número de célula sensato (fora do mapa mas dentro disto é terreno: mar, `bad_terrain`; além é pedido inválido).

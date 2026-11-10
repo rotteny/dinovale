@@ -13,6 +13,8 @@ extends Node
 ##   UNCONSCIOUS -> IDLE              (acordou selvagem)
 ##   UNCONSCIOUS -> TAMED             (mark_tamed, ou acordou já domesticado)
 ##   IDLE/WANDER/TAMED -> FLEEING -> IDLE/TAMED   (presa de carnívoro: foge enquanto a ameaça se renova; a ordem sobrevive)
+##   IDLE/WANDER -> CURIOUS -> IDLE   (Covarde, `stats.coward`: vem até 3 tiles do jogador e ronda; nunca ataca, não vai ao save)
+##   IDLE/WANDER/CURIOUS -> FLEEING -> IDLE   (Covarde atacado ou com o alarme do grupo: susto parado e fuga limitada; nunca revida)
 ##   TAMED -> STUCK -> TAMED          (domado em Seguir travou longe do dono e fora da tela: desiste SEM teleporte;
 ##                                     tenta de novo com ordem nova, ou com o dono perto/à vista depois de um intervalo)
 ##
@@ -88,6 +90,11 @@ var flee_from := Vector2.ZERO
 var flee_toward := Vector2.ZERO
 var flee_toward_known := false
 var flee_hold_left := 0.0
+## Susto do Covarde (`begin_scare`): parado por tantos segundos antes de correr; depois a fuga acaba ao andar `flee_cap_px`
+## (0 = sem limite de distância) contados de `flee_origin`.
+var scare_left := 0.0
+var flee_cap_px := 0.0
+var flee_origin := Vector2.ZERO
 ## Mordida que feriu atrasa o dino: velocidade x `wound_factor` por `wound_left` segundos.
 var wound_left := 0.0
 var wound_factor := 1.0
@@ -134,6 +141,7 @@ func start() -> void:
 		Enums.DinoStateId.AGGRESSIVE: DinoAggressiveState.new(),
 		Enums.DinoStateId.STUCK: DinoStuckState.new(),
 		Enums.DinoStateId.FLEEING: DinoFleeState.new(),
+		Enums.DinoStateId.CURIOUS: DinoCuriousState.new(),
 	}
 	follower.rules = nav_rules
 	for state: DinoState in _states.values():
@@ -154,6 +162,8 @@ func tick(delta: float) -> void:
 		return
 	if _can_start_chase():
 		transition_to(Enums.DinoStateId.AGGRESSIVE)
+	elif _can_be_curious():
+		transition_to(Enums.DinoStateId.CURIOUS)
 	_states[current_id].tick(delta)
 	_guard_core()
 
@@ -230,6 +240,39 @@ func begin_flee(from: Vector2, hold: float, toward: Vector2 = Vector2.ZERO, towa
 	return true
 
 
+## Covarde acordado: assusta-se de `from` (onde o atacante está). Fica parado `scare_seconds` e depois foge à `chase_speed`
+## da espécie, até `flee_max_tiles` ou `flee_max_seconds`. Quem já foge, dorme ou é domado não reinicia. Devolve se está fugindo.
+func begin_scare(from: Vector2) -> bool:
+	if stats == null or stats.coward == null or is_tamed or current_id == Enums.DinoStateId.UNCONSCIOUS:
+		return false
+	if current_id == Enums.DinoStateId.FLEEING:
+		return true
+	flee_from = from
+	flee_toward_known = false
+	flee_hold_left = stats.coward.flee_max_seconds
+	scare_left = stats.coward.scare_seconds
+	flee_cap_px = stats.coward.flee_max_px(tile_px)
+	flee_origin = self_position
+	transition_to(Enums.DinoStateId.FLEEING)
+	return true
+
+
+## Está parado de susto (a apresentação mostra o quadro de susto)?
+func is_scared() -> bool:
+	return current_id == Enums.DinoStateId.FLEEING and scare_left > 0.0
+
+
+## A fuga do Covarde acabou: ele fica desconfiado (sem se aproximar de ninguém) por `wary_seconds`.
+func start_wary() -> void:
+	if stats != null and stats.coward != null:
+		_alert_left = stats.coward.wary_seconds
+
+
+## Velocidade da aproximação e da ronda do Covarde, como multiplicador do passo do corpo.
+func patrol_speed_multiplier() -> float:
+	return stats.coward.patrol_speed / walk_speed if stats != null and stats.coward != null else 1.0
+
+
 func chase_speed_multiplier() -> float:
 	return stats.chase_speed / walk_speed if stats != null else 1.0
 
@@ -239,6 +282,9 @@ func chase_speed_multiplier() -> float:
 ## preso não reage. A etapa 4 chama `reset_calm` também quando o dino ataca.
 func provoke() -> void:
 	if is_tamed or torpor.is_unconscious:
+		return
+	if stats != null and stats.coward != null:  # Covarde nunca revida: o golpe só o assusta
+		begin_scare(target_position if target_known else self_position + Vector2.RIGHT)
 		return
 	if current_id == Enums.DinoStateId.AGGRESSIVE:
 		is_helper = false  # golpeado de verdade: vira principal (relógio de calma, sem teto)
@@ -357,6 +403,15 @@ func _guard_core() -> void:
 		desired_direction = Vector2.ZERO
 
 
+## Covarde calmo que vê o jogador dentro da percepção, fora do período de desconfiança.
+func _can_be_curious() -> bool:
+	if stats == null or stats.coward == null or is_tamed or holding or not target_known or _alert_left > 0.0:
+		return false
+	if current_id != Enums.DinoStateId.IDLE and current_id != Enums.DinoStateId.WANDER:
+		return false
+	return target_distance() <= stats.coward.perception_px(tile_px)
+
+
 func _can_start_chase() -> bool:
 	if stats == null or not (stats.aggressive or hunt_engaged) or is_tamed or not target_known or _alert_left > 0.0:
 		return false
@@ -431,11 +486,11 @@ func mark_tamed() -> bool:
 
 
 func to_dict() -> Dictionary:
-	# Bravo e em fuga não vão para o save: quem foi salvo assim volta calmo (Idle ou Tamed), sem rancor.
+	# Bravo, em fuga e curioso não vão para o save: quem foi salvo assim volta calmo (Idle ou Tamed), sem rancor.
 	var saved_id := current_id
 	if is_aggressive:
 		saved_id = Enums.DinoStateId.IDLE
-	elif current_id == Enums.DinoStateId.FLEEING:
+	elif current_id == Enums.DinoStateId.FLEEING or current_id == Enums.DinoStateId.CURIOUS:
 		saved_id = _awake_state()
 	return {
 		"state": Enums.DinoStateId.find_key(saved_id),

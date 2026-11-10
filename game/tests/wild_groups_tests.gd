@@ -100,7 +100,7 @@ func _test_spacing_and_start_clearance() -> void:
 	_check(closest_start >= WORLD_RULES.group_start_clearance_tiles, "nenhum centro a menos de 12 tiles do início (%.1f)" % closest_start)
 	# Disposição de passada única (nenhuma vaga existente se move por causa de outra): uma vaga travada fica vazia, e o
 	# chamador avisa. Em 64 sementes isto acontece em no máximo 2 (medido: 1); mais que isso é regressão da regra.
-	_check(empties <= SEEDS / 32 and placed_total >= SEEDS * 26 - empties,
+	_check(empties <= SEEDS / 32 and placed_total >= SEEDS * 33 - empties,
 			"quase toda vaga de espécie conhecida acha lugar nas %d sementes (%d vazias)" % [SEEDS, empties])
 
 
@@ -138,7 +138,7 @@ func _test_determinism() -> void:
 	var map := IslandMap.default_map()
 	var first := _layout_for(5).layout(_fixed_centers())
 	var again := _layout_for(5).layout(_fixed_centers())
-	_check(first == again and first.size() == 26, "a mesma semente dá as mesmas posições")
+	_check(first == again and first.size() == 33, "a mesma semente dá as mesmas posições")
 	var same_members := true
 	for slot_id: String in first:
 		var slot := _slot_by_id(map, slot_id)
@@ -154,7 +154,7 @@ func _test_determinism() -> void:
 	var longer := IslandMap.new()
 	var data: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(IslandMap.DEFAULT_PATH))
 	data["spawn_slots"].append({"id": "g99", "species": "utahraptor", "region": "r_mata", "size": 2, "size_min": 2, "size_max": 3})
-	_check(longer.load_dict(data) and longer.spawn_slots.size() == 39, "preparo: mapa com uma vaga a mais")
+	_check(longer.load_dict(data) and longer.spawn_slots.size() == 38, "preparo: mapa com uma vaga a mais")
 	var extended := WildLayout.new(longer, WORLD_RULES, 5 * SEED_STEP, WildPopulation.SPECIES).layout(_fixed_centers())
 	var kept := true
 	for slot_id: String in first:
@@ -173,7 +173,7 @@ func _test_stuck_new_slot_does_not_move_the_others() -> void:
 	data["spawn_regions"]["r_apertada"] = {"terrains": [IslandMap.GRASSLAND], "runs": [[162, 60, 61]]}
 	data["spawn_slots"].append({"id": "g99", "species": "paquicefalo", "region": "r_apertada", "size": 2, "size_min": 1, "size_max": 4})
 	var longer := IslandMap.new()
-	_check(longer.load_dict(data) and longer.spawn_slots.size() == 39, "preparo: mapa com uma vaga apertada a mais")
+	_check(longer.load_dict(data) and longer.spawn_slots.size() == 38, "preparo: mapa com uma vaga apertada a mais")
 	var empty: Array[String] = []
 	var after := WildLayout.new(longer, WORLD_RULES, seed_value, WildPopulation.SPECIES).layout(_fixed_centers(), empty)
 	var kept := true
@@ -193,20 +193,20 @@ func _test_slot_size_limits() -> void:
 	_check(layout.size_of(slot) == 4, "tamanho do bando: o size_min da vaga limita (3 -> 4)")
 
 
-## Espécie que o jogo não tem (Dodo, Triceratops) é ignorada sem erro; vaga sem região é descartada na carga.
+## Espécie que o jogo não tem (Triceratops) é ignorada sem erro; vaga sem região é descartada na carga.
 func _test_unknown_species_and_empty_slots() -> void:
 	var layout := _layout_for(3)
 	var centers := layout.layout(_fixed_centers())
 	var map := IslandMap.default_map()
 	var known := true
 	for slot_id: String in centers:
-		known = known and _slot_by_id(map, slot_id)["species"] in ["paquicefalo", "utahraptor"]
-	_check(known and layout.species_of(_slot_by_id(map, "g1")) == null and layout.size_of(_slot_by_id(map, "g1")) == 0,
-			"Dodo e Triceratops (sem espécie no jogo) não ganham centro nem erro")
+		known = known and _slot_by_id(map, slot_id)["species"] in ["paquicefalo", "utahraptor", "dodo"]
+	_check(known and layout.species_of(_slot_by_id(map, "g35")) == null and layout.size_of(_slot_by_id(map, "g35")) == 0,
+			"Triceratops (sem espécie no jogo) não ganha centro nem erro")
 	var data: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(IslandMap.DEFAULT_PATH))
 	data["spawn_slots"].append({"id": "g98", "species": "paquicefalo", "region": "r_que_nao_existe", "size": 3})
 	var map_2 := IslandMap.new()
-	_check(map_2.load_dict(data) and map_2.spawn_slots.size() == 38, "vaga de região desconhecida é descartada na carga")
+	_check(map_2.load_dict(data) and map_2.spawn_slots.size() == 37, "vaga de região desconhecida é descartada na carga")
 	# Tile de terreno que a região não declara nunca entra na máscara.
 	var bad_region := data.duplicate(true)
 	bad_region["spawn_regions"]["r_campina"]["terrains"] = [4]
@@ -449,7 +449,12 @@ func _test_other_seed_is_relaid() -> void:
 	GameSession.continue_requested = true
 	var after := _main("group_seed", 20, true)  # nasce com a semente de teste e deve trocar pela salva
 	await tree.physics_frame
-	var same := after.wild.member_ids() == ids_before and after.world_seed == 777 and after.wild.world_seed == 777
+	# A ordem dentro do bando é a do texto ao carregar ("g39.0.10" antes de "g39.0.2" com 11+ membros): compara como conjunto.
+	var ids_after := after.wild.member_ids()
+	ids_after.sort()
+	var ids_sorted := ids_before.duplicate()
+	ids_sorted.sort()
+	var same := ids_after == ids_sorted and after.world_seed == 777 and after.wild.world_seed == 777
 	for id in ids_before:
 		var creature := after.wild.creature_at(id)
 		same = same and creature != null and creature.position == positions_before[id]
@@ -506,7 +511,7 @@ func _test_bad_groups_are_discarded() -> void:
 		{"slot": slot_id, "gen": 3, "center": [1, 1]},  # fora da região (mar)
 		{"slot": slot_id, "gen": -2, "center": [original.x, original.y]},
 		{"slot": "g_que_nao_existe", "gen": 1, "center": [original.x, original.y]},
-		{"slot": "g1", "gen": 1, "center": [original.x, original.y]},  # Dodo: a espécie não existe no jogo
+		{"slot": "g35", "gen": 1, "center": [original.x, original.y]},  # Triceratops: a espécie não existe no jogo
 		5, "x", {"gen": 1},
 		{"slot": slot_id, "gen": 1.5, "center": [original.x, original.y]},
 		{"slot": slot_id, "gen": 1, "center": "no meio"},

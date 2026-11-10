@@ -124,6 +124,7 @@ func _suites() -> Array:
 		["ShelterTests", ShelterTests.new, true],
 		["WallLineTests", WallLineTests.new, true],
 		["RecipeLearningTests", RecipeLearningTests.new, true],
+		["DodoTests", DodoTests.new, true],
 		["NetFlowTests", NetFlowTests.new, false],
 	]
 

@@ -24,8 +24,8 @@ Os pontos antigos (`spawns`, `spawn_ids`) SAIRAM do arquivo em 07/11: o jogo le 
 `id_counter.w` (contador dos ids `w<n>` dos pontos antigos) fica no arquivo so como HISTORICO, sem uso: o jogo nao
 o le e nada mais o incrementa; nao reutilize o prefixo `w`. Id `g` nunca e reaproveitado (`id_counter.g`). Vaga
 corresponde por (especie, regiao), na ordem dos ids; tamanho diferente mantem o id. Vaga de Utahraptor leva `den` (id da
-toca em `dens`): o bando nasce na toca, nao num ponto sorteado (E3, `corte-v02/e3-toca-e-vigilia.md`). Dodo e Triceratops ainda nao
-existem em `game/data/`: as vagas saem mesmo assim e o jogo ignora especie desconhecida.
+toca em `dens`): o bando nasce na toca, nao num ponto sorteado (E3, `corte-v02/e3-toca-e-vigilia.md`). Triceratops ainda
+nao existe em `game/data/`: as vagas saem mesmo assim e o jogo ignora especie desconhecida.
 Testes: python3 -m unittest documentacao/design/mapa_export_test.py (ou rode o arquivo de teste direto).
 """
 import hashlib
@@ -57,10 +57,10 @@ TUTORIAL_KEY = "paquicefalo_tutorial"
 REGIONS = {"r_campina": [3], "r_mata": [4], "r_pedreira": [5], "r_campina_mata": [3, 4]}
 # Vagas de bando (bandos-e-dano-em-area.md 3 e 3.1): especie -> (regiao, tamanho_min, tamanho_max, tamanhos de cada vaga).
 SLOT_TABLE = [
-    ("dodo", "r_campina", 2, 4, [2, 3, 4, 3, 3, 2, 4, 3]),
     ("paquicefalo", "r_campina_mata", 3, 4, [3, 4] * 10),
     ("utahraptor", "r_mata", 2, 3, [2, 2, 2, 2, 2, 2]),  # E3 (D-E2): um bando de 2 por toca, 6 tocas
     ("triceratops", "r_pedreira", 1, 2, [2, 2, 1, 1]),
+    ("dodo", "r_mata", 8, 20, [20, 20, 20, 20, 20, 20, 20]),  # E13: 140 na Mata-baixa [provisorio 10/11]
 ]
 SPACING = {"tree": 3.0, "rock": 3.0, "bush": 2.0, "formation": 4.0}
 

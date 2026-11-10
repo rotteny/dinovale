@@ -1,0 +1,40 @@
+[gd_resource type="Resource" script_class="DinoBaseStats" load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://src/core/DinoBaseStats.gd" id="1_stats"]
+[ext_resource type="Texture2D" path="res://assets/sprites/dinos/dodo.png" id="2_sheet"]
+[ext_resource type="Resource" path="res://data/dino/dodo_coward.tres" id="3_coward"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_dead"]
+atlas = ExtResource("2_sheet")
+region = Rect2(160, 0, 16, 16)
+
+[resource]
+script = ExtResource("1_stats")
+id = "dodo"
+display_name = "Dodo"
+sheet_path = "res://assets/sprites/dinos/dodo.json"
+base_health = 24.0
+base_damage = 0.0
+base_torpor = 50.0
+base_meals = 10
+size = 0
+difficulty = 0.6
+carcass_meat = 2
+carcass_leather = 1
+sheet_texture = ExtResource("2_sheet")
+carcass_texture = SubResource("AtlasTexture_dead")
+hitbox_size = Vector2(12, 12)
+spawn_key = "dodo"
+ideal_food = "berry"
+aggressive = false
+chase_speed = 90.0
+attacker_kind = "herbivore"
+coward = ExtResource("3_coward")
+spawn_level_min = 3
+spawn_level_max = 10
+spawn_terrains = Array[int]([4])
+group_size_min = 8
+group_size_max = 20
+cohesion_radius_tiles = 6.0
+min_group_spacing_tiles = 16.0
+group_respawn_seconds = 600.0

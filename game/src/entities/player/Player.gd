@@ -727,6 +727,7 @@ func is_incapacitated() -> bool:
 func perform_down(from_health: bool) -> void:
 	if health.is_dead() and from_health: health.revive(downed_rules.downed_health / health.max_health)
 	downed.enter()
+	health.cancel_regen()  # a cura da carne assada não continua com o jogador caído
 	_stop_acting()
 
 

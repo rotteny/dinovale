@@ -12,8 +12,9 @@ const KIND_BED := "bed"
 const KIND_BAG := "bag"
 const BED_PIECE := "bed"
 const BAG_PIECE := "sleeping_bag"
-## Raios de busca de um tile livre ao lado da peça (a Cama é sólida: o jogador nasce junto dela, não nela).
-const LANDING_RINGS := 2
+## Até quantos passos da Cama a busca de um lugar para largar quem renasce anda (a Cama é sólida: o jogador nasce junto dela).
+const LANDING_STEPS := 3
+const _NEIGHBORS: Array[Vector2i] = [Vector2i(1, 0), Vector2i(0, 1), Vector2i(-1, 0), Vector2i(0, -1)]
 
 var authority: WorldAuthority = null
 var rules: CampRules = preload("res://data/balance/camp_rules.tres")
@@ -24,15 +25,16 @@ var rules: CampRules = preload("res://data/balance/camp_rules.tres")
 ## `enabled` falso com o motivo em `reason`.
 func options(player_id: String, from: Vector2) -> Array[Dictionary]:
 	var grid := authority.build.grid
-	var cells := grid.cells()
+	var cells: Array[Vector2i] = []
+	for cell in grid.cells():  # filtra pelo dono ANTES de ordenar (a grade pode ter milhares de peças)
+		var piece := grid.piece_at(cell)
+		if str(piece.get("owner", "")) == player_id and str(piece.get("piece", "")) in [BED_PIECE, BAG_PIECE]:
+			cells.append(cell)
 	cells.sort_custom(func(a: Vector2i, b: Vector2i) -> bool: return a.y < b.y or (a.y == b.y and a.x < b.x))
 	var beds: Array[Dictionary] = []
 	var bags: Array[Dictionary] = []
 	for cell in cells:
-		var piece := grid.piece_at(cell)
-		if str(piece.get("owner", "")) != player_id:
-			continue
-		match str(piece.get("piece", "")):
+		match grid.def_at(cell).id:
 			BED_PIECE:
 				beds.append(_option(KIND_BED, "Cama %d" % (beds.size() + 1), cell, from))
 			BAG_PIECE:
@@ -65,10 +67,20 @@ func commit(option: Dictionary) -> void:
 		authority.build.grid.set_ready_at(cell, authority.clock.now() + rules.bed_wait_seconds)
 
 
+## Uma Cama nova já nasce com a espera cheia [provisório 10/11]: recolher e colocar de novo não zera a espera.
+func start_wait(cell: Vector2i) -> void:
+	if authority.build.grid.def_at(cell) != null and authority.build.grid.def_at(cell).id == BED_PIECE:
+		authority.build.grid.set_ready_at(cell, authority.clock.now() + rules.bed_wait_seconds)
+
+
 ## Quanto falta da espera da Cama em `cell` (0 = pronta), em segundos de mundo rodando.
 func wait_left(cell: Vector2i) -> float:
-	var instant := authority.build.grid.ready_at(cell)
-	# O instante de um save adulterado nunca passa de agora + a espera: no máximo ela recomeça.
+	var grid := authority.build.grid
+	var instant := grid.ready_at(cell)
+	var ceiling := authority.clock.now() + rules.bed_wait_seconds
+	if instant > ceiling:
+		grid.set_ready_at(cell, ceiling)  # o instante de um save adulterado nunca passa de agora + a espera, e é regravado assim
+		instant = ceiling
 	return clampf(instant - authority.clock.now(), 0.0, rules.bed_wait_seconds)
 
 
@@ -88,15 +100,29 @@ func _option(kind: String, label: String, cell: Vector2i, from: Vector2) -> Dict
 
 
 ## O ponto (centro de tile) onde largar quem renasce: o Saco não tem corpo, então vale a própria célula; a Cama e os demais,
-## o tile livre mais perto ao redor. Null se não há nenhum.
+## o tile livre mais perto, por busca em largura a partir da peça que só passa por célula sem peça sólida (parede e porta
+## fechada fecham o caminho: quem renasce nunca cai do outro lado da parede). Fundação, porta aberta e Saco deixam passar.
+## Null se não há nenhum a até `LANDING_STEPS` passos.
 func _landing(cell: Vector2i) -> Variant:
 	var tile := float(authority.rules.tile_size)
-	var def := authority.build.grid.def_at(cell)
+	var build := authority.build
+	var def := build.grid.def_at(cell)
 	if def != null and not def.blocks_body:
 		return (Vector2(cell) + Vector2(0.5, 0.5)) * tile
-	for ring in range(1, LANDING_RINGS + 1):
-		for dy in range(-ring, ring + 1):
-			for dx in range(-ring, ring + 1):
-				if maxi(absi(dx), absi(dy)) == ring and authority.build.is_free_cell(cell + Vector2i(dx, dy)):
-					return (Vector2(cell + Vector2i(dx, dy)) + Vector2(0.5, 0.5)) * tile
+	var steps := {cell: 0}
+	var queue: Array[Vector2i] = [cell]
+	var head := 0
+	while head < queue.size():
+		var current := queue[head]
+		head += 1
+		if int(steps[current]) >= LANDING_STEPS:
+			continue
+		for direction in _NEIGHBORS:
+			var next := current + direction
+			if steps.has(next) or build.grid.blocks(next) or build.fixed_problem(next) != "":
+				continue
+			steps[next] = int(steps[current]) + 1
+			if build.is_free_cell(next):
+				return (Vector2(next) + Vector2(0.5, 0.5)) * tile
+			queue.append(next)
 	return null

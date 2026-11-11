@@ -678,6 +678,8 @@ Fome do dino domado: 100, queda **0,1/s** fixa (tabela 5.1): vazio em 1000 s (16
 
 **Regra do dono:** o **nível do dino** muda **quantas comidas ou Rações** são necessárias e, por isso, o **tempo total**; no MVP o tempo é calibrado para os alvos abaixo na **taxa padrão (1x)**. Simulação: `tempo_sim.py tabela|torpor|eficiencia|curral|carne|hora`. Fórmula nossa: `refeições = ceil(refeições_da_comida x fator_da_espécie x max(0,5; 1 + 0,033 x (L - 10)))` e `tempo = refeições x intervalo x fator_de_bocado / taxa` (**antes 0,015 e piso 0,85**: o nível agora pesa mais). Fatores [premissa calibrada]: Paquicéfalo 1,5; Utahraptor 1,5; Parassaurolofo 1,1; Triceratops 1,7 com **bocado grande x3** (come devagar). Para o Utahraptor a carne crua vale no grau da baga; o Triceratops não aceita baga e **parte da Ração C**.
 
+> **[ajustado 10/11, proposta provisória]** Fórmula única com intervalo por grau (crua 6 s, C 5, B 5, A 4 s), `domar_velocidade` e `eficiencia_drena_tempo` como chaves de `ServerRules` (padrão 1,0 e **0,15**, que substitui o 0,3 do `.tres`); Paquicéfalo `base_meals` 10 e `difficulty` 1,5 (o código ainda tem 5 e 1,0). A queda de torpor dormindo é **global 1,0/s** (não por espécie), então os "extra" de 'Manter dormindo' mudam. **A linha do Triceratops com Ração C abaixo vale só se `racao_minima` dele for C**; com a mínima A de 20.1 ele parte da Ração A (2,2 a 2,6 min em L18 a L24) e a C rende metade. Tabelas e contas em `corte-v02/decisoes-0611-0711.md`, entrada "E14a".
+
 **Alvos [calculado: modelo dentro de +-6% dos alvos; a calibração em si é premissa]:**
 
 | Espécie | Nível baixo / médio / alto | Comida | Quantidade | Tempo de domar |
@@ -696,6 +698,7 @@ Com a **Ração A** o tempo cai a cerca de um terço: Paquicéfalo 0,5 / 0,5 / 0
 **O que muda a jusante:**
 - **Curral (6.x):** o texto dizia 40 a 105 s para o Utahraptor; agora **32 s (Ração A, L10) a 138 s (carne crua, L25)**. A conclusão não muda: a cerca cede em 8 s, a madeira cobre só a intervenção.
 - **Carne e validade:** Utahraptor L15 pede **Ração Rubra C: 14 refeições, ~25 carne (13 Dodos, 6,5 min de caça)**; **B: 11 refeições, ~11 carne**; **A: 9, ~10 carne**. Validade da carne crua (30 min): margem de **4,6x (C), 10x (B), 12x (A)**. Baga (45 min) contra 1,1 a 2,0 min de domar: irrelevante.
+  - **[ajustado 10/11]** Com `racao_minima` B do Utahraptor (20.1), a **C Rubra rende metade**: 28 Rações e 42 carne para L15, não 14 e ~25. Valem **B: 11 Rações, 12 carne e 6 tubérculos, 55 s** e **A: 9 Rações, 10 carne, 5 tubérculos e 5 sais, 36 s**; a carne crua direta pede 18 carne e 108 s. A validade da carne crua saiu da v0.2 (corte de 07/11, item 3).
 - **Primeira hora:** não quebra. Paquicéfalo L8: **15 bagas (45 s de coleta), 90 s dormindo, 1 a 3 reforços de torpor**. **Recomendo o Paquicéfalo (primeira doma no M1, segunda na v0.2) entre L5 e L8** (L5: 13 bagas, 78 s; L8: 15 bagas, 90 s). Com Soco (antes do Bastão) a Eficiência de um tutorial com baga fica perto de 0: aceitável, é o aprender.
 - **Conflito:** `racao.md` 10.x e 6.1 ("Dificuldade 1,0 / 1,5 / 2,0 / 1,5") e as tabelas de 60 s e 105 s ficam **desatualizadas**; vale esta seção e `tempo_sim.py`.
 - **Precisa jogar:** se 5,5 min de Triceratops com a Ração C é tensão ou espera (a saída é a Ração A, 2,8 min); se o Utahraptor com 1,8 min dormindo é vigília longa o bastante para o predador chegar.
@@ -849,6 +852,8 @@ Simulação: `covarde_sim.py dodo`, `tempo_sim.py tabela|torpor|eficiencia|hora`
 | L10 | 7 / **42 s** | 4 / 16 s | 19: 1 golpe ou 2 s |
 
 Eficiência no L6 (dreno 0,3): baga 64 (nível 6 vira 8), Ração B 90, A 93.
+
+> **[ajustado 10/11, proposta provisória]** O Dodo implementado usa **fator 0,6**, não 0,7: com a fórmula única da 5.14 são **5 / 6 / 6 refeições em L3 / L6 / L10 (30 / 36 / 36 s com baga a 6 s)** e o reforço de torpor é **12 / 20 / 16 (1 golpe de Bastão)**; com dreno 0,15, Eficiência da baga ~74 a 76. A tabela acima fica como histórico. Contas em `corte-v02/decisoes-0611-0711.md`, "E14a".
 
 Comida ideal: **baga crua** (já pega na coleta; 6 a 7 bagas = 18 a 21 s de coleta); Ração A só vale se sobrar (poupa 24 a 26 s). Com a Ração A o extra de torpor é 0. **Listro** (M4, mesmo método, 2 golpes de Bastão em L8 a L16): fator 0,8, baga, 9 refeições no L12 (54 s), reforço de 44 torpor = 2 golpes ou 6 s de Cochilo [premissa].
 
@@ -1616,6 +1621,8 @@ Metas do plano: 3 de 5 testadores completam o fluxo em até 20 min (M1) [premiss
 
 ### 20.1 Exigência por espécie (Ração mínima)
 Cada espécie tem `racao_minima`; abaixo dela a Ração rende **50%** do progresso por refeição (rende menos que a comida crua, que é 10% por refeição); do mínimo para cima, funciona como hoje. Mínimos: Paquicéfalo C, Utahraptor B, Parassaurolofo C, Triceratops A, Gallimimus C.
+
+> **[ajustado 10/11]** Na v0.2 (4 espécies): Dodo C, Paquicéfalo C, Utahraptor B (Rubra), Triceratops A (Verde, não aceita crua). Dodo e Paquicéfalo C são inertes (baga é isenta e não há Ração abaixo de C). Com a fórmula única da 5.14 a tabela abaixo vira: Utahraptor L15 com C Rubra = 28 Rações, 140 s, 42 carne, Eficiência 17; com B = 11 Rações, 55 s, Eficiência 81. A ordem em que a espécie come e o efeito sobre o dreno estão na entrada "E14a" de `corte-v02/decisoes-0611-0711.md`.
 
 | Espécie | Ração | Refeições | Tempo | Torpor da janela | Dardos (histórico, sem Dardo desde 06/11) | E final (sem ataque) |
 |---|---|---|---|---|---|---|

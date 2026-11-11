@@ -312,8 +312,7 @@ func receive_hit(damage: float, torpor_amount: float, attacker_kind: String, att
 	if hit and attacker_kind == TamingRules.ATTACKER_PLAYER:
 		player_damage_count += 1
 	if hit and attacker_kind == TamingRules.ATTACKER_PLAYER and not health.is_dead() and stats.coward != null:
-		observe_targets()  # o alvo já vale no quadro do golpe: o susto foge dele
-		state_machine.provoke()
+		state_machine.provoke(_position_of_player(attacker_id))  # foge de QUEM bateu, não do jogador mais perto
 		if state_machine.current_id == Enums.DinoStateId.FLEEING:
 			provoked.emit(attacker_id)  # a autoridade dá o alarme do grupo (nunca revide)
 	elif hit and attacker_kind == TamingRules.ATTACKER_PLAYER and not health.is_dead():
@@ -326,6 +325,16 @@ func receive_hit(damage: float, torpor_amount: float, attacker_kind: String, att
 	return hit
 
 
+## Onde está o jogador `player_id` (pelo localizador de alvos), ou `Vector2.INF` se não o enxerga: a máquina cai no alvo conhecido.
+func _position_of_player(player_id: String) -> Vector2:
+	if target_locator.is_valid():
+		for candidate: Variant in target_locator.call():
+			var body := candidate as Node2D
+			if body != null and is_instance_valid(body) and body.get("player_id") == player_id:
+				return body.global_position
+	return Vector2.INF
+
+
 ## Mordida de outra criatura (só a autoridade chama, depois de `may_strike`). Domado só leva dano (não revida, não chama
 ## o bando). Selvagem acordado leva dano, vira bravo contra QUEM mordeu e provoca o bando (`provoked`); o caçador mordido
 ## pela presa só perde vida (a caçada é quem decide o alvo dele). Devolve se tirou vida.
@@ -336,6 +345,12 @@ func be_bitten(damage: float, attacker: Dino) -> bool:
 	if health.is_dead() or state_machine.is_tamed or stats.predation != null \
 			or state_machine.current_id == Enums.DinoStateId.UNCONSCIOUS:
 		return true  # dormindo em doma leva a mordida sem acordar o bando nem virar bravo (D-E8)
+	if stats.coward != null:
+		# O Covarde nunca revida e não guarda agressor (prenderia o alvo dele no raptor para sempre): só se assusta de quem mordeu.
+		state_machine.provoke(attacker.global_position)
+		if state_machine.current_id == Enums.DinoStateId.FLEEING:
+			provoked.emit(attacker.combat_id)  # a autoridade dá o alarme do grupo
+		return true
 	_aggressor_id = attacker.combat_id
 	_aggressor_body = attacker
 	state_machine.provoke()

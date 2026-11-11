@@ -280,11 +280,13 @@ func chase_speed_multiplier() -> float:
 ## O dino levou golpe do jogador (a autoridade só chama com o golpe aplicado e o alvo já informado por
 ## `observe_target`). Selvagem acordado fica bravo; já bravo, só zera o relógio de calma. Dormindo, domado ou
 ## preso não reage. A etapa 4 chama `reset_calm` também quando o dino ataca.
-func provoke() -> void:
+## `attacker_at` (opcional) é onde está quem atacou: o Covarde foge dali, não do alvo que já tinha.
+func provoke(attacker_at: Vector2 = Vector2.INF) -> void:
 	if is_tamed or torpor.is_unconscious:
 		return
 	if stats != null and stats.coward != null:  # Covarde nunca revida: o golpe só o assusta
-		begin_scare(target_position if target_known else self_position + Vector2.RIGHT)
+		var from := attacker_at if attacker_at.is_finite() else (target_position if target_known else self_position + Vector2.RIGHT)
+		begin_scare(from)
 		return
 	if current_id == Enums.DinoStateId.AGGRESSIVE:
 		is_helper = false  # golpeado de verdade: vira principal (relógio de calma, sem teto)

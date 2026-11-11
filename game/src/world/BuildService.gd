@@ -37,6 +37,8 @@ var occupancy: TileOccupancy = null
 var safe_core: SafeCore = null
 ## Nós de recurso: nenhuma peça nasce sobre um.
 var resources: ResourceField = null
+## Quantas vezes o índice de células com recurso foi refeito (teste: milhares de consultas não varrem os nós a cada célula).
+var resource_index_builds: int = 0
 ## Células com nó de recurso (índice de `_resource_at`, refeito quando a quantidade de nós muda).
 var _resource_cells: Dictionary = {}
 var _resource_cells_count: int = -1
@@ -321,11 +323,12 @@ func spot_problem(cell: Vector2i, def: PieceDef) -> String:
 	return ""
 
 
-## A célula está livre para alguém pisar ou nascer nela? Terreno e núcleo servem, sem peça SÓLIDA agora (fundação, porta aberta e
-## Saco de dormir não bloqueiam o corpo) e sem nó de recurso. É a que o `RespawnPointService` usa para achar onde largar quem
-## renasce ao lado da Cama.
+## A célula está livre para alguém pisar ou nascer nela? Terreno e núcleo servem, sem peça ou só com piso (fundação: dá suporte e
+## não bloqueia) e sem nó de recurso. Porta (mesmo aberta) e Saco não servem para largar alguém, embora a busca passe por eles.
+## É a que o `RespawnPointService` usa para achar onde largar quem renasce ao lado da Cama.
 func is_free_cell(cell: Vector2i) -> bool:
-	return fixed_problem(cell) == "" and not grid.blocks(cell) and not _resource_at(cell)
+	var def := grid.def_at(cell)
+	return fixed_problem(cell) == "" and (def == null or def.gives_support) and not _resource_at(cell)
 
 
 ## O que não muda com o tempo: terreno e núcleo seguro ("" = serve). É o que um save carregado também confere.
@@ -395,6 +398,7 @@ func _resource_at(cell: Vector2i) -> bool:
 		for node in resources.nodes():
 			_resource_cells[cell_of(node.global_position)] = true
 		_resource_cells_count = resources.node_count()
+		resource_index_builds += 1
 	return _resource_cells.has(cell)
 
 

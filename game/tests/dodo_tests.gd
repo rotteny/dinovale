@@ -17,12 +17,16 @@ func run() -> void:
 	_test_scare_and_flee()
 	_test_wary_after_flee()
 	_test_never_strikes_back()
+	_test_bite_does_not_pin_target()
+	_test_flees_from_who_hit()
 	_test_punch_knockout()
 	_test_taming_with_berries()
 	_test_save_states()
 	await _test_world_population()
 	_release_worlds()
 	await _test_alarm_and_spear()
+	_release_worlds()
+	await _test_curious_does_not_pin_zone()
 	_release_worlds()
 	await _test_carcass_and_taming_in_world()
 	_release_worlds()
@@ -198,6 +202,78 @@ func _test_never_strikes_back() -> void:
 	_check(not angry and strikes[0] == 0 and provoked[0] == 1 and dodo.attack_damage == 0.0,
 			"atacado, o Dodo foge: nunca fica bravo, nunca pede golpe (provoked %d) e o dano dele é 0" % provoked[0])
 	_check(dodo.stats.threat_profile == null and dodo.stats.predation == null, "não tem ciclo de ameaça nem caça")
+
+
+func _test_bite_does_not_pin_target() -> void:
+	var player: Player = _spawn_player_at(Vector2(0.0, 0.0))
+	var dodo := _dodo(Vector2(80.0, 0.0), 10)
+	var raptor: Dino = _dodo(Vector2(150.0, 0.0), 10)
+	raptor.stats = preload("res://data/dino/utahraptor.tres")
+	raptor.combat_id = "dino:7"
+	var bodies: Array = [player, raptor]
+	dodo.target_locator = func() -> Array: return bodies
+	dodo.observe_owner()
+	_check(dodo.be_bitten(1.0, raptor), "a mordida do raptor acerta o Dodo")
+	_check(dodo.state_machine.current_id == Enums.DinoStateId.FLEEING and not dodo.state_machine.is_aggressive
+			and dodo.state_machine.flee_from.is_equal_approx(raptor.global_position),
+			"mordido, o Dodo se assusta e foge DE QUEM mordeu, sem ficar bravo")
+	bodies.erase(raptor)  # o raptor sai do mundo
+	raptor.free()
+	for i in 500:  # 25 s: fuga, arisco e de volta à rotina, com o jogador perto
+		dodo.observe_owner()
+		dodo.observe_targets()
+		dodo.state_machine.tick(0.05)
+	_check(dodo.state_machine.target_known and dodo.state_machine.target_position.is_equal_approx(player.global_position),
+			"25 s depois o alvo do Dodo é o jogador (a mordida não o prendeu no raptor)")
+	_check(dodo.state_machine.current_id == Enums.DinoStateId.CURIOUS
+			and dodo.state_machine.desired_direction.dot(Vector2.LEFT) > 0.9,
+			"e ele vem curioso na direção do jogador (%s)" % Enums.DinoStateId.find_key(dodo.state_machine.current_id))
+
+
+func _test_flees_from_who_hit() -> void:
+	var near: Player = _spawn_player_at(Vector2(-20.0, 0.0))
+	var far: Player = _spawn_player_at(Vector2(60.0, 0.0))
+	far.player_id = "dodo_far"
+	var dodo := _dodo(Vector2.ZERO, 10)
+	dodo.target_locator = func() -> Array: return [near, far]
+	dodo.observe_owner()
+	dodo.observe_targets()
+	dodo.receive_hit(1.0, PUNCH_TORPOR, TamingRules.ATTACKER_PLAYER, far.player_id)
+	_check(dodo.state_machine.current_id == Enums.DinoStateId.FLEEING and dodo.state_machine.flee_from.is_equal_approx(far.global_position),
+			"o Dodo foge de quem bateu (o de longe), não do jogador mais perto")
+
+
+## Dois bandos curiosos perto mais um raptor calmo a 10 tiles: a curiosidade é rotina e não fixa, então o carnívoro fica ativo.
+func _test_curious_does_not_pin_zone() -> void:
+	var main := _main("dodo_zone", 20, true)
+	await _root.get_tree().physics_frame
+	var origin := Vector2(2000.0, 2000.0)
+	var slots := _dodo_slots(main)
+	var crowd: Array[Dino] = []
+	for slot_index in 2:
+		crowd.append_array(_wire_group(main, slots[slot_index], 10))
+	var raptor: Dino = null
+	for child in main.wild.get_children():
+		var other := child as Dino
+		if other.stats.id == "utahraptor" and raptor == null:
+			raptor = other
+		elif not crowd.has(other):
+			other.global_position = origin + Vector2(0.0, 6000.0)
+	for index in crowd.size():
+		var angle := float(index) / float(crowd.size()) * TAU
+		crowd[index].global_position = origin + Vector2(cos(angle), sin(angle)) * 3.5 * TILE
+		crowd[index].state_machine.transition_to(Enums.DinoStateId.CURIOUS)
+	raptor.global_position = origin + Vector2(10.0 * TILE, 0.0)
+	raptor.state_machine.transition_to(Enums.DinoStateId.IDLE)
+	main.player.global_position = origin
+	main.zone.reclassify()
+	var curious := 0
+	for dodo in crowd:
+		curious += 1 if dodo.state_machine.current_id == Enums.DinoStateId.CURIOUS else 0
+	_check(curious == 40, "preparo: 40 Dodos curiosos em volta do jogador (%d)" % curious)
+	_check(main.zone.active_count <= 32, "o teto de 32 ativos vale com 40 curiosos perto (%d ativos)" % main.zone.active_count)
+	_check(main.zone.mode_of(raptor) == ActivityZone.Mode.ACTIVE and raptor.visible,
+			"o raptor calmo a 10 tiles segue ativo e visível (carnívoro tem prioridade na vaga)")
 
 
 func _spawn_player_at(at: Vector2) -> Player:
@@ -397,7 +473,21 @@ func _test_alarm_and_spear() -> void:
 			"13 s depois o grupo voltou a pastar")
 	# alimentar não é ataque: quem transfere comida ao dormindo não assusta o bando
 	var calm := authority.herd.alarm_count()
-	_check(calm == 0, "sem golpe novo, sem alarme novo")
+	player.global_position = asleep.global_position + Vector2(-12.0, 0.0)
+	player.inventory.add(Items.BERRY, 3)
+	var berry_slot := -1
+	for index in player.inventory.slot_count():
+		if str(player.inventory.get_slot(index).get("id", "")) == Items.BERRY:
+			berry_slot = index
+	var berries_before := asleep.inventory.count(Items.BERRY)
+	var fed := authority.request_transfer_slot(1, 1, berry_slot, authority.id_of(asleep), 3)
+	authority.tick_herd(1.0)
+	var scared := false
+	for dodo: Dino in group:
+		scared = scared or dodo.state_machine.current_id == Enums.DinoStateId.FLEEING
+	_check(fed == Enums.ActionResult.OK and asleep.inventory.count(Items.BERRY) == berries_before + 3 and calm == 0
+			and authority.herd.alarm_count() == 0 and not scared,
+			"alimentar o dormindo de verdade (3 bagas entregues) não assusta nem dá alarme no bando (%s)" % Enums.ActionResult.find_key(fed))
 	# Lança: 2 golpes de 12 matam vida 24 (borda: vida <= 0) e 17,3 (L3)
 	var spear_targets: Dictionary = {10: other_group[1], 3: other_group[2]}
 	for level in [10, 3]:
@@ -479,29 +569,38 @@ func _test_frame_cost() -> void:
 	var started := Time.get_ticks_usec()
 	var main := _main("dodo_cost", 20, true)
 	var load_ms := float(Time.get_ticks_usec() - started) / 1000.0
-	await _root.get_tree().physics_frame
-	var group := _wire_group(main, _dodo_slots(main)[0], 10)
-	var center := group[0].global_position
-	main.player.global_position = center + Vector2(-60.0, 0.0)
+	var tree := _root.get_tree()
+	await tree.physics_frame
+	var origin := Vector2(2000.0, 2000.0)
+	var crowd: Array[Dino] = []
+	for slot_index in 2:
+		crowd.append_array(_wire_group(main, _dodo_slots(main)[slot_index], 10))
+	for index in crowd.size():
+		var angle := float(index) / float(crowd.size()) * TAU
+		crowd[index].global_position = origin + Vector2(cos(angle), sin(angle)) * (3.5 + float(index % 3)) * TILE
+	main.player.global_position = origin
+	main.wild.process_mode = Node.PROCESS_MODE_INHERIT  # o `_main` os deixa parados: aqui a física e a zona rodam de verdade
+	main.zone.set_physics_process(true)
 	main.zone.reclassify()
-	var active: Array[Dino] = []
-	for dodo in _dodos_of(main):
-		if main.zone.mode_of(dodo) == ActivityZone.Mode.ACTIVE:
-			active.append(dodo)
+	for index in 10:  # um quarto do grupo foge de verdade enquanto o resto ronda
+		crowd[index].state_machine.begin_scare(origin)
+	await tree.physics_frame
+	await tree.physics_frame
+	var curious := 0
+	var fleeing := 0
+	for dodo in crowd:
+		curious += 1 if dodo.state_machine.current_id == Enums.DinoStateId.CURIOUS else 0
+		fleeing += 1 if dodo.state_machine.current_id == Enums.DinoStateId.FLEEING else 0
 	var batches: Array[float] = []
 	for _batch in 5:  # o menor de 5 lotes: um pico de relógio ou de coleta não reprova
 		var spent := 0.0
-		for _frame in 100:
-			var frame := Time.get_ticks_usec()
-			main.zone.reclassify()
-			for dodo in active:
-				dodo.observe_owner()
-				dodo.observe_targets()
-				dodo.state_machine.tick(0.016)
-			spent += float(Time.get_ticks_usec() - frame)
-		batches.append(spent / 100.0)
+		for _frame in 20:
+			await tree.physics_frame
+			spent += Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1.0e6  # o passo de física do motor, com move_and_slide
+		batches.append(spent / 20.0)
 	var best: float = batches.min()
-	print("      Dodo: mundo de %d selvagens carrega em %.0f ms; %d Dodos ativos; zona + IA por quadro: %.0f us (menor de 5 lotes)"
-			% [main.wild.get_child_count(), load_ms, active.size(), best])
-	_check(main.wild.get_child_count() == 222 and active.size() <= 32 and best < 4000.0,
-			"custo por quadro dos Dodos ativos cabe no orçamento (%.0f us < 4 ms, %d ativos)" % [best, active.size()])
+	print("      Dodo: %d selvagens, carga %.0f ms; %d curiosos, %d fugindo, %d ativos; passo de física do motor por quadro: %.0f us"
+			% [main.wild.get_child_count(), load_ms, curious, fleeing, main.zone.active_count, best])
+	_check(curious >= 10 and fleeing >= 5, "preparo do custo: Dodos curiosos e fugindo de verdade (%d e %d)" % [curious, fleeing])
+	_check(main.wild.get_child_count() == 222 and main.zone.active_count <= 32 and best < 4000.0,
+			"com Dodos curiosos e fugindo, o teto de 32 ativos vale e o quadro cabe em 4 ms (%.0f us, %d ativos)" % [best, main.zone.active_count])

@@ -607,6 +607,21 @@ static func _slot_of(member_id: String) -> String:
 	return member_id.get_slice(".", 0)
 
 
+## Ordem dos membros: vaga (na ordem das vagas), geração e `k`, NUMÉRICOS ("g39.0.2" vem antes de "g39.0.10", que o texto trocaria).
+func _member_before(a: String, b: String) -> bool:
+	var slot_a := _order.find(_slot_of(a))
+	var slot_b := _order.find(_slot_of(b))
+	if slot_a != slot_b:
+		return slot_a < slot_b
+	var parts_a := a.split(".")
+	var parts_b := b.split(".")
+	var gen_a := parts_a[1].to_int() if parts_a.size() > 1 else 0
+	var gen_b := parts_b[1].to_int() if parts_b.size() > 1 else 0
+	if gen_a != gen_b:
+		return gen_a < gen_b
+	return parts_a[parts_a.size() - 1].to_int() < parts_b[parts_b.size() - 1].to_int()
+
+
 ## O alvo de cada vaga depois do save: `{id: {gen, center, waiting, due_at, tries}}`. Entrada de `groups` mal formada, de vaga
 ## desconhecida, de centro fora da região (ou do mapa) ou repetida é descartada, e a vaga volta à disposição da semente. Nada
 ## aqui muda o mundo.
@@ -663,7 +678,7 @@ func _commit_slots(changed: Dictionary, fresh: Dictionary, layout: WildLayout, c
 		slot.due_at = target["due_at"]
 		slot.tries = target["tries"]
 	var ids: Array = fresh.keys()
-	ids.sort()
+	ids.sort_custom(_member_before)
 	for member_id: String in ids:
 		_register_member(_slots[_slot_of(member_id)], member_id, fresh[member_id])
 

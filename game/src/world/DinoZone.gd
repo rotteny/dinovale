@@ -96,10 +96,13 @@ func reclassify() -> void:
 	var pinned := PackedByteArray()
 	distances.resize(_dinos.size())
 	pinned.resize(_dinos.size())
+	var priority := PackedByteArray()
+	priority.resize(_dinos.size())
 	for i in _dinos.size():
 		distances[i] = _distance_to_focus(_dinos[i].global_position)
 		pinned[i] = 1 if is_pinned(_dinos[i]) else 0
-	var modes := ActivityZone.classify(distances, pinned, rules)
+		priority[i] = 1 if _dinos[i].stats.aggressive else 0  # o carnívoro calmo não perde a vaga para herbívoros mais perto
+	var modes := ActivityZone.classify(distances, pinned, rules, priority)
 	var changed := false
 	active_count = 0
 	far_count = 0
@@ -127,7 +130,8 @@ func is_pinned(dino: Dino) -> bool:
 	var machine := dino.state_machine
 	if machine.is_tamed or dino.owner_player_id != "":
 		return true
-	if machine.current_id != Enums.DinoStateId.IDLE and machine.current_id != Enums.DinoStateId.WANDER:
+	if machine.current_id != Enums.DinoStateId.IDLE and machine.current_id != Enums.DinoStateId.WANDER \
+			and machine.current_id != Enums.DinoStateId.CURIOUS:  # curiosidade é rotina, como andar: não fixa nem fura o teto
 		return true
 	return dino.taming.taming_progress > 0.0 or dino.torpor.current_torpor > 0.0
 

@@ -449,12 +449,7 @@ func _test_other_seed_is_relaid() -> void:
 	GameSession.continue_requested = true
 	var after := _main("group_seed", 20, true)  # nasce com a semente de teste e deve trocar pela salva
 	await tree.physics_frame
-	# A ordem dentro do bando é a do texto ao carregar ("g39.0.10" antes de "g39.0.2" com 11+ membros): compara como conjunto.
-	var ids_after := after.wild.member_ids()
-	ids_after.sort()
-	var ids_sorted := ids_before.duplicate()
-	ids_sorted.sort()
-	var same := ids_after == ids_sorted and after.world_seed == 777 and after.wild.world_seed == 777
+	var same := after.wild.member_ids() == ids_before and after.world_seed == 777 and after.wild.world_seed == 777
 	for id in ids_before:
 		var creature := after.wild.creature_at(id)
 		same = same and creature != null and creature.position == positions_before[id]

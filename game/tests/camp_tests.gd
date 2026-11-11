@@ -34,6 +34,7 @@ func run() -> void:
 	_test_e12_review_fixes()
 	Items.with_layout(REAL_LAYOUT, _real_layout_checks)
 	await _test_main_respawn_screen()
+	await _test_landing_index_and_niche()
 	await _test_campfire_light()
 	_release_worlds()
 
@@ -690,6 +691,12 @@ func _test_main_respawn_screen() -> void:
 	main.death_screen._process(DeathScreen.REFRESH_SECONDS)
 	_check("espera 35 s" in column.label_of(bed_id) and column.button_of(bed_id).disabled and column.selected_id() == bag_id,
 			"a tela aberta acompanha a espera (35 s) sem perder a seleção")
+	authority.clock.advance(10.0)
+	main.death_screen._process(0.1)
+	main.death_screen._process(0.1)
+	_check("espera 35 s" in column.label_of(bed_id), "B1: antes de 0,25 s a lista NÃO é refeita (duas passagens de 0,1 s mantêm o rótulo)")
+	main.death_screen._process(0.1)
+	_check("espera 25 s" in column.label_of(bed_id), "B1: ao passar de 0,25 s a lista se refaz (espera 25 s)")
 	_check(main.request_respawn(bed_id) == "point_waiting" and player.health.is_dead(), "escolher a Cama em espera é recusado")
 	authority.build.destroy(bed_cell)
 	main.death_screen._process(DeathScreen.REFRESH_SECONDS)
@@ -824,3 +831,37 @@ func _test_e12_review_fixes() -> void:
 		texts.append(GameMessages.text_of("cook_cancelled", {"reason": reason}))
 	_check(texts[0].contains("madeira") and texts[1].contains("nventário cheio") and texts[2].contains("afastou"),
 			"LOW 4: cook_cancelled mostra o motivo (madeira, inventário cheio, afastou-se)")
+
+
+## B1: o índice de nós de recurso se refaz uma vez, não a cada célula. B2: Cama num nicho de 1 tile com porta.
+func _test_landing_index_and_niche() -> void:
+	var main := _main("camp_niche")
+	await _root.get_tree().physics_frame
+	var build := main.authority.build
+	build.resources = main.resources
+	build.safe_core = null  # sem núcleo nem mapa: o terreno não recusa a célula antes de a consulta chegar aos recursos
+	build.map = null
+	var before := build.resource_index_builds
+	for index in 400:
+		build.is_free_cell(HOME + Vector2i(index % 20 - 10, index / 20 - 10))
+	_check(build.resource_index_builds - before <= 1 and build.resource_index_builds >= 1,
+			"B1: 400 consultas de célula livre refazem o índice de recursos no máximo 1 vez (%d)" % (build.resource_index_builds - before))
+	var world := _bare()
+	var authority: WorldAuthority = world["authority"]
+	var pid: String = (world["player"] as Player).player_id
+	var grid := _grid(world)
+	var bed := HOME + Vector2i(12, 12)
+	for dy in range(-1, 2):
+		for dx in range(-1, 2):
+			if dx != 0 or dy != 0:
+				grid.add(bed + Vector2i(dx, dy), "wall", 0, pid)
+	grid.remove(bed + Vector2i(1, 0))
+	grid.add(bed + Vector2i(1, 0), "door", 0, pid)
+	grid.add(bed, "bed", 0, pid)
+	var body := BuildTests.center(HOME)
+	var closed := authority.respawn_points.options(pid, body)[0]
+	_check(not bool(closed["enabled"]) and closed["reason"] == "point_blocked", "B2: Cama no nicho com a porta fechada: point_blocked")
+	grid.set_open(bed + Vector2i(1, 0), true)
+	var opened := authority.respawn_points.options(pid, body)[0]
+	var spot := authority.build.cell_of(opened["position"])
+	_check(bool(opened["enabled"]) and spot == bed + Vector2i(2, 0), "B2: com a porta aberta o ponto fica ALÉM da porta (%s)" % str(spot))

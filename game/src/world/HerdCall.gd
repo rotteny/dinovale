@@ -60,7 +60,8 @@ func alarm_count() -> int:
 
 ## Alarme do Covarde (E13): `struck` foi atacado e assustou-se; os do mesmo bando, acordados, vivos e sem dono, a até
 ## `alarm_radius_tiles` dele (dado do perfil), fogem de `attacker_at` depois de `alarm_delay_s`. O atingido já foge sozinho.
-## Quem já foge ou está agendado não entra de novo. Devolve quantos foram escalados.
+## Quem já está agendado não entra de novo (quem já foge entra, e `begin_scare` o deixa como está).
+## Devolve quantos foram escalados.
 func raise_alarm(struck: Dino, attacker_at: Vector2, others: Array[Dino]) -> int:
 	var profile := struck.stats.coward
 	if profile == null or struck.herd_id == "" or struck.owner_player_id != "" or struck.state_machine.is_tamed:
